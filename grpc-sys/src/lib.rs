@@ -17,7 +17,7 @@
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
+use libc::{c_char, c_int, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 
 #[repr(C)]
@@ -35,17 +35,18 @@ pub struct GprTimespec {
     clock_type: GprClockType,
 }
 
-impl From<Option<Duration>> for GprTimespec {
-    fn from(dur: Option<Duration>) -> GprTimespec {
-        match dur {
-            Some(dur) => {
-                GprTimespec {
-                    tv_sec: dur.as_secs() as int64_t,
-                    tv_nsec: dur.subsec_nanos() as int32_t,
-                    clock_type: GprClockType::Timespan,
-                }
-            }
-            None => unsafe { gpr_inf_future(GprClockType::Realtime) },
+impl GprTimespec {
+    pub fn inf() -> GprTimespec {
+        unsafe { gpr_inf_future(GprClockType::Realtime) }
+    }
+}
+
+impl From<Duration> for GprTimespec {
+    fn from(dur: Duration) -> GprTimespec {
+        GprTimespec {
+            tv_sec: dur.as_secs() as int64_t,
+            tv_nsec: dur.subsec_nanos() as int32_t,
+            clock_type: GprClockType::Timespan,
         }
     }
 }
@@ -70,7 +71,6 @@ pub enum GrpcStatusCode {
     Internal = 13,
     Unavailable = 14,
     DataLoss = 15,
-    DoNotUse = -1,
 }
 
 #[repr(C)]
@@ -125,13 +125,6 @@ pub enum GrpcCompressionLevel {
     Low,
     Med,
     High,
-    Count,
-}
-
-#[repr(C)]
-pub struct MaybeCompressionLevel {
-    is_set: uint8_t,
-    level: GrpcCompressionLevel,
 }
 
 #[repr(C)]
