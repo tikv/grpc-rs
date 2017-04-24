@@ -1,0 +1,15 @@
+[package]
+name = "grpc-sys"
+version = "0.1.0"
+build = "build.rs"
+
+[dependencies]
+libc = "0.2"
+clippy = { version = "*", optional = true }
+
+[build-dependencies]
+gcc = "0.3"
+
+[features]
+default = []
+dev = ["clippy"]
