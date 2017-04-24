@@ -36,7 +36,7 @@ pub struct GprTimespec {
 }
 
 impl GprTimespec {
-    pub fn inf() -> GprTimespec {
+    pub fn inf_future() -> GprTimespec {
         unsafe { gpr_inf_future(GprClockType::Realtime) }
     }
 }
