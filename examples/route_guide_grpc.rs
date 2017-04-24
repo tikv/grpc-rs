@@ -2,10 +2,25 @@ use grpc::*;
 
 use route_guide::*;
 
-const GET_FEATURE_PATH: &'static str = "/routeguide.RouteGuide/GetFeature";
-const LIST_FEATURES_PATH: &'static str = "/routeguide.RouteGuide/ListFeatures";
-const RECORD_ROUTE_PATH: &'static str = "/routeguide.RouteGuide/RecordRoute";
-const ROUTE_CHAT_PATH: &'static str = "/routeguide.RouteGuide/RouteChat";
+const METHOD_ROUTE_GUIDE_GET_FEATURE: Method = Method {
+    ty: MethodType::Dulex,
+    name: "/routeguide.RouteGuide/GetFeature",
+};
+
+const METHOD_ROUTE_GUIDE_LIST_FEATURES: Method = Method {
+    ty: MethodType::ServerStreaming,
+    name: "/routeguide.RouteGuide/ListFeatures",
+};
+
+const METHOD_ROUTE_GUIDE_RECORD_ROUTE: Method = Method {
+    ty: MethodType::ClientStreaming,
+    name: "/routeguide.RouteGuide/RecordRoute",
+};
+
+const METHOD_ROUTE_GUIDE_ROUTE_CHAT: Method = Method {
+    ty: MethodType::Dulex,
+    name: "/routeguide.RouteGuide/RouteChat",
+};
 
 pub struct RouteGuideClient {
     client: Client,
@@ -23,8 +38,7 @@ impl RouteGuideClient {
     }
 
     pub fn get_feature_opt(&self, point: Point, opt: CallOption) -> Result<Feature> {
-        let m = Method::new(MethodType::Unary, GET_FEATURE_PATH);
-        self.client.unary_call(&m, point, opt)
+        self.client.unary_call(&METHOD_ROUTE_GUIDE_GET_FEATURE, point, opt)
     }
 
     pub fn get_feature_async(&self, point: Point) -> Result<UnaryCallHandler<Feature>> {
@@ -32,8 +46,7 @@ impl RouteGuideClient {
     }
 
     pub fn get_feature_async_opt(&self, point: Point, opt: CallOption) -> Result<UnaryCallHandler<Feature>> {
-        let m = Method::new(MethodType::Unary, GET_FEATURE_PATH);
-        self.client.unary_call_async(&m, point, opt)
+        self.client.unary_call_async(&METHOD_ROUTE_GUIDE_GET_FEATURE, point, opt)
     }
 
     pub fn list_features(&self, rect: Rectangle) -> Result<ServerStreamingCallHandler<Feature>> {
@@ -41,8 +54,7 @@ impl RouteGuideClient {
     }
 
     pub fn list_features_opt(&self, rect: Rectangle, opt: CallOption) -> Result<ServerStreamingCallHandler<Feature>> {
-        let m = Method::new(MethodType::ServerStreaming, LIST_FEATURES_PATH);
-        self.client.server_streaming(&m, rect, opt)
+        self.client.server_streaming(&METHOD_ROUTE_GUIDE_LIST_FEATURES, rect, opt)
     }
 
     pub fn record_route(&self) -> Result<ClientStreamingCallHandler<Point, RouteSummary>> {
@@ -50,8 +62,7 @@ impl RouteGuideClient {
     }
 
     pub fn record_route_opt(&self, opt: CallOption) -> Result<ClientStreamingCallHandler<Point, RouteSummary>> {
-        let m = Method::new(MethodType::ClientStreaming, RECORD_ROUTE_PATH);
-        self.client.client_streaming(&m, opt)
+        self.client.client_streaming(&METHOD_ROUTE_GUIDE_RECORD_ROUTE, opt)
     }
 
     pub fn route_chat(&self) -> Result<DuplexStreamingCallHandler<RouteNote, RouteNote>> {
@@ -59,7 +70,6 @@ impl RouteGuideClient {
     }
 
     pub fn route_chat_opt(&self, opt: CallOption) -> Result<DuplexStreamingCallHandler<RouteNote, RouteNote>> {
-        let m = Method::new(MethodType::Dulex, ROUTE_CHAT_PATH);
-        self.client.duplex_streaming(&m, opt)
+        self.client.duplex_streaming(&METHOD_ROUTE_GUIDE_ROUTE_CHAT, opt)
     }
 }

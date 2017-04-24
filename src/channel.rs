@@ -133,8 +133,8 @@ impl Channel {
         let raw_call = unsafe {
             let ch = self.inner.channel;
             let cq = self.inner.environ.completion_queue().as_ptr();
-            let method_ptr = method.name().as_ptr();
-            let method_len = method.name().len();
+            let method_ptr = method.name.as_ptr();
+            let method_len = method.name.len();
             grpc_sys::grpcwrap_channel_create_call(ch, ptr::null_mut(), 0, cq, method_ptr as *const _, method_len, ptr::null(), 0, opt.timeout().into(), ptr::null_mut())
         };
         Call::from_raw(raw_call)

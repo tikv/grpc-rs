@@ -20,8 +20,8 @@ pub enum MethodType {
 }
 
 pub struct Method {
-    ty: MethodType,
-    name: &'static str,
+    pub ty: MethodType,
+    pub name: &'static str,
 }
 
 impl Method {
@@ -30,14 +30,6 @@ impl Method {
             ty: ty,
             name: name,
         }
-    }
-
-    pub fn ty(&self) -> MethodType {
-        self.ty
-    }
-
-    pub fn name(&self) -> &str {
-        self.name
     }
 }
 
