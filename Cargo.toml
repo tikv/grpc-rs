@@ -7,3 +7,6 @@ grpc-sys = { path = "grpc-sys", version = "0.1" }
 libc = "0.2"
 futures = "0.1"
 protobuf = "1.2"
+
+[[example]]
+name="route-guide"
