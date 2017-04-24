@@ -7,6 +7,7 @@ use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
 
 use super::util::snake_name;
+use grpc::MethodType;
 
 struct MethodGen<'a> {
     proto: &'a MethodDescriptorProto,
@@ -40,151 +41,178 @@ impl<'a> MethodGen<'a> {
                     .rust_fq_name())
     }
 
-    fn input_async(&self) -> String {
-        match self.proto.get_client_streaming() {
-            false => self.input(),
-            true => format!("::grpc::futures_grpc::GrpcStreamSend<{}>", self.input()),
-        }
-    }
-
-    fn output_async(&self) -> String {
-        match self.proto.get_server_streaming() {
-            false => format!("::grpc::futures_grpc::GrpcFutureSend<{}>", self.output()),
-            true => format!("::grpc::futures_grpc::GrpcStreamSend<{}>", self.output()),
-        }
-    }
-
-    fn input_sync(&self) -> String {
-        match self.proto.get_client_streaming() {
-            false => self.input(),
-            true => format!("::grpc::iter::GrpcIterator<{}>", self.input()),
-        }
-    }
-
-    fn output_sync(&self) -> String {
-        match self.proto.get_server_streaming() {
-            false => format!("::grpc::Result<{}>", self.output()),
-            true => {
-                format!("::grpc::Result<ServerStreamingCallHandler<{}>>",
-                        self.output())
+    fn method_type(&self) -> (MethodType, String) {
+        match (self.proto.get_client_streaming(), self.proto.get_server_streaming()) {
+            (false, false) => (MethodType::Unary, "::grpc::MethodType::Unary".to_owned()),
+            (true, false) => {
+                (MethodType::ClientStreaming, "::grpc::MethodType::ClientStreaming".to_owned())
             }
+            (false, true) => {
+                (MethodType::ServerStreaming, "::grpc::MethodType::ServerStreaming".to_owned())
+            }
+            (true, true) => (MethodType::Dulex, "::grpc::MethodType::Dulex".to_owned()),
         }
+    }
+
+    fn name(&self) -> String {
+        snake_name(self.proto.get_name())
+    }
+
+    fn fq_name(&self) -> String {
+        format!("\"{}/{}\"", self.service_path, &self.proto.get_name())
+    }
+
+    fn write_definition(&self, w: &mut CodeWriter) {
+        let method_name = self.name();
+        w.write_line(&format!("const METHOD_{}: ::grpc::Method = ::grpc::Method {{",
+                              method_name.to_uppercase()));
+        w.indented(|w| {
+                       w.field_entry("ty", &self.method_type().1);
+                       w.field_entry("name", &self.fq_name());
+                   });
+        w.write_line(&format!("}};"));
     }
 
     // Method signatures
     fn unary(&self, method_name: &str) -> String {
-        format!("{}(&self, req: {}) -> {}",
+        format!("{}(&self, req: {}) -> ::grpc::Result<{}>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
     fn unary_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, req: {}, opt: ::grpc::CallOption) -> {}",
+        format!("{}_opt(&self, req: {}, opt: ::grpc::CallOption) -> ::grpc::Result<{}>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
     fn unary_async(&self, method_name: &str) -> String {
-        format!("{}_async(&self, req: {}) -> ::grpc::Result<UnaryCallHandler<{}>>",
+        format!("{}_async(&self, req: {}) -> ::grpc::Result<::grpc::UnaryCallHandler<{}>>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
     fn unary_async_opt(&self, method_name: &str) -> String {
-        format!("{}_async_opt(&self, req: {}, opt: ::grpc::CallOption) -> ::grpc::Result<UnaryCallHandler<{}>>",
+        format!("{}_async_opt(&self, req: {}, opt: ::grpc::CallOption) -> ::grpc::Result<::grpc::UnaryCallHandler<{}>>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
     fn client_streaming(&self, method_name: &str) -> String {
-        format!("{}(&self) -> ::grpc::Result<ClientStreamingCallHandler<{}, {}>>",
+        format!("{}(&self) -> ::grpc::Result<::grpc::ClientStreamingCallHandler<{}, {}>>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
     fn client_streaming_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, opt: ::grpc::CallOption) -> ::grpc::Result<ClientStreamingCallHandler<{}, {}>>",
+        format!("{}_opt(&self, opt: ::grpc::CallOption) -> ::grpc::Result<::grpc::ClientStreamingCallHandler<{}, {}>>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
-    fn server_stream(&self, method_name: &str) -> String {
-        format!("{}(&self, req: {}) -> ::grpc::Result<ServerStreamingCallHandler<{}>>",
+    fn server_streaming(&self, method_name: &str) -> String {
+        format!("{}(&self, req: {}) -> ::grpc::Result<::grpc::ServerStreamingCallHandler<{}>>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
-    fn server_stream_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, req: {}, opt: ::grpc::CallOption) -> ::grpc::Result<ServerStreamingCallHandler<{}>>",
+    fn server_streaming_opt(&self, method_name: &str) -> String {
+        format!("{}_opt(&self, req: {}, opt: ::grpc::CallOption) -> ::grpc::Result<::grpc::ServerStreamingCallHandler<{}>>",
                 method_name,
-                self.input_sync(),
-                self.output_sync())
+                self.input(),
+                self.output())
     }
 
-    fn write_client(&self, w: &mut CodeWriter, method_name: &str) {
-        match (self.proto.get_client_streaming(), self.proto.get_server_streaming()) {
+    fn duplex_streaming(&self, method_name: &str) -> String {
+        format!("{}(&self) -> ::grpc::Result<::grpc::DuplexStreamingCallHandler<{}, {}>>",
+                method_name,
+                self.input(),
+                self.output())
+    }
 
+    fn duplex_streaming_opt(&self, method_name: &str) -> String {
+        format!("{}_opt(&self, opt: ::grpc::CallOption) -> ::grpc::Result<::grpc::DuplexStreamingCallHandler<{}, {}>>",
+                method_name,
+                self.input(),
+                self.output())
+    }
+
+    fn write_client(&self, w: &mut CodeWriter) {
+        let method_name = self.name();
+        match self.method_type().0 {
             // Unary
-            (false, false) => {
-                w.def_fn(&self.unary_opt(method_name), |w| {
-                    w.write_line(&format!("self.client.unary_call(METHOD_{}, req, opt)",
+            MethodType::Unary => {
+                w.pub_fn(&self.unary_opt(&method_name), |w| {
+                    w.write_line(&format!("self.client.unary_call(&METHOD_{}, req, opt)",
+                                          method_name.to_uppercase()));
+                });
+                w.write_line("");
+
+                w.pub_fn(&self.unary(&method_name), |w| {
+                    w.write_line(&format!("self.{}_opt(req, ::grpc::CallOption::default())",
                                           method_name));
                 });
                 w.write_line("");
 
-                w.def_fn(&self.unary(method_name), |w| {
-                    w.write_line(&format!("self.{}_opt(req, CallOption::default())", method_name));
+                w.pub_fn(&self.unary_async_opt(&method_name), |w| {
+                    w.write_line(&format!("self.client.unary_call_async(&METHOD_{}, req, opt)",
+                                          method_name.to_uppercase()));
                 });
                 w.write_line("");
 
-                w.def_fn(&self.unary_async_opt(method_name), |w| {
-                    w.write_line(&format!("self.client.unary_call_async(METHOD_{}, req, opt)",
-                                          method_name));
-                });
-                w.write_line("");
-
-                w.def_fn(&self.unary_async(method_name), |w| {
-                    w.write_line(&format!("self.{}_async_opt(req, CallOption::default())",
+                w.pub_fn(&self.unary_async(&method_name), |w| {
+                    w.write_line(&format!("self.{}_async_opt(req, ::grpc::CallOption::default())",
                                           method_name));
                 });
             }
 
             // Client streaming
-            (true, false) => {
-                w.def_fn(&self.client_streaming_opt(method_name), |w| {
-                    w.write_line(&format!("self.client.client_streaming(METHOD_{}, opt)",
-                                          method_name));
+            MethodType::ClientStreaming => {
+                w.pub_fn(&self.client_streaming_opt(&method_name), |w| {
+                    w.write_line(&format!("self.client.client_streaming(&METHOD_{}, opt)",
+                                          method_name.to_uppercase()));
                 });
                 w.write_line("");
 
-                w.def_fn(&self.client_streaming(method_name), |w| {
-                    w.write_line(&format!("self.{}_opt(CallOption::default())", method_name));
+                w.pub_fn(&self.client_streaming(&method_name), |w| {
+                    w.write_line(&format!("self.{}_opt(::grpc::CallOption::default())",
+                                          method_name));
                 });
             }
 
             // Server streaming
-            (false, true) => {
-                w.def_fn(&self.server_streaming_opt(method_name), |w| {
-                    w.write_line(&format!("self.client.server_streaming(METHOD_{}, req, opt)",
-                                          method_name));
+            MethodType::ServerStreaming => {
+                w.pub_fn(&self.server_streaming_opt(&method_name), |w| {
+                    w.write_line(&format!("self.client.server_streaming(&METHOD_{}, req, opt)",
+                                          method_name.to_uppercase()));
                 });
                 w.write_line("");
 
-                w.def_fn(&self.server_streaming(method_name), |w| {
-                    w.write_line(&format!("self.{}_opt(req, CallOption::default())", method_name));
+                w.pub_fn(&self.server_streaming(&method_name), |w| {
+                    w.write_line(&format!("self.{}_opt(req, ::grpc::CallOption::default())",
+                                          method_name));
                 });
             }
 
-            // Bi-streaming
-            (true, true) => {
-                // println!("TODO");
+            // Duplex streaming
+            MethodType::Dulex => {
+                w.pub_fn(&self.duplex_streaming_opt(&method_name), |w| {
+                    w.write_line(&format!("self.client.duplex_streaming(&METHOD_{}, opt)",
+                                          method_name.to_uppercase()));
+                });
+                w.write_line("");
+
+                w.pub_fn(&self.duplex_streaming(&method_name), |w| {
+                    w.write_line(&format!("self.{}_opt(::grpc::CallOption::default())",
+                                          method_name));
+                });
             }
         };
     }
@@ -192,10 +220,7 @@ impl<'a> MethodGen<'a> {
 
 struct ServiceGen<'a> {
     proto: &'a ServiceDescriptorProto,
-    _root_scope: &'a RootScope<'a>,
     methods: Vec<MethodGen<'a>>,
-    service_path: String,
-    _package: String,
 }
 
 impl<'a> ServiceGen<'a> {
@@ -216,10 +241,7 @@ impl<'a> ServiceGen<'a> {
 
         ServiceGen {
             proto: proto,
-            _root_scope: root_scope,
             methods: methods,
-            service_path: service_path,
-            _package: file.get_package().to_string(),
         }
     }
 
@@ -238,48 +260,30 @@ impl<'a> ServiceGen<'a> {
         w.write_line("");
 
         w.impl_self_block(&self.client_name(), |w| {
-            w.pub_fn("new(channel: ::grpc::Client) -> Self", |w| {
+            w.pub_fn("new(channel: ::grpc::Channel) -> Self", |w| {
                 w.expr_block(&self.client_name(),
-                             |w| { w.field_entry("client", "::grpc:Client::new(channel)"); });
+                             |w| { w.field_entry("client", "::grpc::Client::new(channel)"); });
             });
 
             for method in &self.methods {
                 w.write_line("");
-
-                let snake_method_name = snake_name(method.proto.get_name());
-                method.write_client(w, &snake_method_name);
+                method.write_client(w);
             }
         });
     }
 
-    fn write_method_def(&self, w: &mut CodeWriter) {
+    fn write_method_definitions(&self, w: &mut CodeWriter) {
         for (i, method) in self.methods.iter().enumerate() {
             if i != 0 {
                 w.write_line("");
             }
 
-            let method_name = snake_name(method.proto.get_name());
-            // TODO: Better name.
-            w.write_line(&format!("const METHOD_{}: Method = Method {{", method_name));
-            w.indented(|w| {
-                let ty = match (method.proto.get_client_streaming(),
-                                method.proto.get_server_streaming()) {
-                    (false, false) => "MethodType::Unary",
-                    (false, true) => "MethodType::ClientStreaming",
-                    (true, false) => "MethodType::ServerStreaming",
-                    (true, true) => "MethodType::Dulex",
-                };
-                w.field_entry("ty", ty);
-
-                let name = format!("\"{}/{}\"", self.service_path, method.proto.get_name());
-                w.field_entry("name", &name);
-            });
-            w.write_line(&format!("}};"));
+            method.write_definition(w);
         }
     }
 
     fn write(&self, w: &mut CodeWriter) {
-        self.write_method_def(w);
+        self.write_method_definitions(w);
         w.write_line("");
         self.write_client(w);
     }
@@ -298,7 +302,6 @@ fn gen_file(file: &FileDescriptorProto,
     {
         let mut w = CodeWriter::new(&mut v);
         w.write_generated();
-        w.write_line("");
 
         for service in file.get_service() {
             w.write_line("");
