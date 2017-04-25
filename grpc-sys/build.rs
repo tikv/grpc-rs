@@ -12,14 +12,32 @@
 // limitations under the License.
 
 extern crate gcc;
+extern crate cmake;
+
+fn build_grpc() {
+    let dst = cmake::Config::new("grpc")
+        .build_target("grpc")
+        .build();
+
+    println!("cargo:rustc-link-search=native={}/build", dst.display());
+    println!("cargo:rustc-link-search=native={}/build/third_party/zlib", dst.display());
+
+    println!("cargo:rustc-link-lib=static=z");
+    println!("cargo:rustc-link-lib=static=gpr");
+    println!("cargo:rustc-link-lib=static=grpc");
+}
+
 
 fn main() {
-    // TODO: support static link
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=grpc/");
+
+    build_grpc();
+
     gcc::Config::new()
+        .include("grpc/include")
         .file("grpc_wrap.c")
         .flag("-fPIC")
         .flag("-O2")
         .compile("libgrpc_wrap.a");
-
-    println!("cargo:rustc-link-lib=grpc");
 }
