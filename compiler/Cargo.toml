@@ -10,7 +10,6 @@ authors = [
 
 [dependencies]
 protobuf = "1.2"
-grpc = { path = "../", version = "0.1" }
 
 [[bin]]
 name = "protoc-gen-rust-grpc"
