@@ -24,7 +24,20 @@ fn main() {
     if !Path::new("grpc/.git").exists() {
         let _ = Command::new("git").args(&["submodule", "update", "--init"])
                                    .status();
+        let grpc_submodules = [
+            "third_party/zlib",
+            "third_party/protobuf",
+            "third_party/boringssl",
+            "third_party/gflags",
+            "third_party/benchmark"
+        ];
+        for submodule in &grpc_submodules {
+            let _ = Command::new("git").args(&["submodule", "update", "--init", submodule])
+                                       .current_dir("grpc")
+                                       .status();
+        }
     }
+
     let dst = cmake::Config::new("grpc")
         .build_target("grpc")
         .build();
