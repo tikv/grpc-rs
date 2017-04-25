@@ -38,6 +38,17 @@ pub fn snake_name(name: &str) -> String {
     snake_method_name
 }
 
+pub fn fq_grpc(item: &str) -> String {
+    format!("::grpc::{}", item)
+}
+
+pub enum MethodType {
+    Unary,
+    ClientStreaming,
+    ServerStreaming,
+    Dulex,
+}
+
 #[cfg(test)]
 mod test {
     #[test]
