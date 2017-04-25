@@ -14,7 +14,17 @@
 extern crate gcc;
 extern crate cmake;
 
-fn build_grpc() {
+use std::path::Path;
+use std::process::Command;
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=grpc/");
+
+    if !Path::new("grpc/.git").exists() {
+        let _ = Command::new("git").args(&["submodule", "update", "--init"])
+                                   .status();
+    }
     let dst = cmake::Config::new("grpc")
         .build_target("grpc")
         .build();
@@ -25,14 +35,6 @@ fn build_grpc() {
     println!("cargo:rustc-link-lib=static=z");
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static=grpc");
-}
-
-
-fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=grpc/");
-
-    build_grpc();
 
     gcc::Config::new()
         .include("grpc/include")
