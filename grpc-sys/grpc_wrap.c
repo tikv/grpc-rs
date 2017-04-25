@@ -237,9 +237,10 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_request_call_context_destroy(grpcwrap_requ
   if (!ctx) {
     return;
   }
-  /* NOTE: ctx->server_rpc_new.call is not destroyed because callback handler is
-     supposed
-     to take its ownership. */
+
+  if (!ctx->call) {
+    grpc_call_destroy(ctx->call);
+  }
 
   grpc_call_details_destroy(&(ctx->call_details));
   grpcwrap_metadata_array_destroy_metadata_only(
@@ -323,9 +324,11 @@ grpcwrap_batch_context_recv_status_on_client_trailing_metadata(
   return &(ctx->recv_status_on_client.trailing_metadata);
 }
 
-GPR_EXPORT grpc_call *GPR_CALLTYPE grpcwrap_request_call_context_call(
-    const grpcwrap_request_call_context *ctx) {
-  return ctx->call;
+GPR_EXPORT grpc_call *GPR_CALLTYPE grpcwrap_request_call_context_take_call(
+    grpcwrap_request_call_context *ctx) {
+  grpc_call* call = ctx->call;
+  ctx->call = NULL;
+  return call;
 }
 
 GPR_EXPORT const char *GPR_CALLTYPE

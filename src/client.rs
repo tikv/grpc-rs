@@ -3,7 +3,8 @@ use futures::Future;
 
 use error::Result;
 use channel::Channel;
-use call::{Call, CallOption, Method, UnaryCallHandler, ClientStreamingCallHandler, ServerStreamingCallHandler, DuplexStreamingCallHandler};
+use call::{Call, Method};
+use call::client::{CallOption, UnaryCallHandler, ClientStreamingCallHandler, ServerStreamingCallHandler, DuplexStreamingCallHandler};
 
 pub struct Client {
     channel: Channel,

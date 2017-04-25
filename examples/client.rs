@@ -35,7 +35,7 @@ fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
 }
 
 fn main() {
-    let env = Arc::new(Environment::new());
+    let env = Arc::new(Environment::new(2));
     let channel = ChannelBuilder::new(env).connect("127.0.0.1:50051");
     let client = RouteGuideClient::new(channel);
     let point = new_point(409146138, -746188906);

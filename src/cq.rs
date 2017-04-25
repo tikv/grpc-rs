@@ -34,7 +34,7 @@ impl CompletionQueue {
         }
     }
 
-    pub unsafe fn as_ptr(&self) -> *mut GrpcCompletionQueue {
+    pub fn as_ptr(&self) -> *mut GrpcCompletionQueue {
         self.cq
     }
 }
