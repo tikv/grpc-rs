@@ -6,9 +6,12 @@ use std::sync::Arc;
 use futures::task::{self, Task};
 use futures::{Async, Poll};
 use protobuf::{self, MessageStatic};
-use grpc_sys::{GrpcStatusCode, GrpcBatchContext};
+use grpc_sys::GrpcStatusCode;
 
 use call::BatchContext;
+use call::server::RequestContext;
+use cq::CompletionQueue;
+use server::{self, Inner as ServerInner};
 use error::{Result, Error};
 
 
@@ -19,10 +22,12 @@ pub struct NotifyHandle {
     stale: bool,
 }
 
+#[derive(PartialEq, Debug)]
 pub enum PromiseType {
     Finish,
     ReadOne,
     FinishUnary,
+    HandleRpc,
 }
 
 struct Inner {
@@ -40,6 +45,41 @@ impl Inner {
         InnerGuard {
             inner: self,
         }
+    }
+
+    fn resolve_batch(&self, ctx: BatchContext, success: bool) {
+        let mut guard = self.lock();
+        match self.ty {
+            PromiseType::FinishUnary => {
+                assert!(success);
+                guard.handle_unary_response(ctx);
+            }
+            PromiseType::Finish => {
+                guard.finish_response(ctx, success);
+            }
+            PromiseType::ReadOne => {
+                guard.read_one_msg(&ctx);
+            }
+            PromiseType::HandleRpc => unreachable!()
+        }
+    }
+
+    fn resolve_request(&self, mut ctx: RequestContext, cq: &CompletionQueue, success: bool) {
+        if !success {
+            let inner = ctx.take_inner().unwrap();
+            server::request_call(inner, cq);
+            return;
+        }
+        // don't need to lock here since we just 
+        assert_eq!(PromiseType::HandleRpc, self.ty);
+        let inner = ctx.take_inner().unwrap();
+        inner.handle(ctx);
+        server::request_call(inner, cq);
+    }
+
+    fn resolve_shutdown(&self, _: bool) {
+        let mut guard = self.lock();
+        guard.result(Ok(Vec::new()))
     }
 }
 
@@ -62,9 +102,9 @@ impl<'a> InnerGuard<'a> {
         self.result(Ok(ctx.recv_message()))
     }
 
-    fn finish_response(&mut self, ctx: BatchContext) {
+    fn finish_response(&mut self, ctx: BatchContext, succeed: bool) {
         let status = ctx.rpc_status();
-        if status.status != GrpcStatusCode::Ok {
+        if status.status != GrpcStatusCode::Ok || !succeed {
             self.result(Err(Error::RpcFailure(status)));
             return;
         }
@@ -134,34 +174,74 @@ impl CqFuture {
     }
 }
 
-pub struct Promise {
-    inner: Arc<Inner>,
+enum Context {
+    Batch(BatchContext),
+    Request(RequestContext),
+    Shutdown,
 }
 
-impl Promise {
-    pub fn resolve(self, ctx: BatchContext, success: bool) {
-        let mut guard = self.inner.lock();
-        match self.inner.ty {
-            PromiseType::FinishUnary => {
-                assert!(success);
-                guard.handle_unary_response(ctx);
-            }
-            PromiseType::Finish => {
-                assert!(success);
-                guard.finish_response(ctx);
-            }
-            PromiseType::ReadOne => {
-                guard.read_one_msg(&ctx);
-            }
+use std::fmt::{self, Debug, Formatter};
+
+impl Debug for Context {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            Context::Batch(_) => write!(f, "Context::Batch(..)"),
+            Context::Request(_) => write!(f, "Context::Request(..)"),
+            Context::Shutdown => write!(f, "Context::Shutdown"),
         }
     }
 }
 
-pub fn pair(ty: PromiseType) -> (CqFuture, Promise) {
+pub struct Promise {
+    ctx: Context,
+    inner: Arc<Inner>,
+}
+
+impl Promise {
+    pub fn batch_ctx(&self) -> Option<&BatchContext> {
+        match self.ctx {
+            Context::Batch(ref ctx) => Some(ctx),
+            Context::Request(_) => None,
+            Context::Shutdown => None,
+        }
+    }
+
+    pub fn request_ctx(&self) -> Option<&RequestContext> {
+        match self.ctx {
+            Context::Request(ref ctx) => Some(ctx),
+            Context::Batch(_) => None,
+            Context::Shutdown => None,
+        }
+    }
+
+    pub fn resolve(self, cq: &CompletionQueue, success: bool) {
+        match self.ctx {
+            Context::Batch(ctx) => self.inner.resolve_batch(ctx, success),
+            Context::Request(ctx) => self.inner.resolve_request(ctx, cq, success),
+            Context::Shutdown => self.inner.resolve_shutdown(success),
+        }
+    }
+}
+
+pub fn batch_pair(ty: PromiseType) -> (CqFuture, Promise) {
+    let ctx = BatchContext::new();
+    pair(Context::Batch(ctx), ty)
+}
+
+pub fn request_pair(inner: Arc<ServerInner>) -> (CqFuture, Promise) {
+    let ctx = RequestContext::new(inner);
+    pair(Context::Request(ctx), PromiseType::HandleRpc)
+}
+
+pub fn shutdown_pair() -> (CqFuture, Promise) {
+    pair(Context::Shutdown, PromiseType::Finish)
+}
+
+fn pair(ctx: Context, ty: PromiseType) -> (CqFuture, Promise) {
     let inner = Arc::new(Inner {
         handle: UnsafeCell::new(Default::default()),
         ty: ty,
         lock: AtomicBool::new(false),
     });
-    (CqFuture { inner: inner.clone() }, Promise { inner: inner })
+    (CqFuture { inner: inner.clone() }, Promise { ctx: ctx, inner: inner })
 }

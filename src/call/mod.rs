@@ -1,15 +1,13 @@
 pub mod client;
 pub mod server;
 
-use std::{mem, slice, ptr, result, usize};
+use std::{slice, ptr, result, usize};
 
 use grpc_sys::{self, GrpcStatusCode, GrpcCallStatus, GrpcBatchContext, GrpcCall};
-use protobuf::Message;
-use futures::{Poll, Async, Sink, AsyncSink, Stream};
+use libc::c_void;
+use futures::{Poll, Async};
 
-use promise::{self, CqFuture, Promise, PromiseType};
-use channel::Channel;
-use self::client::{CallOption, UnaryCallHandler, ClientStreamingCallHandler, ServerStreamingCallHandler, DuplexStreamingCallHandler};
+use promise::{self, CqFuture, PromiseType};
 use error::{Result, Error};
 
 #[derive(Clone, Copy)]
@@ -66,17 +64,8 @@ impl BatchContext {
         }
     }
 
-    pub unsafe fn from_raw(ctx: *mut GrpcBatchContext) -> BatchContext {
-        BatchContext {
-            ctx: ctx,
-        }
-    }
-
-    pub fn into_raw(self) -> *mut GrpcBatchContext {
-        let ctx = self.ctx;
-        // So the drop method won't be called.
-        mem::forget(self);
-        ctx
+    pub fn as_ptr(&self) -> *mut GrpcBatchContext {
+        self.ctx
     }
 
     pub fn rpc_status(&self) -> RpcStatus {
@@ -115,64 +104,29 @@ impl BatchContext {
         }
         buffer
     }
-
-    pub fn is_closed_on_server_canceled(&self) -> bool {
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_close_on_server_cancelled(self.ctx) != 0
-        }
-    }
-
-    fn set_promise(&mut self, cb: Box<Promise>) {
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_set_tag(self.ctx, Box::into_raw(cb) as *mut _)
-        }
-    }
-
-    pub fn take_promise(&mut self) -> Option<Box<Promise>> {
-        unsafe {
-            let tag = grpc_sys::grpcwrap_batch_context_take_tag(self.ctx);
-            if tag.is_null() {
-                return None;
-            }
-            Some(Box::from_raw(tag as *mut _))
-        }
-    }
 }
 
 impl Drop for BatchContext {
     fn drop(&mut self) {
-        self.take_promise();
-
         unsafe {
             grpc_sys::grpcwrap_batch_context_destroy(self.ctx)
         }
     }
 }
 
-fn check_run<F>(promise_type: PromiseType, f: F) -> Result<CqFuture> where F: FnOnce(*mut GrpcBatchContext) -> GrpcCallStatus {
-    let (cq_f, prom) = promise::pair(promise_type);
-    try!(_check_run(Some(prom), f));
-    Ok(cq_f)
-}
-
-fn _check_run<F>(promise: Option<Promise>, f: F) -> Result<()> where F: FnOnce(*mut GrpcBatchContext) -> GrpcCallStatus {
-    let mut ctx = BatchContext::new();
-    if let Some(promise) = promise {
-        ctx.set_promise(Box::new(promise));
-    }
-    let tag = ctx.into_raw();
-    let code = f(tag);
+fn check_run<F>(pt: PromiseType, f: F) -> Result<CqFuture> where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus {
+    let (cq_f, prom) = promise::batch_pair(pt);
+    let prom_box = Box::new(prom);
+    let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
+    let prom_ptr = Box::into_raw(prom_box);
+    let code = f(batch_ptr, prom_ptr as *mut c_void);
     if code != GrpcCallStatus::Ok {
         unsafe {
-            BatchContext::from_raw(tag);
+            Box::from_raw(prom_ptr);
         }
         return Err(Error::CallFailure(code));
     }
-    Ok(())
-}
-
-fn check_run_without_promise<F>(f: F) -> Result<()> where F: FnOnce(*mut GrpcBatchContext) -> GrpcCallStatus {
-    _check_run(None, f)
+    Ok(cq_f)
 }
 
 pub struct Call {
@@ -189,33 +143,34 @@ impl Call {
 
     pub fn start_send_message(&mut self, msg: &[u8], write_flags: u32, initial_meta: bool) -> Result<CqFuture> {
         let i = if initial_meta { 1 } else { 0 };
-        check_run(PromiseType::Finish, |tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(self.call, tag, msg.as_ptr() as _, msg.len(), write_flags, i)
+        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_send_message(self.call, ctx, msg.as_ptr() as _, msg.len(), write_flags, i, tag)
         })
     }
 
     pub fn start_send_close_client(&mut self) -> Result<CqFuture> {
-        check_run(PromiseType::Finish, |tag| unsafe {
-            grpc_sys::grpcwrap_call_send_close_from_client(self.call, tag)
+        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_send_close_from_client(self.call, ctx, tag)
         })
     }
 
     pub fn start_recv_message(&mut self) -> Result<CqFuture> {
-        check_run(PromiseType::ReadOne, |tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_message(self.call, tag)
+        check_run(PromiseType::ReadOne, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
         })
     }
 
     pub fn start_server_side(&mut self) -> Result<CqFuture> {
-        check_run(PromiseType::Finish, |tag| unsafe {
-            grpc_sys::grpcwrap_call_start_serverside(self.call, tag)
+        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
         })
     }
 
-    pub fn start_send_status_from_server(&mut self, status: &RpcStatus, send_empty_metadata: bool, write_flags: u32) -> Result<CqFuture> {
+    pub fn start_send_status_from_server(&mut self, status: &RpcStatus, send_empty_metadata: bool, payload: Option<Vec<u8>>, write_flags: u32) -> Result<CqFuture> {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        check_run(PromiseType::Finish, |tag| unsafe {
-            grpc_sys::grpcwrap_call_send_status_from_server(self.call, tag, status.status, status.details.as_ptr() as _, status.details.len(), ptr::null_mut(), send_empty_metadata, ptr::null(), 0, write_flags)
+        let (payload_ptr, payload_len) = payload.as_ref().map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
+        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_send_status_from_server(self.call, ctx, status.status, status.details.as_ptr() as _, status.details.len(), ptr::null_mut(), send_empty_metadata, payload_ptr as _, payload_len, write_flags, tag)
         })
     }
 
@@ -235,15 +190,15 @@ impl Drop for Call {
 }
 
 struct StreamingBase {
-    resp_f: CqFuture,
+    close_f: Option<CqFuture>,
     msg_f: Option<CqFuture>,
     stale: bool,
 }
 
 impl StreamingBase {
-    fn new(resp_f: CqFuture) -> StreamingBase {
+    fn new(close_f: Option<CqFuture>) -> StreamingBase {
         StreamingBase {
-            resp_f: resp_f,
+            close_f: close_f,
             msg_f: None,
             stale: false,
         }
@@ -276,16 +231,18 @@ impl StreamingBase {
             }
         }
 
-        match self.resp_f.poll_raw_resp() {
-            Ok(Async::Ready(Ok(_))) => {
-                self.stale = true;
-                return Ok(Async::Ready(None))
-            },
-            Ok(Async::Ready(Err(e))) | Err(e) => {
-                self.stale = true;
-                return Err(e);
-            },
-            Ok(Async::NotReady) => {},
+        if let Some(ref close_f) = self.close_f {
+            match close_f.poll_raw_resp() {
+                Ok(Async::Ready(Ok(_))) => {
+                    self.stale = true;
+                    return Ok(Async::Ready(None))
+                },
+                Ok(Async::Ready(Err(e))) | Err(e) => {
+                    self.stale = true;
+                    return Err(e);
+                },
+                Ok(Async::NotReady) => {},
+            }
         }
 
         if !repoll_resp {
@@ -310,7 +267,6 @@ struct SinkBase {
     buf: Vec<u8>,
     flags: u32,
     send_metadata: bool,
-    closed: bool,
 }
 
 impl SinkBase {
@@ -321,7 +277,6 @@ impl SinkBase {
             buf: Vec::new(),
             send_metadata: send_metadata,
             flags: flags,
-            closed: false,
         }
     }
 
@@ -360,10 +315,6 @@ impl SinkBase {
     }
 
     fn close(&mut self, call: &mut Call) -> Poll<(), Error> {
-        if self.closed {
-            return Err(Error::FutureStale);
-        }
-
         if self.close_f.is_none() {
             if let Async::NotReady = try!(self.poll_complete()) {
                 return Ok(Async::NotReady);
@@ -374,9 +325,7 @@ impl SinkBase {
         }
 
         self.close_f.as_ref().unwrap().poll_raw_resp().map(|res| {
-            res.map(|_| {
-                self.closed = true;
-            })
+            res.map(|_| {})
         })
     }
 }

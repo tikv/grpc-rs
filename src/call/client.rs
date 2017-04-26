@@ -8,7 +8,7 @@ use grpc_sys::{self, GrpcCall, GrpcBatchContext, GrpcCallStatus, GrpcStatusCode}
 use protobuf::{self, Message, MessageStatic};
 
 use channel::Channel;
-use call::{Call, check_run, Method, check_run_without_promise};
+use call::{Call, check_run, Method};
 use promise::{CqFuture, PromiseType};
 use error::{Result, Error};
 use super::{SinkBase, StreamingBase};
@@ -68,16 +68,16 @@ impl Call {
     pub fn unary_async<P: Message, Q>(channel: &Channel, method: &Method, req: P, opt: CallOption) -> Result<UnaryCallHandler<Q>> {
         let call = channel.create_call(&method, &opt);
         let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(PromiseType::FinishUnary, |tag| unsafe {
-            grpc_sys::grpcwrap_call_start_unary(call.call, tag, payload.as_ptr() as *const _, payload.len(), opt.write_flags, ptr::null_mut(), opt.call_flags)
+        let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_unary(call.call, ctx, payload.as_ptr() as *const _, payload.len(), opt.write_flags, ptr::null_mut(), opt.call_flags, tag)
         }));
         Ok(UnaryCallHandler::new(call, cq_f))
     }
 
     pub fn client_streaming<P, Q>(channel: &Channel, method: &Method, opt: CallOption) -> Result<ClientStreamingCallHandler<P, Q>> {
         let call = channel.create_call(&method, &opt);
-        let cq_f = try!(check_run(PromiseType::FinishUnary, |tag| unsafe {
-            grpc_sys::grpcwrap_call_start_client_streaming(call.call, tag, ptr::null_mut(), opt.call_flags)
+        let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_client_streaming(call.call, ctx, ptr::null_mut(), opt.call_flags, tag)
         }));
         Ok(ClientStreamingCallHandler::new(call, cq_f, opt.write_flags))
     }
@@ -85,13 +85,13 @@ impl Call {
     pub fn server_streaming<P: Message, Q>(channel: &Channel, method: &Method, req: P, opt: CallOption) -> Result<ServerStreamingCallHandler<Q>> {
         let call = channel.create_call(&method, &opt);
         let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(PromiseType::Finish, |tag| unsafe {
-            grpc_sys::grpcwrap_call_start_server_streaming(call.call, tag, payload.as_ptr() as _, payload.len(), opt.write_flags, ptr::null_mut(), opt.call_flags)
+        let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_server_streaming(call.call, ctx, payload.as_ptr() as _, payload.len(), opt.write_flags, ptr::null_mut(), opt.call_flags, tag)
         }));
 
         // ignore header for now
-        check_run_without_promise(|tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, tag)
+        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         }).unwrap_or_else(|e| {
             panic!("failed to start receiving headers: {:?}", e);
         });
@@ -101,13 +101,13 @@ impl Call {
 
     pub fn duplex_streaming<P, Q>(channel: &Channel, method: &Method, opt: CallOption) -> Result<DuplexStreamingCallHandler<P, Q>> {
         let call = channel.create_call(&method, &opt);
-        let cq_f = try!(check_run(PromiseType::Finish, |tag| unsafe {
-            grpc_sys::grpcwrap_call_start_duplex_streaming(call.call, tag, ptr::null_mut(), opt.call_flags)
+        let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_duplex_streaming(call.call, ctx, ptr::null_mut(), opt.call_flags, tag)
         }));
 
         // ignore header for now.
-        check_run_without_promise(|tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, tag)
+        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         }).unwrap_or_else(|e| {
             panic!("failed to start receiving headers: {:?}", e);
         });
@@ -223,7 +223,7 @@ impl<Q> ServerStreamingCallHandler<Q> {
     fn new(call: Call, finish_f: CqFuture) -> ServerStreamingCallHandler<Q> {
         ServerStreamingCallHandler {
             call: call,
-            base: StreamingBase::new(finish_f),
+            base: StreamingBase::new(Some(finish_f)),
             _resp: PhantomData,
         }
     }
@@ -305,7 +305,7 @@ impl<P, Q: MessageStatic> DuplexStreamingCallHandler<P, Q> {
 
         Some(StreamingResponseReceiver {
             call: self.call.clone(),
-            base: StreamingBase::new(resp_f),
+            base: StreamingBase::new(Some(resp_f)),
             _resp: PhantomData,
         })
     }

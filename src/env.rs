@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use grpc_sys;
 use cq::{CompletionQueue, EventType};
+use promise::Promise;
 use call::BatchContext;
 use call::server::RequestContext;
 
@@ -14,13 +15,12 @@ fn poll_queue(cq: Arc<CompletionQueue>) {
             EventType::QueueTimeout => continue,
             EventType::OpComplete => {}
         }
-        
-        let mut ctx = unsafe {
-            BatchContext::from_raw(e.tag as *mut _)
+
+        let ctx: Box<Promise> = unsafe {
+            Box::from_raw(e.tag as _)
         };
-        if let Some(promise) = ctx.take_promise() {
-            promise.resolve(ctx, e.success != 0);
-        }
+
+        ctx.resolve(&cq, e.success != 0);
     }
 }
 

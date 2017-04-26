@@ -22,8 +22,8 @@ fn new_point(lat: i32, lon: i32) -> Point {
 
 fn new_rect(lat1: i32, lon1: i32, lat2: i32, lon2: i32) -> Rectangle {
     let mut rect = Rectangle::new();
-    rect.set_hi(new_point(lat1, lon1));
-    rect.set_lo(new_point(lat2, lon2));
+    rect.set_lo(new_point(lat1, lon1));
+    rect.set_hi(new_point(lat2, lon2));
     rect
 }
 
@@ -72,10 +72,12 @@ fn main() {
     });
 
     let notes: Vec<Result<_>> = vec![
-        Ok(new_note(0, 0, "First message")),
-        Ok(new_note(0, 1, "Second message")),
-        Ok(new_note(1, 0, "Third message")),
-        Ok(new_note(0, 0, "Fourth message")),
+        Ok(new_note(0, 0, "message 1")),
+        Ok(new_note(0, 1, "message 2")),
+        Ok(new_note(1, 0, "message 3")),
+        Ok(new_note(0, 0, "message 4")),
+        Ok(new_note(0, 1, "message 5")),
+        Ok(new_note(1, 0, "message 6")),
     ];
     let write = call.send_all(stream::iter(notes));
 

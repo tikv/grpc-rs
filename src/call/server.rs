@@ -1,4 +1,4 @@
-use std::{slice, mem};
+use std::slice;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
@@ -8,6 +8,7 @@ use protobuf::{self, Message, MessageStatic};
 
 use cq::CompletionQueue;
 use call::{Call, StreamingBase, SinkBase};
+use server::Inner;
 use promise::CqFuture;
 use error::{Result, Error};
 use super::RpcStatus;
@@ -26,39 +27,38 @@ impl Deadline {
             spec: realtime_spec,
         }
     }
+
+    pub fn passed(&self) -> bool {
+        unsafe {
+            let now = grpc_sys::gpr_now(GprClockType::Realtime);
+            grpc_sys::gpr_time_cmp(now, self.spec) >= 0
+        }
+    }
 }
 
 pub struct RequestContext {
     ctx: *mut GrpcRequestCallContext,
+    inner: Option<Arc<Inner>>,
 }
 
 impl RequestContext {
-    pub fn new() -> RequestContext {
+    pub fn new(inner: Arc<Inner>) -> RequestContext {
         let ctx = unsafe {
             grpc_sys::grpcwrap_request_call_context_create()
         };
 
         RequestContext {
             ctx: ctx,
+            inner: Some(inner),
         }
     }
 
-    pub unsafe fn from_raw(ctx: *mut GrpcRequestCallContext) -> RequestContext {
-        RequestContext {
-            ctx: ctx
-        }
+    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
+        self.inner.take()
     }
 
-    pub fn into_raw(self) -> *mut GrpcRequestCallContext {
-        let ptr = self.ctx;
-        mem::forget(self);
-        ptr
-    }
-
-    pub fn handle(&mut self, cq: &CompletionQueue) {
-        unsafe {
-
-        }
+    pub fn as_ptr(&self) -> *mut GrpcRequestCallContext {
+        self.ctx
     }
 
     fn take_call(&mut self) -> Option<Call> {
@@ -72,7 +72,7 @@ impl RequestContext {
         }
     }
 
-    fn method(&self) -> &[u8] {
+    pub fn method(&self) -> &[u8] {
         let mut len = 0;
         let method = unsafe {
             grpc_sys::grpcwrap_request_call_context_method(self.ctx, &mut len)
@@ -148,10 +148,10 @@ pub struct RequestStream<T> {
 }
 
 impl<T> RequestStream<T> {
-    fn new(call: Arc<Mutex<Call>>, close_f: CqFuture) -> RequestStream<T> {
+    fn new(call: Arc<Mutex<Call>>) -> RequestStream<T> {
         RequestStream {
             call: call,
-            base: StreamingBase::new(close_f),
+            base: StreamingBase::new(None),
             _req: PhantomData,
         }
     }
@@ -180,14 +180,16 @@ impl<T: MessageStatic> Stream for RequestStream<T> {
 
 pub struct UnaryResponseSink<T> {
     call: Call,
+    close_f: CqFuture,
     write_flags: u32,
     _resp: PhantomData<T>,
 }
 
 impl<T: Message> UnaryResponseSink<T> {
-    fn new(call: Call) -> UnaryResponseSink<T> {
+    fn new(call: Call, close_f: CqFuture) -> UnaryResponseSink<T> {
         UnaryResponseSink {
             call: call,
+            close_f: close_f,
             write_flags: 0,
             _resp: PhantomData,
         }
@@ -202,34 +204,25 @@ impl<T: Message> UnaryResponseSink<T> {
     }
 
     fn complete(mut self, status: RpcStatus, t: Option<T>) -> Result<UnarySinkResult> {
-        let mut msg_sent = false;
-        let cq_f = match t {
-            Some(t) => {
-                let data = try!(t.write_to_bytes());
-                try!(self.call.start_send_message(&data, self.write_flags, true))
-            },
-            None => {
-                msg_sent = true;
-                try!(self.call.start_send_status_from_server(&status, true, self.write_flags))
-            }
+        let data = match t {
+            Some(t) => Some(try!(t.write_to_bytes())),
+            None => None,
         };
+
+        let cq_f = try!(self.call.start_send_status_from_server(&status, true, data, self.write_flags));
         
         Ok(UnarySinkResult {
-            call: self.call,
-            status: status,
+            _call: self.call,
+            close_f: self.close_f,
             cq_f: cq_f,
-            write_flags: self.write_flags,
-            msg_sent: msg_sent,
         })
     }
 }
 
 pub struct UnarySinkResult {
-    call: Call,
-    status: RpcStatus,
+    _call: Call,
+    close_f: CqFuture,
     cq_f: CqFuture,
-    write_flags: u32,
-    msg_sent: bool,
 }
 
 impl Future for UnarySinkResult {
@@ -237,29 +230,29 @@ impl Future for UnarySinkResult {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        try_ready!(self.cq_f.poll_raw_resp());
-
-        if self.msg_sent {
-            return Ok(Async::Ready(()));
+        match self.cq_f.poll_raw_resp() {
+            Ok(Async::Ready(_)) | Err(Error::FutureStale) => {
+                try_ready!(self.close_f.poll_raw_resp());
+                Ok(Async::Ready(()))
+            }
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(e) => Err(e),
         }
-
-        self.msg_sent = true;
-        self.cq_f = try!(self.call.start_send_status_from_server(&self.status, false, self.write_flags));
-        try_ready!(self.cq_f.poll_raw_resp());
-        Ok(Async::Ready(()))
     }
 }
 
 pub struct ClientStreamingResponseSink<T> {
     call: Arc<Mutex<Call>>,
+    close_f: CqFuture,
     write_flags: u32,
     _resp: PhantomData<T>,
 }
 
 impl<T: Message> ClientStreamingResponseSink<T> {
-    fn new(call: Arc<Mutex<Call>>) -> ClientStreamingResponseSink<T> {
+    fn new(call: Arc<Mutex<Call>>, close_f: CqFuture) -> ClientStreamingResponseSink<T> {
         ClientStreamingResponseSink {
             call: call,
+            close_f: close_f,
             write_flags: 0,
             _resp: PhantomData,
         }
@@ -274,36 +267,28 @@ impl<T: Message> ClientStreamingResponseSink<T> {
     }
 
     fn complete(self, status: RpcStatus, t: Option<T>) -> Result<ClientStreamingSinkResult> {
-        let mut msg_sent = false;
-        let cq_f = match t {
-            Some(t) => {
-                let data = try!(t.write_to_bytes());
-                let mut call = self.call.lock().unwrap();
-                try!(call.start_send_message(&data, self.write_flags, true))
-            },
-            None => {
-                msg_sent = true;
-                let mut call = self.call.lock().unwrap();
-                try!(call.start_send_status_from_server(&status, true, self.write_flags))
-            }
+        let data = match t {
+            Some(t) => Some(try!(t.write_to_bytes())),
+            None => None,
+        };
+
+        let cq_f = {
+            let mut call = self.call.lock().unwrap();
+            try!(call.start_send_status_from_server(&status, true, data, self.write_flags))
         };
         
         Ok(ClientStreamingSinkResult {
-            call: self.call,
-            status: status,
+            _call: self.call,
+            close_f: self.close_f,
             cq_f: cq_f,
-            write_flags: self.write_flags,
-            msg_sent: msg_sent,
         })
     }
 }
 
 pub struct ClientStreamingSinkResult {
-    call: Arc<Mutex<Call>>,
-    status: RpcStatus,
+    _call: Arc<Mutex<Call>>,
+    close_f: CqFuture,
     cq_f: CqFuture,
-    write_flags: u32,
-    msg_sent: bool,
 }
 
 impl Future for ClientStreamingSinkResult {
@@ -311,41 +296,38 @@ impl Future for ClientStreamingSinkResult {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        try_ready!(self.cq_f.poll_raw_resp());
-
-        if self.msg_sent {
-            return Ok(Async::Ready(()));
+        match self.cq_f.poll_raw_resp() {
+            Ok(Async::Ready(_)) | Err(Error::FutureStale) => {
+                try_ready!(self.close_f.poll_raw_resp());
+                Ok(Async::Ready(()))
+            }
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(e) => Err(e),
         }
-
-        self.msg_sent = true;
-        let mut call = self.call.lock().unwrap();
-        self.cq_f = try!(call.start_send_status_from_server(&self.status, false, self.write_flags));
-        try_ready!(self.cq_f.poll_raw_resp());
-        Ok(Async::Ready(()))
     }
 }
 
 pub struct ResponseSink<T> {
     call: Arc<Mutex<Call>>,
     base: SinkBase,
+    close_f: CqFuture,
     status: RpcStatus,
-    closing: bool,
     _resp: PhantomData<T>,
 }
 
 impl<T> ResponseSink<T> {
-    fn new(call: Arc<Mutex<Call>>) -> ResponseSink<T> {
+    fn new(call: Arc<Mutex<Call>>, close_f: CqFuture) -> ResponseSink<T> {
         ResponseSink {
             call: call,
             base: SinkBase::new(0, true),
+            close_f: close_f,
             status: RpcStatus::new(GrpcStatusCode::Ok),
-            closing: false,
             _resp: PhantomData,
         }
     }
 
-    fn set_status(&mut self, status: RpcStatus) {
-        assert!(!self.closing);
+    pub fn set_status(&mut self, status: RpcStatus) {
+        assert!(self.base.close_f.is_none());
         self.status = status;
     }
 }
@@ -370,25 +352,24 @@ impl<T: Message> Sink for ResponseSink<T> {
     }
 
     fn close(&mut self) -> Poll<(), Error> {
-        if self.base.closed {
-            return Err(Error::FutureStale);
-        }
-
         if self.base.close_f.is_none() {
             if let Async::NotReady = try!(self.base.poll_complete()) {
                 return Ok(Async::NotReady);
             }
 
             let mut call = self.call.lock().unwrap();
-            let close_f = try!(call.start_send_status_from_server(&self.status, false, self.base.flags));
+            let close_f = try!(call.start_send_status_from_server(&self.status, self.base.send_metadata, None, self.base.flags));
             self.base.close_f = Some(close_f);
         }
 
-        self.base.close_f.as_ref().unwrap().poll_raw_resp().map(|res| {
-            res.map(|_| {
-                self.base.closed = true;
-            })
-        })
+        match self.base.close_f.as_ref().unwrap().poll_raw_resp() {
+            Ok(Async::Ready(_)) | Err(Error::FutureStale) => {
+                try_ready!(self.close_f.poll_raw_resp());
+                Ok(Async::Ready(()))
+            },
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(e) => Err(e),
+        }
     }
 }
 
@@ -423,13 +404,17 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, f: &F)
           Q: Message,
           F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) {
     let mut call = ctx.ctx.take_call().unwrap();
+    let close_f = match call.start_server_side() {
+        Ok(f) => f,
+        Err(_) => return,
+    };
     let cq_f = match call.start_recv_message() {
         Ok(f) => f,
         // TODO: log?
         Err(_) => return,
     };
     let req_f = UnaryRequest::new(cq_f);
-    let sink = UnaryResponseSink::new(call);
+    let sink = UnaryResponseSink::new(call, close_f);
     f(ctx, req_f, sink)
 }
 
@@ -446,8 +431,8 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
         }
     };
 
-    let req_s = RequestStream::new(call.clone(), close_f);
-    let sink = ClientStreamingResponseSink::new(call);
+    let req_s = RequestStream::new(call.clone());
+    let sink = ClientStreamingResponseSink::new(call, close_f);
     f(ctx, req_s, sink)
 }
 
@@ -456,6 +441,13 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
           Q: Message,
           F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
+    let close_f = {
+        let mut call = call.lock().unwrap();
+        match call.start_server_side() {
+            Ok(f) => f,
+            Err(_) => return,
+        }
+    };
     let req_f = {
         // TODO: remove lock
         let mut call = call.lock().unwrap();
@@ -466,7 +458,7 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     };
 
     let req_s = UnaryRequest::new(req_f);
-    let sink = ResponseSink::new(call);
+    let sink = ResponseSink::new(call, close_f);
     f(ctx, req_s, sink)
 }
 
@@ -483,7 +475,12 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
         }
     };
 
-    let req_s = RequestStream::new(call.clone(), close_f);
-    let sink = ResponseSink::new(call);
+    let req_s = RequestStream::new(call.clone());
+    let sink = ResponseSink::new(call, close_f);
     f(ctx, req_s, sink)
+}
+
+pub fn execute(ctx: RequestContext, f: &Box<Fn(RpcContext)>) {
+    let rpc_ctx = RpcContext::new(ctx);
+    f(rpc_ctx)
 }
