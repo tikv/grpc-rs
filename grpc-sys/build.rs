@@ -13,45 +13,103 @@
 
 extern crate gcc;
 extern crate cmake;
+extern crate pkg_config;
 
 use std::path::Path;
 use std::process::Command;
 
-fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=grpc/");
 
-    if !Path::new("grpc/.git").exists() {
-        let _ = Command::new("git").args(&["submodule", "update", "--init"])
-                                   .status();
-        let grpc_submodules = [
-            "third_party/zlib",
-            "third_party/protobuf",
-            "third_party/boringssl",
-            "third_party/gflags",
-            "third_party/benchmark"
-        ];
-        for submodule in &grpc_submodules {
-            let _ = Command::new("git").args(&["submodule", "update", "--init", submodule])
-                                       .current_dir("grpc")
-                                       .status();
+const GRPC_VERSION: &'static str = "1.2.5";
+const ZLIB_VERSION: &'static str = "1.2.8";
+const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
+
+
+fn wget(url: &str, out: &str) -> Result<(), String> {
+    Command::new("wget").args(&["-q", "-c", "-O", out, url])
+        .status()
+        .map_err(|err| format!("wget execute failed: {}", err))
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("wget exit with {}", status))
+            }
+        })
+}
+
+fn tar_xf(file: &str) -> Result<(), String> {
+    Command::new("tar").args(&["zxf", file])
+        .status()
+        .map_err(|err| format!("tar execute failed: {}", err))
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("tar exit with {}", status))
+            }
+        })
+}
+
+fn build_or_link_grpc(cc: &mut gcc::Config) {
+    if Ok(lib) = pkg_config::Config::new().atleast_version("1.2.5").statik(true).probe("grpc_unsecure") {
+        for inc_path in &lib.include_paths {
+            cc.include(inc_path);
         }
+        return;
+
     }
 
-    let dst = cmake::Config::new("grpc")
-        .build_target("grpc")
+    if !Path::new(&format!("grpc-{}", GRPC_VERSION)).exists() {
+        wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz", GRPC_VERSION),
+             "grpc.tar.gz")
+            .and_then(|_| tar_xf("grpc.tar.gz"))
+            .unwrap();
+    }
+
+    if !Path::new(&format!("zlib-{}", ZLIB_VERSION)).exists() {
+        wget(&format!("https://github.com/madler/zlib/archive/v{}.tar.gz", ZLIB_VERSION),
+             "zlib.tar.gz")
+            .and_then(|_| tar_xf("zlib.tar.gz"))
+            .unwrap();
+    }
+
+    if !Path::new(&format!("boringssl-{}", BORINGSSL_GIT_HASH)).exists() {
+        wget(&format!("https://github.com/google/boringssl/archive/{}.tar.gz", BORINGSSL_GIT_HASH),
+             "boringssl.tar.gz")
+            .and_then(|_| tar_xf("boringssl.tar.gz"))
+            .unwrap();
+    }
+
+    let dst = cmake::Config::new(format!("zlib-{}", ZLIB_VERSION))
         .build();
+
+    println!("cargo:rustc-link-search=native={}/lib", dst.display());
+
+    let dst = cmake::Config::new("grpc-1.2.5")
+        .define("ZLIB_ROOT_DIR", format!("../zlib-{}", ZLIB_VERSION)) // relative to grpc dir
+        .define("BORINGSSL_ROOT_DIR", format!("../boringssl-{}", BORINGSSL_GIT_HASH))
+        .build_target("grpc_unsecure")
+        .build();
+
+    cc.include("grpc/include");
 
     println!("cargo:rustc-link-search=native={}/build", dst.display());
     println!("cargo:rustc-link-search=native={}/build/third_party/zlib", dst.display());
 
     println!("cargo:rustc-link-lib=static=z");
     println!("cargo:rustc-link-lib=static=gpr");
-    println!("cargo:rustc-link-lib=static=grpc");
+    println!("cargo:rustc-link-lib=static=grpc_unsecure");
+}
 
-    gcc::Config::new()
-        .include("grpc/include")
-        .file("grpc_wrap.c")
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+
+    let mut cc = gcc::Config::new();
+
+    build_or_link_grpc(&mut cc);
+
+    cc.file("grpc_wrap.c")
         .flag("-fPIC")
         .flag("-O2")
         .compile("libgrpc_wrap.a");

@@ -1,3 +1,0 @@
-[submodule "grpc-sys/grpc"]
-	path = grpc-sys/grpc
-	url = https://github.com/grpc/grpc.git
