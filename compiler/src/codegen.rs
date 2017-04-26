@@ -244,6 +244,39 @@ impl<'a> MethodGen<'a> {
             }
         };
     }
+
+    fn write_service(&self, w: &mut CodeWriter) {
+        let (req, resp) = match self.method_type().0 {
+            MethodType::Unary => ("UnaryRequest", "UnaryResponseSink"),
+            MethodType::ClientStreaming => ("RequestStream", "ClientStreamingResponseSink"),
+            MethodType::ServerStreaming => ("UnaryRequest", "ResponseSink"),
+            MethodType::Dulex => ("RequestStream", "ResponseSink"),
+        };
+        let sig = format!("{}(&self, ctx: {}, req: {}<{}>, resp: {}<{}>)",
+                          self.name(),
+                          fq_grpc("RpcContext"),
+                          fq_grpc(req),
+                          self.input(),
+                          fq_grpc(resp),
+                          self.output());
+        w.fn_def(&*sig);
+    }
+
+    fn write_bind(&self, w: &mut CodeWriter) {
+        let add = match self.method_type().0 {
+            MethodType::Unary => "add_unary_handler",
+            MethodType::ClientStreaming => "add_client_streaming_handler",
+            MethodType::ServerStreaming => "add_server_streaming_handler",
+            MethodType::Dulex => "add_duplex_streaming_handler",
+        };
+        w.block(&*format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
+                          add,
+                          self.const_method_name()),
+                "});",
+                |w| {
+                    w.write_line(&*format!("instance.{}(ctx, req, resp)", self.name()));
+                });
+    }
 }
 
 struct ServiceGen<'a> {
@@ -300,6 +333,30 @@ impl<'a> ServiceGen<'a> {
         });
     }
 
+    fn write_server(&self, w: &mut CodeWriter) {
+        w.pub_trait(&self.service_name(), |w| {
+            for method in &self.methods {
+                method.write_service(w);
+            }
+        });
+
+        w.write_line("");
+
+        w.pub_fn(&*format!("bind_{}<S: {} + Send + Sync + 'static>(mut builder: \
+                          {}, s: S) -> {2}",
+                           snake_name(self.service_name()),
+                           self.service_name(),
+                           fq_grpc("ServerBuilder")),
+                 |w| {
+            w.write_line("let service = Arc::new(s);");
+            for method in &self.methods {
+                w.write_line("let instance = service.clone();");
+                method.write_bind(w);
+            }
+            w.write_line("builder");
+        });
+    }
+
     fn write_method_definitions(&self, w: &mut CodeWriter) {
         for (i, method) in self.methods.iter().enumerate() {
             if i != 0 {
@@ -314,6 +371,8 @@ impl<'a> ServiceGen<'a> {
         self.write_method_definitions(w);
         w.write_line("");
         self.write_client(w);
+        w.write_line("");
+        self.write_server(w);
     }
 }
 
