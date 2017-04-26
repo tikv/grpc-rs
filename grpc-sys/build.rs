@@ -51,7 +51,7 @@ fn tar_xf(file: &str) -> Result<(), String> {
 }
 
 fn build_or_link_grpc(cc: &mut gcc::Config) {
-    if let Ok(lib) = pkg_config::Config::new().atleast_version("1.2.5").statik(true).probe("grpc_unsecure") {
+    if let Ok(lib) = pkg_config::Config::new().atleast_version(GRPC_VERSION).statik(true).probe("grpc_unsecure") {
         for inc_path in &lib.include_paths {
             cc.include(inc_path);
         }
@@ -85,13 +85,13 @@ fn build_or_link_grpc(cc: &mut gcc::Config) {
 
     println!("cargo:rustc-link-search=native={}/lib", dst.display());
 
-    let dst = cmake::Config::new("grpc-1.2.5")
+    let dst = cmake::Config::new(format!("grpc-{}", GRPC_VERSION))
         .define("ZLIB_ROOT_DIR", format!("../zlib-{}", ZLIB_VERSION)) // relative to grpc dir
         .define("BORINGSSL_ROOT_DIR", format!("../boringssl-{}", BORINGSSL_GIT_HASH))
         .build_target("grpc_unsecure")
         .build();
 
-    cc.include("grpc/include");
+    cc.include(format!("grpc-{}/include", GRPC_VERSION));
 
     println!("cargo:rustc-link-search=native={}/build", dst.display());
     println!("cargo:rustc-link-search=native={}/build/third_party/zlib", dst.display());
