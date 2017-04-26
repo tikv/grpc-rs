@@ -97,7 +97,7 @@ pub trait RouteGuide {
     fn route_chat(&self, ctx: ::grpc::RpcContext, req: ::grpc::RequestStream<super::route_guide::RouteNote>, resp: ::grpc::ResponseSink<super::route_guide::RouteNote>);
 }
 
-pub fn bind_route_guide<S: RouteGuide + Send + Sync + 'static>(mut builder: ::grpc::ServerBuilder, s: S) -> ::grpc::ServerBuilder {
+pub fn bind_route_guide<S: RouteGuide + Send + 'static>(mut builder: ::grpc::ServerBuilder, s: S) -> ::grpc::ServerBuilder {
     let service = ::std::sync::Arc::new(s);
     let instance = service.clone();
     builder = builder.add_unary_handler(&METHOD_GET_FEATURE, move |ctx, req, resp| {
