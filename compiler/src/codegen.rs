@@ -342,8 +342,7 @@ impl<'a> ServiceGen<'a> {
 
         w.write_line("");
 
-        w.pub_fn(&*format!("bind_{}<S: {} + Send + Sync + 'static>(mut builder: \
-                          {}, s: S) -> {2}",
+        w.pub_fn(&*format!("bind_{}<S: {} + Send + 'static>(mut builder: {}, s: S) -> {2}",
                            snake_name(self.service_name()),
                            self.service_name(),
                            fq_grpc("ServerBuilder")),
