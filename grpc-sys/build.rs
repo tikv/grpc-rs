@@ -51,7 +51,7 @@ fn tar_xf(file: &str) -> Result<(), String> {
 }
 
 fn build_or_link_grpc(cc: &mut gcc::Config) {
-    if Ok(lib) = pkg_config::Config::new().atleast_version("1.2.5").statik(true).probe("grpc_unsecure") {
+    if let Ok(lib) = pkg_config::Config::new().atleast_version("1.2.5").statik(true).probe("grpc_unsecure") {
         for inc_path in &lib.include_paths {
             cc.include(inc_path);
         }
