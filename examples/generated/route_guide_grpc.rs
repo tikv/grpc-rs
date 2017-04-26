@@ -89,3 +89,31 @@ impl RouteGuideClient {
         self.route_chat_opt(::grpc::CallOption::default())
     }
 }
+
+pub trait RouteGuide {
+    fn get_feature(&self, ctx: ::grpc::RpcContext, req: ::grpc::UnaryRequest<super::route_guide::Point>, resp: ::grpc::UnaryResponseSink<super::route_guide::Feature>);
+    fn list_features(&self, ctx: ::grpc::RpcContext, req: ::grpc::UnaryRequest<super::route_guide::Rectangle>, resp: ::grpc::ResponseSink<super::route_guide::Feature>);
+    fn record_route(&self, ctx: ::grpc::RpcContext, req: ::grpc::RequestStream<super::route_guide::Point>, resp: ::grpc::ClientStreamingResponseSink<super::route_guide::RouteSummary>);
+    fn route_chat(&self, ctx: ::grpc::RpcContext, req: ::grpc::RequestStream<super::route_guide::RouteNote>, resp: ::grpc::ResponseSink<super::route_guide::RouteNote>);
+}
+
+pub fn bind_route_guide<S: RouteGuide + Send + Sync + 'static>(mut builder: ::grpc::ServerBuilder, s: S) -> ::grpc::ServerBuilder {
+    let service = Arc::new(s);
+    let instance = service.clone();
+    builder = builder.add_unary_handler(&METHOD_GET_FEATURE, move |ctx, req, resp| {
+        instance.get_feature(ctx, req, resp)
+    });
+    let instance = service.clone();
+    builder = builder.add_server_streaming_handler(&METHOD_LIST_FEATURES, move |ctx, req, resp| {
+        instance.list_features(ctx, req, resp)
+    });
+    let instance = service.clone();
+    builder = builder.add_client_streaming_handler(&METHOD_RECORD_ROUTE, move |ctx, req, resp| {
+        instance.record_route(ctx, req, resp)
+    });
+    let instance = service.clone();
+    builder = builder.add_duplex_streaming_handler(&METHOD_ROUTE_CHAT, move |ctx, req, resp| {
+        instance.route_chat(ctx, req, resp)
+    });
+    builder
+}
