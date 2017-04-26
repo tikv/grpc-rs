@@ -2,13 +2,15 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::CString;
 use std::sync::Arc;
-use std::ptr;
+use std::{ptr, mem};
 
 use libc::{c_char, c_int};
 use grpc_sys::{self, GrpcChannel, GrpcChannelArgs};
 
+use cq::CompletionQueue;
 use env::Environment;
-use call::{Call, Method, CallOption};
+use call::{Call, Method};
+use CallOption;
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
 const OPT_MAX_CONCURRENT_STREAMS: &'static str = "grpc.max_concurrent_streams\0";
@@ -71,41 +73,73 @@ impl ChannelBuilder {
         self
     }
 
-    unsafe fn build_args(&mut self) -> *mut GrpcChannelArgs {
-        if let Entry::Vacant(e) = self.options.entry(PRIMARY_USER_AGENT_STRING) {
-            e.insert(Options::String(format_user_agent_string("")));
-        }
-
-        let args = grpc_sys::grpcwrap_channel_args_create(self.options.len());
+    pub fn build_args(&self) -> ChannelArgs {
+        let args = unsafe {
+            grpc_sys::grpcwrap_channel_args_create(self.options.len())
+        };
         for (i, (k, v)) in self.options.iter().enumerate() {
             let key = k.as_ptr() as *const c_char;
             match *v {
-                Options::Integer(val) => {
+                Options::Integer(val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
-                }
-                Options::String(ref val) => {
+                },
+                Options::String(ref val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr() as *const c_char)
-                }
+                },
             }
         }
-        args
+        unsafe {
+            ChannelArgs::from_raw(args)
+        }
     }
 
     // TODO: support ssl
-    pub fn connect(mut self, target: &str) -> Channel {
-        let addr = CString::new(target).unwrap();
+    pub fn connect(mut self, addr: &str) -> Channel {
+        let addr = CString::new(addr).unwrap();
+        if let Entry::Vacant(e) = self.options.entry(PRIMARY_USER_AGENT_STRING) {
+            e.insert(Options::String(format_user_agent_string("")));
+        }
+        let args = self.build_args();
         let channel = unsafe {
-            let args = self.build_args();
-            let channel = grpc_sys::grpc_insecure_channel_create(addr.as_ptr(), args, ptr::null_mut());
-            grpc_sys::grpcwrap_channel_args_destroy(args);
-            channel
+            grpc_sys::grpc_insecure_channel_create(addr.as_ptr(), args.args, ptr::null_mut())
         };
 
         Channel {
+            cq: self.environ.pick_a_cq(),
             inner: Arc::new(ChannelInner {
                 environ: self.environ,
                 channel: channel,
             })
+        }
+    }
+}
+
+pub struct ChannelArgs {
+    args: *mut GrpcChannelArgs,
+}
+
+impl ChannelArgs {
+    pub unsafe fn from_raw(args: *mut GrpcChannelArgs) -> ChannelArgs {
+        ChannelArgs {
+            args: args
+        }
+    }
+
+    pub fn as_ptr(&self) -> *const GrpcChannelArgs {
+        self.args
+    }
+    
+    pub fn into_raw(self) -> *mut GrpcChannelArgs {
+        let args = self.args;
+        mem::forget(self);
+        args
+    }
+}
+
+impl Drop for ChannelArgs {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpcwrap_channel_args_destroy(self.args)
         }
     }
 }
@@ -126,17 +160,21 @@ impl Drop for ChannelInner {
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
+    cq: Arc<CompletionQueue>,
 }
 
 impl Channel {
     pub fn create_call(&self, method: &Method, opt: &CallOption) -> Call {
         let raw_call = unsafe {
             let ch = self.inner.channel;
-            let cq = self.inner.environ.completion_queue().as_ptr();
+            let cq = self.cq.as_ptr();
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
             grpc_sys::grpcwrap_channel_create_call(ch, ptr::null_mut(), 0, cq, method_ptr as *const _, method_len, ptr::null(), 0, opt.timeout().into(), ptr::null_mut())
         };
-        Call::from_raw(raw_call)
+
+        unsafe {
+            Call::from_raw(raw_call)
+        }
     }
 }

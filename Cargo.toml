@@ -9,4 +9,7 @@ futures = "0.1"
 protobuf = "1.2"
 
 [[example]]
-name="route-guide"
+name="client"
+
+[[example]]
+name="server"

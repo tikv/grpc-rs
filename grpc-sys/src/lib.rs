@@ -15,9 +15,9 @@ pub enum GprClockType {
 
 #[repr(C)]
 pub struct GprTimespec {
-    tv_sec: int64_t,
-    tv_nsec: int32_t,
-    clock_type: GprClockType,
+    pub tv_sec: int64_t,
+    pub tv_nsec: int32_t,
+    pub clock_type: GprClockType,
 }
 
 impl From<Option<Duration>> for GprTimespec {
@@ -36,7 +36,7 @@ impl From<Option<Duration>> for GprTimespec {
 // grpc/impl/codegen/status.h
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum GrpcStatusCode {
     Ok = 0,
     Cancelled = 1,
@@ -145,6 +145,7 @@ pub enum GrpcCall {}
 pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
+pub enum GrpcRequestCallContext {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -158,7 +159,8 @@ extern "C" {
 
     pub fn grpc_register_plugin(init: Option<extern "C" fn()>, destroy: Option<extern "C" fn()>);
 
-    pub fn gpr_inf_future(lock_type: GprClockType) -> GprTimespec;
+    pub fn gpr_inf_future(clock_type: GprClockType) -> GprTimespec;
+    pub fn gpr_convert_clock_type(t: GprTimespec, clock_type: GprClockType) -> GprTimespec;
 
     pub fn grpc_completion_queue_create(reserved: *mut c_void) -> *mut GrpcCompletionQueue;
     pub fn grpc_completion_queue_next(cq: *mut GrpcCompletionQueue, deadline: GprTimespec, reserved: *mut c_void) -> GrpcEvent;
@@ -196,6 +198,7 @@ extern "C" {
     pub fn grpcwrap_call_recv_initial_metadata(call: *mut GrpcCall, ctx: *mut GrpcBatchContext) -> GrpcCallStatus;
     pub fn grpcwrap_call_send_message(call: *mut GrpcCall, ctx: *mut GrpcBatchContext, send_bufer: *const c_char, send_buffer_len: size_t, write_flags: uint32_t, send_empty_initial_metadata: uint32_t) -> GrpcCallStatus;
     pub fn grpcwrap_call_send_close_from_client(call: *mut GrpcCall, ctx: *mut GrpcBatchContext) -> GrpcCallStatus;
+    pub fn grpcwrap_call_send_status_from_server(call: *mut GrpcCall, ctx: *mut GrpcBatchContext, status: GrpcStatusCode, status_details: *const c_char, status_details_len: size_t, trailing_metadata: *mut GrpcMetadataArray, send_empty_metadata: int32_t, optional_send_buffer: *const c_char, buffer_len: size_t, write_flags: uint32_t) -> GrpcCallStatus;
     pub fn grpcwrap_call_recv_message(call: *mut GrpcCall, ctx: *mut GrpcBatchContext) -> GrpcCallStatus;
     pub fn grpcwrap_call_start_serverside(call: *mut GrpcCall, ctx: *mut GrpcBatchContext) -> GrpcCallStatus;
     pub fn grpcwrap_call_send_initial_metadata(call: *mut GrpcCall, ctx: *mut GrpcBatchContext, initial_metadata: *mut GrpcMetadataArray) -> GrpcCallStatus;
@@ -205,7 +208,6 @@ extern "C" {
     pub fn grpc_call_cancel_with_status(call: *mut GrpcCall, status: GrpcStatusCode, description: *const c_char, reserved: *mut c_void);
     pub fn grpc_call_destroy(call: *mut GrpcCall);
 
-    pub fn grpc_server_request_call(server: *mut GrpcServer, call: *mut GrpcCall, details: *mut GrpcCallDetails, request_metadata: *mut GrpcMetadataArray, cq_bound_to_call: *mut GrpcCompletionQueue, cq_for_notification: *mut GrpcCompletionQueue, tag_new: *mut c_void) -> GrpcCallStatus;
     pub fn grpc_server_register_method(server: *mut GrpcServer, method: *const c_char, host: *const c_char, paylod_handling: GrpcServerRegisterMethodPayloadHandling, flags: uint32_t) -> *mut c_void;
     pub fn grpc_server_create(args: *const GrpcChannelArgs, reserved: *mut c_void) -> *mut GrpcServer;
     pub fn grpc_server_register_completion_queue(server: *mut GrpcServer, cq: *mut GrpcCompletionQueue, reserved: *mut c_void);
@@ -214,6 +216,15 @@ extern "C" {
     pub fn grpc_server_shutdown_and_notify(server: *mut GrpcServer, cq: *mut GrpcCompletionQueue, tag: *mut c_void);
     pub fn grpc_server_cancel_all_calls(server: *mut GrpcServer);
     pub fn grpc_server_destroy(server: *mut GrpcServer);
+
+    pub fn grpcwrap_request_call_context_create() -> *mut GrpcRequestCallContext;
+    pub fn grpcwrap_request_call_context_destroy(ctx: *mut GrpcRequestCallContext);
+    pub fn grpcwrap_request_call_context_take_call(ctx: *const GrpcRequestCallContext) -> *mut GrpcCall;
+    pub fn grpcwrap_request_call_context_method(ctx: *const GrpcRequestCallContext, len: *mut size_t) -> *const c_char;
+    pub fn grpcwrap_request_call_context_host(ctx: *const GrpcRequestCallContext, len: *mut size_t) -> *const c_char;
+    pub fn grpcwrap_request_call_context_deadline(ctx: *const GrpcRequestCallContext) -> GprTimespec;
+    pub fn grpcwrap_request_call_context_metadata(ctx: *const GrpcRequestCallContext) -> *const GrpcMetadataArray;
+    pub fn grpcwrap_server_request_call(server: *mut GrpcServer, cq: *mut GrpcCompletionQueue, ctx: *mut GrpcRequestCallContext) -> GrpcCallStatus;
 }
 
 #[cfg(test)]
