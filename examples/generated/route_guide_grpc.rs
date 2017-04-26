@@ -98,7 +98,7 @@ pub trait RouteGuide {
 }
 
 pub fn bind_route_guide<S: RouteGuide + Send + Sync + 'static>(mut builder: ::grpc::ServerBuilder, s: S) -> ::grpc::ServerBuilder {
-    let service = Arc::new(s);
+    let service = ::std::sync::Arc::new(s);
     let instance = service.clone();
     builder = builder.add_unary_handler(&METHOD_GET_FEATURE, move |ctx, req, resp| {
         instance.get_feature(ctx, req, resp)

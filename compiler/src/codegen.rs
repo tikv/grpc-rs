@@ -348,7 +348,7 @@ impl<'a> ServiceGen<'a> {
                            self.service_name(),
                            fq_grpc("ServerBuilder")),
                  |w| {
-            w.write_line("let service = Arc::new(s);");
+            w.write_line("let service = ::std::sync::Arc::new(s);");
             for method in &self.methods {
                 w.write_line("let instance = service.clone();");
                 method.write_bind(w);
