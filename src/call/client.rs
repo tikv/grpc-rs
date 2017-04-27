@@ -1,16 +1,17 @@
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
-use std::ptr;
-use std::marker::PhantomData;
 
-use futures::{Future, Poll, Async, Stream, AsyncSink, Sink, StartSend};
-use grpc_sys;
-use protobuf::{self, Message, MessageStatic};
+use call::{Call, Method, check_run};
 
 use channel::Channel;
-use call::{Call, check_run, Method};
+use error::{Error, Result};
+
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
+use grpc_sys;
 use promise::{CqFuture, PromiseType};
-use error::{Result, Error};
+use protobuf::{self, Message, MessageStatic};
+use std::marker::PhantomData;
+use std::ptr;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use super::{SinkBase, StreamingBase};
 
 fn change_flag(res: &mut u32, flag: u32, set: bool) {
@@ -30,27 +31,37 @@ pub struct CallOption {
 
 impl CallOption {
     pub fn with_idempotent(mut self, is_idempotent: bool) -> CallOption {
-        change_flag(&mut self.call_flags, grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST, is_idempotent);
+        change_flag(&mut self.call_flags,
+                    grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST,
+                    is_idempotent);
         self
     }
 
     pub fn with_wait_for_ready(mut self, wait_for_ready: bool) -> CallOption {
-        change_flag(&mut self.call_flags, grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY, wait_for_ready);
+        change_flag(&mut self.call_flags,
+                    grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY,
+                    wait_for_ready);
         self
     }
 
     pub fn with_cacheable(mut self, cacheable: bool) -> CallOption {
-        change_flag(&mut self.call_flags, grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST, cacheable);
+        change_flag(&mut self.call_flags,
+                    grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST,
+                    cacheable);
         self
     }
 
     pub fn with_buffer_hint(mut self, need_buffered: bool) -> CallOption {
-        change_flag(&mut self.write_flags, grpc_sys::GRPC_WRITE_BUFFER_HINT, need_buffered);
+        change_flag(&mut self.write_flags,
+                    grpc_sys::GRPC_WRITE_BUFFER_HINT,
+                    need_buffered);
         self
     }
 
     pub fn with_force_no_compress(mut self, no_compress: bool) -> CallOption {
-        change_flag(&mut self.write_flags, grpc_sys::GRPC_WRITE_NO_COMPRESS, no_compress);
+        change_flag(&mut self.write_flags,
+                    grpc_sys::GRPC_WRITE_NO_COMPRESS,
+                    no_compress);
         self
     }
 
@@ -65,52 +76,90 @@ impl CallOption {
 }
 
 impl Call {
-    pub fn unary_async<P: Message, Q>(channel: &Channel, method: &Method, req: P, opt: CallOption) -> Result<UnaryCallHandler<Q>> {
+    pub fn unary_async<P: Message, Q>(channel: &Channel,
+                                      method: &Method,
+                                      req: P,
+                                      opt: CallOption)
+                                      -> Result<UnaryCallHandler<Q>> {
         let call = channel.create_call(&method, &opt);
         let payload = try!(req.write_to_bytes());
         let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_unary(call.call, ctx, payload.as_ptr() as *const _, payload.len(), opt.write_flags, ptr::null_mut(), opt.call_flags, tag)
+            grpc_sys::grpcwrap_call_start_unary(call.call,
+                                                ctx,
+                                                payload.as_ptr() as *const _,
+                                                payload.len(),
+                                                opt.write_flags,
+                                                ptr::null_mut(),
+                                                opt.call_flags,
+                                                tag)
         }));
         Ok(UnaryCallHandler::new(call, cq_f))
     }
 
-    pub fn client_streaming<P, Q>(channel: &Channel, method: &Method, opt: CallOption) -> Result<ClientStreamingCallHandler<P, Q>> {
+    pub fn client_streaming<P, Q>(channel: &Channel,
+                                  method: &Method,
+                                  opt: CallOption)
+                                  -> Result<ClientStreamingCallHandler<P, Q>> {
         let call = channel.create_call(&method, &opt);
         let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_client_streaming(call.call, ctx, ptr::null_mut(), opt.call_flags, tag)
+            grpc_sys::grpcwrap_call_start_client_streaming(call.call,
+                                                           ctx,
+                                                           ptr::null_mut(),
+                                                           opt.call_flags,
+                                                           tag)
         }));
         Ok(ClientStreamingCallHandler::new(call, cq_f, opt.write_flags))
     }
 
-    pub fn server_streaming<P: Message, Q>(channel: &Channel, method: &Method, req: P, opt: CallOption) -> Result<ServerStreamingCallHandler<Q>> {
+    pub fn server_streaming<P: Message, Q>(channel: &Channel,
+                                           method: &Method,
+                                           req: P,
+                                           opt: CallOption)
+                                           -> Result<ServerStreamingCallHandler<Q>> {
         let call = channel.create_call(&method, &opt);
         let payload = try!(req.write_to_bytes());
         let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_server_streaming(call.call, ctx, payload.as_ptr() as _, payload.len(), opt.write_flags, ptr::null_mut(), opt.call_flags, tag)
+            grpc_sys::grpcwrap_call_start_server_streaming(call.call,
+                                                           ctx,
+                                                           payload.as_ptr() as _,
+                                                           payload.len(),
+                                                           opt.write_flags,
+                                                           ptr::null_mut(),
+                                                           opt.call_flags,
+                                                           tag)
         }));
 
         // ignore header for now
         check_run(PromiseType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
-        }).unwrap_or_else(|e| {
-            panic!("failed to start receiving headers: {:?}", e);
-        });
+                grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+            })
+            .unwrap_or_else(|e| {
+                panic!("failed to start receiving headers: {:?}", e);
+            });
 
         Ok(ServerStreamingCallHandler::new(call, cq_f))
     }
 
-    pub fn duplex_streaming<P, Q>(channel: &Channel, method: &Method, opt: CallOption) -> Result<DuplexStreamingCallHandler<P, Q>> {
+    pub fn duplex_streaming<P, Q>(channel: &Channel,
+                                  method: &Method,
+                                  opt: CallOption)
+                                  -> Result<DuplexStreamingCallHandler<P, Q>> {
         let call = channel.create_call(&method, &opt);
         let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_duplex_streaming(call.call, ctx, ptr::null_mut(), opt.call_flags, tag)
+            grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
+                                                           ctx,
+                                                           ptr::null_mut(),
+                                                           opt.call_flags,
+                                                           tag)
         }));
 
         // ignore header for now.
         check_run(PromiseType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
-        }).unwrap_or_else(|e| {
-            panic!("failed to start receiving headers: {:?}", e);
-        });
+                grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+            })
+            .unwrap_or_else(|e| {
+                panic!("failed to start receiving headers: {:?}", e);
+            });
 
         Ok(DuplexStreamingCallHandler::new(call, cq_f, opt.write_flags))
     }

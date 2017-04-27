@@ -1,9 +1,10 @@
-use std::thread::{Builder, JoinHandle};
-use std::sync::Arc;
+
+use cq::{CompletionQueue, EventType};
 
 use grpc_sys;
-use cq::{CompletionQueue, EventType};
 use promise::Promise;
+use std::sync::Arc;
+use std::thread::{Builder, JoinHandle};
 
 fn poll_queue(cq: Arc<CompletionQueue>) {
     loop {
@@ -14,9 +15,7 @@ fn poll_queue(cq: Arc<CompletionQueue>) {
             EventType::OpComplete => {}
         }
 
-        let ctx: Box<Promise> = unsafe {
-            Box::from_raw(e.tag as _)
-        };
+        let ctx: Box<Promise> = unsafe { Box::from_raw(e.tag as _) };
 
         ctx.resolve(&cq, e.success != 0);
     }
@@ -38,11 +37,14 @@ impl Environment {
         for i in 0..cq_count {
             let cq = Arc::new(CompletionQueue::new());
             let cq_ = cq.clone();
-            let handle = Builder::new().name(format!("grpcpollthread-{}", i)).spawn(move || poll_queue(cq_)).unwrap();
+            let handle = Builder::new()
+                .name(format!("grpcpollthread-{}", i))
+                .spawn(move || poll_queue(cq_))
+                .unwrap();
             cqs.push(cq);
             handles.push(handle);
         }
-        
+
         Environment {
             cqs: cqs,
             _handles: handles,

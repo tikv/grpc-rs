@@ -30,11 +30,14 @@ mod call;
 mod error;
 mod promise;
 
-pub use env::Environment;
-pub use channel::{ChannelBuilder, Channel};
 pub use call::{Method, MethodType};
-pub use call::client::{CallOption, UnaryCallHandler, ClientStreamingCallHandler, ServerStreamingCallHandler, DuplexStreamingCallHandler};
-pub use call::server::{Deadline, UnaryRequest, RequestStream, UnaryResponseSink, ClientStreamingResponseSink, UnarySinkResult, ClientStreamingSinkResult, ResponseSink, RpcContext};
+pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,
+                       ServerStreamingCallHandler, UnaryCallHandler};
+pub use call::server::{ClientStreamingResponseSink, ClientStreamingSinkResult, Deadline,
+                       RequestStream, ResponseSink, RpcContext, UnaryRequest, UnaryResponseSink,
+                       UnarySinkResult};
+pub use channel::{Channel, ChannelBuilder};
 pub use client::Client;
-pub use server::{ServiceBuilder, Service, ServerBuilder, Server};
+pub use env::Environment;
 pub use error::{Error, Result};
+pub use server::{Server, ServerBuilder, Service, ServiceBuilder};

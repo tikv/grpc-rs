@@ -1,20 +1,21 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::ptr;
 
-use protobuf::{Message, MessageStatic};
-use futures::{Future, Poll, Async};
-use grpc_sys::{self, GrpcServer, GrpcCallStatus};
-
-use env::Environment;
-use error::Error;
-use cq::CompletionQueue;
+use RpcContext;
 use call::Method;
 use call::server::*;
 use channel::ChannelArgs;
+use cq::CompletionQueue;
+
+use env::Environment;
+use error::Error;
+use futures::{Async, Future, Poll};
+use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 use promise::{self, CqFuture};
-use RpcContext;
+
+use protobuf::{Message, MessageStatic};
+use std::collections::HashMap;
+use std::ptr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -24,55 +25,60 @@ pub struct ServiceBuilder {
 
 impl ServiceBuilder {
     pub fn new() -> ServiceBuilder {
-        ServiceBuilder {
-            handlers: HashMap::new(),
-        }
+        ServiceBuilder { handlers: HashMap::new() }
     }
-    
+
     pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
         where P: MessageStatic,
-            Q: Message,
-            F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_unary(ctx, &handler)
-        }));
+              Q: Message,
+              F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) + 'static
+    {
+        self.handlers.insert(method.name.as_bytes(),
+                             Box::new(move |ctx| execute_unary(ctx, &handler)));
         self
     }
 
-    pub fn add_client_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
+    pub fn add_client_streaming_handler<P, Q, F>(mut self,
+                                                 method: &Method,
+                                                 handler: F)
+                                                 -> ServiceBuilder
         where P: MessageStatic,
-          Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_client_streaming(ctx, &handler)
-        }));
+              Q: Message,
+              F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static
+    {
+        self.handlers.insert(method.name.as_bytes(),
+                             Box::new(move |ctx| execute_client_streaming(ctx, &handler)));
         self
     }
 
-    pub fn add_server_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder 
+    pub fn add_server_streaming_handler<P, Q, F>(mut self,
+                                                 method: &Method,
+                                                 handler: F)
+                                                 -> ServiceBuilder
         where P: MessageStatic,
-            Q: Message,
-            F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_server_streaming(ctx, &handler)
-        }));
+              Q: Message,
+              F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) + 'static
+    {
+        self.handlers.insert(method.name.as_bytes(),
+                             Box::new(move |ctx| execute_server_streaming(ctx, &handler)));
         self
     }
 
-    pub fn add_duplex_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder 
+    pub fn add_duplex_streaming_handler<P, Q, F>(mut self,
+                                                 method: &Method,
+                                                 handler: F)
+                                                 -> ServiceBuilder
         where P: MessageStatic,
-            Q: Message,
-            F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_duplex_streaming(ctx, &handler)
-        }));
+              Q: Message,
+              F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static
+    {
+        self.handlers.insert(method.name.as_bytes(),
+                             Box::new(move |ctx| execute_duplex_streaming(ctx, &handler)));
         self
     }
 
     pub fn build(self) -> Service {
-        Service {
-            handlers: self.handlers,
-        }
+        Service { handlers: self.handlers }
     }
 }
 
@@ -123,14 +129,20 @@ impl ServerBuilder {
         let args = self.args.map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            let bind_addrs: Vec<_> = self.addrs.drain(..).map(|(host, port)| {
-                let addr = format!("{}:{}\0", host, port);
-                let bind_port = grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _);
-                (host, bind_port as u32)
-            }).collect();
+            let bind_addrs: Vec<_> = self.addrs
+                .drain(..)
+                .map(|(host, port)| {
+                    let addr = format!("{}:{}\0", host, port);
+                    let bind_port =
+                        grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _);
+                    (host, bind_port as u32)
+                })
+                .collect();
 
             for cq in self.env.completion_queues() {
-                grpc_sys::grpc_server_register_completion_queue(server, cq.as_ptr(), ptr::null_mut());
+                grpc_sys::grpc_server_register_completion_queue(server,
+                                                                cq.as_ptr(),
+                                                                ptr::null_mut());
             }
 
             Server {
@@ -141,7 +153,7 @@ impl ServerBuilder {
                     bind_addrs: bind_addrs,
                     slots_per_cq: self.slots_per_cq,
                     handlers: self.handlers,
-                })
+                }),
             }
         }
     }
@@ -222,9 +234,7 @@ impl Server {
     }
 
     pub fn cancel_all_calls(&mut self) {
-        unsafe {
-            grpc_sys::grpc_server_cancel_all_calls(self.inner.server)
-        }
+        unsafe { grpc_sys::grpc_server_cancel_all_calls(self.inner.server) }
     }
 
     pub fn start(&mut self) {
@@ -246,8 +256,6 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         self.shutdown();
-        unsafe {
-            grpc_sys::grpc_server_destroy(self.inner.server)
-        }
+        unsafe { grpc_sys::grpc_server_destroy(self.inner.server) }
     }
 }

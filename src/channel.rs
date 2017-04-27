@@ -1,16 +1,17 @@
+
+use CallOption;
+use call::{Call, Method};
+
+use cq::CompletionQueue;
+use env::Environment;
+use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
+
+use libc::{c_char, c_int};
+use std::{mem, ptr};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::CString;
 use std::sync::Arc;
-use std::{ptr, mem};
-
-use libc::{c_char, c_int};
-use grpc_sys::{self, GrpcChannel, GrpcChannelArgs, GprTimespec};
-
-use cq::CompletionQueue;
-use env::Environment;
-use call::{Call, Method};
-use CallOption;
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
 const OPT_MAX_CONCURRENT_STREAMS: &'static str = "grpc.max_concurrent_streams\0";
@@ -74,9 +75,7 @@ impl ChannelBuilder {
     }
 
     pub fn build_args(&self) -> ChannelArgs {
-        let args = unsafe {
-            grpc_sys::grpcwrap_channel_args_create(self.options.len())
-        };
+        let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
             let key = k.as_ptr() as *const c_char;
             match *v {
@@ -84,13 +83,14 @@ impl ChannelBuilder {
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
                 },
                 Options::String(ref val) => unsafe {
-                    grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr() as *const c_char)
+                    grpc_sys::grpcwrap_channel_args_set_string(args,
+                                                               i,
+                                                               key,
+                                                               val.as_ptr() as *const c_char)
                 },
             }
         }
-        unsafe {
-            ChannelArgs::from_raw(args)
-        }
+        unsafe { ChannelArgs::from_raw(args) }
     }
 
     // TODO: support ssl
@@ -109,7 +109,7 @@ impl ChannelBuilder {
             inner: Arc::new(ChannelInner {
                 _environ: self.environ,
                 channel: channel,
-            })
+            }),
         }
     }
 }
@@ -120,15 +120,13 @@ pub struct ChannelArgs {
 
 impl ChannelArgs {
     pub unsafe fn from_raw(args: *mut GrpcChannelArgs) -> ChannelArgs {
-        ChannelArgs {
-            args: args
-        }
+        ChannelArgs { args: args }
     }
 
     pub fn as_ptr(&self) -> *const GrpcChannelArgs {
         self.args
     }
-    
+
     pub fn into_raw(self) -> *mut GrpcChannelArgs {
         let args = self.args;
         mem::forget(self);
@@ -138,9 +136,7 @@ impl ChannelArgs {
 
 impl Drop for ChannelArgs {
     fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpcwrap_channel_args_destroy(self.args)
-        }
+        unsafe { grpc_sys::grpcwrap_channel_args_destroy(self.args) }
     }
 }
 
@@ -171,11 +167,18 @@ impl Channel {
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
             let timeout = opt.timeout().map_or_else(GprTimespec::inf_future, GprTimespec::from);
-            grpc_sys::grpcwrap_channel_create_call(ch, ptr::null_mut(), 0, cq, method_ptr as *const _, method_len, ptr::null(), 0, timeout, ptr::null_mut())
+            grpc_sys::grpcwrap_channel_create_call(ch,
+                                                   ptr::null_mut(),
+                                                   0,
+                                                   cq,
+                                                   method_ptr as *const _,
+                                                   method_len,
+                                                   ptr::null(),
+                                                   0,
+                                                   timeout,
+                                                   ptr::null_mut())
         };
 
-        unsafe {
-            Call::from_raw(raw_call)
-        }
+        unsafe { Call::from_raw(raw_call) }
     }
 }

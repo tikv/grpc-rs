@@ -1,9 +1,10 @@
-use std::ptr;
 
-use grpc_sys::{self, GrpcCompletionQueue, GprClockType};
+
+use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
+pub use grpc_sys::GrpcCompletionType as EventType;
 
 pub use grpc_sys::GrpcEvent as Event;
-pub use grpc_sys::GrpcCompletionType as EventType;
+use std::ptr;
 
 pub struct CompletionQueue {
     cq: *mut GrpcCompletionQueue,
@@ -14,11 +15,7 @@ unsafe impl Send for CompletionQueue {}
 
 impl CompletionQueue {
     pub fn new() -> CompletionQueue {
-        CompletionQueue {
-            cq: unsafe {
-                grpc_sys::grpc_completion_queue_create(ptr::null_mut())
-            },
-        }
+        CompletionQueue { cq: unsafe { grpc_sys::grpc_completion_queue_create(ptr::null_mut()) } }
     }
 
     pub fn next(&self) -> Event {

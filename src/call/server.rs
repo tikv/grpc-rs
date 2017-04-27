@@ -1,15 +1,16 @@
-use std::slice;
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
 
-use grpc_sys::{self, GrpcRequestCallContext, GprTimespec, GprClockType, GrpcStatusCode};
-use futures::{Future, Stream, Async, Poll, Sink, AsyncSink, StartSend};
-use protobuf::{self, Message, MessageStatic};
 
-use call::{Call, StreamingBase, SinkBase};
-use server::Inner;
+use call::{Call, SinkBase, StreamingBase};
+use error::{Error, Result};
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
+
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcRequestCallContext, GrpcStatusCode};
 use promise::CqFuture;
-use error::{Result, Error};
+use protobuf::{self, Message, MessageStatic};
+use server::Inner;
+use std::marker::PhantomData;
+use std::slice;
+use std::sync::{Arc, Mutex};
 use super::RpcStatus;
 
 pub struct Deadline {
@@ -18,13 +19,10 @@ pub struct Deadline {
 
 impl Deadline {
     fn new(spec: GprTimespec) -> Deadline {
-        let realtime_spec = unsafe {
-            grpc_sys::gpr_convert_clock_type(spec, GprClockType::Realtime)
-        };
+        let realtime_spec =
+            unsafe { grpc_sys::gpr_convert_clock_type(spec, GprClockType::Realtime) };
 
-        Deadline {
-            spec: realtime_spec,
-        }
+        Deadline { spec: realtime_spec }
     }
 
     pub fn passed(&self) -> bool {
@@ -42,9 +40,7 @@ pub struct RequestContext {
 
 impl RequestContext {
     pub fn new(inner: Arc<Inner>) -> RequestContext {
-        let ctx = unsafe {
-            grpc_sys::grpcwrap_request_call_context_create()
-        };
+        let ctx = unsafe { grpc_sys::grpcwrap_request_call_context_create() };
 
         RequestContext {
             ctx: ctx,
@@ -73,30 +69,20 @@ impl RequestContext {
 
     pub fn method(&self) -> &[u8] {
         let mut len = 0;
-        let method = unsafe {
-            grpc_sys::grpcwrap_request_call_context_method(self.ctx, &mut len)
-        };
+        let method = unsafe { grpc_sys::grpcwrap_request_call_context_method(self.ctx, &mut len) };
 
-        unsafe {
-            slice::from_raw_parts(method as _, len)
-        }
+        unsafe { slice::from_raw_parts(method as _, len) }
     }
 
     fn host(&self) -> &[u8] {
         let mut len = 0;
-        let host = unsafe {
-            grpc_sys::grpcwrap_request_call_context_host(self.ctx, &mut len)
-        };
+        let host = unsafe { grpc_sys::grpcwrap_request_call_context_host(self.ctx, &mut len) };
 
-        unsafe {
-            slice::from_raw_parts(host as _, len)
-        }
+        unsafe { slice::from_raw_parts(host as _, len) }
     }
 
     fn deadline(&self) -> Deadline {
-        let t = unsafe {
-            grpc_sys::grpcwrap_request_call_context_deadline(self.ctx)
-        };
+        let t = unsafe { grpc_sys::grpcwrap_request_call_context_deadline(self.ctx) };
 
         Deadline::new(t)
     }
@@ -104,15 +90,13 @@ impl RequestContext {
 
 impl Drop for RequestContext {
     fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpcwrap_request_call_context_destroy(self.ctx)
-        }
+        unsafe { grpc_sys::grpcwrap_request_call_context_destroy(self.ctx) }
     }
 }
 
 pub struct UnaryRequest<T> {
     req_f: CqFuture,
-    _req: PhantomData<T>
+    _req: PhantomData<T>,
 }
 
 impl<T> UnaryRequest<T> {
@@ -202,8 +186,9 @@ impl<T: Message> UnaryResponseSink<T> {
             None => None,
         };
 
-        let cq_f = try!(self.call.start_send_status_from_server(&status, true, data, self.write_flags));
-        
+        let cq_f = try!(self.call
+            .start_send_status_from_server(&status, true, data, self.write_flags));
+
         Ok(UnarySinkResult {
             _call: self.call,
             close_f: self.close_f,
@@ -224,7 +209,8 @@ impl Future for UnarySinkResult {
 
     fn poll(&mut self) -> Poll<(), Error> {
         match self.cq_f.poll_raw_resp() {
-            Ok(Async::Ready(_)) | Err(Error::FutureStale) => {
+            Ok(Async::Ready(_)) |
+            Err(Error::FutureStale) => {
                 try_ready!(self.close_f.poll_raw_resp());
                 Ok(Async::Ready(()))
             }
@@ -269,7 +255,7 @@ impl<T: Message> ClientStreamingResponseSink<T> {
             let mut call = self.call.lock().unwrap();
             try!(call.start_send_status_from_server(&status, true, data, self.write_flags))
         };
-        
+
         Ok(ClientStreamingSinkResult {
             _call: self.call,
             close_f: self.close_f,
@@ -290,7 +276,8 @@ impl Future for ClientStreamingSinkResult {
 
     fn poll(&mut self) -> Poll<(), Error> {
         match self.cq_f.poll_raw_resp() {
-            Ok(Async::Ready(_)) | Err(Error::FutureStale) => {
+            Ok(Async::Ready(_)) |
+            Err(Error::FutureStale) => {
                 try_ready!(self.close_f.poll_raw_resp());
                 Ok(Async::Ready(()))
             }
@@ -351,15 +338,19 @@ impl<T: Message> Sink for ResponseSink<T> {
             }
 
             let mut call = self.call.lock().unwrap();
-            let close_f = try!(call.start_send_status_from_server(&self.status, self.base.send_metadata, None, self.base.flags));
+            let close_f = try!(call.start_send_status_from_server(&self.status,
+                                                                  self.base.send_metadata,
+                                                                  None,
+                                                                  self.base.flags));
             self.base.close_f = Some(close_f);
         }
 
         match self.base.close_f.as_ref().unwrap().poll_raw_resp() {
-            Ok(Async::Ready(_)) | Err(Error::FutureStale) => {
+            Ok(Async::Ready(_)) |
+            Err(Error::FutureStale) => {
                 try_ready!(self.close_f.poll_raw_resp());
                 Ok(Async::Ready(()))
-            },
+            }
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Err(e) => Err(e),
         }
@@ -395,7 +386,8 @@ impl RpcContext {
 pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) {
+          F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>)
+{
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = match call.start_server_side() {
         Ok(f) => f,
@@ -414,7 +406,8 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, f: &F)
 pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) {
+          F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>)
+{
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();
@@ -432,7 +425,8 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
 pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) {
+          F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>)
+{
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();
@@ -458,7 +452,8 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
 pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) {
+          F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>)
+{
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();

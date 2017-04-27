@@ -1,9 +1,10 @@
-use std::{error, result};
-use std::fmt::{self, Display, Formatter};
+
+use call::RpcStatus;
+use grpc_sys::GrpcCallStatus;
 
 use protobuf::ProtobufError;
-use grpc_sys::GrpcCallStatus;
-use call::RpcStatus;
+use std::{error, result};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
 pub enum Error {

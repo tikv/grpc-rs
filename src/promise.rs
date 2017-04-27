@@ -1,18 +1,19 @@
-use std::cell::UnsafeCell;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 
-use futures::task::{self, Task};
-use futures::{Async, Poll};
-use protobuf::{self, MessageStatic};
-use grpc_sys::GrpcStatusCode;
 
 use call::BatchContext;
 use call::server::RequestContext;
 use cq::CompletionQueue;
+use error::{Error, Result};
+use futures::{Async, Poll};
+
+use futures::task::{self, Task};
+use grpc_sys::GrpcStatusCode;
+use protobuf::{self, MessageStatic};
 use server::{self, Inner as ServerInner};
-use error::{Result, Error};
+use std::cell::UnsafeCell;
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 
 #[derive(Default)]
@@ -42,9 +43,7 @@ impl Inner {
     fn lock(&self) -> InnerGuard {
         // TODO: what if poison?
         while self.lock.swap(true, Ordering::SeqCst) {}
-        InnerGuard {
-            inner: self,
-        }
+        InnerGuard { inner: self }
     }
 
     fn resolve_batch(&self, ctx: BatchContext, success: bool) {
@@ -60,7 +59,7 @@ impl Inner {
             PromiseType::ReadOne => {
                 guard.read_one_msg(&ctx);
             }
-            PromiseType::HandleRpc => unreachable!()
+            PromiseType::HandleRpc => unreachable!(),
         }
     }
 
@@ -70,7 +69,7 @@ impl Inner {
             server::request_call(inner, cq);
             return;
         }
-        // don't need to lock here since we just 
+        // don't need to lock here since we just
         assert_eq!(PromiseType::HandleRpc, self.ty);
         let inner = ctx.take_inner().unwrap();
         inner.handle(ctx);
@@ -98,7 +97,7 @@ impl<'a> InnerGuard<'a> {
             self.result(Err(Error::RpcFailure(status)));
             return;
         }
-        
+
         self.result(Ok(ctx.recv_message()))
     }
 
@@ -239,5 +238,9 @@ fn pair(ctx: Context, ty: PromiseType) -> (CqFuture, Promise) {
         ty: ty,
         lock: AtomicBool::new(false),
     });
-    (CqFuture { inner: inner.clone() }, Promise { ctx: ctx, inner: inner })
+    (CqFuture { inner: inner.clone() },
+     Promise {
+        ctx: ctx,
+        inner: inner,
+    })
 }
