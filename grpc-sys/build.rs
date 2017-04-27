@@ -20,7 +20,6 @@ extern crate pkg_config;
 use std::path::Path;
 use std::process::Command;
 
-
 const GRPC_VERSION: &'static str = "1.2.5";
 const ZLIB_VERSION: &'static str = "1.2.8";
 const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
