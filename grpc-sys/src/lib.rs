@@ -1,9 +1,24 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#![cfg_attr(feature = "dev", feature(plugin))]
+#![cfg_attr(feature = "dev", plugin(clippy))]
+#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
+
 extern crate libc;
 
+use libc::{c_char, c_int, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
-use libc::{size_t, c_int, c_void, c_char, int64_t, int32_t, uint8_t, uint32_t};
-
-// grpc/impl/codegen/gpr_types.h
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -22,20 +37,21 @@ pub struct GprTimespec {
     pub clock_type: GprClockType,
 }
 
-impl From<Option<Duration>> for GprTimespec {
-    fn from(dur: Option<Duration>) -> GprTimespec {
-        match dur {
-            Some(dur) => GprTimespec {
-                tv_sec: dur.as_secs() as int64_t,
-                tv_nsec: dur.subsec_nanos() as int32_t,
-                clock_type: GprClockType::Timespan,
-            },
-            None => unsafe { gpr_inf_future(GprClockType::Realtime) },
-        }
+impl GprTimespec {
+    pub fn inf_future() -> GprTimespec {
+        unsafe { gpr_inf_future(GprClockType::Realtime) }
     }
 }
 
-// grpc/impl/codegen/status.h
+impl From<Duration> for GprTimespec {
+    fn from(dur: Duration) -> GprTimespec {
+        GprTimespec {
+            tv_sec: dur.as_secs() as int64_t,
+            tv_nsec: dur.subsec_nanos() as int32_t,
+            clock_type: GprClockType::Timespan,
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -57,10 +73,7 @@ pub enum GrpcStatusCode {
     Internal = 13,
     Unavailable = 14,
     DataLoss = 15,
-    DoNotUse = -1
 }
-
-// grpc/impl/codegen/grpc_types.h
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]
@@ -79,7 +92,7 @@ pub enum GrpcCallStatus {
     ErrorInvalidMessage,
     ErrorNotServerCompletionQueue,
     ErrorBatchTooBig,
-    ErrorPayloadTypeMismatch
+    ErrorPayloadTypeMismatch,
 }
 
 #[repr(C)]
@@ -95,8 +108,6 @@ pub struct GrpcEvent {
     pub success: c_int,
     pub tag: *mut c_void,
 }
-
-// grpc/impl/codegen/grpc_types.h
 
 pub enum GrpcChannelArgs {}
 
@@ -116,13 +127,6 @@ pub enum GrpcCompressionLevel {
     Low,
     Med,
     High,
-    Count
-}
-
-#[repr(C)]
-pub struct MaybeCompressionLevel {
-    is_set: uint8_t,
-    level: GrpcCompressionLevel,
 }
 
 #[repr(C)]
@@ -229,6 +233,7 @@ extern "C" {
     pub fn grpcwrap_server_request_call(server: *mut GrpcServer, cq: *mut GrpcCompletionQueue, ctx: *mut GrpcRequestCallContext, tag: *mut c_void) -> GrpcCallStatus;
 }
 
+// TODO: more tests.
 #[cfg(test)]
 mod tests {
     use std::ptr;

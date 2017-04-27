@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::{ptr, mem};
 
 use libc::{c_char, c_int};
-use grpc_sys::{self, GrpcChannel, GrpcChannelArgs};
+use grpc_sys::{self, GrpcChannel, GrpcChannelArgs, GprTimespec};
 
 use cq::CompletionQueue;
 use env::Environment;
@@ -170,7 +170,8 @@ impl Channel {
             let cq = self.cq.as_ptr();
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
-            grpc_sys::grpcwrap_channel_create_call(ch, ptr::null_mut(), 0, cq, method_ptr as *const _, method_len, ptr::null(), 0, opt.timeout().into(), ptr::null_mut())
+            let timeout = opt.timeout().map_or_else(GprTimespec::inf_future, GprTimespec::from);
+            grpc_sys::grpcwrap_channel_create_call(ch, ptr::null_mut(), 0, cq, method_ptr as *const _, method_len, ptr::null(), 0, timeout, ptr::null_mut())
         };
 
         unsafe {
