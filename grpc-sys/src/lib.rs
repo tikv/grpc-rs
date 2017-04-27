@@ -20,6 +20,7 @@ extern crate libc;
 use libc::{c_char, c_int, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub enum GprClockType {
     Monotonic = 0,
@@ -28,11 +29,12 @@ pub enum GprClockType {
     Timespan,
 }
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct GprTimespec {
-    tv_sec: int64_t,
-    tv_nsec: int32_t,
-    clock_type: GprClockType,
+    pub tv_sec: int64_t,
+    pub tv_nsec: int32_t,
+    pub clock_type: GprClockType,
 }
 
 impl GprTimespec {
@@ -52,7 +54,7 @@ impl From<Duration> for GprTimespec {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum GrpcStatusCode {
     Ok = 0,
     Cancelled = 1,
@@ -149,6 +151,7 @@ pub enum GrpcCall {}
 pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
+pub enum GrpcRequestCallContext {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -162,7 +165,10 @@ extern "C" {
 
     pub fn grpc_register_plugin(init: Option<extern "C" fn()>, destroy: Option<extern "C" fn()>);
 
-    pub fn gpr_inf_future(lock_type: GprClockType) -> GprTimespec;
+    pub fn gpr_inf_future(clock_type: GprClockType) -> GprTimespec;
+    pub fn gpr_now(clock_type: GprClockType) -> GprTimespec;
+    pub fn gpr_time_cmp(lhs: GprTimespec, rhs: GprTimespec) -> c_int;
+    pub fn gpr_convert_clock_type(t: GprTimespec, clock_type: GprClockType) -> GprTimespec;
 
     pub fn grpc_completion_queue_create(reserved: *mut c_void) -> *mut GrpcCompletionQueue;
     pub fn grpc_completion_queue_next(cq: *mut GrpcCompletionQueue,
@@ -211,8 +217,6 @@ extern "C" {
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
-    pub fn grpcwrap_batch_context_set_tag(ctx: *mut GrpcBatchContext, tag: *mut c_void);
-    pub fn grpcwrap_batch_context_take_tag(ctx: *mut GrpcBatchContext) -> *mut c_void;
     pub fn grpcwrap_batch_context_recv_initial_metadata(ctx: *mut GrpcBatchContext)
                                                         -> *const GrpcMetadataArray;
     pub fn grpcwrap_batch_context_recv_message_length(ctx: *mut GrpcBatchContext) -> size_t;
@@ -236,12 +240,14 @@ extern "C" {
                                      send_buffer_len: size_t,
                                      write_flags: uint32_t,
                                      initial_metadata: *mut GrpcMetadataArray,
-                                     initial_metadata_flags: uint32_t)
+                                     initial_metadata_flags: uint32_t,
+                                     tag: *mut c_void)
                                      -> GrpcCallStatus;
     pub fn grpcwrap_call_start_client_streaming(call: *mut GrpcCall,
                                                 ctx: *mut GrpcBatchContext,
                                                 initial_metadata: *mut GrpcMetadataArray,
-                                                initial_metadata_flags: uint32_t)
+                                                initial_metadata_flags: uint32_t,
+                                                tag: *mut c_void)
                                                 -> GrpcCallStatus;
     pub fn grpcwrap_call_start_server_streaming(call: *mut GrpcCall,
                                                 ctx: *mut GrpcBatchContext,
@@ -249,35 +255,55 @@ extern "C" {
                                                 send_buffer_len: size_t,
                                                 write_flags: uint32_t,
                                                 initial_metadata: *mut GrpcMetadataArray,
-                                                initial_metadata_flags: uint32_t)
+                                                initial_metadata_flags: uint32_t,
+                                                tag: *mut c_void)
                                                 -> GrpcCallStatus;
     pub fn grpcwrap_call_start_duplex_streaming(call: *mut GrpcCall,
                                                 ctx: *mut GrpcBatchContext,
                                                 initial_metadata: *mut GrpcMetadataArray,
-                                                initial_metadata_flags: uint32_t)
+                                                initial_metadata_flags: uint32_t,
+                                                tag: *mut c_void)
                                                 -> GrpcCallStatus;
     pub fn grpcwrap_call_recv_initial_metadata(call: *mut GrpcCall,
-                                               ctx: *mut GrpcBatchContext)
+                                               ctx: *mut GrpcBatchContext,
+                                               tag: *mut c_void)
                                                -> GrpcCallStatus;
     pub fn grpcwrap_call_send_message(call: *mut GrpcCall,
                                       ctx: *mut GrpcBatchContext,
                                       send_bufer: *const c_char,
                                       send_buffer_len: size_t,
                                       write_flags: uint32_t,
-                                      send_empty_initial_metadata: uint32_t)
+                                      send_empty_initial_metadata: uint32_t,
+                                      tag: *mut c_void)
                                       -> GrpcCallStatus;
     pub fn grpcwrap_call_send_close_from_client(call: *mut GrpcCall,
-                                                ctx: *mut GrpcBatchContext)
+                                                ctx: *mut GrpcBatchContext,
+                                                tag: *mut c_void)
                                                 -> GrpcCallStatus;
+    pub fn grpcwrap_call_send_status_from_server(call: *mut GrpcCall,
+                                                 ctx: *mut GrpcBatchContext,
+                                                 status: GrpcStatusCode,
+                                                 status_details: *const c_char,
+                                                 status_details_len: size_t,
+                                                 trailing_metadata: *mut GrpcMetadataArray,
+                                                 send_empty_metadata: int32_t,
+                                                 optional_send_buffer: *const c_char,
+                                                 buffer_len: size_t,
+                                                 write_flags: uint32_t,
+                                                 tag: *mut c_void)
+                                                 -> GrpcCallStatus;
     pub fn grpcwrap_call_recv_message(call: *mut GrpcCall,
-                                      ctx: *mut GrpcBatchContext)
+                                      ctx: *mut GrpcBatchContext,
+                                      tag: *mut c_void)
                                       -> GrpcCallStatus;
     pub fn grpcwrap_call_start_serverside(call: *mut GrpcCall,
-                                          ctx: *mut GrpcBatchContext)
+                                          ctx: *mut GrpcBatchContext,
+                                          tag: *mut c_void)
                                           -> GrpcCallStatus;
     pub fn grpcwrap_call_send_initial_metadata(call: *mut GrpcCall,
                                                ctx: *mut GrpcBatchContext,
-                                               initial_metadata: *mut GrpcMetadataArray)
+                                               initial_metadata: *mut GrpcMetadataArray,
+                                               tag: *mut c_void)
                                                -> GrpcCallStatus;
     pub fn grpc_call_get_peer(call: *mut GrpcCall) -> *mut c_char;
     pub fn grpc_call_get_target(call: *mut GrpcCall) -> *mut c_char;
@@ -288,14 +314,6 @@ extern "C" {
                                         reserved: *mut c_void);
     pub fn grpc_call_destroy(call: *mut GrpcCall);
 
-    pub fn grpc_server_request_call(server: *mut GrpcServer,
-                                    call: *mut GrpcCall,
-                                    details: *mut GrpcCallDetails,
-                                    request_metadata: *mut GrpcMetadataArray,
-                                    cq_bound_to_call: *mut GrpcCompletionQueue,
-                                    cq_for_notification: *mut GrpcCompletionQueue,
-                                    tag_new: *mut c_void)
-                                    -> GrpcCallStatus;
     pub fn grpc_server_register_method(server: *mut GrpcServer,
                                        method: *const c_char,
                                        host: *const c_char,
@@ -317,6 +335,26 @@ extern "C" {
                                            tag: *mut c_void);
     pub fn grpc_server_cancel_all_calls(server: *mut GrpcServer);
     pub fn grpc_server_destroy(server: *mut GrpcServer);
+
+    pub fn grpcwrap_request_call_context_create() -> *mut GrpcRequestCallContext;
+    pub fn grpcwrap_request_call_context_destroy(ctx: *mut GrpcRequestCallContext);
+    pub fn grpcwrap_request_call_context_take_call(ctx: *const GrpcRequestCallContext)
+                                                   -> *mut GrpcCall;
+    pub fn grpcwrap_request_call_context_method(ctx: *const GrpcRequestCallContext,
+                                                len: *mut size_t)
+                                                -> *const c_char;
+    pub fn grpcwrap_request_call_context_host(ctx: *const GrpcRequestCallContext,
+                                              len: *mut size_t)
+                                              -> *const c_char;
+    pub fn grpcwrap_request_call_context_deadline(ctx: *const GrpcRequestCallContext)
+                                                  -> GprTimespec;
+    pub fn grpcwrap_request_call_context_metadata(ctx: *const GrpcRequestCallContext)
+                                                  -> *const GrpcMetadataArray;
+    pub fn grpcwrap_server_request_call(server: *mut GrpcServer,
+                                        cq: *mut GrpcCompletionQueue,
+                                        ctx: *mut GrpcRequestCallContext,
+                                        tag: *mut c_void)
+                                        -> GrpcCallStatus;
 }
 
 // TODO: more tests.
