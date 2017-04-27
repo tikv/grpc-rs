@@ -1,6 +1,6 @@
 use serde_json;
 
-use route_guide::*;
+use helper::route_guide::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PointRef {

@@ -8,23 +8,22 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-mod route_guide;
-mod route_guide_grpc;
-mod utils;
+mod helper;
 
 use std::sync::Arc;
 use std::io::Read;
 use std::time::Instant;
 use std::{io, thread};
 
-use utils::*;
 use grpc::*;
 use futures::*;
 use futures::sync::oneshot;
 use tokio_core::reactor::*;
 
-use route_guide::*;
-use route_guide_grpc::RouteGuide;
+pub use helper::route_guide;
+use helper::utils::*;
+use helper::route_guide::*;
+use helper::route_guide_grpc::{self, RouteGuide};
 
 
 #[derive(Clone)]
