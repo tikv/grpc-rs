@@ -1,6 +1,6 @@
 
 use RpcContext;
-use call::Method;
+use call::{Method, MethodType};
 use call::server::*;
 use channel::ChannelArgs;
 use cq::CompletionQueue;
@@ -19,8 +19,32 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
+pub type CallBack = Box<Fn(RpcContext, &[u8])>;
+
+pub struct Handler {
+    method_type: MethodType,
+    cb: CallBack,
+}
+
+impl Handler {
+    pub fn new(method_type: MethodType, cb: CallBack) -> Handler {
+        Handler {
+            method_type: method_type,
+            cb: cb,
+        }
+    }
+
+    pub fn cb(&self) -> &CallBack {
+        &self.cb
+    }
+
+    pub fn method_type(&self) -> MethodType {
+        self.method_type
+    }
+}
+
 pub struct ServiceBuilder {
-    handlers: HashMap<&'static [u8], Box<Fn(RpcContext)>>,
+    handlers: HashMap<&'static [u8], Handler>,
 }
 
 impl ServiceBuilder {
@@ -31,10 +55,10 @@ impl ServiceBuilder {
     pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
         where P: MessageStatic,
               Q: Message,
-              F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) + 'static
+              F: Fn(RpcContext, P, UnaryResponseSink<Q>) + 'static
     {
-        self.handlers.insert(method.name.as_bytes(),
-                             Box::new(move |ctx| execute_unary(ctx, &handler)));
+        let h = Box::new(move |ctx, payload: &[u8]| execute_unary(ctx, payload, &handler));
+        self.handlers.insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
         self
     }
 
@@ -46,8 +70,9 @@ impl ServiceBuilder {
               Q: Message,
               F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static
     {
+        let h = Box::new(move |ctx, _: &[u8]| execute_client_streaming(ctx, &handler));
         self.handlers.insert(method.name.as_bytes(),
-                             Box::new(move |ctx| execute_client_streaming(ctx, &handler)));
+                             Handler::new(MethodType::ClientStreaming, h));
         self
     }
 
@@ -57,10 +82,12 @@ impl ServiceBuilder {
                                                  -> ServiceBuilder
         where P: MessageStatic,
               Q: Message,
-              F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) + 'static
+              F: Fn(RpcContext, P, ResponseSink<Q>) + 'static
     {
+        let h =
+            Box::new(move |ctx, payload: &[u8]| execute_server_streaming(ctx, payload, &handler));
         self.handlers.insert(method.name.as_bytes(),
-                             Box::new(move |ctx| execute_server_streaming(ctx, &handler)));
+                             Handler::new(MethodType::ServerStreaming, h));
         self
     }
 
@@ -72,8 +99,8 @@ impl ServiceBuilder {
               Q: Message,
               F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static
     {
-        self.handlers.insert(method.name.as_bytes(),
-                             Box::new(move |ctx| execute_duplex_streaming(ctx, &handler)));
+        let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, &handler));
+        self.handlers.insert(method.name.as_bytes(), Handler::new(MethodType::Dulex, h));
         self
     }
 
@@ -83,7 +110,7 @@ impl ServiceBuilder {
 }
 
 pub struct Service {
-    handlers: HashMap<&'static [u8], Box<Fn(RpcContext)>>,
+    handlers: HashMap<&'static [u8], Handler>,
 }
 
 pub struct ServerBuilder {
@@ -91,7 +118,7 @@ pub struct ServerBuilder {
     addrs: Vec<(String, u32)>,
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
-    handlers: HashMap<&'static [u8], Box<Fn(RpcContext)>>,
+    handlers: HashMap<&'static [u8], Handler>,
 }
 
 impl ServerBuilder {
@@ -165,21 +192,12 @@ pub struct Inner {
     bind_addrs: Vec<(String, u32)>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
-    handlers: HashMap<&'static [u8], Box<Fn(RpcContext)>>,
+    handlers: HashMap<&'static [u8], Handler>,
 }
 
 impl Inner {
-    pub fn handle(&self, ctx: RequestContext) {
-        let handler = {
-            match self.handlers.get(ctx.method()) {
-                Some(handler) => handler,
-                None => {
-                    // TODO handle unimplement method.
-                    return;
-                }
-            }
-        };
-        execute(ctx, handler)
+    pub fn get_method(&self, method: &[u8]) -> Option<&Handler> {
+        self.handlers.get(method)
     }
 }
 
@@ -188,7 +206,7 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
         return;
     }
     let server_ptr = inner.server;
-    let (_, prom) = promise::request_pair(inner);
+    let prom = promise::request_promise(inner);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);

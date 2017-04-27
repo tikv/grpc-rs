@@ -332,6 +332,11 @@ GPR_EXPORT grpc_call *GPR_CALLTYPE grpcwrap_request_call_context_take_call(
   return call;
 }
 
+GPR_EXPORT grpc_call *GPR_CALLTYPE grpcwrap_request_call_context_get_call(
+    grpcwrap_request_call_context *ctx) {
+  return ctx->call;
+}
+
 GPR_EXPORT const char *GPR_CALLTYPE
 grpcwrap_request_call_context_method(
     const grpcwrap_request_call_context *ctx, size_t *method_length) {

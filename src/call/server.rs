@@ -1,15 +1,16 @@
 
-
-use call::{Call, SinkBase, StreamingBase};
+use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase};
+use cq::CompletionQueue;
 use error::{Error, Result};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcRequestCallContext, GrpcStatusCode};
-use promise::CqFuture;
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext,
+               GrpcStatusCode};
+use promise::{self, CqFuture};
 use protobuf::{self, Message, MessageStatic};
-use server::Inner;
+use server::{CallBack, Inner};
+use std::{result, slice};
 use std::marker::PhantomData;
-use std::slice;
 use std::sync::{Arc, Mutex};
 use super::RpcStatus;
 
@@ -45,6 +46,42 @@ impl RequestContext {
         RequestContext {
             ctx: ctx,
             inner: Some(inner),
+        }
+    }
+
+    pub fn handle_stream_req(self, inner: &Inner) -> result::Result<(), Self> {
+        match inner.get_method(self.method()) {
+            Some(handler) => {
+                match handler.method_type() {
+                    MethodType::Unary |
+                    MethodType::ServerStreaming => Err(self),
+                    _ => {
+                        execute(self, &[], handler.cb());
+                        Ok(())
+                    }
+                }
+            }
+            None => {
+                // TODO: handle undefine method properly.
+                Ok(())
+            }
+        }
+    }
+
+    pub fn handle_unary_req(self, inner: Arc<Inner>, cq: &CompletionQueue) {
+        // fetch message before calling callback.
+        let prom = Box::new(promise::unary_request_promise(self, inner));
+        let batch_ctx = prom.batch_ctx().unwrap().as_ptr();
+        let request_ctx = prom.request_ctx().unwrap().as_ptr();
+        let tag = Box::into_raw(prom);
+        unsafe {
+            let call = grpc_sys::grpcwrap_request_call_context_get_call(request_ctx);
+            let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag as _);
+            if code != GrpcCallStatus::Ok {
+                let prom = Box::from_raw(tag);
+                // TODO: log
+                prom.resolve(cq, false);
+            }
         }
     }
 
@@ -88,34 +125,43 @@ impl RequestContext {
     }
 }
 
+pub struct UnaryRequestContext {
+    request: RequestContext,
+    inner: Option<Arc<Inner>>,
+    batch: BatchContext,
+}
+
+impl UnaryRequestContext {
+    pub fn new(ctx: RequestContext, inner: Arc<Inner>) -> UnaryRequestContext {
+        UnaryRequestContext {
+            request: ctx,
+            inner: Some(inner),
+            batch: BatchContext::new(),
+        }
+    }
+
+    pub fn batch_ctx(&self) -> &BatchContext {
+        &self.batch
+    }
+
+    pub fn request_ctx(&self) -> &RequestContext {
+        &self.request
+    }
+
+    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
+        self.inner.take()
+    }
+
+    pub fn handle(self, inner: &Arc<Inner>, data: &[u8]) {
+        let handler = inner.get_method(self.request.method()).unwrap();
+        // TODO: debug assert
+        execute(self.request, data, handler.cb())
+    }
+}
+
 impl Drop for RequestContext {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpcwrap_request_call_context_destroy(self.ctx) }
-    }
-}
-
-pub struct UnaryRequest<T> {
-    req_f: CqFuture,
-    _req: PhantomData<T>,
-}
-
-impl<T> UnaryRequest<T> {
-    fn new(req_f: CqFuture) -> UnaryRequest<T> {
-        UnaryRequest {
-            req_f: req_f,
-            _req: PhantomData,
-        }
-    }
-}
-
-impl<T: MessageStatic> Future for UnaryRequest<T> {
-    type Item = T;
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<T, Error> {
-        let data = try_ready!(self.req_f.poll_raw_resp());
-        let msg = try!(protobuf::parse_from_bytes(&data));
-        Ok(Async::Ready(msg))
     }
 }
 
@@ -383,24 +429,23 @@ impl RpcContext {
     }
 }
 
-pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, f: &F)
+pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>)
+          F: Fn(RpcContext, P, UnaryResponseSink<Q>)
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = match call.start_server_side() {
         Ok(f) => f,
         Err(_) => return,
     };
-    let cq_f = match call.start_recv_message() {
+    let request = match protobuf::parse_from_bytes(payload) {
         Ok(f) => f,
         // TODO: log?
         Err(_) => return,
     };
-    let req_f = UnaryRequest::new(cq_f);
     let sink = UnaryResponseSink::new(call, close_f);
-    f(ctx, req_f, sink)
+    f(ctx, request, sink)
 }
 
 pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
@@ -422,11 +467,12 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     f(ctx, req_s, sink)
 }
 
-pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
+pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>)
+          F: Fn(RpcContext, P, ResponseSink<Q>)
 {
+    // TODO: remove lock.
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();
@@ -435,18 +481,14 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
             Err(_) => return,
         }
     };
-    let req_f = {
-        // TODO: remove lock
-        let mut call = call.lock().unwrap();
-        match call.start_recv_message() {
-            Ok(f) => f,
-            Err(_) => return,
-        }
+
+    let request = match protobuf::parse_from_bytes(payload) {
+        Ok(t) => t,
+        Err(_) => return,
     };
 
-    let req_s = UnaryRequest::new(req_f);
     let sink = ResponseSink::new(call, close_f);
-    f(ctx, req_s, sink)
+    f(ctx, request, sink)
 }
 
 pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
@@ -468,7 +510,7 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     f(ctx, req_s, sink)
 }
 
-pub fn execute(ctx: RequestContext, f: &Box<Fn(RpcContext)>) {
+fn execute(ctx: RequestContext, payload: &[u8], f: &CallBack) {
     let rpc_ctx = RpcContext::new(ctx);
-    f(rpc_ctx)
+    f(rpc_ctx, payload)
 }

@@ -77,8 +77,8 @@ impl RouteGuideClient {
 }
 
 pub trait RouteGuide {
-    fn get_feature(&self, ctx: RpcContext, point: UnaryRequest<Point>, resp: UnaryResponseSink<Feature>);
-    fn list_features(&self, ctx: RpcContext, rect: UnaryRequest<Rectangle>, resp: ResponseSink<Feature>);
+    fn get_feature(&self, ctx: RpcContext, point: Point, resp: UnaryResponseSink<Feature>);
+    fn list_features(&self, ctx: RpcContext, rect: Rectangle, resp: ResponseSink<Feature>);
     fn record_route(&self, ctx: RpcContext, point: RequestStream<Point>, resp: ClientStreamingResponseSink<RouteSummary>);
     fn route_chat(&self, ctx: RpcContext, note: RequestStream<RouteNote>, resp: ResponseSink<RouteNote>);
 }

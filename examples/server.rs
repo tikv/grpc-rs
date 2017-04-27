@@ -33,30 +33,28 @@ struct RouteGuideService {
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&self, _: RpcContext, point: UnaryRequest<Point>, resp: UnaryResponseSink<Feature>) {
+    fn get_feature(&self, _: RpcContext, point: Point, resp: UnaryResponseSink<Feature>) {
         let data = self.data.clone();
-        self.remote.spawn(|_| {
-            point.and_then(move |point| {
-                let f = data.iter().find(|f| {
-                    same_point(f.get_location(), &point)
-                }).map_or_else(Feature::new, ToOwned::to_owned);
-                resp.succeess(f)
-            }).flatten().map_err(|e| println!("failed to handle getfeature request: {:?}", e))
+        self.remote.spawn(move |_| {
+            let f = data.iter().find(|f| {
+                same_point(f.get_location(), &point)
+            }).map_or_else(Feature::new, ToOwned::to_owned);
+            future::result(resp.succeess(f)).flatten().map_err(|e| println!("failed to handle getfeature request: {:?}", e))
         });
     }
 
-    fn list_features(&self, _: RpcContext, rect: UnaryRequest<Rectangle>, resp: ResponseSink<Feature>) {
+    fn list_features(&self, _: RpcContext, rect: Rectangle, resp: ResponseSink<Feature>) {
         let data = self.data.clone();
         self.remote.spawn(move |_| {
-            rect.and_then(move |rect| {
-                let mut features: Vec<Result<_>> = vec![];
-                for f in data.iter() {
-                    if fit_in(f.get_location(), &rect) {
-                        features.push(Ok(f.to_owned()));
-                    }
+            let features: Vec<Result<_>> = data.iter().filter_map(|f| {
+                if fit_in(f.get_location(), &rect) {
+                    Some(Ok(f.to_owned()))
+                } else {
+                    None
                 }
-                resp.send_all(stream::iter(features)).map(|_| {})
-            }).map_err(|e| println!("failed to handle listfeatures request: {:?}", e))
+            }).collect();
+
+            resp.send_all(stream::iter(features)).map(|_| {}).map_err(|e| println!("failed to handle listfeatures request: {:?}", e))
         })
     }
 

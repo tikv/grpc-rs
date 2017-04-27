@@ -1,7 +1,7 @@
 
 
 use call::BatchContext;
-use call::server::RequestContext;
+use call::server::{RequestContext, UnaryRequestContext};
 use cq::CompletionQueue;
 use error::{Error, Result};
 use futures::{Async, Poll};
@@ -69,10 +69,28 @@ impl Inner {
             server::request_call(inner, cq);
             return;
         }
-        // don't need to lock here since we just
+        // don't need to lock here because no paired future.
         assert_eq!(PromiseType::HandleRpc, self.ty);
         let inner = ctx.take_inner().unwrap();
-        inner.handle(ctx);
+        match ctx.handle_stream_req(&inner) {
+            Ok(_) => server::request_call(inner, cq),
+            Err(ctx) => ctx.handle_unary_req(inner, cq),
+        }
+    }
+
+    fn resolve_unary_request(&self,
+                             mut ctx: UnaryRequestContext,
+                             cq: &CompletionQueue,
+                             success: bool) {
+        let inner = ctx.take_inner().unwrap();
+        if !success {
+            server::request_call(inner, cq);
+            return;
+        }
+        // don't need to lock here because no paired future.
+        assert_eq!(PromiseType::HandleRpc, self.ty);
+        let data = ctx.batch_ctx().recv_message();
+        ctx.handle(&inner, &data);
         server::request_call(inner, cq);
     }
 
@@ -172,6 +190,7 @@ impl CqFuture {
 enum Context {
     Batch(BatchContext),
     Request(RequestContext),
+    UnaryRequest(UnaryRequestContext),
     Shutdown,
 }
 
@@ -182,6 +201,7 @@ impl Debug for Context {
         match *self {
             Context::Batch(_) => write!(f, "Context::Batch(..)"),
             Context::Request(_) => write!(f, "Context::Request(..)"),
+            Context::UnaryRequest(_) => write!(f, "Context::UnaryRequest(..)"),
             Context::Shutdown => write!(f, "Context::Shutdown"),
         }
     }
@@ -196,14 +216,16 @@ impl Promise {
     pub fn batch_ctx(&self) -> Option<&BatchContext> {
         match self.ctx {
             Context::Batch(ref ctx) => Some(ctx),
-            Context::Request(_) | Context::Shutdown => None,
+            Context::UnaryRequest(ref ctx) => Some(ctx.batch_ctx()),
+            _ => None,
         }
     }
 
     pub fn request_ctx(&self) -> Option<&RequestContext> {
         match self.ctx {
             Context::Request(ref ctx) => Some(ctx),
-            Context::Batch(_) | Context::Shutdown => None,
+            Context::UnaryRequest(ref ctx) => Some(ctx.request_ctx()),
+            _ => None,
         }
     }
 
@@ -211,6 +233,7 @@ impl Promise {
         match self.ctx {
             Context::Batch(ctx) => self.inner.resolve_batch(ctx, success),
             Context::Request(ctx) => self.inner.resolve_request(ctx, cq, success),
+            Context::UnaryRequest(ctx) => self.inner.resolve_unary_request(ctx, cq, success),
             Context::Shutdown => self.inner.resolve_shutdown(success),
         }
     }
@@ -221,13 +244,18 @@ pub fn batch_pair(ty: PromiseType) -> (CqFuture, Promise) {
     pair(Context::Batch(ctx), ty)
 }
 
-pub fn request_pair(inner: Arc<ServerInner>) -> (CqFuture, Promise) {
+pub fn request_promise(inner: Arc<ServerInner>) -> Promise {
     let ctx = RequestContext::new(inner);
-    pair(Context::Request(ctx), PromiseType::HandleRpc)
+    pair(Context::Request(ctx), PromiseType::HandleRpc).1
 }
 
 pub fn shutdown_pair() -> (CqFuture, Promise) {
     pair(Context::Shutdown, PromiseType::Finish)
+}
+
+pub fn unary_request_promise(ctx: RequestContext, inner: Arc<ServerInner>) -> Promise {
+    let ctx = UnaryRequestContext::new(ctx, inner);
+    pair(Context::UnaryRequest(ctx), PromiseType::HandleRpc).1
 }
 
 fn pair(ctx: Context, ty: PromiseType) -> (CqFuture, Promise) {

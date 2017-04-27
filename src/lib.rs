@@ -37,8 +37,7 @@ pub use call::{Method, MethodType};
 pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,
                        ServerStreamingCallHandler, UnaryCallHandler};
 pub use call::server::{ClientStreamingResponseSink, ClientStreamingSinkResult, Deadline,
-                       RequestStream, ResponseSink, RpcContext, UnaryRequest, UnaryResponseSink,
-                       UnarySinkResult};
+                       RequestStream, ResponseSink, RpcContext, UnaryResponseSink, UnarySinkResult};
 pub use channel::{Channel, ChannelBuilder};
 pub use client::Client;
 pub use env::Environment;

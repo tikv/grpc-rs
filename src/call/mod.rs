@@ -85,6 +85,7 @@ impl BatchContext {
         }
     }
 
+    // TODO: return &[u8] instead.
     pub fn recv_message(&self) -> Vec<u8> {
         // TODO: avoid copy
         let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };

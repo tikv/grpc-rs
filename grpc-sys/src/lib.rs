@@ -338,6 +338,8 @@ extern "C" {
 
     pub fn grpcwrap_request_call_context_create() -> *mut GrpcRequestCallContext;
     pub fn grpcwrap_request_call_context_destroy(ctx: *mut GrpcRequestCallContext);
+    pub fn grpcwrap_request_call_context_get_call(ctx: *const GrpcRequestCallContext)
+                                                  -> *mut GrpcCall;
     pub fn grpcwrap_request_call_context_take_call(ctx: *const GrpcRequestCallContext)
                                                    -> *mut GrpcCall;
     pub fn grpcwrap_request_call_context_method(ctx: *const GrpcRequestCallContext,
