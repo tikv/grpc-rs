@@ -18,6 +18,68 @@ use RpcContext;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
+pub struct ServiceBuilder {
+    handlers: HashMap<&'static [u8], Box<Fn(RpcContext)>>,
+}
+
+impl ServiceBuilder {
+    pub fn new() -> ServiceBuilder {
+        ServiceBuilder {
+            handlers: HashMap::new(),
+        }
+    }
+    
+    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
+        where P: MessageStatic,
+            Q: Message,
+            F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) + 'static {
+        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
+            execute_unary(ctx, &handler)
+        }));
+        self
+    }
+
+    pub fn add_client_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
+        where P: MessageStatic,
+          Q: Message,
+          F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static {
+        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
+            execute_client_streaming(ctx, &handler)
+        }));
+        self
+    }
+
+    pub fn add_server_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder 
+        where P: MessageStatic,
+            Q: Message,
+            F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) + 'static {
+        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
+            execute_server_streaming(ctx, &handler)
+        }));
+        self
+    }
+
+    pub fn add_duplex_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder 
+        where P: MessageStatic,
+            Q: Message,
+            F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static {
+        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
+            execute_duplex_streaming(ctx, &handler)
+        }));
+        self
+    }
+
+    pub fn build(self) -> Service {
+        Service {
+            handlers: self.handlers,
+        }
+    }
+}
+
+pub struct Service {
+    handlers: HashMap<&'static [u8], Box<Fn(RpcContext)>>,
+}
+
 pub struct ServerBuilder {
     env: Arc<Environment>,
     addrs: Vec<(String, u32)>,
@@ -47,48 +109,13 @@ impl ServerBuilder {
         self
     }
 
-    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServerBuilder
-        where P: MessageStatic,
-            Q: Message,
-            F: Fn(RpcContext, UnaryRequest<P>, UnaryResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_unary(ctx, &handler)
-        }));
-        self
-    }
-
-    pub fn add_client_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServerBuilder
-        where P: MessageStatic,
-          Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_client_streaming(ctx, &handler)
-        }));
-        self
-    }
-
-    pub fn add_server_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServerBuilder 
-        where P: MessageStatic,
-            Q: Message,
-            F: Fn(RpcContext, UnaryRequest<P>, ResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_server_streaming(ctx, &handler)
-        }));
-        self
-    }
-
-    pub fn add_duplex_streaming_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServerBuilder 
-        where P: MessageStatic,
-            Q: Message,
-            F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static {
-        self.handlers.insert(method.name.as_bytes(), Box::new(move |ctx| {
-            execute_duplex_streaming(ctx, &handler)
-        }));
-        self
-    }
-
     pub fn requests_slot_per_cq(mut self, slots: usize) -> ServerBuilder {
         self.slots_per_cq = slots;
+        self
+    }
+
+    pub fn register_service(mut self, service: Service) -> ServerBuilder {
+        self.handlers.extend(service.handlers);
         self
     }
 

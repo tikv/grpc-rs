@@ -83,7 +83,8 @@ pub trait RouteGuide {
     fn route_chat(&self, ctx: RpcContext, note: RequestStream<RouteNote>, resp: ResponseSink<RouteNote>);
 }
 
-pub fn bind_service<R: RouteGuide + Send + Clone + 'static>(mut builder: ServerBuilder, service: R) -> ServerBuilder {
+pub fn create_service<R: RouteGuide + Send + Clone + 'static>(service: R) -> Service {
+    let mut builder = ServiceBuilder::new();
     let instance = service.clone();
     builder = builder.add_unary_handler(&METHOD_ROUTE_GUIDE_GET_FEATURE, move |ctx, point, resp| {
         instance.get_feature(ctx, point, resp)
@@ -98,5 +99,5 @@ pub fn bind_service<R: RouteGuide + Send + Clone + 'static>(mut builder: ServerB
     });
     builder.add_duplex_streaming_handler(&METHOD_ROUTE_GUIDE_ROUTE_CHAT, move |ctx, point, resp| {
         service.route_chat(ctx, point, resp)
-    })
+    }).build()
 }

@@ -109,7 +109,8 @@ fn main() {
     let remote = core.remote();
     let env = Arc::new(Environment::new(2));
     let instance = RouteGuideService { remote: remote, data: Arc::new(load_db()) };
-    let mut server = route_guide_grpc::bind_service(ServerBuilder::new(env), instance).bind("127.0.0.1", 50051).build();
+    let service = route_guide_grpc::create_service(instance);
+    let mut server = ServerBuilder::new(env).register_service(service).bind("127.0.0.1", 50051).build();
     server.start();
     for &(ref host, port) in server.bind_addrs() {
         println!("listening on {}:{}", host, port);

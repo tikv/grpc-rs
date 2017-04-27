@@ -19,5 +19,5 @@ pub use call::{Method, MethodType};
 pub use call::client::{CallOption, UnaryCallHandler, ClientStreamingCallHandler, ServerStreamingCallHandler, DuplexStreamingCallHandler};
 pub use call::server::{Deadline, UnaryRequest, RequestStream, UnaryResponseSink, ClientStreamingResponseSink, UnarySinkResult, ClientStreamingSinkResult, ResponseSink, RpcContext};
 pub use client::Client;
-pub use server::{ServerBuilder, Server};
+pub use server::{ServiceBuilder, Service, ServerBuilder, Server};
 pub use error::{Error, Result};
