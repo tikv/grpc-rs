@@ -81,7 +81,7 @@ impl RouteGuide for RouteGuideService {
                 let dur = timer.elapsed();
                 s.set_elapsed_time(dur.as_secs() as i32);
                 resp.succeess(s)
-            }).map_err(|e| println!("failed to record route: {:?}", e)).map(|_| {})
+            }).flatten().map_err(|e| println!("failed to record route: {:?}", e))
         })
     }
 
