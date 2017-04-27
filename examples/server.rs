@@ -2,16 +2,18 @@ extern crate grpc;
 extern crate protobuf;
 extern crate futures;
 
+#[path="./generated/route_guide.rs"]
 mod route_guide;
+#[path="./generated/route_guide_grpc.rs"]
 mod route_guide_grpc;
 
 use std::sync::Arc;
 
-use grpc::{ServerBuilder, Environment, ChannelBuilder, Result};
+use grpc::*;
 use futures::{Future, Stream, stream, Sink};
 
-use route_guide::{Point, Rectangle, RouteNote};
-use route_guide_grpc::{self, RouteGuide};
+use route_guide::*;
+use route_guide_grpc::RouteGuide;
 
 fn new_point(lat: i32, lon: i32) -> Point {
     let mut point = Point::new();
@@ -41,7 +43,7 @@ impl RouteGuide for RouteGuideService {
         unimplemented!()
     }
 
-    fn list_features(&self, ctx: RpcContext, point: UnaryRequest<Point>, resp: ResponseSink<Feature>) {
+    fn list_features(&self, ctx: RpcContext, point: UnaryRequest<Rectangle>, resp: ResponseSink<Feature>) {
         unimplemented!()
     }
 
@@ -57,7 +59,7 @@ impl RouteGuide for RouteGuideService {
 fn main() {
     let env = Arc::new(Environment::new(2));
     let instance = RouteGuideService;
-    let server = route_guide_grpc::bind_service(ServerBuilder::new(env), instance).bind("127.0.0.1", 50051).build();
+    let server = route_guide_grpc::bind_route_guide(ServerBuilder::new(env), instance).bind("127.0.0.1", 50051).build();
     server.start();
     
 }
