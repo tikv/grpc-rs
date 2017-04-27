@@ -242,7 +242,7 @@ impl Server {
             grpc_sys::grpc_server_start(self.inner.server);
             for cq in self.inner.env.completion_queues() {
                 for _ in 0..self.inner.slots_per_cq {
-                    request_call(self.inner.clone(), &cq);
+                    request_call(self.inner.clone(), cq);
                 }
             }
         }

@@ -81,7 +81,7 @@ impl Call {
                                       req: P,
                                       opt: CallOption)
                                       -> Result<UnaryCallHandler<Q>> {
-        let call = channel.create_call(&method, &opt);
+        let call = channel.create_call(method, &opt);
         let payload = try!(req.write_to_bytes());
         let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(call.call,
@@ -100,7 +100,7 @@ impl Call {
                                   method: &Method,
                                   opt: CallOption)
                                   -> Result<ClientStreamingCallHandler<P, Q>> {
-        let call = channel.create_call(&method, &opt);
+        let call = channel.create_call(method, &opt);
         let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
                                                            ctx,
@@ -116,7 +116,7 @@ impl Call {
                                            req: P,
                                            opt: CallOption)
                                            -> Result<ServerStreamingCallHandler<Q>> {
-        let call = channel.create_call(&method, &opt);
+        let call = channel.create_call(method, &opt);
         let payload = try!(req.write_to_bytes());
         let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(call.call,
@@ -144,7 +144,7 @@ impl Call {
                                   method: &Method,
                                   opt: CallOption)
                                   -> Result<DuplexStreamingCallHandler<P, Q>> {
-        let call = channel.create_call(&method, &opt);
+        let call = channel.create_call(method, &opt);
         let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
                                                            ctx,

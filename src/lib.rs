@@ -15,6 +15,9 @@
 #![cfg_attr(feature = "dev", plugin(clippy))]
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
+#![allow(new_without_default_derive)]
+#![allow(new_without_default)]
+
 extern crate grpc_sys;
 extern crate libc;
 #[macro_use]

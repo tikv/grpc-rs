@@ -196,16 +196,14 @@ impl Promise {
     pub fn batch_ctx(&self) -> Option<&BatchContext> {
         match self.ctx {
             Context::Batch(ref ctx) => Some(ctx),
-            Context::Request(_) => None,
-            Context::Shutdown => None,
+            Context::Request(_) | Context::Shutdown => None,
         }
     }
 
     pub fn request_ctx(&self) -> Option<&RequestContext> {
         match self.ctx {
             Context::Request(ref ctx) => Some(ctx),
-            Context::Batch(_) => None,
-            Context::Shutdown => None,
+            Context::Batch(_) | Context::Shutdown => None,
         }
     }
 
