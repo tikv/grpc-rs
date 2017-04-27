@@ -259,7 +259,7 @@ impl<'a> MethodGen<'a> {
                           self.input(),
                           fq_grpc(resp),
                           self.output());
-        w.fn_def(&*sig);
+        w.fn_def(&sig);
     }
 
     fn write_bind(&self, w: &mut CodeWriter) {
@@ -269,12 +269,12 @@ impl<'a> MethodGen<'a> {
             MethodType::ServerStreaming => "add_server_streaming_handler",
             MethodType::Dulex => "add_duplex_streaming_handler",
         };
-        w.block(&*format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
+        w.block(&format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
                           add,
                           self.const_method_name()),
                 "});",
                 |w| {
-                    w.write_line(&*format!("instance.{}(ctx, req, resp)", self.name()));
+                    w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
                 });
     }
 }
@@ -342,7 +342,7 @@ impl<'a> ServiceGen<'a> {
 
         w.write_line("");
 
-        w.pub_fn(&*format!("bind_{}<S: {} + Send + 'static>(mut builder: {}, s: S) -> {2}",
+        w.pub_fn(&format!("bind_{}<S: {} + Send + 'static>(mut builder: {}, s: S) -> {2}",
                            snake_name(self.service_name()),
                            self.service_name(),
                            fq_grpc("ServerBuilder")),
