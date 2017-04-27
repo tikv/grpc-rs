@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(dead_code, unused_imports)]
+
 extern crate gcc;
 extern crate cmake;
 extern crate pkg_config;
@@ -23,6 +25,16 @@ const GRPC_VERSION: &'static str = "1.2.5";
 const ZLIB_VERSION: &'static str = "1.2.8";
 const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
 
+
+#[cfg(feature = "static-link")]
+fn build_or_link_grpc(cc: &mut gcc::Config) {
+    if let Ok(lib) = pkg_config::Config::new().atleast_version(GRPC_VERSION).statik(true).probe("grpc_unsecure") {
+        for inc_path in &lib.include_paths {
+            cc.include(inc_path);
+        }
+        return;
+    }
+}
 
 fn wget(url: &str, out: &str) -> Result<(), String> {
     Command::new("wget").args(&["-q", "-c", "-O", out, url])
@@ -50,15 +62,8 @@ fn tar_xf(file: &str) -> Result<(), String> {
         })
 }
 
+#[cfg(not(feature = "static-link"))]
 fn build_or_link_grpc(cc: &mut gcc::Config) {
-    if let Ok(lib) = pkg_config::Config::new().atleast_version(GRPC_VERSION).statik(true).probe("grpc_unsecure") {
-        for inc_path in &lib.include_paths {
-            cc.include(inc_path);
-        }
-        return;
-
-    }
-
     if !Path::new(&format!("grpc-{}", GRPC_VERSION)).exists() {
         wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz", GRPC_VERSION),
              "grpc.tar.gz")

@@ -14,4 +14,5 @@ pkg-config = "0.3"
 
 [features]
 default = []
+static-link = []
 dev = ["clippy"]
