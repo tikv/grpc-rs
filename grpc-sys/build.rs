@@ -25,68 +25,75 @@ const GRPC_VERSION: &'static str = "1.2.5";
 const ZLIB_VERSION: &'static str = "1.2.8";
 const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
 
-
 #[cfg(not(feature = "static-link"))]
 fn build_or_link_grpc(cc: &mut gcc::Config) {
-    if let Ok(lib) = pkg_config::Config::new().atleast_version(GRPC_VERSION).statik(true).probe("grpc_unsecure") {
-        for inc_path in &lib.include_paths {
+    if let Ok(lib) = pkg_config::Config::new()
+        .atleast_version(GRPC_VERSION)
+        .statik(true)
+        .probe("grpc_unsecure") {
+        for inc_path in lib.include_paths {
             cc.include(inc_path);
         }
-        return;
+    } else {
+        panic!("can't find dynamic grpc library");
     }
-}
-
-fn wget(url: &str, out: &str) -> Result<(), String> {
-    Command::new("wget").args(&["-q", "-c", "-O", out, url])
-        .status()
-        .map_err(|err| format!("wget execute failed: {}", err))
-        .and_then(|status| {
-            if status.success() {
-                Ok(())
-            } else {
-                Err(format!("wget exit with {}", status))
-            }
-        })
-}
-
-fn tar_xf(file: &str) -> Result<(), String> {
-    Command::new("tar").args(&["zxf", file])
-        .status()
-        .map_err(|err| format!("tar execute failed: {}", err))
-        .and_then(|status| {
-            if status.success() {
-                Ok(())
-            } else {
-                Err(format!("tar exit with {}", status))
-            }
-        })
 }
 
 #[cfg(feature = "static-link")]
 fn build_or_link_grpc(cc: &mut gcc::Config) {
+    fn wget(url: &str, out: &str) -> Result<(), String> {
+        Command::new("wget")
+            .args(&["-q", "-c", "-O", out, url])
+            .status()
+            .map_err(|err| format!("wget execute failed: {}", err))
+            .and_then(|status| {
+                if status.success() {
+                    Ok(())
+                } else {
+                    Err(format!("wget exit with {}", status))
+                }
+            })
+    }
+
+    fn tar_xf(file: &str) -> Result<(), String> {
+        Command::new("tar")
+            .args(&["zxf", file])
+            .status()
+            .map_err(|err| format!("tar execute failed: {}", err))
+            .and_then(|status| {
+                if status.success() {
+                    Ok(())
+                } else {
+                    Err(format!("tar exit with {}", status))
+                }
+            })
+    }
+
     if !Path::new(&format!("grpc-{}", GRPC_VERSION)).exists() {
-        wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz", GRPC_VERSION),
+        wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz",
+                      GRPC_VERSION),
              "grpc.tar.gz")
             .and_then(|_| tar_xf("grpc.tar.gz"))
             .unwrap();
     }
 
     if !Path::new(&format!("zlib-{}", ZLIB_VERSION)).exists() {
-        wget(&format!("https://github.com/madler/zlib/archive/v{}.tar.gz", ZLIB_VERSION),
+        wget(&format!("https://github.com/madler/zlib/archive/v{}.tar.gz",
+                      ZLIB_VERSION),
              "zlib.tar.gz")
             .and_then(|_| tar_xf("zlib.tar.gz"))
             .unwrap();
     }
 
     if !Path::new(&format!("boringssl-{}", BORINGSSL_GIT_HASH)).exists() {
-        wget(&format!("https://github.com/google/boringssl/archive/{}.tar.gz", BORINGSSL_GIT_HASH),
+        wget(&format!("https://github.com/google/boringssl/archive/{}.tar.gz",
+                      BORINGSSL_GIT_HASH),
              "boringssl.tar.gz")
             .and_then(|_| tar_xf("boringssl.tar.gz"))
             .unwrap();
     }
 
-    let dst = cmake::Config::new(format!("zlib-{}", ZLIB_VERSION))
-        .build();
+    let dst = cmake::Config::new(format!("zlib-{}", ZLIB_VERSION)).build();
 
     println!("cargo:rustc-link-search=native={}/lib", dst.display());
 
@@ -99,7 +106,8 @@ fn build_or_link_grpc(cc: &mut gcc::Config) {
     cc.include(format!("grpc-{}/include", GRPC_VERSION));
 
     println!("cargo:rustc-link-search=native={}/build", dst.display());
-    println!("cargo:rustc-link-search=native={}/build/third_party/zlib", dst.display());
+    println!("cargo:rustc-link-search=native={}/build/third_party/zlib",
+             dst.display());
 
     println!("cargo:rustc-link-lib=static=z");
     println!("cargo:rustc-link-lib=static=gpr");
