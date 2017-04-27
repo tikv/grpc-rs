@@ -204,7 +204,7 @@ impl StreamingBase {
         }
     }
 
-    fn poll(&mut self, call: &mut Call, skip_finish_check: bool) -> Poll<Option<Result<Vec<u8>>>, Error> {
+    fn poll(&mut self, call: &mut Call, skip_finish_check: bool) -> Poll<Option<Vec<u8>>, Error> {
         if self.stale {
             return Err(Error::FutureStale);
         }
@@ -212,32 +212,31 @@ impl StreamingBase {
         if let Some(ref msg_f) = self.msg_f {
             match msg_f.poll_raw_resp() {
                 // maybe we can schedule next poll immediately?
-                Ok(Async::Ready(Ok(bytes))) => {
+                Ok(Async::Ready(bytes)) => {
                     if bytes.is_empty() {
                         self.stale = true;
                         return Ok(Async::Ready(None));
                     }
                     
-                    return Ok(Async::Ready(Some(Ok(bytes))))
+                    return Ok(Async::Ready(Some(bytes)))
                 }
-                Ok(Async::Ready(Err(e))) => return Ok(Async::Ready(Some(Err(e)))),
                 Err(Error::FutureStale) => repoll_resp = true,
+                Err(e) => return Err(e),
                 Ok(Async::NotReady) => {
                     if skip_finish_check {
                         return Ok(Async::NotReady);
                     }
-                },
-                e => panic!("unexpected result: {:?}", e),
+                }
             }
         }
 
         if let Some(ref close_f) = self.close_f {
             match close_f.poll_raw_resp() {
-                Ok(Async::Ready(Ok(_))) => {
+                Ok(Async::Ready(_)) => {
                     self.stale = true;
                     return Ok(Async::Ready(None))
                 },
-                Ok(Async::Ready(Err(e))) | Err(e) => {
+                Err(e) => {
                     self.stale = true;
                     return Err(e);
                 },
@@ -303,11 +302,7 @@ impl SinkBase {
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
         if let Some(ref write_f) = self.write_f {
-            match write_f.poll_raw_resp() {
-                Ok(Async::Ready(Ok(_))) => {}
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Err(e) | Ok(Async::Ready(Err(e))) => return Err(e),
-            }
+            try_ready!(write_f.poll_raw_resp());
         }
         
         self.write_f.take();

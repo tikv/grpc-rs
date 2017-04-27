@@ -1,10 +1,10 @@
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
-use std::{ptr, mem, slice, usize, result};
+use std::ptr;
 use std::marker::PhantomData;
 
 use futures::{Future, Poll, Async, Stream, AsyncSink, Sink, StartSend};
-use grpc_sys::{self, GrpcCall, GrpcBatchContext, GrpcCallStatus, GrpcStatusCode};
+use grpc_sys;
 use protobuf::{self, Message, MessageStatic};
 
 use channel::Channel;
@@ -137,10 +137,10 @@ impl<T> UnaryCallHandler<T> {
 }
 
 impl<T: MessageStatic> Future for UnaryCallHandler<T> {
-    type Item = Result<T>;
+    type Item = T;
     type Error = Error;
 
-    fn poll(&mut self) -> Poll<Result<T>, Error> {
+    fn poll(&mut self) -> Poll<T, Error> {
         self.resp_f.poll_resp()
     }
 }
@@ -152,10 +152,10 @@ pub struct UnaryResponseReceiver<T> {
 }
 
 impl<T: MessageStatic> Future for UnaryResponseReceiver<T> {
-    type Item = Result<T>;
+    type Item = T;
     type Error = Error;
 
-    fn poll(&mut self) -> Poll<Result<T>, Error> {
+    fn poll(&mut self) -> Poll<T, Error> {
         self.resp_f.poll_resp()
     }
 }
@@ -230,14 +230,14 @@ impl<Q> ServerStreamingCallHandler<Q> {
 }
 
 impl<Q: MessageStatic> Stream for ServerStreamingCallHandler<Q> {
-    type Item = Result<Q>;
+    type Item = Q;
     type Error = Error;
 
-    fn poll(&mut self) -> Poll<Option<Result<Q>>, Error> {
+    fn poll(&mut self) -> Poll<Option<Q>, Error> {
         match try_ready!(self.base.poll(&mut self.call, false)) {
             None => Ok(Async::Ready(None)),
-            Some(res) => {
-                let msg = res.and_then(|data| protobuf::parse_from_bytes(&data).map_err(From::from));
+            Some(data) => {
+                let msg = try!(protobuf::parse_from_bytes(&data));
                 Ok(Async::Ready(Some(msg)))
             }
         }
@@ -312,15 +312,15 @@ impl<P, Q: MessageStatic> DuplexStreamingCallHandler<P, Q> {
 }
 
 impl<Q: MessageStatic> Stream for StreamingResponseReceiver<Q> {
-    type Item = Result<Q>;
+    type Item = Q;
     type Error = Error;
 
-    fn poll(&mut self) -> Poll<Option<Result<Q>>, Error> {
+    fn poll(&mut self) -> Poll<Option<Q>, Error> {
         let mut call = self.call.lock().unwrap();
         match try_ready!(self.base.poll(&mut call, false)) {
             None => Ok(Async::Ready(None)),
-            Some(res) => {
-                let msg = res.and_then(|data| protobuf::parse_from_bytes(&data).map_err(From::from));
+            Some(data) => {
+                let msg = try!(protobuf::parse_from_bytes(&data));
                 Ok(Async::Ready(Some(msg)))
             }
         }

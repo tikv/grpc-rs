@@ -6,7 +6,6 @@ use grpc_sys::{self, GrpcRequestCallContext, GprTimespec, GprClockType, GrpcStat
 use futures::{Future, Stream, Async, Poll, Sink, AsyncSink, StartSend};
 use protobuf::{self, Message, MessageStatic};
 
-use cq::CompletionQueue;
 use call::{Call, StreamingBase, SinkBase};
 use server::Inner;
 use promise::CqFuture;
@@ -130,14 +129,9 @@ impl<T: MessageStatic> Future for UnaryRequest<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
-        match try!(self.req_f.poll_raw_resp()) {
-            Async::Ready(res) => {
-                let data = try!(res);
-                let msg = try!(protobuf::parse_from_bytes(&data));
-                Ok(Async::Ready(msg))
-            }
-            Async::NotReady => Ok(Async::NotReady)
-        }
+        let data = try_ready!(self.req_f.poll_raw_resp());
+        let msg = try!(protobuf::parse_from_bytes(&data));
+        Ok(Async::Ready(msg))
     }
 }
 
@@ -170,7 +164,6 @@ impl<T: MessageStatic> Stream for RequestStream<T> {
         match data {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let data = try!(data);
                 let msg = try!(protobuf::parse_from_bytes(&data));
                 Ok(Async::Ready(Some(msg)))
             }

@@ -147,14 +147,14 @@ pub struct CqFuture {
 
 impl CqFuture {
     // only call this method in poll context.
-    pub fn poll_raw_resp(&self) -> Poll<Result<Vec<u8>>, Error> {
+    pub fn poll_raw_resp(&self) -> Poll<Vec<u8>, Error> {
         let mut guard = self.inner.lock();
         if guard.stale {
             return Err(Error::FutureStale);
         }
         if let Some(res) = guard.result.take() {
             guard.stale = true;
-            return Ok(Async::Ready(res));
+            return Ok(Async::Ready(try!(res)));
         }
         if guard.park.is_none() {
             guard.park = Some(task::park());
@@ -163,14 +163,10 @@ impl CqFuture {
     }
 
     // only call this method in poll context.
-    pub fn poll_resp<T: MessageStatic>(&self) -> Poll<Result<T>, Error> {
-        self.poll_raw_resp().map(|ready| {
-            ready.map(|res| {
-                res.and_then(|bytes| {
-                    protobuf::parse_from_bytes(&bytes).map_err(From::from)
-                })
-            })
-        })
+    pub fn poll_resp<T: MessageStatic>(&self) -> Poll<T, Error> {
+        let bytes = try_ready!(self.poll_raw_resp());
+        let t = try!(protobuf::parse_from_bytes(&bytes));
+        Ok(Async::Ready(t))
     }
 }
 

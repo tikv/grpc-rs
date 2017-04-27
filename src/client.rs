@@ -19,7 +19,7 @@ impl Client {
 
     pub fn unary_call<P: Message, Q: MessageStatic>(&self, method: &Method, req: P, opt: CallOption) -> Result<Q> {
         let f = try!(self.unary_call_async(method, req, opt));
-        try!(f.wait())
+        f.wait()
     }
 
     pub fn unary_call_async<P: Message, Q>(&self, method: &Method, req: P, opt: CallOption) -> Result<UnaryCallHandler<Q>> {

@@ -4,8 +4,6 @@ use std::sync::Arc;
 use grpc_sys;
 use cq::{CompletionQueue, EventType};
 use promise::Promise;
-use call::BatchContext;
-use call::server::RequestContext;
 
 fn poll_queue(cq: Arc<CompletionQueue>) {
     loop {

@@ -107,7 +107,7 @@ impl ChannelBuilder {
         Channel {
             cq: self.environ.pick_a_cq(),
             inner: Arc::new(ChannelInner {
-                environ: self.environ,
+                _environ: self.environ,
                 channel: channel,
             })
         }
@@ -145,7 +145,7 @@ impl Drop for ChannelArgs {
 }
 
 struct ChannelInner {
-    environ: Arc<Environment>,
+    _environ: Arc<Environment>,
     channel: *mut GrpcChannel,
 }
 
