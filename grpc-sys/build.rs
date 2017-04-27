@@ -26,7 +26,7 @@ const ZLIB_VERSION: &'static str = "1.2.8";
 const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
 
 
-#[cfg(feature = "static-link")]
+#[cfg(not(feature = "static-link"))]
 fn build_or_link_grpc(cc: &mut gcc::Config) {
     if let Ok(lib) = pkg_config::Config::new().atleast_version(GRPC_VERSION).statik(true).probe("grpc_unsecure") {
         for inc_path in &lib.include_paths {
@@ -62,7 +62,7 @@ fn tar_xf(file: &str) -> Result<(), String> {
         })
 }
 
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "static-link")]
 fn build_or_link_grpc(cc: &mut gcc::Config) {
     if !Path::new(&format!("grpc-{}", GRPC_VERSION)).exists() {
         wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz", GRPC_VERSION),
