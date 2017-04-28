@@ -11,19 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
-#![allow(new_without_default_derive)]
-#![allow(new_without_default)]
+use grpc_sys::GrpcStatusCode;
 
-extern crate grpc_sys;
-extern crate libc;
-extern crate futures;
-extern crate protobuf;
+/// Status return from server.
+#[derive(Debug)]
+pub struct RpcStatus {
+    pub status: GrpcStatusCode,
+    pub details: Option<String>,
+}
 
-mod call;
-mod error;
+impl RpcStatus {
+    pub fn new(status: GrpcStatusCode, details: Option<String>) -> RpcStatus {
+        RpcStatus {
+            status: status,
+            details: details,
+        }
+    }
 
-pub use error::{Error, Result};
+    /// Generate an Ok status.
+    pub fn ok() -> RpcStatus {
+        RpcStatus::new(GrpcStatusCode::Ok, None)
+    }
+}
