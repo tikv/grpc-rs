@@ -10,7 +10,7 @@ addons:
     - build-essential
     - autoconf
     - libtool
-    - git
+    - gnulib
 rust:
   - stable
   - beta
