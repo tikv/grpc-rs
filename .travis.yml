@@ -1,10 +1,15 @@
 language: rust
 cache:
   - $HOME/.cache
-install: build-essential autoconf libtool
 os:
   - linux
   - osx
+addons:
+  apt:
+    packages:
+    - build-essential
+    - autoconf
+    - libtool
 rust:
   - stable
   - beta
