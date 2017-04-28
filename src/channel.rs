@@ -159,6 +159,9 @@ pub struct Channel {
     cq: Arc<CompletionQueue>,
 }
 
+unsafe impl Send for Channel {}
+unsafe impl Sync for Channel {}
+
 impl Channel {
     pub fn create_call(&self, method: &Method, opt: &CallOption) -> Call {
         let raw_call = unsafe {
