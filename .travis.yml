@@ -1,27 +1,35 @@
 language: rust
 cache:
-  - $HOME/.cache
+  directories:
+    - $HOME/.cargo
+    - $HOME/.cache
 os:
   - linux
   - osx
-addons:
-  apt:
-    packages:
-    - build-essential
-    - autoconf
-    - libtool
-    - gnulib
 rust:
   - stable
   - beta
   - nightly
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - autoconf
+    - libtool
+    - gcc-4.8
 before_script:
-  - export PATH="$PATH:$HOME/.cargo/bin"
-  - export LD_LIBRARY_PATH="$HOME/.cargo/lib"
-  - export LIBRARY_PATH="$HOME/.cargo/lib"
-  - which rustfmt || cargo install rustfmt
-  - which grpc_cpp_plugin || git clone https://github.com/grpc/grpc.git && cd grpc && git checkout v1.2.5 && git submodule update --init && env prefix=$HOME/.cache/ make && env prefix=$HOME/.cache make install
+  - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
+  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then export CC=gcc-4.8; fi
+  - if [[ $TRAVIS_OS_NAME == "osx" ]]; then export CC=clang; brew install autoconf automake libtool shtool; fi
+  - test -f "$HOME/.cache/include/grpc/grpc.h" || (git clone -b v1.2.5 https://github.com/grpc/grpc && cd grpc && git submodule update --init && export prefix=$HOME/.cache && make install-headers_c install-shared_c)
+  - export C_INCLUDE_PATH="$HOME/.cache/include"
+  - export LD_LIBRARY_PATH="$HOME/.cache/lib"
+  - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
+  - export LIBRARY_PATH="$HOME/.cache/lib"
+  - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
+  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then which rustfmt || cargo install rustfmt; fi
 script:
-  - cargo fmt -- --write-mode=diff
+  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then cargo fmt -- --write-mode=diff; fi
   - cargo build
   - cargo test --all
