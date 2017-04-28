@@ -1,4 +1,5 @@
 
+use async::{BatchFuture, Promise};
 use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase};
 use cq::CompletionQueue;
 use error::{Error, Result};
@@ -6,7 +7,6 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext,
                GrpcStatusCode};
-use async::{Promise, BatchFuture};
 use protobuf::{self, Message, MessageStatic};
 use server::{CallBack, Inner};
 use std::{result, slice};

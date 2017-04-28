@@ -1,8 +1,8 @@
 
+use async::Promise;
 use cq::{CompletionQueue, EventType};
 
 use grpc_sys;
-use async::Promise;
 use std::sync::Arc;
 use std::thread::{Builder, JoinHandle};
 

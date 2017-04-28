@@ -1,18 +1,7 @@
-
 use call::BatchContext;
-use call::server::{RequestContext, UnaryRequestContext};
-use cq::CompletionQueue;
-use error::{Error, Result};
-use futures::{Async, Poll};
-
-use futures::task::{self, Task};
+use error::Error;
 use grpc_sys::GrpcStatusCode;
-use protobuf::{self, MessageStatic};
-use server::{self, Inner as ServerInner};
-use std::cell::UnsafeCell;
-use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use super::Inner;
 
 #[derive(PartialEq, Debug)]

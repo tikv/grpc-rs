@@ -1,5 +1,6 @@
 
 use RpcContext;
+use async::{CqFuture, Promise};
 use call::{Method, MethodType};
 use call::server::*;
 use channel::ChannelArgs;
@@ -9,7 +10,6 @@ use env::Environment;
 use error::Error;
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
-use async::{Promise, CqFuture};
 
 use protobuf::{Message, MessageStatic};
 use std::collections::HashMap;

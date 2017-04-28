@@ -1,29 +1,21 @@
-
-
-use call::BatchContext;
-use call::server::{RequestContext, UnaryRequestContext};
-use cq::CompletionQueue;
-use error::{Error, Result};
-use futures::{Async, Poll};
-
-use futures::task::{self, Task};
-use grpc_sys::GrpcStatusCode;
-use protobuf::{self, MessageStatic};
-use server::{self, Inner as ServerInner};
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+/// A simple spin lock for synchronization between Promise
+/// and future.
 pub struct SpinLock<T> {
     handle: UnsafeCell<T>,
     lock: AtomicBool,
 }
 
+// It's a lock, as long as the content can be sent between
+// threads, it's Sync and Send.
 unsafe impl<T: Send> Sync for SpinLock<T> {}
 unsafe impl<T: Send> Send for SpinLock<T> {}
 
 impl<T> SpinLock<T> {
+    /// Create a lock with the given value.
     pub fn new(t: T) -> SpinLock<T> {
         SpinLock {
             handle: UnsafeCell::new(t),
@@ -38,7 +30,8 @@ impl<T> SpinLock<T> {
     }
 }
 
-struct LockGuard<'a, T: 'a> {
+/// A guard for `SpinLock`.
+pub struct LockGuard<'a, T: 'a> {
     inner: &'a SpinLock<T>,
 }
 

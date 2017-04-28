@@ -1,13 +1,13 @@
 pub mod client;
 pub mod server;
 
+
+use async::{BatchFuture, BatchType, Promise};
 use error::{Error, Result};
-use futures::{Async, Poll, Future};
+use futures::{Async, Future, Poll};
 
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
 use libc::c_void;
-
-use async::{self, BatchFuture, BatchType, Promise};
 use std::{ptr, result, slice, usize};
 
 #[derive(Clone, Copy)]

@@ -1,4 +1,5 @@
 
+use async::{BatchType, CqFuture};
 use call::{Call, Method, check_run};
 
 use channel::Channel;
@@ -6,7 +7,6 @@ use error::{Error, Result};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
-use async::{CqFuture, BatchType};
 use protobuf::{self, Message, MessageStatic};
 use std::marker::PhantomData;
 use std::ptr;
@@ -307,7 +307,10 @@ pub struct DuplexStreamingCallHandler<P, Q> {
 }
 
 impl<P, Q> DuplexStreamingCallHandler<P, Q> {
-    fn new(call: Call, resp_f: CqFuture<Vec<u8>>, write_flags: u32) -> DuplexStreamingCallHandler<P, Q> {
+    fn new(call: Call,
+           resp_f: CqFuture<Vec<u8>>,
+           write_flags: u32)
+           -> DuplexStreamingCallHandler<P, Q> {
         DuplexStreamingCallHandler {
             call: Arc::new(Mutex::new(call)),
             resp_f: Some(resp_f),
