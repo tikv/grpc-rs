@@ -26,8 +26,6 @@ pub enum Error {
     CallFailure(GrpcCallStatus),
     // fail when the rpc request fail.
     RpcFailure(RpcStatus),
-    // future is stale but get poll again.
-    FutureStale,
     RemoteStopped,
     ShutdownFailed,
 }
@@ -44,7 +42,6 @@ impl error::Error for Error {
             Error::Protobuf(_) => "Grpc Protobuf Error",
             Error::CallFailure(_) => "Grpc Call Error",
             Error::RpcFailure(_) => "Grpc Request Error",
-            Error::FutureStale => "Future is polled after being resolved.",
             Error::RemoteStopped => "Remote is stopped.",
             Error::ShutdownFailed => "Failed to shutdown.",
         }

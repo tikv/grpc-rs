@@ -39,7 +39,11 @@ impl<T> SpinLock<T> {
 
     pub fn lock(&self) -> LockGuard<T> {
         // TODO: what if poison?
-        while self.lock.compare_and_swap(false, true, Ordering::SeqCst) {}
+        // It's safe to use swap here. If previous is false, then the lock
+        // is taken, loop will break, set it to true is expected;
+        // If previous is true, then the loop will go on until others swap
+        // back a false, set it to true changes nothing.
+        while self.lock.swap(true, Ordering::SeqCst) {}
         LockGuard { inner: self }
     }
 }
@@ -66,5 +70,30 @@ impl<'a, T> DerefMut for LockGuard<'a, T> {
 impl<'a, T> Drop for LockGuard<'a, T> {
     fn drop(&mut self) {
         self.inner.lock.swap(false, Ordering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::thread;
+    use std::time::Duration;
+    use std::sync::*;
+    use std::sync::mpsc::*;
+    use super::*;
+
+    #[test]
+    fn test_lock() {
+        let lock1 = Arc::new(SpinLock::new(2));
+        let lock2 = lock1.clone();
+        let (tx, rx) = mpsc::channel();
+        let guard = lock1.lock();
+        thread::spawn(move || {
+            let _guard = lock2.lock();
+            tx.send(()).unwrap();
+        });
+        thread::sleep(Duration::from_millis(10));
+        assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+        drop(guard);
+        assert_eq!(rx.recv(), Ok(()));
     }
 }
