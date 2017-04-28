@@ -1,5 +1,7 @@
 language: rust
-cache: cargo
+cache:
+  - $HOME/.cache
+install: build-essential autoconf libtool
 os:
   - linux
   - osx
@@ -10,6 +12,7 @@ rust:
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - which rustfmt || cargo install rustfmt
+  - mkdir -p $HOME/.cache && cd $HOME/.cache && wget https://github.com/grpc/grpc/archive/v1.2.5.tar.gz && tar xf v1.2.5.tar.gz && cd grpc-1.2.5 && env prefix=$HOME/.cache/ make && env prefix=$HOME/.cache make install
 script:
   - cargo fmt -- --write-mode=diff
   - cargo build
