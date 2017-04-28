@@ -10,14 +10,17 @@ addons:
     - build-essential
     - autoconf
     - libtool
+    - git
 rust:
   - stable
   - beta
   - nightly
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
+  - export LD_LIBRARY_PATH="$HOME/.cargo/lib"
+  - export LIBRARY_PATH="$HOME/.cargo/lib"
   - which rustfmt || cargo install rustfmt
-  - mkdir -p $HOME/.cache && cd $HOME/.cache && wget https://github.com/grpc/grpc/archive/v1.2.5.tar.gz && tar xf v1.2.5.tar.gz && cd grpc-1.2.5 && env prefix=$HOME/.cache/ make && env prefix=$HOME/.cache make install
+  - which grpc_cpp_plugin || git clone https://github.com/grpc/grpc.git && cd grpc && git checkout v1.2.5 && git submodule update --init && env prefix=$HOME/.cache/ make && env prefix=$HOME/.cache make install
 script:
   - cargo fmt -- --write-mode=diff
   - cargo build
