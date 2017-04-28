@@ -39,7 +39,7 @@ impl<T> SpinLock<T> {
 
     pub fn lock(&self) -> LockGuard<T> {
         // TODO: what if poison?
-        while self.lock.swap(true, Ordering::SeqCst) {}
+        while self.lock.compare_and_swap(false, true, Ordering::SeqCst) {}
         LockGuard { inner: self }
     }
 }
