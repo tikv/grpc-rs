@@ -2,12 +2,12 @@ pub mod client;
 pub mod server;
 
 use error::{Error, Result};
-use futures::{Async, Poll};
+use futures::{Async, Poll, Future};
 
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
 use libc::c_void;
 
-use promise::{self, CqFuture, PromiseType};
+use async::{self, BatchFuture, BatchType, Promise};
 use std::{ptr, result, slice, usize};
 
 #[derive(Clone, Copy)]
@@ -109,10 +109,10 @@ impl Drop for BatchContext {
     }
 }
 
-fn check_run<F>(pt: PromiseType, f: F) -> Result<CqFuture>
+fn check_run<F>(bt: BatchType, f: F) -> Result<BatchFuture>
     where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus
 {
-    let (cq_f, prom) = promise::batch_pair(pt);
+    let (cq_f, prom) = Promise::batch_pair(bt);
     let prom_box = Box::new(prom);
     let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
     let prom_ptr = Box::into_raw(prom_box);
@@ -142,9 +142,9 @@ impl Call {
                               msg: &[u8],
                               write_flags: u32,
                               initial_meta: bool)
-                              -> Result<CqFuture> {
+                              -> Result<BatchFuture> {
         let i = if initial_meta { 1 } else { 0 };
-        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(self.call,
                                                  ctx,
                                                  msg.as_ptr() as _,
@@ -155,19 +155,19 @@ impl Call {
         })
     }
 
-    pub fn start_send_close_client(&mut self) -> Result<CqFuture> {
-        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+    pub fn start_send_close_client(&mut self) -> Result<BatchFuture> {
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_close_from_client(self.call, ctx, tag)
         })
     }
 
-    pub fn start_recv_message(&mut self) -> Result<CqFuture> {
-        check_run(PromiseType::ReadOne,
+    pub fn start_recv_message(&mut self) -> Result<BatchFuture> {
+        check_run(BatchType::ReadOne,
                   |ctx, tag| unsafe { grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag) })
     }
 
-    pub fn start_server_side(&mut self) -> Result<CqFuture> {
-        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+    pub fn start_server_side(&mut self) -> Result<BatchFuture> {
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
         })
     }
@@ -177,11 +177,11 @@ impl Call {
                                          send_empty_metadata: bool,
                                          payload: Option<Vec<u8>>,
                                          write_flags: u32)
-                                         -> Result<CqFuture> {
+                                         -> Result<BatchFuture> {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let (payload_ptr, payload_len) = payload.as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
-        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_status_from_server(self.call,
                                                             ctx,
                                                             status.status,
@@ -208,13 +208,13 @@ impl Drop for Call {
 }
 
 struct StreamingBase {
-    close_f: Option<CqFuture>,
-    msg_f: Option<CqFuture>,
+    close_f: Option<BatchFuture>,
+    msg_f: Option<BatchFuture>,
     stale: bool,
 }
 
 impl StreamingBase {
-    fn new(close_f: Option<CqFuture>) -> StreamingBase {
+    fn new(close_f: Option<BatchFuture>) -> StreamingBase {
         StreamingBase {
             close_f: close_f,
             msg_f: None,
@@ -227,8 +227,8 @@ impl StreamingBase {
             return Err(Error::FutureStale);
         }
         let mut repoll_resp = self.msg_f.is_none();
-        if let Some(ref msg_f) = self.msg_f {
-            match msg_f.poll_raw_resp() {
+        if let Some(ref mut msg_f) = self.msg_f {
+            match msg_f.poll() {
                 // maybe we can schedule next poll immediately?
                 Ok(Async::Ready(bytes)) => {
                     if bytes.is_empty() {
@@ -248,8 +248,8 @@ impl StreamingBase {
             }
         }
 
-        if let Some(ref close_f) = self.close_f {
-            match close_f.poll_raw_resp() {
+        if let Some(ref mut close_f) = self.close_f {
+            match close_f.poll() {
                 Ok(Async::Ready(_)) => {
                     self.stale = true;
                     return Ok(Async::Ready(None));
@@ -279,8 +279,8 @@ impl StreamingBase {
 }
 
 struct SinkBase {
-    write_f: Option<CqFuture>,
-    close_f: Option<CqFuture>,
+    write_f: Option<BatchFuture>,
+    close_f: Option<BatchFuture>,
     buf: Vec<u8>,
     flags: u32,
     send_metadata: bool,
@@ -320,8 +320,8 @@ impl SinkBase {
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
-        if let Some(ref write_f) = self.write_f {
-            try_ready!(write_f.poll_raw_resp());
+        if let Some(ref mut write_f) = self.write_f {
+            try_ready!(write_f.poll());
         }
 
         self.write_f.take();
@@ -338,6 +338,6 @@ impl SinkBase {
             self.close_f = Some(close_f);
         }
 
-        self.close_f.as_ref().unwrap().poll_raw_resp().map(|res| res.map(|_| {}))
+        self.close_f.as_mut().unwrap().poll().map(|res| res.map(|_| {}))
     }
 }

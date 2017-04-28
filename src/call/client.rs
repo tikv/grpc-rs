@@ -6,7 +6,7 @@ use error::{Error, Result};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
-use promise::{CqFuture, PromiseType};
+use async::{CqFuture, BatchType};
 use protobuf::{self, Message, MessageStatic};
 use std::marker::PhantomData;
 use std::ptr;
@@ -83,7 +83,7 @@ impl Call {
                                       -> Result<UnaryCallHandler<Q>> {
         let call = channel.create_call(method, &opt);
         let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
+        let cq_f = try!(check_run(BatchType::FinishUnary, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(call.call,
                                                 ctx,
                                                 payload.as_ptr() as *const _,
@@ -101,7 +101,7 @@ impl Call {
                                   opt: CallOption)
                                   -> Result<ClientStreamingCallHandler<P, Q>> {
         let call = channel.create_call(method, &opt);
-        let cq_f = try!(check_run(PromiseType::FinishUnary, |ctx, tag| unsafe {
+        let cq_f = try!(check_run(BatchType::FinishUnary, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
                                                            ctx,
                                                            ptr::null_mut(),
@@ -118,7 +118,7 @@ impl Call {
                                            -> Result<ServerStreamingCallHandler<Q>> {
         let call = channel.create_call(method, &opt);
         let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
+        let cq_f = try!(check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(call.call,
                                                            ctx,
                                                            payload.as_ptr() as _,
@@ -130,7 +130,7 @@ impl Call {
         }));
 
         // ignore header for now
-        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
                 grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
             })
             .unwrap_or_else(|e| {
@@ -145,7 +145,7 @@ impl Call {
                                   opt: CallOption)
                                   -> Result<DuplexStreamingCallHandler<P, Q>> {
         let call = channel.create_call(method, &opt);
-        let cq_f = try!(check_run(PromiseType::Finish, |ctx, tag| unsafe {
+        let cq_f = try!(check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
                                                            ctx,
                                                            ptr::null_mut(),
@@ -154,7 +154,7 @@ impl Call {
         }));
 
         // ignore header for now.
-        check_run(PromiseType::Finish, |ctx, tag| unsafe {
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
                 grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
             })
             .unwrap_or_else(|e| {
@@ -167,12 +167,12 @@ impl Call {
 
 pub struct UnaryCallHandler<T> {
     call: Call,
-    resp_f: CqFuture,
+    resp_f: CqFuture<Vec<u8>>,
     _resp: PhantomData<T>,
 }
 
 impl<T> UnaryCallHandler<T> {
-    fn new(call: Call, resp_f: CqFuture) -> UnaryCallHandler<T> {
+    fn new(call: Call, resp_f: CqFuture<Vec<u8>>) -> UnaryCallHandler<T> {
         UnaryCallHandler {
             call: call,
             resp_f: resp_f,
@@ -190,13 +190,15 @@ impl<T: MessageStatic> Future for UnaryCallHandler<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
-        self.resp_f.poll_resp()
+        let data = try_ready!(self.resp_f.poll());
+        let t = try!(protobuf::parse_from_bytes(&data));
+        Ok(Async::Ready(t))
     }
 }
 
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
-    resp_f: CqFuture,
+    resp_f: CqFuture<Vec<u8>>,
     _resp: PhantomData<T>,
 }
 
@@ -205,20 +207,22 @@ impl<T: MessageStatic> Future for UnaryResponseReceiver<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
-        self.resp_f.poll_resp()
+        let data = try_ready!(self.resp_f.poll());
+        let t = try!(protobuf::parse_from_bytes(&data));
+        Ok(Async::Ready(t))
     }
 }
 
 pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
-    resp_f: CqFuture,
+    resp_f: CqFuture<Vec<u8>>,
     sink_base: SinkBase,
     _req: PhantomData<P>,
     _resp: PhantomData<Q>,
 }
 
 impl<P, Q> ClientStreamingCallHandler<P, Q> {
-    fn new(call: Call, resp_f: CqFuture, flags: u32) -> ClientStreamingCallHandler<P, Q> {
+    fn new(call: Call, resp_f: CqFuture<Vec<u8>>, flags: u32) -> ClientStreamingCallHandler<P, Q> {
         ClientStreamingCallHandler {
             call: call,
             resp_f: resp_f,
@@ -269,7 +273,7 @@ pub struct ServerStreamingCallHandler<Q> {
 }
 
 impl<Q> ServerStreamingCallHandler<Q> {
-    fn new(call: Call, finish_f: CqFuture) -> ServerStreamingCallHandler<Q> {
+    fn new(call: Call, finish_f: CqFuture<Vec<u8>>) -> ServerStreamingCallHandler<Q> {
         ServerStreamingCallHandler {
             call: call,
             base: StreamingBase::new(Some(finish_f)),
@@ -296,14 +300,14 @@ impl<Q: MessageStatic> Stream for ServerStreamingCallHandler<Q> {
 pub struct DuplexStreamingCallHandler<P, Q> {
     // start_batch needs to be synchronized;
     call: Arc<Mutex<Call>>,
-    resp_f: Option<CqFuture>,
+    resp_f: Option<CqFuture<Vec<u8>>>,
     sink_base: SinkBase,
     _req: PhantomData<P>,
     _resp: PhantomData<Q>,
 }
 
 impl<P, Q> DuplexStreamingCallHandler<P, Q> {
-    fn new(call: Call, resp_f: CqFuture, write_flags: u32) -> DuplexStreamingCallHandler<P, Q> {
+    fn new(call: Call, resp_f: CqFuture<Vec<u8>>, write_flags: u32) -> DuplexStreamingCallHandler<P, Q> {
         DuplexStreamingCallHandler {
             call: Arc::new(Mutex::new(call)),
             resp_f: Some(resp_f),

@@ -6,7 +6,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext,
                GrpcStatusCode};
-use promise::{self, CqFuture};
+use async::{Promise, BatchFuture};
 use protobuf::{self, Message, MessageStatic};
 use server::{CallBack, Inner};
 use std::{result, slice};
@@ -70,7 +70,7 @@ impl RequestContext {
 
     pub fn handle_unary_req(self, inner: Arc<Inner>, cq: &CompletionQueue) {
         // fetch message before calling callback.
-        let prom = Box::new(promise::unary_request_promise(self, inner));
+        let prom = Box::new(Promise::unary_request(self, inner));
         let batch_ctx = prom.batch_ctx().unwrap().as_ptr();
         let request_ctx = prom.request_ctx().unwrap().as_ptr();
         let tag = Box::into_raw(prom);
@@ -203,13 +203,13 @@ impl<T: MessageStatic> Stream for RequestStream<T> {
 
 pub struct UnaryResponseSink<T> {
     call: Call,
-    close_f: CqFuture,
+    close_f: BatchFuture,
     write_flags: u32,
     _resp: PhantomData<T>,
 }
 
 impl<T: Message> UnaryResponseSink<T> {
-    fn new(call: Call, close_f: CqFuture) -> UnaryResponseSink<T> {
+    fn new(call: Call, close_f: BatchFuture) -> UnaryResponseSink<T> {
         UnaryResponseSink {
             call: call,
             close_f: close_f,
@@ -245,8 +245,8 @@ impl<T: Message> UnaryResponseSink<T> {
 
 pub struct UnarySinkResult {
     _call: Call,
-    close_f: CqFuture,
-    cq_f: CqFuture,
+    close_f: BatchFuture,
+    cq_f: BatchFuture,
 }
 
 impl Future for UnarySinkResult {
@@ -254,10 +254,10 @@ impl Future for UnarySinkResult {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        match self.cq_f.poll_raw_resp() {
+        match self.cq_f.poll() {
             Ok(Async::Ready(_)) |
             Err(Error::FutureStale) => {
-                try_ready!(self.close_f.poll_raw_resp());
+                try_ready!(self.close_f.poll());
                 Ok(Async::Ready(()))
             }
             Ok(Async::NotReady) => Ok(Async::NotReady),
@@ -268,13 +268,13 @@ impl Future for UnarySinkResult {
 
 pub struct ClientStreamingResponseSink<T> {
     call: Arc<Mutex<Call>>,
-    close_f: CqFuture,
+    close_f: BatchFuture,
     write_flags: u32,
     _resp: PhantomData<T>,
 }
 
 impl<T: Message> ClientStreamingResponseSink<T> {
-    fn new(call: Arc<Mutex<Call>>, close_f: CqFuture) -> ClientStreamingResponseSink<T> {
+    fn new(call: Arc<Mutex<Call>>, close_f: BatchFuture) -> ClientStreamingResponseSink<T> {
         ClientStreamingResponseSink {
             call: call,
             close_f: close_f,
@@ -312,8 +312,8 @@ impl<T: Message> ClientStreamingResponseSink<T> {
 
 pub struct ClientStreamingSinkResult {
     _call: Arc<Mutex<Call>>,
-    close_f: CqFuture,
-    cq_f: CqFuture,
+    close_f: BatchFuture,
+    cq_f: BatchFuture,
 }
 
 impl Future for ClientStreamingSinkResult {
@@ -321,10 +321,10 @@ impl Future for ClientStreamingSinkResult {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        match self.cq_f.poll_raw_resp() {
+        match self.cq_f.poll() {
             Ok(Async::Ready(_)) |
             Err(Error::FutureStale) => {
-                try_ready!(self.close_f.poll_raw_resp());
+                try_ready!(self.close_f.poll());
                 Ok(Async::Ready(()))
             }
             Ok(Async::NotReady) => Ok(Async::NotReady),
@@ -336,13 +336,13 @@ impl Future for ClientStreamingSinkResult {
 pub struct ResponseSink<T> {
     call: Arc<Mutex<Call>>,
     base: SinkBase,
-    close_f: CqFuture,
+    close_f: BatchFuture,
     status: RpcStatus,
     _resp: PhantomData<T>,
 }
 
 impl<T> ResponseSink<T> {
-    fn new(call: Arc<Mutex<Call>>, close_f: CqFuture) -> ResponseSink<T> {
+    fn new(call: Arc<Mutex<Call>>, close_f: BatchFuture) -> ResponseSink<T> {
         ResponseSink {
             call: call,
             base: SinkBase::new(0, true),
@@ -391,10 +391,10 @@ impl<T: Message> Sink for ResponseSink<T> {
             self.base.close_f = Some(close_f);
         }
 
-        match self.base.close_f.as_ref().unwrap().poll_raw_resp() {
+        match self.base.close_f.as_mut().unwrap().poll() {
             Ok(Async::Ready(_)) |
             Err(Error::FutureStale) => {
-                try_ready!(self.close_f.poll_raw_resp());
+                try_ready!(self.close_f.poll());
                 Ok(Async::Ready(()))
             }
             Ok(Async::NotReady) => Ok(Async::NotReady),

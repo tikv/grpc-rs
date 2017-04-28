@@ -9,7 +9,7 @@ use env::Environment;
 use error::Error;
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
-use promise::{self, CqFuture};
+use async::{Promise, CqFuture};
 
 use protobuf::{Message, MessageStatic};
 use std::collections::HashMap;
@@ -206,7 +206,7 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
         return;
     }
     let server_ptr = inner.server;
-    let prom = promise::request_promise(inner);
+    let prom = Promise::request(inner);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);
@@ -220,7 +220,7 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
 }
 
 pub struct ShutdownFuture {
-    cq_f: CqFuture,
+    cq_f: CqFuture<()>,
 }
 
 impl Future for ShutdownFuture {
@@ -228,7 +228,7 @@ impl Future for ShutdownFuture {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        try_ready!(self.cq_f.poll_raw_resp());
+        try_ready!(self.cq_f.poll());
         Ok(Async::Ready(()))
     }
 }
@@ -239,7 +239,7 @@ pub struct Server {
 
 impl Server {
     pub fn shutdown(&mut self) -> ShutdownFuture {
-        let (cq_f, prom) = promise::shutdown_pair();
+        let (cq_f, prom) = Promise::shutdown_pair();
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
         unsafe {

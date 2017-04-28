@@ -31,7 +31,7 @@ mod client;
 mod server;
 mod call;
 mod error;
-mod promise;
+mod async;
 
 pub use call::{Method, MethodType};
 pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,
