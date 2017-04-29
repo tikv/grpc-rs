@@ -3,6 +3,9 @@ cache:
   directories:
     - $HOME/.cargo
     - $HOME/.cache
+    - $TRAVIS_BUILD_DIR/target
+before_cache:
+  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
 os:
   - linux
   - osx
@@ -29,8 +32,9 @@ before_script:
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then which rustfmt || cargo install rustfmt; fi
+  - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then which rustfmt || cargo install rustfmt; fi
 script:
-  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then cargo fmt -- --write-mode=diff; fi
+  - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then cargo fmt -- --write-mode=diff; fi
+  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then FEATURES="dev"; else FEATURES="default"; fi
   - cargo build
-  - cargo test --all
+  - cargo test --all --features "$FEATURES"
