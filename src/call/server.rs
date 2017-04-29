@@ -5,8 +5,7 @@ use cq::CompletionQueue;
 use error::{Error, Result};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext,
-               GrpcStatusCode};
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 use protobuf::{self, Message, MessageStatic};
 use server::{CallBack, Inner};
 use std::{result, slice};
@@ -347,7 +346,7 @@ impl<T> ResponseSink<T> {
             call: call,
             base: SinkBase::new(0, true),
             close_f: close_f,
-            status: RpcStatus::new(GrpcStatusCode::Ok),
+            status: RpcStatus::ok(),
             _resp: PhantomData,
         }
     }

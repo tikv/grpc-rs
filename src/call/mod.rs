@@ -1,6 +1,19 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
 pub mod client;
 pub mod server;
-
 
 use async::{BatchFuture, BatchType, Promise};
 use error::{Error, Result};
@@ -32,22 +45,24 @@ impl Method {
     }
 }
 
+/// Status return from server.
 #[derive(Debug)]
 pub struct RpcStatus {
     pub status: GrpcStatusCode,
-    pub details: String,
+    pub details: Option<String>,
 }
 
 impl RpcStatus {
-    pub fn new(status: GrpcStatusCode) -> RpcStatus {
+    pub fn new(status: GrpcStatusCode, details: Option<String>) -> RpcStatus {
         RpcStatus {
             status: status,
-            details: "".to_owned(),
+            details: details,
         }
     }
 
+    /// Generate an Ok status.
     pub fn ok() -> RpcStatus {
-        RpcStatus::new(GrpcStatusCode::Ok)
+        RpcStatus::new(GrpcStatusCode::Ok, None)
     }
 }
 
@@ -68,14 +83,14 @@ impl BatchContext {
         let status =
             unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) };
         let details = if status == GrpcStatusCode::Ok {
-            String::new()
+            None
         } else {
             unsafe {
                 let mut details_len = 0;
                 let details_ptr = grpc_sys::grpcwrap_batch_context_recv_status_on_client_details(
                     self.ctx, &mut details_len);
                 let details_slice = slice::from_raw_parts(details_ptr as *const _, details_len);
-                String::from_utf8_lossy(details_slice).into_owned()
+                Some(String::from_utf8_lossy(details_slice).into_owned())
             }
         };
 
@@ -182,11 +197,13 @@ impl Call {
         let (payload_ptr, payload_len) = payload.as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
         check_run(BatchType::Finish, |ctx, tag| unsafe {
+            let details_ptr = status.details.as_ref().map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(self.call,
                                                             ctx,
                                                             status.status,
-                                                            status.details.as_ptr() as _,
-                                                            status.details.len(),
+                                                            details_ptr,
+                                                            details_len,
                                                             ptr::null_mut(),
                                                             send_empty_metadata,
                                                             payload_ptr as _,
