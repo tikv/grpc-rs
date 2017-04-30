@@ -2,3 +2,7 @@ target
 Cargo.lock
 *.rs.bk
 *.rs.fmt
+interop/src/proto/**/*.rs
+# remove following once compiler is stable
+!interop/src/proto/testing/test_grpc.rs
+!interop/src/proto/**/mod.rs
