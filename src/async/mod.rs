@@ -85,8 +85,9 @@ impl<T> Future for CqFuture<T> {
     }
 }
 
+pub type BatchMessage = Option<Vec<u8>>;
 /// Future object for batch jobs.
-pub type BatchFuture = CqFuture<Vec<u8>>;
+pub type BatchFuture = CqFuture<BatchMessage>;
 
 /// A result holder for asynchronous execution.
 pub enum Promise {
@@ -98,7 +99,7 @@ pub enum Promise {
 
 impl Promise {
     /// Generate a future/promise pair for batch jobs.
-    pub fn batch_pair(ty: BatchType) -> (CqFuture<Vec<u8>>, Promise) {
+    pub fn batch_pair(ty: BatchType) -> (BatchFuture, Promise) {
         let inner = new_inner();
         let batch = BatchPromise::new(ty, inner.clone());
         (CqFuture::new(inner), Promise::Batch(batch))

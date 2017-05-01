@@ -48,6 +48,8 @@
 // (rust-lang/rust#32836),
 // so we need to wrap the type and expose more safer interfaces.
 
+#define _WIN32_WINNT  0x0A00
+
 #include <grpc/byte_buffer_reader.h>
 #include <grpc/grpc.h>
 #include <grpc/grpc_security.h>
@@ -737,90 +739,6 @@ grpcwrap_server_request_call(grpc_server *server, grpc_completion_queue *cq,
                                   &(ctx->request_metadata), cq, cq, tag);
 }
 
-/* Security */
-
-static char *default_pem_root_certs = NULL;
-
-static grpc_ssl_roots_override_result override_ssl_roots_handler(
-    char **pem_root_certs) {
-  if (!default_pem_root_certs) {
-    *pem_root_certs = NULL;
-    return GRPC_SSL_ROOTS_OVERRIDE_FAIL_PERMANENTLY;
-  }
-  *pem_root_certs = gpr_strdup(default_pem_root_certs);
-  return GRPC_SSL_ROOTS_OVERRIDE_OK;
-}
-
-GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_override_default_ssl_roots(const char *pem_root_certs) {
-  /*
-   * This currently wastes ~300kB of memory by keeping a copy of roots
-   * in a static variable, but for desktop/server use, the overhead
-   * is negligible. In the future, we might want to change the behavior
-   * for mobile (e.g. Xamarin).
-   */
-  default_pem_root_certs = gpr_strdup(pem_root_certs);
-  grpc_set_ssl_roots_override_callback(override_ssl_roots_handler);
-}
-
-GPR_EXPORT grpc_channel_credentials *GPR_CALLTYPE
-grpcwrap_ssl_credentials_create(const char *pem_root_certs,
-                                const char *key_cert_pair_cert_chain,
-                                const char *key_cert_pair_private_key) {
-  grpc_ssl_pem_key_cert_pair key_cert_pair;
-  if (key_cert_pair_cert_chain || key_cert_pair_private_key) {
-    key_cert_pair.cert_chain = key_cert_pair_cert_chain;
-    key_cert_pair.private_key = key_cert_pair_private_key;
-    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL);
-  } else {
-    GPR_ASSERT(!key_cert_pair_cert_chain);
-    GPR_ASSERT(!key_cert_pair_private_key);
-    return grpc_ssl_credentials_create(pem_root_certs, NULL, NULL);
-  }
-}
-
-GPR_EXPORT grpc_server_credentials *GPR_CALLTYPE
-grpcwrap_ssl_server_credentials_create(
-    const char *pem_root_certs, const char **key_cert_pair_cert_chain_array,
-    const char **key_cert_pair_private_key_array, size_t num_key_cert_pairs,
-    int force_client_auth) {
-  size_t i;
-  grpc_server_credentials *creds;
-  grpc_ssl_pem_key_cert_pair *key_cert_pairs =
-      gpr_malloc(sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
-  memset(key_cert_pairs, 0,
-         sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
-
-  for (i = 0; i < num_key_cert_pairs; i++) {
-    if (key_cert_pair_cert_chain_array[i] ||
-        key_cert_pair_private_key_array[i]) {
-      key_cert_pairs[i].cert_chain = key_cert_pair_cert_chain_array[i];
-      key_cert_pairs[i].private_key = key_cert_pair_private_key_array[i];
-    }
-  }
-  creds = grpc_ssl_server_credentials_create_ex(
-      pem_root_certs, key_cert_pairs, num_key_cert_pairs,
-      force_client_auth
-          ? GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
-          : GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
-      NULL);
-  gpr_free(key_cert_pairs);
-  return creds;
-}
-
-/* Metadata credentials plugin */
-
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_credentials_notify_from_plugin(
-    grpc_credentials_plugin_metadata_cb cb, void *user_data,
-    grpc_metadata_array *metadata, grpc_status_code status,
-    const char *error_details) {
-  if (metadata) {
-    cb(user_data, metadata->metadata, metadata->count, status, error_details);
-  } else {
-    cb(user_data, NULL, 0, status, error_details);
-  }
-}
-
 typedef void(GPR_CALLTYPE *grpcwrap_metadata_interceptor_func)(
     void *state, const char *service_url, const char *method_name,
     grpc_credentials_plugin_metadata_cb cb, void *user_data,
@@ -833,21 +751,4 @@ static void grpcwrap_get_metadata_handler(
       (grpcwrap_metadata_interceptor_func)(intptr_t)state;
   interceptor(state, context.service_url, context.method_name, cb, user_data,
               0);
-}
-
-static void grpcwrap_metadata_credentials_destroy_handler(void *state) {
-  grpcwrap_metadata_interceptor_func interceptor =
-      (grpcwrap_metadata_interceptor_func)(intptr_t)state;
-  interceptor(state, NULL, NULL, NULL, NULL, 1);
-}
-
-GPR_EXPORT grpc_call_credentials *GPR_CALLTYPE
-grpcwrap_metadata_credentials_create_from_plugin(
-    grpcwrap_metadata_interceptor_func metadata_interceptor) {
-  grpc_metadata_credentials_plugin plugin;
-  plugin.get_metadata = grpcwrap_get_metadata_handler;
-  plugin.destroy = grpcwrap_metadata_credentials_destroy_handler;
-  plugin.state = (void *)(intptr_t)metadata_interceptor;
-  plugin.type = "";
-  return grpc_metadata_credentials_create_from_plugin(plugin, NULL);
 }

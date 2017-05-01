@@ -12,6 +12,6 @@
 // limitations under the License.
 
 
-mod empty;
-mod messages;
-mod test_grpc;
+pub mod empty;
+pub mod messages;
+pub mod test_grpc;

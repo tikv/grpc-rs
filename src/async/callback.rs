@@ -58,7 +58,7 @@ impl UnaryRequest {
         }
 
         let data = self.ctx.batch_ctx().recv_message();
-        self.ctx.handle(&inner, &data);
+        self.ctx.handle(&inner, &data.unwrap());
         server::request_call(inner, cq);
     }
 }

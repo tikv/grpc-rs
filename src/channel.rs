@@ -49,28 +49,33 @@ impl ChannelBuilder {
     }
 
     pub fn max_concurrent_stream(mut self, num: usize) -> ChannelBuilder {
-        self.options.insert(OPT_MAX_CONCURRENT_STREAMS, Options::Integer(num));
+        self.options
+            .insert(OPT_MAX_CONCURRENT_STREAMS, Options::Integer(num));
         self
     }
 
     pub fn max_receive_message_len(mut self, len: usize) -> ChannelBuilder {
-        self.options.insert(OPT_MAX_RECEIVE_MESSAGE_LENGTH, Options::Integer(len));
+        self.options
+            .insert(OPT_MAX_RECEIVE_MESSAGE_LENGTH, Options::Integer(len));
         self
     }
 
     pub fn max_send_message_len(mut self, len: usize) -> ChannelBuilder {
-        self.options.insert(OPT_MAX_SEND_MESSAGE_LENGTH, Options::Integer(len));
+        self.options
+            .insert(OPT_MAX_SEND_MESSAGE_LENGTH, Options::Integer(len));
         self
     }
 
     pub fn https_initial_seq_number(mut self, number: usize) -> ChannelBuilder {
-        self.options.insert(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER, Options::Integer(number));
+        self.options
+            .insert(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER, Options::Integer(number));
         self
     }
 
     pub fn primary_user_agent(mut self, agent: &str) -> ChannelBuilder {
         let agent_string = format_user_agent_string(agent);
-        self.options.insert(PRIMARY_USER_AGENT_STRING, Options::String(agent_string));
+        self.options
+            .insert(PRIMARY_USER_AGENT_STRING, Options::String(agent_string));
         self
     }
 
@@ -82,12 +87,14 @@ impl ChannelBuilder {
                 Options::Integer(val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
                 },
-                Options::String(ref val) => unsafe {
-                    grpc_sys::grpcwrap_channel_args_set_string(args,
-                                                               i,
-                                                               key,
-                                                               val.as_ptr() as *const c_char)
-                },
+                Options::String(ref val) => {
+                    unsafe {
+                        grpc_sys::grpcwrap_channel_args_set_string(args,
+                                                                   i,
+                                                                   key,
+                                                                   val.as_ptr() as *const c_char)
+                    }
+                }
             }
         }
         unsafe { ChannelArgs::from_raw(args) }
@@ -107,9 +114,9 @@ impl ChannelBuilder {
         Channel {
             cq: self.environ.pick_a_cq(),
             inner: Arc::new(ChannelInner {
-                _environ: self.environ,
-                channel: channel,
-            }),
+                                _environ: self.environ,
+                                channel: channel,
+                            }),
         }
     }
 }
@@ -169,7 +176,8 @@ impl Channel {
             let cq = self.cq.as_ptr();
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
-            let timeout = opt.timeout().map_or_else(GprTimespec::inf_future, GprTimespec::from);
+            let timeout = opt.timeout()
+                .map_or_else(GprTimespec::inf_future, GprTimespec::from);
             grpc_sys::grpcwrap_channel_create_call(ch,
                                                    ptr::null_mut(),
                                                    0,

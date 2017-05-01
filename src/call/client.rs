@@ -1,5 +1,5 @@
 
-use async::{BatchType, CqFuture};
+use async::{BatchMessage, BatchType, CqFuture};
 use call::{Call, Method, check_run};
 
 use channel::Channel;
@@ -131,11 +131,11 @@ impl Call {
 
         // ignore header for now
         check_run(BatchType::Finish, |ctx, tag| unsafe {
-                grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
-            })
-            .unwrap_or_else(|e| {
-                panic!("failed to start receiving headers: {:?}", e);
-            });
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+        })
+                .unwrap_or_else(|e| {
+                                    panic!("failed to start receiving headers: {:?}", e);
+                                });
 
         Ok(ServerStreamingCallHandler::new(call, cq_f))
     }
@@ -155,11 +155,11 @@ impl Call {
 
         // ignore header for now.
         check_run(BatchType::Finish, |ctx, tag| unsafe {
-                grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
-            })
-            .unwrap_or_else(|e| {
-                panic!("failed to start receiving headers: {:?}", e);
-            });
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+        })
+                .unwrap_or_else(|e| {
+                                    panic!("failed to start receiving headers: {:?}", e);
+                                });
 
         Ok(DuplexStreamingCallHandler::new(call, cq_f, opt.write_flags))
     }
@@ -167,12 +167,12 @@ impl Call {
 
 pub struct UnaryCallHandler<T> {
     call: Call,
-    resp_f: CqFuture<Vec<u8>>,
+    resp_f: CqFuture<BatchMessage>,
     _resp: PhantomData<T>,
 }
 
 impl<T> UnaryCallHandler<T> {
-    fn new(call: Call, resp_f: CqFuture<Vec<u8>>) -> UnaryCallHandler<T> {
+    fn new(call: Call, resp_f: CqFuture<BatchMessage>) -> UnaryCallHandler<T> {
         UnaryCallHandler {
             call: call,
             resp_f: resp_f,
@@ -191,14 +191,14 @@ impl<T: MessageStatic> Future for UnaryCallHandler<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = try!(protobuf::parse_from_bytes(&data));
+        let t = try!(protobuf::parse_from_bytes(&data.unwrap()));
         Ok(Async::Ready(t))
     }
 }
 
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
-    resp_f: CqFuture<Vec<u8>>,
+    resp_f: CqFuture<BatchMessage>,
     _resp: PhantomData<T>,
 }
 
@@ -208,21 +208,24 @@ impl<T: MessageStatic> Future for UnaryResponseReceiver<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = try!(protobuf::parse_from_bytes(&data));
+        let t = try!(protobuf::parse_from_bytes(&data.unwrap()));
         Ok(Async::Ready(t))
     }
 }
 
 pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
-    resp_f: CqFuture<Vec<u8>>,
+    resp_f: CqFuture<BatchMessage>,
     sink_base: SinkBase,
     _req: PhantomData<P>,
     _resp: PhantomData<Q>,
 }
 
 impl<P, Q> ClientStreamingCallHandler<P, Q> {
-    fn new(call: Call, resp_f: CqFuture<Vec<u8>>, flags: u32) -> ClientStreamingCallHandler<P, Q> {
+    fn new(call: Call,
+           resp_f: CqFuture<BatchMessage>,
+           flags: u32)
+           -> ClientStreamingCallHandler<P, Q> {
         ClientStreamingCallHandler {
             call: call,
             resp_f: resp_f,
@@ -238,13 +241,13 @@ impl<P: Message, Q> Sink for ClientStreamingCallHandler<P, Q> {
     type SinkError = Error;
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
-        self.sink_base.start_send(&mut self.call, |buf| item.write_to_vec(buf)).map(|s| {
-            if s {
-                AsyncSink::Ready
-            } else {
-                AsyncSink::NotReady(item)
-            }
-        })
+        self.sink_base
+            .start_send(&mut self.call, |buf| item.write_to_vec(buf))
+            .map(|s| if s {
+                     AsyncSink::Ready
+                 } else {
+                     AsyncSink::NotReady(item)
+                 })
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
@@ -257,6 +260,11 @@ impl<P: Message, Q> Sink for ClientStreamingCallHandler<P, Q> {
 }
 
 impl<P, Q: MessageStatic> ClientStreamingCallHandler<P, Q> {
+    pub fn cancel(self) -> UnaryResponseReceiver<Q> {
+        self.call.cancel();
+        self.into_receiver()
+    }
+
     pub fn into_receiver(self) -> UnaryResponseReceiver<Q> {
         UnaryResponseReceiver {
             _call: self.call,
@@ -273,7 +281,7 @@ pub struct ServerStreamingCallHandler<Q> {
 }
 
 impl<Q> ServerStreamingCallHandler<Q> {
-    fn new(call: Call, finish_f: CqFuture<Vec<u8>>) -> ServerStreamingCallHandler<Q> {
+    fn new(call: Call, finish_f: CqFuture<BatchMessage>) -> ServerStreamingCallHandler<Q> {
         ServerStreamingCallHandler {
             call: call,
             base: StreamingBase::new(Some(finish_f)),
@@ -300,7 +308,7 @@ impl<Q: MessageStatic> Stream for ServerStreamingCallHandler<Q> {
 pub struct DuplexStreamingCallHandler<P, Q> {
     // start_batch needs to be synchronized;
     call: Arc<Mutex<Call>>,
-    resp_f: Option<CqFuture<Vec<u8>>>,
+    resp_f: Option<CqFuture<BatchMessage>>,
     sink_base: SinkBase,
     _req: PhantomData<P>,
     _resp: PhantomData<Q>,
@@ -308,7 +316,7 @@ pub struct DuplexStreamingCallHandler<P, Q> {
 
 impl<P, Q> DuplexStreamingCallHandler<P, Q> {
     fn new(call: Call,
-           resp_f: CqFuture<Vec<u8>>,
+           resp_f: CqFuture<BatchMessage>,
            write_flags: u32)
            -> DuplexStreamingCallHandler<P, Q> {
         DuplexStreamingCallHandler {
@@ -327,13 +335,13 @@ impl<P: Message, Q> Sink for DuplexStreamingCallHandler<P, Q> {
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
         let mut call = self.call.lock().unwrap();
-        self.sink_base.start_send(&mut call, |buf| item.write_to_vec(buf)).map(|s| {
-            if s {
-                AsyncSink::Ready
-            } else {
-                AsyncSink::NotReady(item)
-            }
-        })
+        self.sink_base
+            .start_send(&mut call, |buf| item.write_to_vec(buf))
+            .map(|s| if s {
+                     AsyncSink::Ready
+                 } else {
+                     AsyncSink::NotReady(item)
+                 })
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
@@ -360,10 +368,18 @@ impl<P, Q: MessageStatic> DuplexStreamingCallHandler<P, Q> {
         };
 
         Some(StreamingResponseReceiver {
-            call: self.call.clone(),
-            base: StreamingBase::new(Some(resp_f)),
-            _resp: PhantomData,
-        })
+                 call: self.call.clone(),
+                 base: StreamingBase::new(Some(resp_f)),
+                 _resp: PhantomData,
+             })
+    }
+
+    pub fn cancel(mut self) -> Option<StreamingResponseReceiver<Q>> {
+        {
+            let call = self.call.lock().unwrap();
+            call.cancel();
+        }
+        self.take_receiver()
     }
 }
 

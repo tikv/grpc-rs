@@ -5,8 +5,11 @@ authors = ["Jay Lee <busyjaylee@gmail.com>"]
 
 [dependencies]
 grpc = { path = ".." }
+grpc-sys = { path = "../grpc-sys", version = "0.1" }
 protobuf = "1.2"
 futures = "0.1"
+clap = "2.23"
+tokio-core = "0.1"
 clippy = { version = "*", optional = true }
 
 [features]

@@ -217,7 +217,7 @@ impl<T: Message> UnaryResponseSink<T> {
         }
     }
 
-    pub fn succeess(self, t: T) -> Result<UnarySinkResult> {
+    pub fn success(self, t: T) -> Result<UnarySinkResult> {
         self.complete(RpcStatus::ok(), Some(t))
     }
 
@@ -231,14 +231,15 @@ impl<T: Message> UnaryResponseSink<T> {
             None => None,
         };
 
-        let cq_f = try!(self.call
-            .start_send_status_from_server(&status, true, data, self.write_flags));
+        let cq_f =
+            try!(self.call
+                     .start_send_status_from_server(&status, true, data, self.write_flags));
 
         Ok(UnarySinkResult {
-            _call: self.call,
-            close_f: self.close_f,
-            cq_f: cq_f,
-        })
+               _call: self.call,
+               close_f: self.close_f,
+               cq_f: cq_f,
+           })
     }
 }
 
@@ -282,7 +283,7 @@ impl<T: Message> ClientStreamingResponseSink<T> {
         }
     }
 
-    pub fn succeess(self, t: T) -> Result<ClientStreamingSinkResult> {
+    pub fn success(self, t: T) -> Result<ClientStreamingSinkResult> {
         self.complete(RpcStatus::ok(), Some(t))
     }
 
@@ -302,10 +303,10 @@ impl<T: Message> ClientStreamingResponseSink<T> {
         };
 
         Ok(ClientStreamingSinkResult {
-            _call: self.call,
-            close_f: self.close_f,
-            cq_f: cq_f,
-        })
+               _call: self.call,
+               close_f: self.close_f,
+               cq_f: cq_f,
+           })
     }
 }
 
@@ -355,6 +356,23 @@ impl<T> ResponseSink<T> {
         assert!(self.base.close_f.is_none());
         self.status = status;
     }
+
+    pub fn fail(self, status: RpcStatus) -> Result<SinkFailure> {
+        assert!(self.base.close_f.is_none());
+        let fail_f = {
+            let mut call = self.call.lock().unwrap();
+            try!(call.start_send_status_from_server(&status,
+                                                    self.base.send_metadata,
+                                                    None,
+                                                    self.base.flags))
+        };
+
+        Ok(SinkFailure {
+               _call: self.call,
+               close_f: self.close_f,
+               fail_f: Some(fail_f),
+           })
+    }
 }
 
 impl<T: Message> Sink for ResponseSink<T> {
@@ -363,13 +381,13 @@ impl<T: Message> Sink for ResponseSink<T> {
 
     fn start_send(&mut self, item: T) -> StartSend<T, Error> {
         let mut call = self.call.lock().unwrap();
-        self.base.start_send(&mut call, |buf| item.write_to_vec(buf)).map(|s| {
-            if s {
-                AsyncSink::Ready
-            } else {
-                AsyncSink::NotReady(item)
-            }
-        })
+        self.base
+            .start_send(&mut call, |buf| item.write_to_vec(buf))
+            .map(|s| if s {
+                     AsyncSink::Ready
+                 } else {
+                     AsyncSink::NotReady(item)
+                 })
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
@@ -399,6 +417,27 @@ impl<T: Message> Sink for ResponseSink<T> {
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Err(e) => Err(e),
         }
+    }
+}
+
+pub struct SinkFailure {
+    _call: Arc<Mutex<Call>>,
+    close_f: BatchFuture,
+    fail_f: Option<BatchFuture>,
+}
+
+impl Future for SinkFailure {
+    type Item = ();
+    type Error = Error;
+
+    fn poll(&mut self) -> Poll<(), Error> {
+        if let Some(ref mut f) = self.fail_f {
+            try_ready!(f.poll());
+        }
+
+        self.fail_f.take();
+        try_ready!(self.close_f.poll());
+        Ok(Async::Ready(()))
     }
 }
 

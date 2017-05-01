@@ -75,6 +75,30 @@ pub enum GrpcStatusCode {
     DataLoss = 15,
 }
 
+impl From<i32> for GrpcStatusCode {
+    fn from(code: i32) -> GrpcStatusCode {
+        match code {
+            0 => GrpcStatusCode::Ok,
+            1 => GrpcStatusCode::Cancelled,
+            3 => GrpcStatusCode::InvalidArgument,
+            4 => GrpcStatusCode::DeadlineExceeded,
+            5 => GrpcStatusCode::NotFound,
+            6 => GrpcStatusCode::AlreadyExists,
+            7 => GrpcStatusCode::PermissionDenied,
+            16 => GrpcStatusCode::Unauthenticated,
+            8 => GrpcStatusCode::ResourceExhausted,
+            9 => GrpcStatusCode::FailedPrecondition,
+            10 => GrpcStatusCode::Aborted,
+            11 => GrpcStatusCode::OutOfRange,
+            12 => GrpcStatusCode::Unimplemented,
+            13 => GrpcStatusCode::Internal,
+            14 => GrpcStatusCode::Unavailable,
+            15 => GrpcStatusCode::DataLoss,
+            _ => GrpcStatusCode::Unknown,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub enum GrpcCallStatus {

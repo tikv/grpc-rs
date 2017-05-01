@@ -33,11 +33,12 @@ mod call;
 mod error;
 mod async;
 
-pub use call::{Method, MethodType};
+pub use call::{Method, MethodType, RpcStatus};
 pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,
                        ServerStreamingCallHandler, UnaryCallHandler};
 pub use call::server::{ClientStreamingResponseSink, ClientStreamingSinkResult, Deadline,
-                       RequestStream, ResponseSink, RpcContext, UnaryResponseSink, UnarySinkResult};
+                       RequestStream, ResponseSink, RpcContext, SinkFailure, UnaryResponseSink,
+                       UnarySinkResult};
 pub use channel::{Channel, ChannelBuilder};
 pub use client::Client;
 pub use env::Environment;

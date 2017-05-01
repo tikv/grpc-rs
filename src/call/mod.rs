@@ -38,10 +38,7 @@ pub struct Method {
 
 impl Method {
     pub fn new(ty: MethodType, name: &'static str) -> Method {
-        Method {
-            ty: ty,
-            name: name,
-        }
+        Method { ty: ty, name: name }
     }
 }
 
@@ -101,11 +98,11 @@ impl BatchContext {
     }
 
     // TODO: return &[u8] instead.
-    pub fn recv_message(&self) -> Vec<u8> {
+    pub fn recv_message(&self) -> Option<Vec<u8>> {
         // TODO: avoid copy
         let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };
         if len == usize::MAX {
-            return Vec::new();
+            return None;
         }
         let mut buffer = Vec::with_capacity(len);
         unsafe {
@@ -114,7 +111,7 @@ impl BatchContext {
                                                                     len);
             buffer.set_len(len);
         }
-        buffer
+        Some(buffer)
     }
 }
 
@@ -194,10 +191,14 @@ impl Call {
                                          write_flags: u32)
                                          -> Result<BatchFuture> {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let (payload_ptr, payload_len) = payload.as_ref()
+        let (payload_ptr, payload_len) = payload
+            .as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
         check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let details_ptr = status.details.as_ref().map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_ptr = status
+                .details
+                .as_ref()
+                .map_or_else(ptr::null, |s| s.as_ptr() as _);
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(self.call,
                                                             ctx,
@@ -243,44 +244,37 @@ impl StreamingBase {
         if self.stale {
             return Err(Error::FutureStale);
         }
-        let mut repoll_resp = self.msg_f.is_none();
+
+        if !skip_finish_check {
+            if let Some(ref mut close_f) = self.close_f {
+                match close_f.poll() {
+                    Ok(Async::Ready(_)) => {
+                        self.stale = true;
+                        return Ok(Async::Ready(None));
+                    }
+                    Err(e) => {
+                        self.stale = true;
+                        return Err(e);
+                    }
+                    Ok(Async::NotReady) => {}
+                }
+            }
+        }
+
         if let Some(ref mut msg_f) = self.msg_f {
             match msg_f.poll() {
                 // maybe we can schedule next poll immediately?
                 Ok(Async::Ready(bytes)) => {
-                    if bytes.is_empty() {
+                    if bytes.is_none() {
                         self.stale = true;
-                        return Ok(Async::Ready(None));
                     }
 
-                    return Ok(Async::Ready(Some(bytes)));
+                    return Ok(Async::Ready(bytes));
                 }
-                Err(Error::FutureStale) => repoll_resp = true,
+                Err(Error::FutureStale) => {}
                 Err(e) => return Err(e),
-                Ok(Async::NotReady) => {
-                    if skip_finish_check {
-                        return Ok(Async::NotReady);
-                    }
-                }
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
             }
-        }
-
-        if let Some(ref mut close_f) = self.close_f {
-            match close_f.poll() {
-                Ok(Async::Ready(_)) => {
-                    self.stale = true;
-                    return Ok(Async::Ready(None));
-                }
-                Err(e) => {
-                    self.stale = true;
-                    return Err(e);
-                }
-                Ok(Async::NotReady) => {}
-            }
-        }
-
-        if !repoll_resp {
-            return Ok(Async::NotReady);
         }
 
         // so msg_f must be either stale or not initialised yet.
@@ -355,6 +349,10 @@ impl SinkBase {
             self.close_f = Some(close_f);
         }
 
-        self.close_f.as_mut().unwrap().poll().map(|res| res.map(|_| {}))
+        self.close_f
+            .as_mut()
+            .unwrap()
+            .poll()
+            .map(|res| res.map(|_| {}))
     }
 }

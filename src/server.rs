@@ -58,7 +58,8 @@ impl ServiceBuilder {
               F: Fn(RpcContext, P, UnaryResponseSink<Q>) + 'static
     {
         let h = Box::new(move |ctx, payload: &[u8]| execute_unary(ctx, payload, &handler));
-        self.handlers.insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
+        self.handlers
+            .insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
         self
     }
 
@@ -71,8 +72,9 @@ impl ServiceBuilder {
               F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static
     {
         let h = Box::new(move |ctx, _: &[u8]| execute_client_streaming(ctx, &handler));
-        self.handlers.insert(method.name.as_bytes(),
-                             Handler::new(MethodType::ClientStreaming, h));
+        self.handlers
+            .insert(method.name.as_bytes(),
+                    Handler::new(MethodType::ClientStreaming, h));
         self
     }
 
@@ -86,8 +88,9 @@ impl ServiceBuilder {
     {
         let h =
             Box::new(move |ctx, payload: &[u8]| execute_server_streaming(ctx, payload, &handler));
-        self.handlers.insert(method.name.as_bytes(),
-                             Handler::new(MethodType::ServerStreaming, h));
+        self.handlers
+            .insert(method.name.as_bytes(),
+                    Handler::new(MethodType::ServerStreaming, h));
         self
     }
 
@@ -100,7 +103,8 @@ impl ServiceBuilder {
               F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static
     {
         let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, &handler));
-        self.handlers.insert(method.name.as_bytes(), Handler::new(MethodType::Dulex, h));
+        self.handlers
+            .insert(method.name.as_bytes(), Handler::new(MethodType::Dulex, h));
         self
     }
 
@@ -159,11 +163,12 @@ impl ServerBuilder {
             let bind_addrs: Vec<_> = self.addrs
                 .drain(..)
                 .map(|(host, port)| {
-                    let addr = format!("{}:{}\0", host, port);
-                    let bind_port =
-                        grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _);
-                    (host, bind_port as u32)
-                })
+                         let addr = format!("{}:{}\0", host, port);
+                         let bind_port =
+                             grpc_sys::grpc_server_add_insecure_http2_port(server,
+                                                                           addr.as_ptr() as _);
+                         (host, bind_port as u32)
+                     })
                 .collect();
 
             for cq in self.env.completion_queues() {
@@ -174,13 +179,13 @@ impl ServerBuilder {
 
             Server {
                 inner: Arc::new(Inner {
-                    env: self.env,
-                    server: server,
-                    shutdown: AtomicBool::new(false),
-                    bind_addrs: bind_addrs,
-                    slots_per_cq: self.slots_per_cq,
-                    handlers: self.handlers,
-                }),
+                                    env: self.env,
+                                    server: server,
+                                    shutdown: AtomicBool::new(false),
+                                    bind_addrs: bind_addrs,
+                                    slots_per_cq: self.slots_per_cq,
+                                    handlers: self.handlers,
+                                }),
             }
         }
     }
@@ -273,7 +278,9 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        self.shutdown();
+        // if the server is not shutdown completely, destroy a server will core.
+        // TODO: don't wait here
+        let _ = self.shutdown().wait();
         unsafe { grpc_sys::grpc_server_destroy(self.inner.server) }
     }
 }

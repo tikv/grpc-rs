@@ -11,17 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate gcc;
 
-fn main() {
-    // TODO: support static link
-    gcc::Config::new()
-        .file("grpc_wrap.c")
-        .flag("-fPIC")
-        .flag("-O2")
-        .compile("libgrpc_wrap.a");
+use proto::testing::messages::{Payload, ResponseParameters};
 
-    println!("cargo:rustc-link-lib=grpc_unsecure");
-    println!("cargo:rustc-link-lib=gpr");
-    println!("cargo:rustc-link-lib=zlib");
+pub fn new_payload(size: usize) -> Payload {
+    let mut payload = Payload::new();
+    payload.set_body(vec![0; size]);
+    payload
+}
+
+pub fn new_parameters(size: i32) -> ResponseParameters {
+    let mut parameter = ResponseParameters::new();
+    parameter.set_size(size);
+    parameter
 }

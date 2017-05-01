@@ -17,13 +17,16 @@
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
 extern crate protobuf;
+#[macro_use]
 extern crate futures;
 extern crate grpc;
+extern crate grpc_sys;
+extern crate tokio_core;
 
 mod client;
 mod server;
-mod proto;
+mod util;
+pub mod proto;
 
-fn main() {
-    println!("Hello, world!");
-}
+pub use self::client::Client;
+pub use self::server::InteropTestService;

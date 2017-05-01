@@ -2,7 +2,7 @@ use call::BatchContext;
 use error::Error;
 use grpc_sys::GrpcStatusCode;
 use std::sync::Arc;
-use super::Inner;
+use super::{BatchMessage, Inner};
 
 #[derive(PartialEq, Debug)]
 pub enum BatchType {
@@ -14,11 +14,11 @@ pub enum BatchType {
 pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
-    inner: Arc<Inner<Vec<u8>>>,
+    inner: Arc<Inner<BatchMessage>>,
 }
 
 impl Batch {
-    pub fn new(ty: BatchType, inner: Arc<Inner<Vec<u8>>>) -> Batch {
+    pub fn new(ty: BatchType, inner: Arc<Inner<BatchMessage>>) -> Batch {
         Batch {
             ty: ty,
             ctx: BatchContext::new(),
@@ -37,13 +37,17 @@ impl Batch {
 
     fn finish_response(&mut self, succeed: bool) {
         let mut guard = self.inner.lock();
+        if !succeed {
+            guard.result(Err(Error::RemoteStopped));
+            return;
+        }
         let status = self.ctx.rpc_status();
-        if status.status != GrpcStatusCode::Ok || !succeed {
+        if status.status != GrpcStatusCode::Ok {
             guard.result(Err(Error::RpcFailure(status)));
             return;
         }
 
-        guard.result(Ok(vec![]))
+        guard.result(Ok(None))
     }
 
     fn handle_unary_response(&mut self) {
