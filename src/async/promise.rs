@@ -31,9 +31,9 @@ impl Shutdown {
     pub fn resolve(self, success: bool) {
         let mut guard = self.inner.lock();
         if success {
-            guard.result(Ok(()))
+            guard.set_result(Ok(()))
         } else {
-            guard.result(Err(Error::ShutdownFailed))
+            guard.set_result(Err(Error::ShutdownFailed))
         }
     }
 }
