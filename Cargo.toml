@@ -9,8 +9,6 @@ futures = "0.1"
 protobuf = "1.2"
 clippy = { version = "*", optional = true }
 
-[workspace]
-
 [features]
 default = []
 dev = ["clippy"]

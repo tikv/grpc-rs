@@ -6,21 +6,24 @@ use protobuf::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
 
-use super::util::{snake_name, fq_grpc, MethodType};
+use super::util::{MethodType, fq_grpc, snake_name};
 
 struct MethodGen<'a> {
     proto: &'a MethodDescriptorProto,
+    service_name: String,
     service_path: String,
     root_scope: &'a RootScope<'a>,
 }
 
 impl<'a> MethodGen<'a> {
     fn new(proto: &'a MethodDescriptorProto,
+           service_name: String,
            service_path: String,
            root_scope: &'a RootScope<'a>)
            -> MethodGen<'a> {
         MethodGen {
             proto: proto,
+            service_name: service_name,
             service_path: service_path,
             root_scope: root_scope,
         }
@@ -49,6 +52,10 @@ impl<'a> MethodGen<'a> {
         }
     }
 
+    fn service_name(&self) -> String {
+        snake_name(&self.service_name)
+    }
+
     fn name(&self) -> String {
         snake_name(self.proto.get_name())
     }
@@ -58,7 +65,9 @@ impl<'a> MethodGen<'a> {
     }
 
     fn const_method_name(&self) -> String {
-        format!("METHOD_{}", self.name().to_uppercase())
+        format!("METHOD_{}_{}",
+                self.service_name().to_uppercase(),
+                self.name().to_uppercase())
     }
 
     fn write_definition(&self, w: &mut CodeWriter) {
@@ -247,16 +256,20 @@ impl<'a> MethodGen<'a> {
 
     fn write_service(&self, w: &mut CodeWriter) {
         let (req, resp) = match self.method_type().0 {
-            MethodType::Unary => ("UnaryRequest", "UnaryResponseSink"),
+            MethodType::Unary => ("", "UnaryResponseSink"),
             MethodType::ClientStreaming => ("RequestStream", "ClientStreamingResponseSink"),
-            MethodType::ServerStreaming => ("UnaryRequest", "ResponseSink"),
+            MethodType::ServerStreaming => ("", "ResponseSink"),
             MethodType::Dulex => ("RequestStream", "ResponseSink"),
         };
-        let sig = format!("{}(&self, ctx: {}, req: {}<{}>, resp: {}<{}>)",
+        let req = if req.is_empty() {
+            self.input()
+        } else {
+            format!("{}<{}>", fq_grpc(req), self.input())
+        };
+        let sig = format!("{}(&self, ctx: {}, req: {}, resp: {}<{}>)",
                           self.name(),
                           fq_grpc("RpcContext"),
-                          fq_grpc(req),
-                          self.input(),
+                          req,
                           fq_grpc(resp),
                           self.output());
         w.fn_def(&sig);
@@ -270,8 +283,8 @@ impl<'a> MethodGen<'a> {
             MethodType::Dulex => "add_duplex_streaming_handler",
         };
         w.block(&format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                          add,
-                          self.const_method_name()),
+                         add,
+                         self.const_method_name()),
                 "});",
                 |w| {
                     w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
@@ -294,10 +307,14 @@ impl<'a> ServiceGen<'a> {
         } else {
             format!("/{}.{}", file.get_package(), proto.get_name())
         };
-        let methods = proto
-            .get_method()
+        let methods = proto.get_method()
             .into_iter()
-            .map(|m| MethodGen::new(m, service_path.clone(), root_scope))
+            .map(|m| {
+                MethodGen::new(m,
+                               proto.get_name().to_string(),
+                               service_path.clone(),
+                               root_scope)
+            })
             .collect();
 
         ServiceGen {
@@ -315,15 +332,17 @@ impl<'a> ServiceGen<'a> {
     }
 
     fn write_client(&self, w: &mut CodeWriter) {
-        w.pub_struct(&self.client_name(),
-                     |w| { w.field_decl("client", "::grpc::Client"); });
+        w.pub_struct(&self.client_name(), |w| {
+            w.field_decl("client", "::grpc::Client");
+        });
 
         w.write_line("");
 
         w.impl_self_block(&self.client_name(), |w| {
             w.pub_fn("new(channel: ::grpc::Channel) -> Self", |w| {
-                w.expr_block(&self.client_name(),
-                             |w| { w.field_entry("client", "::grpc::Client::new(channel)"); });
+                w.expr_block(&self.client_name(), |w| {
+                    w.field_entry("client", "::grpc::Client::new(channel)");
+                });
             });
 
             for method in &self.methods {
@@ -342,17 +361,17 @@ impl<'a> ServiceGen<'a> {
 
         w.write_line("");
 
-        w.pub_fn(&format!("bind_{}<S: {} + Send + 'static>(mut builder: {}, s: S) -> {2}",
-                           snake_name(self.service_name()),
-                           self.service_name(),
-                           fq_grpc("ServerBuilder")),
+        w.pub_fn(&format!("create_{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
+                          snake_name(self.service_name()),
+                          self.service_name(),
+                          fq_grpc("Service")),
                  |w| {
-            w.write_line("let service = ::std::sync::Arc::new(s);");
+            w.write_line("let mut builder = ::grpc::ServiceBuilder::new();");
             for method in &self.methods {
-                w.write_line("let instance = service.clone();");
+                w.write_line("let instance = s.clone();");
                 method.write_bind(w);
             }
-            w.write_line("builder");
+            w.write_line("builder.build()");
         });
     }
 
@@ -396,16 +415,15 @@ fn gen_file(file: &FileDescriptorProto,
     }
 
     Some(compiler_plugin::GenResult {
-             name: base + "_grpc.rs",
-             content: v,
-         })
+        name: base + "_grpc.rs",
+        content: v,
+    })
 }
 
 pub fn gen(file_descriptors: &[FileDescriptorProto],
            files_to_generate: &[String])
            -> Vec<compiler_plugin::GenResult> {
-    let files_map: HashMap<&str, &FileDescriptorProto> = file_descriptors
-        .iter()
+    let files_map: HashMap<&str, &FileDescriptorProto> = file_descriptors.iter()
         .map(|f| (f.get_name(), f))
         .collect();
 
