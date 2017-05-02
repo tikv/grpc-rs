@@ -87,7 +87,7 @@ impl<T> Future for CqFuture<T> {
             return Ok(Async::Ready(r));
         }
 
-        // So the task has not finished yet, add notification hook.
+        // So the task has not been finished yet, add notification hook.
         if guard.park.is_none() {
             guard.park = Some(task::park());
         }
