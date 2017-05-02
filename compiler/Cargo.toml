@@ -8,6 +8,8 @@ authors = [
     "Neil Shen <overvenus@gmail.com>"
 ]
 
+workspace = ".."
+
 [dependencies]
 protobuf = "1.2"
 
