@@ -239,6 +239,7 @@ impl<T: Message> UnaryResponseSink<T> {
                _call: self.call,
                close_f: self.close_f,
                cq_f: cq_f,
+               flushed: false,
            })
     }
 }
@@ -247,6 +248,7 @@ pub struct UnarySinkResult {
     _call: Call,
     close_f: BatchFuture,
     cq_f: BatchFuture,
+    flushed: bool,
 }
 
 impl Future for UnarySinkResult {
@@ -254,15 +256,13 @@ impl Future for UnarySinkResult {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        match self.cq_f.poll() {
-            Ok(Async::Ready(_)) |
-            Err(Error::FutureStale) => {
-                try_ready!(self.close_f.poll());
-                Ok(Async::Ready(()))
-            }
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => Err(e),
+        if !self.flushed {
+            try_ready!(self.cq_f.poll());
+            self.flushed = true;
         }
+
+        try_ready!(self.close_f.poll());
+        Ok(Async::Ready(()))
     }
 }
 
@@ -306,6 +306,7 @@ impl<T: Message> ClientStreamingResponseSink<T> {
                _call: self.call,
                close_f: self.close_f,
                cq_f: cq_f,
+               flushed: false,
            })
     }
 }
@@ -314,6 +315,7 @@ pub struct ClientStreamingSinkResult {
     _call: Arc<Mutex<Call>>,
     close_f: BatchFuture,
     cq_f: BatchFuture,
+    flushed: bool,
 }
 
 impl Future for ClientStreamingSinkResult {
@@ -321,15 +323,13 @@ impl Future for ClientStreamingSinkResult {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<(), Error> {
-        match self.cq_f.poll() {
-            Ok(Async::Ready(_)) |
-            Err(Error::FutureStale) => {
-                try_ready!(self.close_f.poll());
-                Ok(Async::Ready(()))
-            }
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => Err(e),
+        if !self.flushed {
+            try_ready!(self.cq_f.poll());
+            self.flushed = true;
         }
+
+        try_ready!(self.close_f.poll());
+        Ok(Async::Ready(()))
     }
 }
 
@@ -338,6 +338,7 @@ pub struct ResponseSink<T> {
     base: SinkBase,
     close_f: BatchFuture,
     status: RpcStatus,
+    flushed: bool,
     _resp: PhantomData<T>,
 }
 
@@ -348,6 +349,7 @@ impl<T> ResponseSink<T> {
             base: SinkBase::new(0, true),
             close_f: close_f,
             status: RpcStatus::ok(),
+            flushed: false,
             _resp: PhantomData,
         }
     }
@@ -408,15 +410,13 @@ impl<T: Message> Sink for ResponseSink<T> {
             self.base.close_f = Some(close_f);
         }
 
-        match self.base.close_f.as_mut().unwrap().poll() {
-            Ok(Async::Ready(_)) |
-            Err(Error::FutureStale) => {
-                try_ready!(self.close_f.poll());
-                Ok(Async::Ready(()))
-            }
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => Err(e),
+        if !self.flushed {
+            try_ready!(self.base.close_f.as_mut().unwrap().poll());
+            self.flushed = true;
         }
+
+        try_ready!(self.close_f.poll());
+        Ok(Async::Ready(()))
     }
 }
 

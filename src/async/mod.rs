@@ -1,9 +1,24 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
 mod promise;
 mod callback;
 mod lock;
 
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
+
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
@@ -35,7 +50,7 @@ impl<T> NotifyHandle<T> {
     }
 
     /// Set the result and notify future if necessary.
-    fn result(&mut self, res: Result<T>) {
+    fn set_result(&mut self, res: Result<T>) {
         self.result = Some(res);
 
         if let Some(ref t) = self.park {
@@ -68,15 +83,16 @@ impl<T> Future for CqFuture<T> {
     fn poll(&mut self) -> Poll<T, Error> {
         let mut guard = self.inner.lock();
         if guard.stale {
-            return Err(Error::FutureStale);
+            panic!("Resolved future is not supposed to be polled again.");
         }
 
         if let Some(res) = guard.result.take() {
             guard.stale = true;
-            return Ok(Async::Ready(try!(res)));
+            let r = try!(res);
+            return Ok(Async::Ready(r));
         }
 
-        // So the task has not finished yet, add notification hook.
+        // So the task has not been finished yet, add notification hook.
         if guard.park.is_none() {
             guard.park = Some(task::park());
         }
@@ -90,6 +106,7 @@ pub type BatchMessage = Option<Vec<u8>>;
 pub type BatchFuture = CqFuture<BatchMessage>;
 
 /// A result holder for asynchronous execution.
+// This enum is going to be passed to FFI, so don't use trait or generic here.
 pub enum Promise {
     Batch(BatchPromise),
     Request(RequestCallback),
@@ -161,5 +178,46 @@ impl Debug for Promise {
             Promise::UnaryRequest(_) => write!(f, "Context::UnaryRequest(..)"),
             Promise::Shutdown(_) => write!(f, "Context::Shutdown"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::thread;
+    use std::sync::*;
+    use std::sync::mpsc::*;
+
+    use grpc_sys;
+
+    use super::*;
+    use cq::CompletionQueue;
+
+    #[test]
+    fn test_resolve() {
+        let (cq_f1, prom1) = Promise::shutdown_pair();
+        let (cq_f2, prom2) = Promise::shutdown_pair();
+        let (tx, rx) = mpsc::channel();
+
+        let handler = thread::spawn(move || {
+                                        tx.send(cq_f1.wait()).unwrap();
+                                        tx.send(cq_f2.wait()).unwrap();
+                                    });
+
+        assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
+        unsafe {
+            grpc_sys::grpc_init();
+        }
+        let cq = CompletionQueue::new();
+        prom1.resolve(&cq, true);
+        assert!(rx.recv().unwrap().is_ok());
+
+        assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
+        prom2.resolve(&cq, false);
+        match rx.recv() {
+            Ok(Err(Error::ShutdownFailed)) => {}
+            res => panic!("expect shutdown failed, but got {:?}", res),
+        }
+
+        handler.join().unwrap();
     }
 }

@@ -228,7 +228,6 @@ impl Drop for Call {
 struct StreamingBase {
     close_f: Option<BatchFuture>,
     msg_f: Option<BatchFuture>,
-    stale: bool,
 }
 
 impl StreamingBase {
@@ -236,55 +235,36 @@ impl StreamingBase {
         StreamingBase {
             close_f: close_f,
             msg_f: None,
-            stale: false,
         }
     }
 
     fn poll(&mut self, call: &mut Call, skip_finish_check: bool) -> Poll<Option<Vec<u8>>, Error> {
-        if self.stale {
-            return Err(Error::FutureStale);
-        }
-
         if !skip_finish_check {
             if let Some(ref mut close_f) = self.close_f {
                 match close_f.poll() {
-                    Ok(Async::Ready(_)) => {
-                        self.stale = true;
-                        return Ok(Async::Ready(None));
-                    }
-                    Err(e) => {
-                        self.stale = true;
-                        return Err(e);
-                    }
+                    Ok(Async::Ready(_)) => return Ok(Async::Ready(None)),
+                    Err(e) => return Err(e),
                     Ok(Async::NotReady) => {}
                 }
             }
         }
 
+        let mut bytes = None;
         if let Some(ref mut msg_f) = self.msg_f {
-            match msg_f.poll() {
-                // maybe we can schedule next poll immediately?
-                Ok(Async::Ready(bytes)) => {
-                    if bytes.is_none() {
-                        self.stale = true;
-                    }
-
-                    return Ok(Async::Ready(bytes));
-                }
-                Err(Error::FutureStale) => {}
-                Err(e) => return Err(e),
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
+            bytes = try_ready!(msg_f.poll());
+            if bytes.is_none() {
+                return Ok(Async::Ready(None));
             }
         }
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        match call.start_recv_message() {
-            Err(e) => Err(e),
-            Ok(msg_f) => {
-                self.msg_f = Some(msg_f);
-                self.poll(call, true)
-            }
+        let msg_f = try!(call.start_recv_message());
+        self.msg_f = Some(msg_f);
+        if bytes.is_none() {
+            self.poll(call, true)
+        } else {
+            Ok(Async::Ready(bytes))
         }
     }
 }
