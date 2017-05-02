@@ -16,13 +16,14 @@ extern crate clap;
 extern crate grpc;
 extern crate interop;
 extern crate tokio_core;
+extern crate grpc_proto;
 
 use std::sync::Arc;
 
 use clap::{App, Arg};
 use grpc::{Environment, ServerBuilder};
 use interop::InteropTestService;
-use interop::proto::testing::test_grpc;
+use grpc_proto::testing::test_grpc;
 use tokio_core::reactor::Core;
 
 fn main() {

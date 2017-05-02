@@ -17,11 +17,11 @@ use grpc::{self, ClientStreamingResponseSink, RequestStream, ResponseSink, RpcCo
 use tokio_core::reactor::Remote;
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
 
-use proto::testing::test_grpc::TestService;
-use proto::testing::empty::Empty;
-use proto::testing::messages::{SimpleRequest, SimpleResponse, StreamingInputCallRequest,
-                               StreamingInputCallResponse, StreamingOutputCallRequest,
-                               StreamingOutputCallResponse};
+use grpc_proto::testing::test_grpc::TestService;
+use grpc_proto::testing::empty::Empty;
+use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse, StreamingInputCallRequest,
+                                    StreamingInputCallResponse, StreamingOutputCallRequest,
+                                    StreamingOutputCallResponse};
 use util;
 
 enum Error {

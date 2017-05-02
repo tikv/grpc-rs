@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use proto::testing::messages::{Payload, ResponseParameters};
+use grpc_proto::testing::messages::{Payload, ResponseParameters};
 
 pub fn new_payload(size: usize) -> Payload {
     let mut payload = Payload::new();

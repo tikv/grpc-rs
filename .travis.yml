@@ -37,7 +37,7 @@ before_script:
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then which rustfmt || cargo install rustfmt; fi
 script:
-  - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then cargo fmt -- --write-mode=diff; fi
+  - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then cargo fmt -- --write-mode=diff && cargo fmt -p interop -- --write-mode=diff; fi
   - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then FEATURES="dev"; else FEATURES="default"; fi
   - cargo build
   - cargo test --all --features "$FEATURES"

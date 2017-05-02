@@ -2,7 +2,8 @@ target
 Cargo.lock
 *.rs.bk
 *.rs.fmt
-interop/src/proto/**/*.rs
-!interop/src/proto/**/mod.rs
+proto/src/**/*.rs
+!proto/src/**/mod.rs
+!prot/src/**/lib.rs
 examples/proto/*.rs
 !examples/proto/mod.rs

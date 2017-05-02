@@ -1,0 +1,7 @@
+[package]
+name = "grpc-proto"
+version = "0.1.0"
+
+[dependencies]
+protobuf = "1.2"
+grpc = { path = ".." }

@@ -22,11 +22,11 @@ extern crate futures;
 extern crate grpc;
 extern crate grpc_sys;
 extern crate tokio_core;
+extern crate grpc_proto;
 
 mod client;
 mod server;
 mod util;
-pub mod proto;
 
 pub use self::client::Client;
 pub use self::server::InteropTestService;

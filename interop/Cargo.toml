@@ -5,7 +5,8 @@ authors = ["Jay Lee <busyjaylee@gmail.com>"]
 
 [dependencies]
 grpc = { path = ".." }
-grpc-sys = { path = "../grpc-sys", version = "0.1" }
+grpc-sys = { path = "../grpc-sys" }
+grpc-proto = { path = "../proto" }
 protobuf = "1.2"
 futures = "0.1"
 clap = "2.23"

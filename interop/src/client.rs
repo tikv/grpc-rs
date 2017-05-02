@@ -19,10 +19,10 @@ use grpc::{self, CallOption, Channel};
 use grpc_sys::GrpcStatusCode;
 use futures::{Future, Sink, Stream, future, stream};
 
-use proto::testing::test_grpc::TestServiceClient;
-use proto::testing::empty::Empty;
-use proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
-                               StreamingOutputCallRequest};
+use grpc_proto::testing::test_grpc::TestServiceClient;
+use grpc_proto::testing::empty::Empty;
+use grpc_proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
+                                    StreamingOutputCallRequest};
 use util;
 
 pub struct Client {
