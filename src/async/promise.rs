@@ -11,20 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
-#![allow(new_without_default_derive)]
-#![allow(new_without_default)]
+use std::sync::Arc;
 
-extern crate grpc_sys;
-extern crate libc;
-extern crate futures;
-extern crate protobuf;
+use error::Error;
+use super::Inner;
 
-mod async;
-mod call;
-mod error;
 
-pub use error::{Error, Result};
+/// A promise used to resolve async shutdown result.
+pub struct Shutdown {
+    inner: Arc<Inner<()>>,
+}
+
+impl Shutdown {
+    pub fn new(inner: Arc<Inner<()>>) -> Shutdown {
+        Shutdown { inner: inner }
+    }
+
+    pub fn resolve(self, success: bool) {
+        let mut guard = self.inner.lock();
+        if success {
+            guard.set_result(Ok(()))
+        } else {
+            guard.set_result(Err(Error::ShutdownFailed))
+        }
+    }
+}
