@@ -78,7 +78,7 @@ impl<T> Future for CqFuture<T> {
     fn poll(&mut self) -> Poll<T, Error> {
         let mut guard = self.inner.lock();
         if guard.stale {
-            panic!("Resolved future is not supposed to be poll again.");
+            panic!("Resolved future is not supposed to be polled again.");
         }
 
         if let Some(res) = guard.result.take() {
