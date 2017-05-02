@@ -15,7 +15,7 @@ extern crate gcc;
 extern crate cmake;
 extern crate pkg_config;
 
-const GRPC_VERSION: &'static str = "1.2.5";
+const GRPC_VERSION: &'static str = "1.3.0";
 
 #[cfg(not(feature = "static-link"))]
 mod imp {
@@ -37,13 +37,16 @@ mod imp {
 
 #[cfg(feature = "static-link")]
 mod imp {
-    use std::path::Path;
+    use std::env;
+    use std::fs::DirBuilder;
+    use std::path::{Path, PathBuf};
     use std::process::Command;
 
     use super::GRPC_VERSION;
 
     const ZLIB_VERSION: &'static str = "1.2.8";
     const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
+    const CARES_VERSION: &'static str = "cares-1_12_0";
 
     fn wget(url: &str, out: &str) -> Result<(), String> {
         Command::new("wget")
@@ -74,6 +77,13 @@ mod imp {
     }
 
     pub fn build_or_link_grpc(cc: &mut ::gcc::Config) {
+        let cur_dir = env::current_dir().expect("Can't access current working directory");
+        let crate_dir = cur_dir.as_path().display();
+
+        let out_dir = env::var("OUT_DIR").expect("Can't access OUT_DIR");
+        for sub_dir in &["grpc", "zlib", "ssl", "cares"] {
+            DirBuilder::new().recursive(true).create(format!("{}/{}", out_dir, sub_dir)).unwrap();
+        }
 
         if !Path::new(&format!("grpc-{}", GRPC_VERSION)).exists() {
             wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz",
@@ -99,31 +109,67 @@ mod imp {
                 .unwrap();
         }
 
-        let dst = ::cmake::Config::new(format!("zlib-{}", ZLIB_VERSION)).build();
+        let cares_path = PathBuf::from(format!("grpc-{}/third_party/cares/cares", GRPC_VERSION));
+        if !cares_path.with_file_name("README.md").exists() {
+            wget(&format!("https://github.com/c-ares/c-ares/archive/{}.tar.gz",
+                          CARES_VERSION),
+                 "c-ares.tar.gz")
+                .and_then(|_| tar_xf("c-ares.tar.gz"))
+                .unwrap();
+            let _ = Command::new("rm")
+                .current_dir(&format!("c-ares-{}/", CARES_VERSION))
+                .args(&["acountry.c", "adig.c", "ahost.c"])
+                .status();
+            Command::new("cp")
+                .args(&["-a", &format!("c-ares-{}/", CARES_VERSION), cares_path.to_str().unwrap()])
+                .status()
+                .map_err(|err| format!("cp execute failed: {}", err))
+                .and_then(|status| {
+                    if status.success() {
+                        Ok(())
+                    } else {
+                        Err(format!("cp -a exit with {}", status))
+                    }
+                })
+                .unwrap();
+        }
 
-        println!("cargo:rustc-link-search=native={}/lib", dst.display());
+        let zlib_dst = ::cmake::Config::new(format!("zlib-{}", ZLIB_VERSION))
+            .out_dir(format!("{}/{}", out_dir, "zlib"))
+            .build();
+
+        println!("cargo:rustc-link-search=native={}/build",
+                 zlib_dst.display());
+
+        let cares_dst = ::cmake::Config::new(format!("grpc-{}/src/c-ares", GRPC_VERSION))
+            .out_dir(format!("{}/{}", out_dir, "cares"))
+            .build_target("cares")
+            .build();
+
+        println!("cargo:rustc-link-search=native={}/build",
+                 cares_dst.display());
 
         let dst = ::cmake::Config::new(format!("grpc-{}", GRPC_VERSION))
-        .define("ZLIB_ROOT_DIR", format!("../zlib-{}", ZLIB_VERSION)) // relative to grpc dir
-        .define("BORINGSSL_ROOT_DIR", format!("../boringssl-{}", BORINGSSL_GIT_HASH))
-        .build_target("grpc_unsecure")
-        .build();
-
-        cc.include(format!("grpc-{}/include", GRPC_VERSION));
+            .define("ZLIB_ROOT_DIR",
+                    format!("{}/zlib-{}", crate_dir, ZLIB_VERSION))
+            .define("BORINGSSL_ROOT_DIR",
+                    format!("{}/boringssl-{}", crate_dir, BORINGSSL_GIT_HASH))
+            .out_dir(format!("{}/{}", out_dir, "grpc"))
+            .build_target("grpc_unsecure")
+            .build();
 
         println!("cargo:rustc-link-search=native={}/build", dst.display());
-        println!("cargo:rustc-link-search=native={}/build/third_party/zlib",
-                 dst.display());
 
         println!("cargo:rustc-link-lib=static=z");
+        println!("cargo:rustc-link-lib=static=cares");
         println!("cargo:rustc-link-lib=static=gpr");
         println!("cargo:rustc-link-lib=static=grpc_unsecure");
+
+        cc.include(format!("grpc-{}/include", GRPC_VERSION));
     }
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-
     let mut cc = ::gcc::Config::new();
 
     imp::build_or_link_grpc(&mut cc);
