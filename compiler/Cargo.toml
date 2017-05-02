@@ -14,4 +14,4 @@ workspace = ".."
 protobuf = "1.2"
 
 [[bin]]
-name = "protoc-gen-rust-grpc"
+name = "grpc_rust_plugin"
