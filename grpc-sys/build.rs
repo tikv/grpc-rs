@@ -23,5 +23,4 @@ fn main() {
 
     println!("cargo:rustc-link-lib=grpc_unsecure");
     println!("cargo:rustc-link-lib=gpr");
-    println!("cargo:rustc-link-lib=zlib");
 }
