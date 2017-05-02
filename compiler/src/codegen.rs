@@ -6,7 +6,7 @@ use protobuf::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
 
-use super::util::{MethodType, fq_grpc, snake_name};
+use super::util::{MethodType, fq_grpc, to_snake_case};
 
 struct MethodGen<'a> {
     proto: &'a MethodDescriptorProto,
@@ -53,11 +53,11 @@ impl<'a> MethodGen<'a> {
     }
 
     fn service_name(&self) -> String {
-        snake_name(&self.service_name)
+        to_snake_case(&self.service_name)
     }
 
     fn name(&self) -> String {
-        snake_name(self.proto.get_name())
+        to_snake_case(self.proto.get_name())
     }
 
     fn fq_name(&self) -> String {
@@ -362,7 +362,7 @@ impl<'a> ServiceGen<'a> {
         w.write_line("");
 
         w.pub_fn(&format!("create_{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
-                          snake_name(self.service_name()),
+                          to_snake_case(self.service_name()),
                           self.service_name(),
                           fq_grpc("Service")),
                  |w| {

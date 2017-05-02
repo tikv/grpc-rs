@@ -1,5 +1,5 @@
 /// Adjust method name to follow the rust's style.
-pub fn snake_name(name: &str) -> String {
+pub fn to_snake_case(name: &str) -> String {
     let mut snake_method_name = String::with_capacity(name.len());
     let mut chars = name.chars();
     // initial char can be any char except '_'.
@@ -63,7 +63,7 @@ mod test {
                          ("id", "id")];
 
         for (origin, exp) in cases {
-            let res = super::snake_name(&origin);
+            let res = super::to_snake_case(&origin);
             assert_eq!(res, exp);
         }
     }
