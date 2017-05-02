@@ -9,6 +9,7 @@ extern crate serde_json;
 extern crate serde_derive;
 
 mod helper;
+mod proto;
 
 use std::sync::Arc;
 use std::io::Read;
@@ -20,10 +21,9 @@ use futures::*;
 use futures::sync::oneshot;
 use tokio_core::reactor::*;
 
-pub use helper::route_guide;
 use helper::utils::*;
-use helper::route_guide::*;
-use helper::route_guide_grpc::{self, RouteGuide};
+use proto::route_guide::*;
+use proto::route_guide_grpc::{self, RouteGuide};
 
 
 #[derive(Clone)]
@@ -137,7 +137,7 @@ fn main() {
         remote: remote,
         data: Arc::new(load_db()),
     };
-    let service = route_guide_grpc::create_service(instance);
+    let service = route_guide_grpc::create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50051)

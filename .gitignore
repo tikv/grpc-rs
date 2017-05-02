@@ -4,3 +4,5 @@ Cargo.lock
 *.rs.fmt
 interop/src/proto/**/*.rs
 !interop/src/proto/**/mod.rs
+examples/proto/*.rs
+!examples/proto/mod.rs
