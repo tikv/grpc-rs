@@ -60,7 +60,7 @@ impl Environment {
             let cq = Arc::new(CompletionQueue::new());
             let cq_ = cq.clone();
             let handle = Builder::new()
-                .name(format!("grpcpollthread-{}", i))
+                .name(format!("grpc-pollthread-{}", i))
                 .spawn(move || poll_queue(cq_))
                 .unwrap();
             cqs.push(cq);
@@ -86,13 +86,22 @@ impl Environment {
     }
 }
 
+impl Drop for Environment {
+    fn drop(&mut self) {
+        for cq in self.completion_queues() {
+            // it's safe to shutdown more than once.
+            cq.shutdown()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_basic_loop() {
-        let env = Environment::new(2);
+        let mut env = Environment::new(2);
 
         let q1_ptr = env.pick_a_cq();
         let q2_ptr = env.pick_a_cq();
@@ -105,7 +114,7 @@ mod tests {
             cq.shutdown();
         }
 
-        for handle in env._handles {
+        for handle in env._handles.drain(..) {
             handle.join().unwrap();
         }
     }
