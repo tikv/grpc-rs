@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 // TODO: remove following line once all changes are merged into master
 #![allow(dead_code)]
 
@@ -23,11 +24,13 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
+use call::BatchContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
 use self::lock::SpinLock;
-use self::promise::Shutdown as ShutdownPromise;
+use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 
+pub use self::promise::BatchType;
 
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
@@ -97,13 +100,25 @@ impl<T> Future for CqFuture<T> {
     }
 }
 
+pub type BatchMessage = Option<Vec<u8>>;
+/// Future object for batch jobs.
+pub type BatchFuture = CqFuture<BatchMessage>;
+
 /// A result holder for asynchronous execution.
 // This enum is going to be passed to FFI, so don't use trait or generic here.
 pub enum Promise {
+    Batch(BatchPromise),
     Shutdown(ShutdownPromise),
 }
 
 impl Promise {
+    /// Generate a future/promise pair for batch jobs.
+    pub fn batch_pair(ty: BatchType) -> (BatchFuture, Promise) {
+        let inner = new_inner();
+        let batch = BatchPromise::new(ty, inner.clone());
+        (CqFuture::new(inner), Promise::Batch(batch))
+    }
+
     /// Generate a future/promise pair for shutdown call.
     pub fn shutdown_pair() -> (CqFuture<()>, Promise) {
         let inner = new_inner();
@@ -111,9 +126,18 @@ impl Promise {
         (CqFuture::new(inner), Promise::Shutdown(shutdown))
     }
 
+    /// Get the batch context from result holder.
+    pub fn batch_ctx(&self) -> Option<&BatchContext> {
+        match *self {
+            Promise::Batch(ref prom) => Some(prom.context()),
+            _ => None,
+        }
+    }
+
     /// Resolve the promise with given status.
     pub fn resolve(self, _: &CompletionQueue, success: bool) {
         match self {
+            Promise::Batch(prom) => prom.resolve(success),
             Promise::Shutdown(prom) => prom.resolve(success),
         }
     }
@@ -122,6 +146,7 @@ impl Promise {
 impl Debug for Promise {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
+            Promise::Batch(_) => write!(f, "Context::Batch(..)"),
             Promise::Shutdown(_) => write!(f, "Context::Shutdown"),
         }
     }

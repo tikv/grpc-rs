@@ -20,6 +20,7 @@
 
 extern crate grpc_sys;
 extern crate libc;
+#[macro_use]
 extern crate futures;
 extern crate protobuf;
 
