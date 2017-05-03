@@ -187,8 +187,6 @@ mod tests {
     use std::sync::*;
     use std::sync::mpsc::*;
 
-    use grpc_sys;
-
     use super::*;
     use env::Environment;
 
@@ -206,14 +204,11 @@ mod tests {
                                     });
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        unsafe {
-            grpc_sys::grpc_init();
-        }
-        prom1.resolve(&env.pick_a_cq(), true);
+        prom1.resolve(&env.pick_cq(), true);
         assert!(rx.recv().unwrap().is_ok());
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        prom2.resolve(&env.pick_a_cq(), false);
+        prom2.resolve(&env.pick_cq(), false);
         match rx.recv() {
             Ok(Err(Error::ShutdownFailed)) => {}
             res => panic!("expect shutdown failed, but got {:?}", res),

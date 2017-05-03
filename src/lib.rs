@@ -24,14 +24,14 @@ extern crate libc;
 extern crate futures;
 extern crate protobuf;
 
-mod env;
-mod cq;
-mod channel;
-mod client;
-mod server;
-mod call;
-mod error;
 mod async;
+mod call;
+mod channel;
+mod cq;
+mod client;
+mod env;
+mod error;
+mod server;
 
 pub use call::{Method, MethodType, RpcStatus};
 pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,

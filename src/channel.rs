@@ -112,7 +112,7 @@ impl ChannelBuilder {
         };
 
         Channel {
-            cq: self.environ.pick_a_cq(),
+            cq: self.environ.pick_cq(),
             inner: Arc::new(ChannelInner {
                                 _environ: self.environ,
                                 channel: channel,

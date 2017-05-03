@@ -48,7 +48,7 @@ pub struct Environment {
 impl Environment {
     /// Initialize grpc and create a threadpool to poll event loop.
     ///
-    /// Each thread in threadpool will has one event loop.
+    /// Each thread in threadpool will have one event loop.
     pub fn new(cq_count: usize) -> Environment {
         assert!(cq_count > 0);
         unsafe {
@@ -60,7 +60,7 @@ impl Environment {
             let cq = Arc::new(CompletionQueue::new());
             let cq_ = cq.clone();
             let handle = Builder::new()
-                .name(format!("grpcpollthread-{}", i))
+                .name(format!("grpc-pollthread-{}", i))
                 .spawn(move || poll_queue(cq_))
                 .unwrap();
             cqs.push(cq);
@@ -80,9 +80,18 @@ impl Environment {
     }
 
     /// Pick an arbitrary completion queue.
-    pub fn pick_a_cq(&self) -> Arc<CompletionQueue> {
+    pub fn pick_cq(&self) -> Arc<CompletionQueue> {
         let idx = self.idx.fetch_add(1, Ordering::Relaxed);
         self.cqs[idx % self.cqs.len()].clone()
+    }
+}
+
+impl Drop for Environment {
+    fn drop(&mut self) {
+        for cq in self.completion_queues() {
+            // it's safe to shutdown more than once.
+            cq.shutdown()
+        }
     }
 }
 
@@ -92,11 +101,11 @@ mod tests {
 
     #[test]
     fn test_basic_loop() {
-        let env = Environment::new(2);
+        let mut env = Environment::new(2);
 
-        let q1_ptr = env.pick_a_cq();
-        let q2_ptr = env.pick_a_cq();
-        let q3_ptr = env.pick_a_cq();
+        let q1_ptr = env.pick_cq();
+        let q2_ptr = env.pick_cq();
+        let q3_ptr = env.pick_cq();
         assert_eq!(q1_ptr.as_ptr(), q3_ptr.as_ptr());
         assert_ne!(q1_ptr.as_ptr(), q2_ptr.as_ptr());
 
@@ -105,7 +114,7 @@ mod tests {
             cq.shutdown();
         }
 
-        for handle in env._handles {
+        for handle in env._handles.drain(..) {
             handle.join().unwrap();
         }
     }
