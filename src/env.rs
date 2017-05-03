@@ -80,7 +80,7 @@ impl Environment {
     }
 
     /// Pick an arbitrary completion queue.
-    pub fn pick_a_cq(&self) -> Arc<CompletionQueue> {
+    pub fn pick_cq(&self) -> Arc<CompletionQueue> {
         let idx = self.idx.fetch_add(1, Ordering::Relaxed);
         self.cqs[idx % self.cqs.len()].clone()
     }
@@ -103,9 +103,9 @@ mod tests {
     fn test_basic_loop() {
         let mut env = Environment::new(2);
 
-        let q1_ptr = env.pick_a_cq();
-        let q2_ptr = env.pick_a_cq();
-        let q3_ptr = env.pick_a_cq();
+        let q1_ptr = env.pick_cq();
+        let q2_ptr = env.pick_cq();
+        let q3_ptr = env.pick_cq();
         assert_eq!(q1_ptr.as_ptr(), q3_ptr.as_ptr());
         assert_ne!(q1_ptr.as_ptr(), q2_ptr.as_ptr());
 
