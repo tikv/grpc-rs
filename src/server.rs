@@ -240,6 +240,7 @@ impl Future for ShutdownFuture {
 
 // It's safe to request call simultaneously.
 unsafe impl Sync for Inner {}
+unsafe impl Send for Inner {}
 
 pub struct Server {
     inner: Arc<Inner>,

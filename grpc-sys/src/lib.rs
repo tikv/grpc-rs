@@ -175,9 +175,6 @@ pub enum GrpcCall {}
 pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
-
-unsafe impl Send for GrpcServer {}
-
 pub enum GrpcRequestCallContext {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
