@@ -83,7 +83,7 @@ impl Call {
                                       -> Result<UnaryCallHandler<Q>> {
         let call = channel.create_call(method, &opt);
         let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(BatchType::FinishUnary, |ctx, tag| unsafe {
+        let cq_f = try!(check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(call.call,
                                                 ctx,
                                                 payload.as_ptr() as *const _,
@@ -101,7 +101,7 @@ impl Call {
                                   opt: CallOption)
                                   -> Result<ClientStreamingCallHandler<P, Q>> {
         let call = channel.create_call(method, &opt);
-        let cq_f = try!(check_run(BatchType::FinishUnary, |ctx, tag| unsafe {
+        let cq_f = try!(check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
                                                            ctx,
                                                            ptr::null_mut(),

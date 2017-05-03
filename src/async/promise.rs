@@ -18,13 +18,18 @@ use grpc_sys::GrpcStatusCode;
 use std::sync::Arc;
 use super::{BatchMessage, Inner};
 
+/// Batch job type.
 #[derive(PartialEq, Debug)]
 pub enum BatchType {
+    /// Finish without reading any message.
     Finish,
-    ReadOne,
-    FinishUnary,
+    /// Extract one message when finish.
+    Read,
+    /// Check the rpc code and then extract one message.
+    CheckRead,
 }
 
+/// A promise used to resolve batch jobs.
 pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
@@ -77,14 +82,14 @@ impl Batch {
 
     pub fn resolve(mut self, success: bool) {
         match self.ty {
-            BatchType::FinishUnary => {
+            BatchType::CheckRead => {
                 assert!(success);
                 self.handle_unary_response();
             }
             BatchType::Finish => {
                 self.finish_response(success);
             }
-            BatchType::ReadOne => {
+            BatchType::Read => {
                 assert!(success);
                 self.read_one_msg();
             }
