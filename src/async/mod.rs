@@ -190,10 +190,12 @@ mod tests {
     use grpc_sys;
 
     use super::*;
-    use cq::CompletionQueue;
+    use env::Environment;
 
     #[test]
     fn test_resolve() {
+        let env = Environment::new(1);
+
         let (cq_f1, prom1) = Promise::shutdown_pair();
         let (cq_f2, prom2) = Promise::shutdown_pair();
         let (tx, rx) = mpsc::channel();
@@ -207,12 +209,11 @@ mod tests {
         unsafe {
             grpc_sys::grpc_init();
         }
-        let cq = CompletionQueue::new();
-        prom1.resolve(&cq, true);
+        prom1.resolve(&env.pick_a_cq(), true);
         assert!(rx.recv().unwrap().is_ok());
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        prom2.resolve(&cq, false);
+        prom2.resolve(&env.pick_a_cq(), false);
         match rx.recv() {
             Ok(Err(Error::ShutdownFailed)) => {}
             res => panic!("expect shutdown failed, but got {:?}", res),
