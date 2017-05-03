@@ -48,7 +48,7 @@ pub struct Environment {
 impl Environment {
     /// Initialize grpc and create a threadpool to poll event loop.
     ///
-    /// Each thread in threadpool will has one event loop.
+    /// Each thread in threadpool will have one event loop.
     pub fn new(cq_count: usize) -> Environment {
         assert!(cq_count > 0);
         unsafe {
