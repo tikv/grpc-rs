@@ -23,7 +23,7 @@ use grpc_proto::testing::test_grpc::TestServiceClient;
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
                                     StreamingOutputCallRequest};
-use util;
+use grpc_proto::util;
 
 pub struct Client {
     client: TestServiceClient,

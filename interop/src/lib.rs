@@ -26,7 +26,6 @@ extern crate grpc_proto;
 
 mod client;
 mod server;
-mod util;
 
 pub use self::client::Client;
 pub use self::server::InteropTestService;

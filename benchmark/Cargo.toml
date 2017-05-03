@@ -1,0 +1,12 @@
+[package]
+name = "benchmark"
+version = "0.1.0"
+authors = ["Jay Lee <busyjaylee@gmail.com>"]
+
+[dependencies]
+grpc = { path = ".." }
+grpc-proto = { path = "../proto" }
+tokio-core = "0.1"
+futures = "0.1"
+libc = "0.2"
+num_cpus = "*"

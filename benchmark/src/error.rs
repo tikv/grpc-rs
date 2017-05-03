@@ -11,8 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
-extern crate grpc;
+use std::result;
+
+use grpc;
+
+#[derive(Debug)]
+pub enum Error {
+    ServerNotStarted,
+    Grpc(grpc::Error),
+}
+
+impl From<grpc::Error> for Error {
+    fn from(e: grpc::Error) -> Error {
+        Error::Grpc(e)
+    }
+}
+
+pub type Result<T> = result::Result<T, Error>;

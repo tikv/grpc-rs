@@ -22,7 +22,7 @@ use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse, StreamingInputCallRequest,
                                     StreamingInputCallResponse, StreamingOutputCallRequest,
                                     StreamingOutputCallResponse};
-use util;
+use grpc_proto::util;
 
 enum Error {
     Grpc(grpc::Error),

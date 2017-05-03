@@ -12,8 +12,16 @@
 // limitations under the License.
 
 
-extern crate protobuf;
-extern crate grpc;
+use testing::messages::{Payload, ResponseParameters};
 
-pub mod testing;
-pub mod util;
+pub fn new_payload(size: usize) -> Payload {
+    let mut payload = Payload::new();
+    payload.set_body(vec![0; size]);
+    payload
+}
+
+pub fn new_parameters(size: i32) -> ResponseParameters {
+    let mut parameter = ResponseParameters::new();
+    parameter.set_size(size);
+    parameter
+}

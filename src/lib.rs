@@ -43,4 +43,4 @@ pub use channel::{Channel, ChannelBuilder};
 pub use client::Client;
 pub use env::Environment;
 pub use error::{Error, Result};
-pub use server::{Server, ServerBuilder, Service, ServiceBuilder};
+pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

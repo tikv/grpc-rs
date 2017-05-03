@@ -11,17 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![cfg_attr(feature = "dev", feature(plugin))]
+#![cfg_attr(feature = "dev", plugin(clippy))]
+#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
-use grpc_proto::testing::messages::{Payload, ResponseParameters};
+extern crate grpc;
+extern crate grpc_proto;
+extern crate tokio_core;
+extern crate futures;
+extern crate libc;
+extern crate num_cpus;
 
-pub fn new_payload(size: usize) -> Payload {
-    let mut payload = Payload::new();
-    payload.set_body(vec![0; size]);
-    payload
-}
-
-pub fn new_parameters(size: i32) -> ResponseParameters {
-    let mut parameter = ResponseParameters::new();
-    parameter.set_size(size);
-    parameter
-}
+mod bench;
+mod client;
+mod error;
+mod histogram;
+mod server;
+mod worker;
+mod util;
