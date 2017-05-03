@@ -24,7 +24,10 @@ extern crate futures;
 extern crate protobuf;
 
 mod async;
+mod cq;
+mod env;
 mod call;
 mod error;
 
+pub use env::Environment;
 pub use error::{Error, Result};

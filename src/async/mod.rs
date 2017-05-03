@@ -23,6 +23,7 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
+use cq::CompletionQueue;
 use error::{Error, Result};
 use self::lock::SpinLock;
 use self::promise::Shutdown as ShutdownPromise;
@@ -111,7 +112,7 @@ impl Promise {
     }
 
     /// Resolve the promise with given status.
-    pub fn resolve(self, success: bool) {
+    pub fn resolve(self, _: &CompletionQueue, success: bool) {
         match self {
             Promise::Shutdown(prom) => prom.resolve(success),
         }
@@ -133,9 +134,12 @@ mod tests {
     use std::sync::mpsc::*;
 
     use super::*;
+    use env::Environment;
 
     #[test]
     fn test_resolve() {
+        let env = Environment::new(1);
+
         let (cq_f1, prom1) = Promise::shutdown_pair();
         let (cq_f2, prom2) = Promise::shutdown_pair();
         let (tx, rx) = mpsc::channel();
@@ -146,11 +150,11 @@ mod tests {
                                     });
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        prom1.resolve(true);
+        prom1.resolve(&env.pick_cq(), true);
         assert!(rx.recv().unwrap().is_ok());
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        prom2.resolve(false);
+        prom2.resolve(&env.pick_cq(), false);
         match rx.recv() {
             Ok(Err(Error::ShutdownFailed)) => {}
             res => panic!("expect shutdown failed, but got {:?}", res),
