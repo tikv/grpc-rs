@@ -2,7 +2,7 @@
 use async::{BatchFuture, Promise};
 use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase};
 use cq::CompletionQueue;
-use error::{Error, Result};
+use error::Error;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
@@ -217,30 +217,29 @@ impl<T: Message> UnaryResponseSink<T> {
         }
     }
 
-    pub fn success(self, t: T) -> Result<UnarySinkResult> {
+    pub fn success(self, t: T) -> UnarySinkResult {
         self.complete(RpcStatus::ok(), Some(t))
     }
 
     pub fn fail(self, status: RpcStatus) -> UnarySinkResult {
-        self.complete(status, None).unwrap()
+        self.complete(status, None)
     }
 
-    fn complete(mut self, status: RpcStatus, t: Option<T>) -> Result<UnarySinkResult> {
+    fn complete(mut self, status: RpcStatus, t: Option<T>) -> UnarySinkResult {
         let data = match t {
-            Some(t) => Some(try!(t.write_to_bytes())),
+            Some(t) => Some(t.write_to_bytes().unwrap()),
             None => None,
         };
 
-        let cq_f =
-            try!(self.call
-                     .start_send_status_from_server(&status, true, data, self.write_flags));
+        let cq_f = self.call
+            .start_send_status_from_server(&status, true, data, self.write_flags);
 
-        Ok(UnarySinkResult {
-               _call: self.call,
-               close_f: self.close_f,
-               cq_f: cq_f,
-               flushed: false,
-           })
+        UnarySinkResult {
+            _call: self.call,
+            close_f: self.close_f,
+            cq_f: cq_f,
+            flushed: false,
+        }
     }
 }
 
@@ -283,31 +282,31 @@ impl<T: Message> ClientStreamingResponseSink<T> {
         }
     }
 
-    pub fn success(self, t: T) -> Result<ClientStreamingSinkResult> {
+    pub fn success(self, t: T) -> ClientStreamingSinkResult {
         self.complete(RpcStatus::ok(), Some(t))
     }
 
     pub fn fail(self, status: RpcStatus) -> ClientStreamingSinkResult {
-        self.complete(status, None).unwrap()
+        self.complete(status, None)
     }
 
-    fn complete(self, status: RpcStatus, t: Option<T>) -> Result<ClientStreamingSinkResult> {
+    fn complete(self, status: RpcStatus, t: Option<T>) -> ClientStreamingSinkResult {
         let data = match t {
-            Some(t) => Some(try!(t.write_to_bytes())),
+            Some(t) => Some(t.write_to_bytes().unwrap()),
             None => None,
         };
 
         let cq_f = {
             let mut call = self.call.lock().unwrap();
-            try!(call.start_send_status_from_server(&status, true, data, self.write_flags))
+            call.start_send_status_from_server(&status, true, data, self.write_flags)
         };
 
-        Ok(ClientStreamingSinkResult {
-               _call: self.call,
-               close_f: self.close_f,
-               cq_f: cq_f,
-               flushed: false,
-           })
+        ClientStreamingSinkResult {
+            _call: self.call,
+            close_f: self.close_f,
+            cq_f: cq_f,
+            flushed: false,
+        }
     }
 }
 
@@ -359,21 +358,21 @@ impl<T> ResponseSink<T> {
         self.status = status;
     }
 
-    pub fn fail(self, status: RpcStatus) -> Result<SinkFailure> {
+    pub fn fail(self, status: RpcStatus) -> SinkFailure {
         assert!(self.base.close_f.is_none());
         let fail_f = {
             let mut call = self.call.lock().unwrap();
-            try!(call.start_send_status_from_server(&status,
-                                                    self.base.send_metadata,
-                                                    None,
-                                                    self.base.flags))
+            call.start_send_status_from_server(&status,
+                                               self.base.send_metadata,
+                                               None,
+                                               self.base.flags)
         };
 
-        Ok(SinkFailure {
-               _call: self.call,
-               close_f: self.close_f,
-               fail_f: Some(fail_f),
-           })
+        SinkFailure {
+            _call: self.call,
+            close_f: self.close_f,
+            fail_f: Some(fail_f),
+        }
     }
 }
 
@@ -398,15 +397,13 @@ impl<T: Message> Sink for ResponseSink<T> {
 
     fn close(&mut self) -> Poll<(), Error> {
         if self.base.close_f.is_none() {
-            if let Async::NotReady = try!(self.base.poll_complete()) {
-                return Ok(Async::NotReady);
-            }
+            try_ready!(self.base.poll_complete());
 
             let mut call = self.call.lock().unwrap();
-            let close_f = try!(call.start_send_status_from_server(&self.status,
-                                                                  self.base.send_metadata,
-                                                                  None,
-                                                                  self.base.flags));
+            let close_f = call.start_send_status_from_server(&self.status,
+                                                             self.base.send_metadata,
+                                                             None,
+                                                             self.base.flags);
             self.base.close_f = Some(close_f);
         }
 
@@ -473,10 +470,7 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
           F: Fn(RpcContext, P, UnaryResponseSink<Q>)
 {
     let mut call = ctx.ctx.take_call().unwrap();
-    let close_f = match call.start_server_side() {
-        Ok(f) => f,
-        Err(_) => return,
-    };
+    let close_f = call.start_server_side();
     let request = match protobuf::parse_from_bytes(payload) {
         Ok(f) => f,
         // TODO: log?
@@ -494,10 +488,7 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();
-        match call.start_server_side() {
-            Ok(f) => f,
-            Err(_) => return,
-        }
+        call.start_server_side()
     };
 
     let req_s = RequestStream::new(call.clone());
@@ -514,10 +505,7 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f:
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();
-        match call.start_server_side() {
-            Ok(f) => f,
-            Err(_) => return,
-        }
+        call.start_server_side()
     };
 
     let request = match protobuf::parse_from_bytes(payload) {
@@ -537,10 +525,7 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
         let mut call = call.lock().unwrap();
-        match call.start_server_side() {
-            Ok(f) => f,
-            Err(_) => return,
-        }
+        call.start_server_side()
     };
 
     let req_s = RequestStream::new(call.clone());

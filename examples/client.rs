@@ -47,7 +47,6 @@ fn main() {
     let point = new_point(409146138, -746188906);
     let get_feature = client
         .get_feature_async(point)
-        .unwrap()
         .and_then(|f| {
                       println!("async get_feature: {:?}", f);
                       Ok(())
@@ -56,13 +55,12 @@ fn main() {
     let rect = new_rect(400000000, -750000000, 420000000, -730000000);
     let list_features = client
         .list_features(rect)
-        .unwrap()
         .for_each(|f| {
                       println!("server streaming list_features: {:?}", f);
                       Ok(())
                   });
 
-    let call = client.record_route().unwrap();
+    let call = client.record_route();
     let points: Vec<Result<_>> = vec![Ok((416560744, -746721964)),
                                       Ok((406411633, -741722051)),
                                       Ok((411633782, -746784970)),
@@ -75,7 +73,7 @@ fn main() {
                       Ok(())
                   });
 
-    let mut call = client.route_chat().unwrap();
+    let mut call = client.route_chat();
     let route_chat = call.take_receiver()
         .unwrap()
         .for_each(|note| {

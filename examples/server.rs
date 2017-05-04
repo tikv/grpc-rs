@@ -40,8 +40,7 @@ impl RouteGuide for RouteGuideService {
                 let f = data.iter()
                     .find(|f| same_point(f.get_location(), &point))
                     .map_or_else(Feature::new, ToOwned::to_owned);
-                future::result(resp.success(f))
-                    .flatten()
+                resp.success(f)
                     .map_err(|e| println!("failed to handle getfeature request: {:?}", e))
             });
     }
@@ -96,7 +95,6 @@ impl RouteGuide for RouteGuideService {
                                   s.set_elapsed_time(dur.as_secs() as i32);
                                   resp.success(s)
                               })
-                    .flatten()
                     .map_err(|e| println!("failed to record route: {:?}", e))
             })
     }

@@ -52,7 +52,6 @@ impl TestService for InteropTestService {
             .spawn(move |_| {
                        let res = Empty::new();
                        resp.success(res)
-                           .unwrap()
                            .map_err(|e| panic!("failed to send response: {:?}", e))
                    })
     }
@@ -78,7 +77,6 @@ impl TestService for InteropTestService {
         self.remote
             .spawn(|_| {
                        sink.success(resp)
-                           .unwrap()
                            .map_err(|e| panic!("failed to send response: {:?}", e))
                    })
     }
@@ -120,7 +118,7 @@ impl TestService for InteropTestService {
             .and_then(|s| {
                           let mut resp = StreamingInputCallResponse::new();
                           resp.set_aggregated_payload_size(s as i32);
-                          sink.success(resp).unwrap()
+                          sink.success(resp)
                       })
             .map_err(|e| match e {
                          grpc::Error::RemoteStopped => {}
@@ -142,7 +140,7 @@ impl TestService for InteropTestService {
                     let code = req.get_response_status().get_code();
                     let msg = Some(req.take_response_status().take_message());
                     let status = RpcStatus::new(code.into(), msg);
-                    failure = Some(sink.fail(status).unwrap());
+                    failure = Some(sink.fail(status));
                 } else {
                     let mut resp = StreamingOutputCallResponse::new();
                     if let Some(param) = req.get_response_parameters().get(0) {

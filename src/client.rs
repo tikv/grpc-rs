@@ -22,7 +22,7 @@ impl Client {
                                                     req: P,
                                                     opt: CallOption)
                                                     -> Result<Q> {
-        let f = try!(self.unary_call_async(method, req, opt));
+        let f = self.unary_call_async(method, req, opt);
         f.wait()
     }
 
@@ -30,14 +30,14 @@ impl Client {
                                            method: &Method,
                                            req: P,
                                            opt: CallOption)
-                                           -> Result<UnaryCallHandler<Q>> {
+                                           -> UnaryCallHandler<Q> {
         Call::unary_async(&self.channel, method, req, opt)
     }
 
     pub fn client_streaming<P, Q>(&self,
                                   method: &Method,
                                   opt: CallOption)
-                                  -> Result<ClientStreamingCallHandler<P, Q>> {
+                                  -> ClientStreamingCallHandler<P, Q> {
         Call::client_streaming(&self.channel, method, opt)
     }
 
@@ -45,14 +45,14 @@ impl Client {
                                            method: &Method,
                                            req: P,
                                            opt: CallOption)
-                                           -> Result<ServerStreamingCallHandler<Q>> {
+                                           -> ServerStreamingCallHandler<Q> {
         Call::server_streaming(&self.channel, method, req, opt)
     }
 
     pub fn duplex_streaming<P, Q>(&self,
                                   method: &Method,
                                   opt: CallOption)
-                                  -> Result<DuplexStreamingCallHandler<P, Q>> {
+                                  -> DuplexStreamingCallHandler<P, Q> {
         Call::duplex_streaming(&self.channel, method, opt)
     }
 }

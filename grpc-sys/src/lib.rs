@@ -194,6 +194,8 @@ extern "C" {
     pub fn gpr_time_cmp(lhs: GprTimespec, rhs: GprTimespec) -> c_int;
     pub fn gpr_convert_clock_type(t: GprTimespec, clock_type: GprClockType) -> GprTimespec;
 
+    pub fn gpr_cpu_num_cores() -> usize;
+
     pub fn grpc_completion_queue_create(reserved: *mut c_void) -> *mut GrpcCompletionQueue;
     pub fn grpc_completion_queue_next(cq: *mut GrpcCompletionQueue,
                                       deadline: GprTimespec,

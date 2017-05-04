@@ -35,20 +35,25 @@ impl Client {
     }
 
     pub fn empty_unary(&self) {
+        print!("testing empty unary ... ");
         let req = Empty::new();
         let resp = self.client.empty_call(req.clone()).unwrap();
         assert_eq!(req, resp);
+        println!("pass");
     }
 
     pub fn large_unary(&self) {
+        print!("testing large unary ... ");
         let mut req = SimpleRequest::new();
         req.set_response_size(314159);
         req.set_payload(util::new_payload(271828));
         let resp = self.client.unary_call(req).unwrap();
         assert_eq!(314159, resp.get_payload().get_body().len());
+        println!("pass");
     }
 
     pub fn client_streaming(&self) {
+        print!("testing client streaming ... ");
         let reqs: Vec<grpc::Result<_>> = vec![27182, 8, 1828, 45904]
             .into_iter()
             .map(|s| {
@@ -57,29 +62,33 @@ impl Client {
                      Ok(req)
                  })
             .collect();
-        let mut handler = self.client.streaming_input_call().unwrap();
+        let mut handler = self.client.streaming_input_call();
         handler = handler.send_all(stream::iter(reqs)).wait().unwrap().0;
         let resp = handler.into_receiver().wait().unwrap();
         assert_eq!(74922, resp.get_aggregated_payload_size());
+        println!("pass");
     }
 
     pub fn server_streaming(&self) {
+        print!("testing server streaming ... ");
         let mut req = StreamingOutputCallRequest::new();
         let sizes = vec![31415, 9, 2653, 58979];
         for size in &sizes {
             req.mut_response_parameters()
                 .push(util::new_parameters(*size));
         }
-        let resp = self.client.streaming_output_call(req).unwrap();
+        let resp = self.client.streaming_output_call(req);
         let resp_sizes = resp.map(|r| r.get_payload().get_body().len() as i32)
             .collect()
             .wait()
             .unwrap();
         assert_eq!(resp_sizes, sizes);
+        println!("pass");
     }
 
     pub fn ping_pong(&self) {
-        let mut handler = self.client.full_duplex_call().unwrap();
+        print!("testing ping pong ... ");
+        let mut handler = self.client.full_duplex_call();
         let mut receiver = handler.take_receiver().unwrap();
         let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
         for (resp_size, payload_size) in cases {
@@ -98,18 +107,22 @@ impl Client {
             };
             assert_eq!(resp.get_payload().get_body().len(), resp_size as usize);
         }
+        println!("pass");
     }
 
     pub fn empty_stream(&self) {
-        let mut handler = self.client.full_duplex_call().unwrap();
+        print!("testing empty stream ... ");
+        let mut handler = self.client.full_duplex_call();
         let receiver = handler.take_receiver().unwrap();
         future::poll_fn(|| handler.close()).wait().unwrap();
         let resps = receiver.collect().wait().unwrap();
         assert!(resps.is_empty());
+        println!("pass");
     }
 
     pub fn cancel_after_begin(&self) {
-        let handler = self.client.streaming_input_call().unwrap();
+        print!("testing cancel_after_begin ... ");
+        let handler = self.client.streaming_input_call();
         // so request has been sent.
         thread::sleep(Duration::from_millis(10));
         let receiver = handler.cancel();
@@ -117,10 +130,12 @@ impl Client {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, GrpcStatusCode::Cancelled),
             e => panic!("expected cancel, but got: {:?}", e),
         }
+        println!("pass");
     }
 
     pub fn cancel_after_first_response(&self) {
-        let mut handler = self.client.full_duplex_call().unwrap();
+        print!("testing cancel_after_first_response ... ");
+        let mut handler = self.client.full_duplex_call();
         let mut receiver = handler.take_receiver().unwrap();
         let mut req = StreamingOutputCallRequest::new();
         req.mut_response_parameters()
@@ -142,11 +157,13 @@ impl Client {
             Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
             Ok((r, _)) => panic!("expected error, but got: {:?}", r),
         }
+        println!("pass");
     }
 
     pub fn timeout_on_sleeping_server(&self) {
+        print!("testing timeout_of_sleeping_server ... ");
         let opt = CallOption::default().with_timeout(Duration::new(0, 100_000));
-        let mut handler = self.client.full_duplex_call_opt(opt).unwrap();
+        let mut handler = self.client.full_duplex_call_opt(opt);
         let receiver = handler.take_receiver().unwrap();
         let mut req = StreamingOutputCallRequest::new();
         req.set_payload(util::new_payload(27182));
@@ -158,9 +175,11 @@ impl Client {
             Err((e, _)) => panic!("expected timeout, but got: {:?}", e),
             _ => panic!("expected error"),
         }
+        println!("pass");
     }
 
     pub fn status_code_and_message(&self) {
+        print!("testing status_code_and_message ... ");
         let error_msg = "test status message";
         let mut status = EchoStatus::new();
         status.set_code(2);
@@ -176,7 +195,7 @@ impl Client {
         }
         let mut req = StreamingOutputCallRequest::new();
         req.set_response_status(status);
-        let mut handler = self.client.full_duplex_call().unwrap();
+        let mut handler = self.client.full_duplex_call();
         let receiver = handler.take_receiver().unwrap();
         handler.send(req).wait().unwrap();
         match receiver.into_future().wait() {
@@ -187,6 +206,7 @@ impl Client {
             Err((e, _)) => panic!("expected rpc failure: {:?}", e),
             Ok((r, _)) => panic!("error expected, but got: {:?}", r),
         }
+        println!("pass");
     }
 
     pub fn test_all(&self) {

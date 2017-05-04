@@ -3,7 +3,7 @@ use async::{BatchMessage, BatchType, CqFuture};
 use call::{Call, Method, check_run};
 
 use channel::Channel;
-use error::{Error, Result};
+use error::Error;
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
@@ -80,45 +80,46 @@ impl Call {
                                       method: &Method,
                                       req: P,
                                       opt: CallOption)
-                                      -> Result<UnaryCallHandler<Q>> {
+                                      -> UnaryCallHandler<Q> {
         let call = channel.create_call(method, &opt);
-        let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_unary(call.call,
-                                                ctx,
-                                                payload.as_ptr() as *const _,
-                                                payload.len(),
-                                                opt.write_flags,
-                                                ptr::null_mut(),
-                                                opt.call_flags,
-                                                tag)
-        }));
-        Ok(UnaryCallHandler::new(call, cq_f))
+        let payload = req.write_to_bytes().unwrap();
+        let cq_f =
+            check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+                grpc_sys::grpcwrap_call_start_unary(call.call,
+                                                    ctx,
+                                                    payload.as_ptr() as *const _,
+                                                    payload.len(),
+                                                    opt.write_flags,
+                                                    ptr::null_mut(),
+                                                    opt.call_flags,
+                                                    tag)
+            });
+        UnaryCallHandler::new(call, cq_f)
     }
 
     pub fn client_streaming<P, Q>(channel: &Channel,
                                   method: &Method,
                                   opt: CallOption)
-                                  -> Result<ClientStreamingCallHandler<P, Q>> {
+                                  -> ClientStreamingCallHandler<P, Q> {
         let call = channel.create_call(method, &opt);
-        let cq_f = try!(check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
                                                            ctx,
                                                            ptr::null_mut(),
                                                            opt.call_flags,
                                                            tag)
-        }));
-        Ok(ClientStreamingCallHandler::new(call, cq_f, opt.write_flags))
+        });
+        ClientStreamingCallHandler::new(call, cq_f, opt.write_flags)
     }
 
     pub fn server_streaming<P: Message, Q>(channel: &Channel,
                                            method: &Method,
                                            req: P,
                                            opt: CallOption)
-                                           -> Result<ServerStreamingCallHandler<Q>> {
+                                           -> ServerStreamingCallHandler<Q> {
         let call = channel.create_call(method, &opt);
-        let payload = try!(req.write_to_bytes());
-        let cq_f = try!(check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let payload = req.write_to_bytes().unwrap();
+        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(call.call,
                                                            ctx,
                                                            payload.as_ptr() as _,
@@ -127,41 +128,35 @@ impl Call {
                                                            ptr::null_mut(),
                                                            opt.call_flags,
                                                            tag)
-        }));
+        });
 
         // ignore header for now
         check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
-        })
-                .unwrap_or_else(|e| {
-                                    panic!("failed to start receiving headers: {:?}", e);
-                                });
+        });
 
-        Ok(ServerStreamingCallHandler::new(call, cq_f))
+        ServerStreamingCallHandler::new(call, cq_f)
     }
 
     pub fn duplex_streaming<P, Q>(channel: &Channel,
                                   method: &Method,
                                   opt: CallOption)
-                                  -> Result<DuplexStreamingCallHandler<P, Q>> {
+                                  -> DuplexStreamingCallHandler<P, Q> {
         let call = channel.create_call(method, &opt);
-        let cq_f = try!(check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
                                                            ctx,
                                                            ptr::null_mut(),
                                                            opt.call_flags,
                                                            tag)
-        }));
+        });
 
         // ignore header for now.
         check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
-        })
-                .unwrap_or_else(|e| {
-                                    panic!("failed to start receiving headers: {:?}", e);
-                                });
+        });
 
-        Ok(DuplexStreamingCallHandler::new(call, cq_f, opt.write_flags))
+        DuplexStreamingCallHandler::new(call, cq_f, opt.write_flags)
     }
 }
 
