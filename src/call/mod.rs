@@ -278,10 +278,12 @@ impl StreamingBase {
         }
 
         let mut bytes = None;
-        if let Some(ref mut msg_f) = self.msg_f {
-            bytes = try_ready!(msg_f.poll());
-            if bytes.is_none() {
-                self.read_done = true;
+        if !self.read_done {
+            if let Some(ref mut msg_f) = self.msg_f {
+                bytes = try_ready!(msg_f.poll());
+                if bytes.is_none() {
+                    self.read_done = true;
+                }
             }
         }
 
