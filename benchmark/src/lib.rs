@@ -18,14 +18,18 @@
 extern crate grpc;
 extern crate grpc_proto;
 extern crate tokio_core;
+#[macro_use]
 extern crate futures;
 extern crate libc;
-extern crate num_cpus;
+extern crate grpc_sys;
+extern crate rand;
+extern crate tokio_timer;
 
 mod bench;
 mod client;
 mod error;
-mod histogram;
 mod server;
 mod worker;
 mod util;
+
+pub use worker::Worker;

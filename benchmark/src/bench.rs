@@ -17,7 +17,7 @@ use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
 use tokio_core::reactor::Remote;
 use grpc::{RpcContext, UnaryResponseSink, ResponseSink, RequestStream};
-use futures::{future, Future, Sink, Stream};
+use futures::{Future, Sink, Stream};
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
@@ -42,7 +42,7 @@ impl Benchmark {
 impl BenchmarkService for Benchmark {
     fn unary_call(&self, _: RpcContext, req: SimpleRequest, sink: UnaryResponseSink<SimpleResponse>) {
         let resp = gen_resp(req);
-        self.remote.spawn(|_| future::result(sink.success(resp)).flatten().map_err(|e| println!("failed to handle unary: {:?}", e)))
+        self.remote.spawn(|_| sink.success(resp).map_err(|e| println!("failed to handle unary: {:?}", e)))
     }
 
     fn streaming_call(&self, _: RpcContext, stream: RequestStream<SimpleRequest>, sink: ResponseSink<SimpleResponse>) {

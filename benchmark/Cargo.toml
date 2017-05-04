@@ -9,4 +9,7 @@ grpc-proto = { path = "../proto" }
 tokio-core = "0.1"
 futures = "0.1"
 libc = "0.2"
-num_cpus = "*"
+grpc-sys = { path = "../grpc-sys" }
+rand = "0.3"
+tokio-timer = "0.1"
+clap = "2.23"

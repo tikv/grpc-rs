@@ -15,16 +15,26 @@
 use std::result;
 
 use grpc;
+use tokio_timer::TimerError;
 
 #[derive(Debug)]
 pub enum Error {
+    ClientNotStarted,
+    ServerStarted,
     ServerNotStarted,
     Grpc(grpc::Error),
+    Timer(TimerError),
 }
 
 impl From<grpc::Error> for Error {
     fn from(e: grpc::Error) -> Error {
         Error::Grpc(e)
+    }
+}
+
+impl From<TimerError> for Error {
+    fn from(e: TimerError) -> Error {
+        Error::Timer(e)
     }
 }
 

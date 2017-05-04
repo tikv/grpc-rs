@@ -13,31 +13,29 @@
 
 
 use std::sync::Arc;
-use std::time::Instant;
 
 use error::Result;
 use grpc::{Server as GrpcServer, ServerBuilder, Environment, ShutdownFuture};
-use grpc_proto::testing::control::{ServerConfig, ServerType};
+use grpc_proto::testing::control::{ServerConfig, ServerType, ServerStatus};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
 use tokio_core::reactor::Remote;
-use libc::rusage;
 
 use bench::Benchmark;
-use util::CpuRecorder;
+use util::{self, CpuRecorder};
 
 pub struct Server {
     server: GrpcServer,
-    recoder: CpuRecoder,
+    recorder: CpuRecorder,
 }
 
 impl Server {
     pub fn new(env: Arc<Environment>, cfg: &ServerConfig, remote: Remote) -> Result<Server> {
         if cfg.has_security_params() {
-            unimplemented!()
+            println!("client config security params is set but ignored");
         }
         if cfg.get_core_limit() > 0 {
-            unimplemented!()
+            println!("server config core limit is set but ignored");
         }
         let service = match cfg.get_server_type() {
             ServerType::ASYNC_SERVER => {
@@ -46,10 +44,11 @@ impl Server {
             },
             _ => unimplemented!()
         };
-        let s = ServerBuilder::new(env)
+        let mut s = ServerBuilder::new(env)
                     .bind("localhost", cfg.get_port() as u32)
                     .register_service(service)
                     .build();
+        s.start();
         Ok(Server {
             server: s,
             recorder: CpuRecorder::new(),
@@ -57,16 +56,23 @@ impl Server {
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
-        let (real_time, user_time, sys_time) = self.recoder.cpu_time(reset);
+        let (real_time, user_time, sys_time) = self.recorder.cpu_time(reset);
 
         let mut stats = ServerStats::new();
         stats.set_time_elapsed(real_time);
-        stats.set_time_user(user);
-        stats.set_time_system(sys);
+        stats.set_time_user(user_time);
+        stats.set_time_system(sys_time);
         stats
     }
 
     pub fn shutdown(&mut self) -> ShutdownFuture {
         self.server.shutdown()
+    }
+
+    pub fn get_status(&self) -> ServerStatus {
+        let mut status = ServerStatus::new();
+        status.set_port(self.server.bind_addrs()[0].1 as i32);
+        status.set_cores(util::cpu_num_cores() as i32);
+        status
     }
 }
