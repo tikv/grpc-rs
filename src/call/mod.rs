@@ -126,8 +126,8 @@ impl Drop for BatchContext {
     }
 }
 
-/// A helper function theat run the batch call and check the result.
-fn check_run<F>(bt: BatchType, f: F) -> Result<BatchFuture>
+/// A helper function that runs the batch call and checks the result.
+fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
     where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus
 {
     let (cq_f, prom) = Promise::batch_pair(bt);
@@ -139,9 +139,9 @@ fn check_run<F>(bt: BatchType, f: F) -> Result<BatchFuture>
         unsafe {
             Box::from_raw(prom_ptr);
         }
-        return Err(Error::CallFailure(code));
+        panic!("create call fail: {:?}", code);
     }
-    Ok(cq_f)
+    cq_f
 }
 
 /// A Call represents an RPC.
@@ -166,7 +166,7 @@ impl Call {
                               msg: &[u8],
                               write_flags: u32,
                               initial_meta: bool)
-                              -> Result<BatchFuture> {
+                              -> BatchFuture {
         let i = if initial_meta { 1 } else { 0 };
         check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(self.call,
@@ -180,14 +180,14 @@ impl Call {
     }
 
     /// Finish the rpc call from client.
-    pub fn start_send_close_client(&mut self) -> Result<BatchFuture> {
+    pub fn start_send_close_client(&mut self) -> BatchFuture {
         check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_close_from_client(self.call, ctx, tag)
         })
     }
 
     /// Receive a message asynchronously.
-    pub fn start_recv_message(&mut self) -> Result<BatchFuture> {
+    pub fn start_recv_message(&mut self) -> BatchFuture {
         check_run(BatchType::Read,
                   |ctx, tag| unsafe { grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag) })
     }
@@ -195,7 +195,7 @@ impl Call {
     /// Start handling from server side.
     ///
     /// Future will finish once close is received by the server.
-    pub fn start_server_side(&mut self) -> Result<BatchFuture> {
+    pub fn start_server_side(&mut self) -> BatchFuture {
         check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
         })
@@ -207,7 +207,7 @@ impl Call {
                                          send_empty_metadata: bool,
                                          payload: Option<Vec<u8>>,
                                          write_flags: u32)
-                                         -> Result<BatchFuture> {
+                                         -> BatchFuture {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let (payload_ptr, payload_len) = payload
             .as_ref()
@@ -248,6 +248,7 @@ impl Drop for Call {
 struct StreamingBase {
     close_f: Option<BatchFuture>,
     msg_f: Option<BatchFuture>,
+    read_done: bool,
 }
 
 impl StreamingBase {
@@ -255,17 +256,25 @@ impl StreamingBase {
         StreamingBase {
             close_f: close_f,
             msg_f: None,
+            read_done: false,
         }
     }
 
     fn poll(&mut self, call: &mut Call, skip_finish_check: bool) -> Poll<Option<Vec<u8>>, Error> {
         if !skip_finish_check {
+            let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
                 match close_f.poll() {
-                    Ok(Async::Ready(_)) => return Ok(Async::Ready(None)),
+                    Ok(Async::Ready(_)) => {
+                        // don't return immediately, there maybe pending data.
+                        finished = true;
+                    }
                     Err(e) => return Err(e),
                     Ok(Async::NotReady) => {}
                 }
+            }
+            if finished {
+                self.close_f.take();
             }
         }
 
@@ -273,13 +282,20 @@ impl StreamingBase {
         if let Some(ref mut msg_f) = self.msg_f {
             bytes = try_ready!(msg_f.poll());
             if bytes.is_none() {
+                self.read_done = true;
+            }
+        }
+
+        if self.read_done {
+            if self.close_f.is_none() {
                 return Ok(Async::Ready(None));
             }
+            return Ok(Async::NotReady);
         }
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = try!(call.start_recv_message());
+        let msg_f = call.start_recv_message();
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -325,7 +341,7 @@ impl SinkBase {
         if let Err(e) = fill_buf(&mut self.buf) {
             return Err(e.into());
         }
-        let write_f = try!(call.start_send_message(&self.buf, self.flags, self.send_metadata));
+        let write_f = call.start_send_message(&self.buf, self.flags, self.send_metadata);
         self.write_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
@@ -342,18 +358,13 @@ impl SinkBase {
 
     fn close(&mut self, call: &mut Call) -> Poll<(), Error> {
         if self.close_f.is_none() {
-            if let Async::NotReady = try!(self.poll_complete()) {
-                return Ok(Async::NotReady);
-            }
+            try_ready!(self.poll_complete());
 
-            let close_f = try!(call.start_send_close_client());
+            let close_f = call.start_send_close_client();
             self.close_f = Some(close_f);
         }
 
-        self.close_f
-            .as_mut()
-            .unwrap()
-            .poll()
-            .map(|res| res.map(|_| {}))
+        try_ready!(self.close_f.as_mut().unwrap().poll());
+        Ok(Async::Ready(()))
     }
 }
