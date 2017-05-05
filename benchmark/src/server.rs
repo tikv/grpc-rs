@@ -32,7 +32,7 @@ pub struct Server {
 impl Server {
     pub fn new(env: Arc<Environment>, cfg: &ServerConfig, remote: Remote) -> Result<Server> {
         if cfg.has_security_params() {
-            println!("client config security params is set but ignored");
+            println!("server config security params is set but ignored");
         }
         if cfg.get_core_limit() > 0 {
             println!("server config core limit is set but ignored");
@@ -45,7 +45,7 @@ impl Server {
             _ => unimplemented!(),
         };
         let mut s = ServerBuilder::new(env)
-            .bind("localhost", cfg.get_port() as u32)
+            .bind("[::]", cfg.get_port() as u32)
             .register_service(service)
             .build();
         s.start();
