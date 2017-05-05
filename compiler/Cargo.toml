@@ -3,9 +3,6 @@ name = "compiler"
 version = "0.1.0"
 description = "gRPC compiler for grpc-rs"
 license = "MIT/Apache-2.0"
-authors = [
-    "Stepan Koltsov <stepan.koltsov@gmail.com>"
-]
 
 workspace = ".."
 
