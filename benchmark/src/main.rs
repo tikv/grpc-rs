@@ -59,4 +59,3 @@ fn main() {
 
     let _ = core.run(rx);
 }
-

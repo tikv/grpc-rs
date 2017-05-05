@@ -12,8 +12,8 @@
 // limitations under the License.
 
 
-use std::time::{Instant, Duration};
-use std::{mem, f64};
+use std::time::{Duration, Instant};
+use std::{f64, mem};
 
 use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
@@ -92,18 +92,22 @@ impl Histogram {
     pub fn new(resolution: f64, max_val: f64) -> Histogram {
         let multiplier = 1.0 + resolution;
         let one_on_log_multiplier = 1.0 / multiplier.ln();
-        let bucket_size = (max_val.ln() * one_on_log_multiplier) as usize;
-        
-        Histogram {
+
+        let mut his = Histogram {
             count: 0,
             sum: 0f64,
             sum_of_squares: 0f64,
             min: f64::MAX,
             max: f64::MIN,
-            buckets: vec![0; bucket_size],
+            buckets: vec![],
             one_on_log_multiplier: one_on_log_multiplier,
             max_val: max_val,
-        }
+        };
+
+        let bucket_size = his.find_bucket(max_val);
+        his.buckets.resize(bucket_size + 1, 0);
+
+        his
     }
 
     pub fn observe(&mut self, value: f64) {
@@ -122,11 +126,7 @@ impl Histogram {
 
     #[inline]
     fn find_bucket(&self, mut value: f64) -> usize {
-        value = if value < 1.0 {
-            1.0
-        } else {
-            value
-        };
+        value = if value < 1.0 { 1.0 } else { value };
         if value > self.max_val {
             value = self.max_val;
         }
@@ -141,6 +141,7 @@ impl Histogram {
         data.set_min_seen(self.min);
         data.set_max_seen(self.max);
         data.set_bucket(self.buckets.clone());
+        println!("bucket len: {:?}", self.buckets.len());
 
         if reset {
             self.clear();

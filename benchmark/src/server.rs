@@ -15,8 +15,8 @@
 use std::sync::Arc;
 
 use error::Result;
-use grpc::{Server as GrpcServer, ServerBuilder, Environment, ShutdownFuture};
-use grpc_proto::testing::control::{ServerConfig, ServerType, ServerStatus};
+use grpc::{Environment, Server as GrpcServer, ServerBuilder, ShutdownFuture};
+use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
 use tokio_core::reactor::Remote;
@@ -41,18 +41,18 @@ impl Server {
             ServerType::ASYNC_SERVER => {
                 let b = Benchmark::new(remote);
                 services_grpc::create_benchmark_service(b)
-            },
-            _ => unimplemented!()
+            }
+            _ => unimplemented!(),
         };
         let mut s = ServerBuilder::new(env)
-                    .bind("localhost", cfg.get_port() as u32)
-                    .register_service(service)
-                    .build();
+            .bind("localhost", cfg.get_port() as u32)
+            .register_service(service)
+            .build();
         s.start();
         Ok(Server {
-            server: s,
-            recorder: CpuRecorder::new(),
-        })
+               server: s,
+               recorder: CpuRecorder::new(),
+           })
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
