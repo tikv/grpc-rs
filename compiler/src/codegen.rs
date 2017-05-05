@@ -119,93 +119,83 @@ impl<'a> MethodGen<'a> {
 
     // Method signatures
     fn unary(&self, method_name: &str) -> String {
-        format!("{}(&self, req: {}) -> {}<{}>",
+        format!("{}(&self, req: {}) -> {}",
                 method_name,
                 self.input(),
-                fq_grpc("Result"),
                 self.output())
     }
 
     fn unary_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, req: {}, opt: {}) -> {}<{}>",
+        format!("{}_opt(&self, req: {}, opt: {}) -> {}",
                 method_name,
                 self.input(),
                 fq_grpc("CallOption"),
-                fq_grpc("Result"),
                 self.output())
     }
 
     fn unary_async(&self, method_name: &str) -> String {
-        format!("{}_async(&self, req: {}) -> {}<{}<{}>>",
+        format!("{}_async(&self, req: {}) -> {}<{}>",
                 method_name,
                 self.input(),
-                fq_grpc("Result"),
                 fq_grpc("UnaryCallHandler"),
                 self.output())
     }
 
     fn unary_async_opt(&self, method_name: &str) -> String {
-        format!("{}_async_opt(&self, req: {}, opt: {}) -> {}<{}<{}>>",
+        format!("{}_async_opt(&self, req: {}, opt: {}) -> {}<{}>",
                 method_name,
                 self.input(),
                 fq_grpc("CallOption"),
-                fq_grpc("Result"),
                 fq_grpc("UnaryCallHandler"),
                 self.output())
     }
 
     fn client_streaming(&self, method_name: &str) -> String {
-        format!("{}(&self) -> {}<{}<{}, {}>>",
+        format!("{}(&self) -> {}<{}, {}>",
                 method_name,
-                fq_grpc("Result"),
                 fq_grpc("ClientStreamingCallHandler"),
                 self.input(),
                 self.output())
     }
 
     fn client_streaming_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, opt: {}) -> {}<{}<{}, {}>>",
+        format!("{}_opt(&self, opt: {}) -> {}<{}, {}>",
                 method_name,
                 fq_grpc("CallOption"),
-                fq_grpc("Result"),
                 fq_grpc("ClientStreamingCallHandler"),
                 self.input(),
                 self.output())
     }
 
     fn server_streaming(&self, method_name: &str) -> String {
-        format!("{}(&self, req: {}) -> {}<{}<{}>>",
+        format!("{}(&self, req: {}) -> {}<{}>",
                 method_name,
                 self.input(),
-                fq_grpc("Result"),
                 fq_grpc("ServerStreamingCallHandler"),
                 self.output())
     }
 
     fn server_streaming_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, req: {}, opt: {}) -> {}<{}<{}>>",
+        format!("{}_opt(&self, req: {}, opt: {}) -> {}<{}>",
                 method_name,
                 self.input(),
                 fq_grpc("CallOption"),
-                fq_grpc("Result"),
                 fq_grpc("ServerStreamingCallHandler"),
                 self.output())
     }
 
     fn duplex_streaming(&self, method_name: &str) -> String {
-        format!("{}(&self) -> {}<{}<{}, {}>>",
+        format!("{}(&self) -> {}<{}, {}>",
                 method_name,
-                fq_grpc("Result"),
                 fq_grpc("DuplexStreamingCallHandler"),
                 self.input(),
                 self.output())
     }
 
     fn duplex_streaming_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, opt: {}) -> {}<{}<{}, {}>>",
+        format!("{}_opt(&self, opt: {}) -> {}<{}, {}>",
                 method_name,
                 fq_grpc("CallOption"),
-                fq_grpc("Result"),
                 fq_grpc("DuplexStreamingCallHandler"),
                 self.input(),
                 self.output())
