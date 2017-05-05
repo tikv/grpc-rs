@@ -60,7 +60,7 @@ pub enum MethodType {
     Unary,
     ClientStreaming,
     ServerStreaming,
-    Dulex,
+    Duplex,
 }
 
 #[cfg(test)]

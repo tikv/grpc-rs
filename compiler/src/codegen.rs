@@ -83,7 +83,7 @@ impl<'a> MethodGen<'a> {
             (false, false) => (MethodType::Unary, fq_grpc("MethodType::Unary")),
             (true, false) => (MethodType::ClientStreaming, fq_grpc("MethodType::ClientStreaming")),
             (false, true) => (MethodType::ServerStreaming, fq_grpc("MethodType::ServerStreaming")),
-            (true, true) => (MethodType::Dulex, fq_grpc("MethodType::Dulex")),
+            (true, true) => (MethodType::Duplex, fq_grpc("MethodType::Duplex")),
         }
     }
 
@@ -273,7 +273,7 @@ impl<'a> MethodGen<'a> {
             }
 
             // Duplex streaming
-            MethodType::Dulex => {
+            MethodType::Duplex => {
                 w.pub_fn(&self.duplex_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.duplex_streaming(&{}, opt)",
                                           self.const_method_name()));
@@ -294,7 +294,7 @@ impl<'a> MethodGen<'a> {
             MethodType::Unary => ("", "UnaryResponseSink"),
             MethodType::ClientStreaming => ("RequestStream", "ClientStreamingResponseSink"),
             MethodType::ServerStreaming => ("", "ResponseSink"),
-            MethodType::Dulex => ("RequestStream", "ResponseSink"),
+            MethodType::Duplex => ("RequestStream", "ResponseSink"),
         };
         let req = if req.is_empty() {
             self.input()
@@ -315,7 +315,7 @@ impl<'a> MethodGen<'a> {
             MethodType::Unary => "add_unary_handler",
             MethodType::ClientStreaming => "add_client_streaming_handler",
             MethodType::ServerStreaming => "add_server_streaming_handler",
-            MethodType::Dulex => "add_duplex_streaming_handler",
+            MethodType::Duplex => "add_duplex_streaming_handler",
         };
         w.block(&format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
                          add,
