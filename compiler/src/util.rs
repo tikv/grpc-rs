@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-/// Adjust method name to follow the rust's style.
+/// Adjust method name to follow rust-guidelines.
 pub fn to_snake_case(name: &str) -> String {
     let mut snake_method_name = String::with_capacity(name.len());
     let mut chars = name.chars();
