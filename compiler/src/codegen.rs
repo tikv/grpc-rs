@@ -119,17 +119,19 @@ impl<'a> MethodGen<'a> {
 
     // Method signatures
     fn unary(&self, method_name: &str) -> String {
-        format!("{}(&self, req: {}) -> {}",
+        format!("{}(&self, req: {}) -> {}<{}>",
                 method_name,
                 self.input(),
+                fq_grpc("Result"),
                 self.output())
     }
 
     fn unary_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, req: {}, opt: {}) -> {}",
+        format!("{}_opt(&self, req: {}, opt: {}) -> {}<{}>",
                 method_name,
                 self.input(),
                 fq_grpc("CallOption"),
+                fq_grpc("Result"),
                 self.output())
     }
 
