@@ -10,7 +10,7 @@ protobuf = "1.2"
 clippy = { version = "*", optional = true }
 
 [workspace]
-members = ["interop", "benchmark"]
+members = ["interop", "benchmark", "compiler"]
 
 [features]
 default = []
