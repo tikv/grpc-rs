@@ -13,7 +13,7 @@
 
 
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{cmp, thread};
 use std::time::{Duration, Instant};
 
 use grpc::{Channel, ChannelBuilder, Environment};
@@ -24,10 +24,10 @@ use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
 use futures::{Async, Future, Sink, Stream, future};
 use futures::future::Loop;
+use futures_cpupool::CpuPool;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
-use tokio_core::reactor::Remote;
 use tokio_timer::{Sleep, Timer};
 
 use error::Error;
@@ -136,7 +136,7 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                       });
     }
 
-    fn execute_unary_async(self, remote: &Remote) {
+    fn execute_unary_async(self, pool: &CpuPool) {
         let f = future::loop_fn(self, move |mut executor| {
             let latency_timer = Instant::now();
             let handler = executor.client.unary_call_async(executor.req.clone());
@@ -153,15 +153,16 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                                             try_ready!(t.poll());
                                         }
                                         time.take();
-                                        Ok(Async::Ready(Loop::Continue(res.take().unwrap())))
+                                        let l: Loop<(), _> = Loop::Continue(res.take().unwrap());
+                                        Ok(Async::Ready(l))
                                     })
                 })
         })
                 .map_err(|e| println!("failed to execute unary async: {:?}", e));
-        remote.spawn(|_| f)
+        pool.spawn(f).forget()
     }
 
-    fn execute_stream_ping_pong(self, r: &Remote) {
+    fn execute_stream_ping_pong(self, r: &CpuPool) {
         let mut handler = self.client.streaming_call();
         let receiver = handler.take_receiver().unwrap();
         let f = future::loop_fn((handler, self, receiver),
@@ -184,31 +185,32 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                             let mut time = executor.back_off.back_off_async(&executor.timer);
                             let mut res = Some((h, executor, r));
                             future::poll_fn(move || {
-                                                if let Some(ref mut t) = time {
-                                                    try_ready!(t.poll());
-                                                }
-                                                time.take();
-                                                Ok(Async::Ready(Loop::Continue(res.take()
-                                                                                   .unwrap())))
-                                            })
+                                if let Some(ref mut t) = time {
+                                    try_ready!(t.poll());
+                                }
+                                time.take();
+                                let r = res.take().unwrap();
+                                let l: Loop<(), _> = Loop::Continue(r);
+                                Ok(Async::Ready(l))
+                            })
                         })
                 })
         })
                 .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
-        r.spawn(|_| f)
+        r.spawn(f).forget()
     }
 }
 
 pub struct Client {
     recorder: CpuRecorder,
     histogram: Arc<Mutex<Histogram>>,
+    _pool: CpuPool,
 }
 
 impl Client {
-    pub fn new(env: Arc<Environment>, cfg: &ClientConfig, remote: Remote) -> Client {
-        if cfg.get_async_client_threads() > 0 {
-            println!("client config asyc_client_threads is set but ignored");
-        }
+    pub fn new(env: Arc<Environment>, cfg: &ClientConfig) -> Client {
+        let pool = CpuPool::new(cmp::max(cfg.get_async_client_threads() as usize, 1));
+
         if cfg.get_core_limit() > 0 {
             println!("client config core limit is set but ignored");
         }
@@ -260,19 +262,19 @@ impl Client {
                             RpcType::UNARY => {
                                 if let Some(p) = poisson {
                                     RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                        .execute_unary_async(&remote)
+                                        .execute_unary_async(&pool)
                                 } else {
                                     RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                        .execute_unary_async(&remote)
+                                        .execute_unary_async(&pool)
                                 }
                             }
                             RpcType::STREAMING => {
                                 if let Some(p) = poisson {
                                     RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                        .execute_stream_ping_pong(&remote)
+                                        .execute_stream_ping_pong(&pool)
                                 } else {
                                     RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                        .execute_stream_ping_pong(&remote)
+                                        .execute_stream_ping_pong(&pool)
                                 }
                             }
                         }
@@ -285,6 +287,7 @@ impl Client {
         Client {
             recorder: recorder,
             histogram: his,
+            _pool: pool,
         }
     }
 

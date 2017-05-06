@@ -284,7 +284,9 @@ impl Drop for Server {
     fn drop(&mut self) {
         // if the server is not shutdown completely, destroy a server will core.
         // TODO: don't wait here
-        let _ = self.shutdown().wait();
+        let f = self.shutdown();
+        self.cancel_all_calls();
+        let _ = f.wait();
         unsafe { grpc_sys::grpc_server_destroy(self.inner.server) }
     }
 }

@@ -8,6 +8,7 @@ grpc = { path = ".." }
 grpc-proto = { path = "../proto" }
 tokio-core = "0.1"
 futures = "0.1"
+futures-cpupool = "0.1"
 libc = "0.2"
 grpc-sys = { path = "../grpc-sys" }
 rand = "0.3"

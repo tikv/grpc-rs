@@ -20,6 +20,7 @@ extern crate grpc_proto;
 extern crate tokio_core;
 #[macro_use]
 extern crate futures;
+extern crate futures_cpupool;
 extern crate libc;
 extern crate grpc_sys;
 extern crate rand;

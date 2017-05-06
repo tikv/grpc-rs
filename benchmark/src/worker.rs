@@ -84,7 +84,7 @@ impl WorkerService for Worker {
                                                 status.set_stats(stats);
                                                 Ok(status)
                                             }))
-                    .map(|_| {})
+                    .map(|_| println!("server shutdown."))
                     .map_err(|e| println!("run server failed: {:?}", e))
             })
     }
@@ -94,7 +94,6 @@ impl WorkerService for Worker {
                   stream: RequestStream<ClientArgs>,
                   sink: ResponseSink<ClientStatus>) {
         let env = self.env.clone();
-        let remote = self.remote.clone();
         self.remote
             .spawn(move |_| {
                 let mut client: Option<Client> = None;
@@ -105,8 +104,7 @@ impl WorkerService for Worker {
                                                 let cfg = arg.get_setup();
                                                 println!("receive client setup: {:?}", cfg);
                                                 client.take();
-                                                let c =
-                                                    Client::new(env.clone(), cfg, remote.clone());
+                                                let c = Client::new(env.clone(), cfg);
                                                 client = Some(c);
                                                 Ok(ClientStatus::new())
                                             } else {

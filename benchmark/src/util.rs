@@ -141,7 +141,6 @@ impl Histogram {
         data.set_min_seen(self.min);
         data.set_max_seen(self.max);
         data.set_bucket(self.buckets.clone());
-        println!("bucket len: {:?}", self.buckets.len());
 
         if reset {
             self.clear();
