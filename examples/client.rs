@@ -1,4 +1,5 @@
 extern crate grpc;
+extern crate grpc_proto;
 extern crate protobuf;
 extern crate futures;
 extern crate serde;
@@ -9,15 +10,14 @@ extern crate serde_derive;
 
 #[allow(dead_code)]
 mod helper;
-mod proto;
 
 use std::sync::Arc;
 
 use grpc::{ChannelBuilder, Environment, Result};
 use futures::{Future, Sink, Stream, stream};
 
-use proto::route_guide::{Point, Rectangle, RouteNote};
-use proto::route_guide_grpc::RouteGuideClient;
+use grpc_proto::example::route_guide::{Point, Rectangle, RouteNote};
+use grpc_proto::example::route_guide_grpc::RouteGuideClient;
 
 fn new_point(lat: i32, lon: i32) -> Point {
     let mut point = Point::new();

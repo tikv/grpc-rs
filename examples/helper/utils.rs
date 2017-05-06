@@ -1,6 +1,6 @@
 use serde_json;
 
-use proto::route_guide::*;
+use grpc_proto::example::route_guide::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PointRef {

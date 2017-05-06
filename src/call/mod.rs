@@ -28,7 +28,7 @@ pub enum MethodType {
     Unary,
     ClientStreaming,
     ServerStreaming,
-    Dulex,
+    Duplex,
 }
 
 // TODO: add serializer and deserializer.

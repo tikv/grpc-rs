@@ -1,4 +1,5 @@
 extern crate grpc;
+extern crate grpc_proto;
 extern crate protobuf;
 extern crate futures;
 extern crate tokio_core;
@@ -9,7 +10,6 @@ extern crate serde_json;
 extern crate serde_derive;
 
 mod helper;
-mod proto;
 
 use std::sync::Arc;
 use std::io::Read;
@@ -22,8 +22,8 @@ use futures::sync::oneshot;
 use tokio_core::reactor::*;
 
 use helper::utils::*;
-use proto::route_guide::*;
-use proto::route_guide_grpc::{self, RouteGuide};
+use grpc_proto::example::route_guide::*;
+use grpc_proto::example::route_guide_grpc::{self, RouteGuide};
 
 
 #[derive(Clone)]

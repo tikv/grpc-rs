@@ -104,7 +104,7 @@ impl ServiceBuilder {
     {
         let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, &handler));
         self.handlers
-            .insert(method.name.as_bytes(), Handler::new(MethodType::Dulex, h));
+            .insert(method.name.as_bytes(), Handler::new(MethodType::Duplex, h));
         self
     }
 
