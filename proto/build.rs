@@ -21,7 +21,12 @@ fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
         let mut f = File::open(descriptor).unwrap();
         protobuf::parse_from_reader(&mut f).unwrap()
     };
-    let files: Vec<_> = proto_set.get_file().into_iter().map(|f| f.get_name().to_owned()).collect();
+    let files: Vec<_> = proto_set
+        .get_file()
+        .into_iter()
+        .map(|f| f.get_name().to_owned())
+        .collect();
+    // All files need to be generated in our case.
     let results = gen(proto_set.get_file(), &files);
     let output_dir = output.as_ref();
     if !output_dir.exists() {
@@ -38,6 +43,11 @@ fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
     }
 }
 
+/// Compile all related proto file to `FileDescriptorSet` and use it to generate
+/// rust source.
+///
+/// Using `FileDescriptorSet` here so we don't need to compile the binaries like
+/// protoc-gen-rust and grpc_rust_plugin.
 fn compile<P: AsRef<Path>>(include: P, protos: &[String], module: &str) {
     let out_dir = env::var("OUT_DIR").unwrap();
     let module_path = Path::new(&out_dir).join(module);
@@ -78,7 +88,10 @@ fn compile_all<P: AsRef<Path>>(include: P, proto_path: P, module: &str) {
 }
 
 fn check_protoc() {
-    let output = Command::new("protoc").arg("--version").output().unwrap();
+    let output = Command::new("protoc")
+        .arg("--version")
+        .output()
+        .unwrap();
     if !output.status.success() {
         panic!("protoc is required.");
     }
@@ -96,7 +109,7 @@ fn main() {
     check_protoc();
 
     let proto_src = Path::new("proto");
-    
+
     // compile testing
     let testing_src = proto_src.join("grpc").join("testing");
     compile_all(proto_src, testing_src.as_path(), "testing");
