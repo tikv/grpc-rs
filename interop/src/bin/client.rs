@@ -66,6 +66,8 @@ fn main() {
         "CANCEL_AFTER_FIRST_RESPONSE" => client.cancel_after_first_response(),
         "TIMEOUT_ON_SLEEPING_SERVER" => client.timeout_on_sleeping_server(),
         "STATUS_CODE_AND_MESSAGE" => client.status_code_and_message(),
+        "UNIMPLEMENTED_METHOD" => client.unimplemented_method(),
+        "UNIMPLEMENTED_SERVICE" => client.unimplemented_service(),
         _ => panic!("unknown case: {:?}", case),
     }
 }

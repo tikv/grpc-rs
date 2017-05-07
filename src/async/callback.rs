@@ -1,4 +1,4 @@
-use call::BatchContext;
+use call::{BatchContext, Call};
 use call::server::{RequestContext, UnaryRequestContext};
 use cq::CompletionQueue;
 use server::{self, Inner as ServerInner};
@@ -60,5 +60,24 @@ impl UnaryRequest {
         let data = self.ctx.batch_ctx().recv_message();
         self.ctx.handle(&inner, &data.unwrap());
         server::request_call(inner, cq);
+    }
+}
+
+/// A callback to wait for unimplemented rpc call finish.
+pub struct Unimplemented {
+    ctx: BatchContext,
+    call: Call,
+}
+
+impl Unimplemented {
+    pub fn new(call: Call) -> Unimplemented {
+        Unimplemented {
+            ctx: BatchContext::new(),
+            call: call,
+        }
+    }
+
+    pub fn batch_ctx(&self) -> &BatchContext {
+        &self.ctx
     }
 }

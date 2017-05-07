@@ -79,7 +79,7 @@ impl RequestContext {
                 }
             }
             None => {
-                // TODO: handle undefine method properly.
+                execute_unimplemented(self);
                 Ok(())
             }
         }
@@ -505,6 +505,13 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     let req_s = RequestStream::new(call.clone());
     let sink = DuplexSink::new(call, close_f);
     f(ctx, req_s, sink)
+}
+
+// A helper function used to handle all undefined rpc calls.
+pub fn execute_unimplemented(mut ctx: RequestContext) {
+    let mut call = ctx.take_call().unwrap();
+    call.start_server_side();
+    call.report_unimplemented()
 }
 
 // Helper function to call handler.

@@ -14,6 +14,7 @@
 
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
            ServerStreamingSink, UnarySink};
+use grpc_sys::GrpcStatusCode;
 use tokio_core::reactor::Remote;
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
 
@@ -170,7 +171,13 @@ impl TestService for InteropTestService {
         unimplemented!()
     }
 
-    fn unimplemented_call(&self, _: RpcContext, _: Empty, _: UnarySink<Empty>) {
-        unimplemented!()
+    fn unimplemented_call(&self, _: RpcContext, _: Empty, sink: UnarySink<Empty>) {
+        self.remote
+            .spawn(|_| {
+                       sink.fail(RpcStatus::new(GrpcStatusCode::Unimplemented, None))
+                           .map_err(|e| {
+                                        println!("failed to report unimplemented method: {:?}", e)
+                                    })
+                   })
     }
 }

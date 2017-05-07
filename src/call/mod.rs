@@ -233,6 +233,35 @@ impl Call {
         })
     }
 
+    pub fn report_unimplemented(self) {
+        let call_ptr = self.call;
+        let prom = Promise::report_unimplemented(self);
+        let prom_box = Box::new(prom);
+        let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
+        let prom_ptr = Box::into_raw(prom_box);
+
+        let code =
+            unsafe {
+                grpc_sys::grpcwrap_call_send_status_from_server(call_ptr,
+                                                                batch_ptr,
+                                                                GrpcStatusCode::Unimplemented,
+                                                                ptr::null(),
+                                                                0,
+                                                                ptr::null_mut(),
+                                                                1,
+                                                                ptr::null(),
+                                                                0,
+                                                                0,
+                                                                prom_ptr as *mut c_void)
+            };
+        if code != GrpcCallStatus::Ok {
+            unsafe {
+                Box::from_raw(prom_ptr);
+            }
+            panic!("create call fail: {:?}", code);
+        }
+    }
+
     /// Cancel the rpc call by client.
     fn cancel(&self) {
         unsafe { grpc_sys::grpc_call_cancel(self.call, ptr::null_mut()) }

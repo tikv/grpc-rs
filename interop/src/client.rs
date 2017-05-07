@@ -19,19 +19,23 @@ use grpc::{self, CallOption, Channel};
 use grpc_sys::GrpcStatusCode;
 use futures::{Future, Sink, Stream, future, stream};
 
-use grpc_proto::testing::test_grpc::TestServiceClient;
+use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
                                     StreamingOutputCallRequest};
 use grpc_proto::util;
 
 pub struct Client {
+    channel: Channel,
     client: TestServiceClient,
 }
 
 impl Client {
     pub fn new(ch: Channel) -> Client {
-        Client { client: TestServiceClient::new(ch) }
+        Client {
+            channel: ch.clone(),
+            client: TestServiceClient::new(ch),
+        }
     }
 
     pub fn empty_unary(&self) {
@@ -209,6 +213,27 @@ impl Client {
         println!("pass");
     }
 
+    pub fn unimplemented_method(&self) {
+        print!("testing unimplemented_method ... ");
+        match self.client
+                  .unimplemented_call(Empty::new())
+                  .unwrap_err() {
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, GrpcStatusCode::Unimplemented),
+            e => panic!("expected rpc failure: {:?}", e),
+        }
+        println!("pass");
+    }
+
+    pub fn unimplemented_service(&self) {
+        print!("testing unimplemented_service ... ");
+        let client = UnimplementedServiceClient::new(self.channel.clone());
+        match client.unimplemented_call(Empty::new()).unwrap_err() {
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, GrpcStatusCode::Unimplemented),
+            e => panic!("expected rpc failure: {:?}", e),
+        }
+        println!("pass");
+    }
+
     pub fn test_all(&self) {
         self.empty_unary();
         self.large_unary();
@@ -220,5 +245,7 @@ impl Client {
         self.cancel_after_first_response();
         self.timeout_on_sleeping_server();
         self.status_code_and_message();
+        self.unimplemented_method();
+        self.unimplemented_service();
     }
 }
