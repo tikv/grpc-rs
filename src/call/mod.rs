@@ -15,13 +15,14 @@
 pub mod client;
 pub mod server;
 
-use async::{BatchFuture, BatchType, Promise};
-use error::{Error, Result};
-use futures::{Async, Future, Poll};
+use std::{ptr, result, slice, usize};
 
+use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
 use libc::c_void;
-use std::{ptr, result, slice, usize};
+
+use async::{BatchFuture, BatchType, Promise};
+use error::{Error, Result};
 
 #[derive(Clone, Copy)]
 pub enum MethodType {
@@ -125,7 +126,7 @@ impl Drop for BatchContext {
     }
 }
 
-/// A helper function theat run the batch call and check the result.
+/// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
     where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus
 {

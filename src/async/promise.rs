@@ -12,10 +12,12 @@
 // limitations under the License.
 
 
+use std::sync::Arc;
+
+use grpc_sys::GrpcStatusCode;
+
 use call::BatchContext;
 use error::Error;
-use grpc_sys::GrpcStatusCode;
-use std::sync::Arc;
 use super::{BatchMessage, Inner};
 
 /// Batch job type.
