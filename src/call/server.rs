@@ -17,7 +17,8 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext,
+               GrpcStatusCode};
 use protobuf::{self, Message, MessageStatic};
 
 use async::{BatchFuture, Promise};
@@ -448,8 +449,13 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
     let close_f = call.start_server_side();
     let request = match protobuf::parse_from_bytes(payload) {
         Ok(f) => f,
-        // TODO: log?
-        Err(_) => return,
+        Err(e) => {
+            let status =
+                RpcStatus::new(GrpcStatusCode::Internal,
+                               Some(format!("Failed to deserialize response message: {:?}", e)));
+            call.abort(status);
+            return;
+        }
     };
     let sink = UnarySink::new(call, close_f);
     f(ctx, request, sink)
@@ -483,7 +489,13 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f:
 
     let request = match protobuf::parse_from_bytes(payload) {
         Ok(t) => t,
-        Err(_) => return,
+        Err(e) => {
+            let status =
+                RpcStatus::new(GrpcStatusCode::Internal,
+                               Some(format!("Failed to deserialize response message: {:?}", e)));
+            call.abort(status);
+            return;
+        }
     };
 
     let sink = ServerStreamingSink::new(call, close_f);
@@ -511,7 +523,7 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
 pub fn execute_unimplemented(mut ctx: RequestContext) {
     let mut call = ctx.take_call().unwrap();
     call.start_server_side();
-    call.report_unimplemented()
+    call.abort(RpcStatus::new(GrpcStatusCode::Unimplemented, None))
 }
 
 // Helper function to call handler.

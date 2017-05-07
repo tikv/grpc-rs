@@ -233,27 +233,32 @@ impl Call {
         })
     }
 
-    pub fn report_unimplemented(self) {
+    /// Abort a rpc call before handler is called.
+    pub fn abort(self, status: RpcStatus) {
         let call_ptr = self.call;
-        let prom = Promise::report_unimplemented(self);
+        let prom = Promise::abort(self);
         let prom_box = Box::new(prom);
         let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
         let prom_ptr = Box::into_raw(prom_box);
 
-        let code =
-            unsafe {
-                grpc_sys::grpcwrap_call_send_status_from_server(call_ptr,
-                                                                batch_ptr,
-                                                                GrpcStatusCode::Unimplemented,
-                                                                ptr::null(),
-                                                                0,
-                                                                ptr::null_mut(),
-                                                                1,
-                                                                ptr::null(),
-                                                                0,
-                                                                0,
-                                                                prom_ptr as *mut c_void)
-            };
+        let code = unsafe {
+            let details_ptr = status
+                .details
+                .as_ref()
+                .map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_len = status.details.as_ref().map_or(0, String::len);
+            grpc_sys::grpcwrap_call_send_status_from_server(call_ptr,
+                                                            batch_ptr,
+                                                            GrpcStatusCode::Unimplemented,
+                                                            details_ptr,
+                                                            details_len,
+                                                            ptr::null_mut(),
+                                                            1,
+                                                            ptr::null(),
+                                                            0,
+                                                            0,
+                                                            prom_ptr as *mut c_void)
+        };
         if code != GrpcCallStatus::Ok {
             unsafe {
                 Box::from_raw(prom_ptr);

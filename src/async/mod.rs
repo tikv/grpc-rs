@@ -26,8 +26,7 @@ use call::{BatchContext, Call};
 use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
-use self::callback::{Request as RequestCallback, UnaryRequest as UnaryRequestCallback,
-                     Unimplemented};
+use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::lock::SpinLock;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::Inner as ServerInner;
@@ -112,7 +111,7 @@ pub enum Promise {
     Batch(BatchPromise),
     Request(RequestCallback),
     UnaryRequest(UnaryRequestCallback),
-    ReportUnimplemented(Unimplemented),
+    Abort(Abort),
     Shutdown(ShutdownPromise),
 }
 
@@ -137,9 +136,9 @@ impl Promise {
         (CqFuture::new(inner), Promise::Shutdown(shutdown))
     }
 
-    /// Generate a promise for reporting unimplemented call.
-    pub fn report_unimplemented(call: Call) -> Promise {
-        Promise::ReportUnimplemented(Unimplemented::new(call))
+    /// Generate a promise for abort call before handler is called.
+    pub fn abort(call: Call) -> Promise {
+        Promise::Abort(Abort::new(call))
     }
 
     /// Generate a promise for unary request job.
@@ -153,7 +152,7 @@ impl Promise {
         match *self {
             Promise::Batch(ref prom) => Some(prom.context()),
             Promise::UnaryRequest(ref cb) => Some(cb.batch_ctx()),
-            Promise::ReportUnimplemented(ref cb) => Some(cb.batch_ctx()),
+            Promise::Abort(ref cb) => Some(cb.batch_ctx()),
             _ => None,
         }
     }
@@ -173,7 +172,7 @@ impl Promise {
             Promise::Batch(prom) => prom.resolve(success),
             Promise::Request(cb) => cb.resolve(cq, success),
             Promise::UnaryRequest(cb) => cb.resolve(cq, success),
-            Promise::ReportUnimplemented(cb) => {}
+            Promise::Abort(_) => {}
             Promise::Shutdown(prom) => prom.resolve(success),
         }
     }
@@ -185,7 +184,7 @@ impl Debug for Promise {
             Promise::Batch(_) => write!(f, "Context::Batch(..)"),
             Promise::Request(_) => write!(f, "Context::Request(..)"),
             Promise::UnaryRequest(_) => write!(f, "Context::UnaryRequest(..)"),
-            Promise::ReportUnimplemented(_) => write!(f, "Context::ReportUnimplemented(..)"),
+            Promise::Abort(_) => write!(f, "Context::Abort(..)"),
             Promise::Shutdown(_) => write!(f, "Context::Shutdown"),
         }
     }

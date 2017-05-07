@@ -63,17 +63,17 @@ impl UnaryRequest {
     }
 }
 
-/// A callback to wait for unimplemented rpc call finish.
-pub struct Unimplemented {
+/// A callback to wait for status for the aborted rpc call to be sent.
+pub struct Abort {
     ctx: BatchContext,
-    call: Call,
+    _call: Call,
 }
 
-impl Unimplemented {
-    pub fn new(call: Call) -> Unimplemented {
-        Unimplemented {
+impl Abort {
+    pub fn new(call: Call) -> Abort {
+        Abort {
             ctx: BatchContext::new(),
-            call: call,
+            _call: call,
         }
     }
 
