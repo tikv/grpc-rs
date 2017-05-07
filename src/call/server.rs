@@ -1,17 +1,31 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+use std::{result, slice};
+use std::marker::PhantomData;
+use std::sync::{Arc, Mutex};
+
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
+use protobuf::{self, Message, MessageStatic};
 
 use async::{BatchFuture, Promise};
 use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase};
 use cq::CompletionQueue;
 use error::Error;
-use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
-
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
-use protobuf::{self, Message, MessageStatic};
 use server::{CallBack, Inner};
-use std::{result, slice};
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
-use super::RpcStatus;
+use super::{CallHolder, RpcStatus};
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -25,7 +39,7 @@ impl Deadline {
         Deadline { spec: realtime_spec }
     }
 
-    pub fn passed(&self) -> bool {
+    pub fn exceeded(&self) -> bool {
         unsafe {
             let now = grpc_sys::gpr_now(GprClockType::Realtime);
             grpc_sys::gpr_time_cmp(now, self.spec) >= 0
@@ -33,6 +47,7 @@ impl Deadline {
     }
 }
 
+/// Context for accepting a request.
 pub struct RequestContext {
     ctx: *mut GrpcRequestCallContext,
     inner: Option<Arc<Inner>>,
@@ -48,6 +63,9 @@ impl RequestContext {
         }
     }
 
+    /// Try to accept a client side streaming request.
+    ///
+    /// Return error if the request is a client side unary request.
     pub fn handle_stream_req(self, inner: &Inner) -> result::Result<(), Self> {
         match inner.get_method(self.method()) {
             Some(handler) => {
@@ -67,7 +85,12 @@ impl RequestContext {
         }
     }
 
-    pub fn handle_unary_req(self, inner: Arc<Inner>, cq: &CompletionQueue) {
+    /// Accept a client side unary request.
+    ///
+    /// This method should be called after `handle_stream_req`. When handling
+    /// client side unary request, handler will only be called after the unary
+    /// request is received.
+    pub fn handle_unary_req(self, inner: Arc<Inner>, _: &CompletionQueue) {
         // fetch message before calling callback.
         let prom = Box::new(Promise::unary_request(self, inner));
         let batch_ctx = prom.batch_ctx().unwrap().as_ptr();
@@ -77,9 +100,9 @@ impl RequestContext {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(request_ctx);
             let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag as _);
             if code != GrpcCallStatus::Ok {
-                let prom = Box::from_raw(tag);
-                // TODO: log
-                prom.resolve(cq, false);
+                Box::from_raw(tag);
+                // it should not failed.
+                panic!("try to receive message fail: {:?}", code);
             }
         }
     }
@@ -124,6 +147,7 @@ impl RequestContext {
     }
 }
 
+/// A context for handling client side unary request.
 pub struct UnaryRequestContext {
     request: RequestContext,
     inner: Option<Arc<Inner>>,
@@ -153,7 +177,6 @@ impl UnaryRequestContext {
 
     pub fn handle(self, inner: &Arc<Inner>, data: &[u8]) {
         let handler = inner.get_method(self.request.method()).unwrap();
-        // TODO: debug assert
         execute(self.request, data, handler.cb())
     }
 }
@@ -185,10 +208,7 @@ impl<T: MessageStatic> Stream for RequestStream<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
-        let data = {
-            let mut call = self.call.lock().unwrap();
-            try_ready!(self.base.poll(&mut call, false))
-        };
+        let data = try_ready!(self.base.poll(&mut self.call, false));
 
         match data {
             None => Ok(Async::Ready(None)),
@@ -200,244 +220,196 @@ impl<T: MessageStatic> Stream for RequestStream<T> {
     }
 }
 
-pub struct UnaryResponseSink<T> {
-    call: Call,
-    close_f: BatchFuture,
-    write_flags: u32,
-    _resp: PhantomData<T>,
-}
-
-impl<T: Message> UnaryResponseSink<T> {
-    fn new(call: Call, close_f: BatchFuture) -> UnaryResponseSink<T> {
-        UnaryResponseSink {
-            call: call,
-            close_f: close_f,
-            write_flags: 0,
-            _resp: PhantomData,
-        }
-    }
-
-    pub fn success(self, t: T) -> UnarySinkResult {
-        self.complete(RpcStatus::ok(), Some(t))
-    }
-
-    pub fn fail(self, status: RpcStatus) -> UnarySinkResult {
-        self.complete(status, None)
-    }
-
-    fn complete(mut self, status: RpcStatus, t: Option<T>) -> UnarySinkResult {
-        let data = match t {
-            Some(t) => Some(t.write_to_bytes().unwrap()),
-            None => None,
-        };
-
-        let cq_f = self.call
-            .start_send_status_from_server(&status, true, data, self.write_flags);
-
-        UnarySinkResult {
-            _call: self.call,
-            close_f: self.close_f,
-            cq_f: cq_f,
-            flushed: false,
-        }
-    }
-}
-
-pub struct UnarySinkResult {
-    _call: Call,
-    close_f: BatchFuture,
-    cq_f: BatchFuture,
-    flushed: bool,
-}
-
-impl Future for UnarySinkResult {
-    type Item = ();
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<(), Error> {
-        if !self.flushed {
-            try_ready!(self.cq_f.poll());
-            self.flushed = true;
+// A helper macro used to implement server side unary sink.
+// Not using generic here because we don't need to expose
+// `CallHolder` or `Call` to caller.
+macro_rules! impl_unary_sink {
+    ($t:ident, $rt:ident, $holder:ty) => (
+        pub struct $rt {
+            _call: $holder,
+            close_f: BatchFuture,
+            cq_f: BatchFuture,
+            flushed: bool,
         }
 
-        try_ready!(self.close_f.poll());
-        Ok(Async::Ready(()))
-    }
-}
+        impl Future for $rt {
+            type Item = ();
+            type Error = Error;
 
-pub struct ClientStreamingResponseSink<T> {
-    call: Arc<Mutex<Call>>,
-    close_f: BatchFuture,
-    write_flags: u32,
-    _resp: PhantomData<T>,
-}
+            fn poll(&mut self) -> Poll<(), Error> {
+                if !self.flushed {
+                    try_ready!(self.cq_f.poll());
+                    self.flushed = true;
+                }
 
-impl<T: Message> ClientStreamingResponseSink<T> {
-    fn new(call: Arc<Mutex<Call>>, close_f: BatchFuture) -> ClientStreamingResponseSink<T> {
-        ClientStreamingResponseSink {
-            call: call,
-            close_f: close_f,
-            write_flags: 0,
-            _resp: PhantomData,
-        }
-    }
-
-    pub fn success(self, t: T) -> ClientStreamingSinkResult {
-        self.complete(RpcStatus::ok(), Some(t))
-    }
-
-    pub fn fail(self, status: RpcStatus) -> ClientStreamingSinkResult {
-        self.complete(status, None)
-    }
-
-    fn complete(self, status: RpcStatus, t: Option<T>) -> ClientStreamingSinkResult {
-        let data = match t {
-            Some(t) => Some(t.write_to_bytes().unwrap()),
-            None => None,
-        };
-
-        let cq_f = {
-            let mut call = self.call.lock().unwrap();
-            call.start_send_status_from_server(&status, true, data, self.write_flags)
-        };
-
-        ClientStreamingSinkResult {
-            _call: self.call,
-            close_f: self.close_f,
-            cq_f: cq_f,
-            flushed: false,
-        }
-    }
-}
-
-pub struct ClientStreamingSinkResult {
-    _call: Arc<Mutex<Call>>,
-    close_f: BatchFuture,
-    cq_f: BatchFuture,
-    flushed: bool,
-}
-
-impl Future for ClientStreamingSinkResult {
-    type Item = ();
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<(), Error> {
-        if !self.flushed {
-            try_ready!(self.cq_f.poll());
-            self.flushed = true;
+                try_ready!(self.close_f.poll());
+                Ok(Async::Ready(()))
+            }
         }
 
-        try_ready!(self.close_f.poll());
-        Ok(Async::Ready(()))
-    }
-}
-
-pub struct ResponseSink<T> {
-    call: Arc<Mutex<Call>>,
-    base: SinkBase,
-    close_f: BatchFuture,
-    status: RpcStatus,
-    flushed: bool,
-    _resp: PhantomData<T>,
-}
-
-impl<T> ResponseSink<T> {
-    fn new(call: Arc<Mutex<Call>>, close_f: BatchFuture) -> ResponseSink<T> {
-        ResponseSink {
-            call: call,
-            base: SinkBase::new(0, true),
-            close_f: close_f,
-            status: RpcStatus::ok(),
-            flushed: false,
-            _resp: PhantomData,
-        }
-    }
-
-    pub fn set_status(&mut self, status: RpcStatus) {
-        assert!(self.base.close_f.is_none());
-        self.status = status;
-    }
-
-    pub fn fail(self, status: RpcStatus) -> SinkFailure {
-        assert!(self.base.close_f.is_none());
-        let fail_f = {
-            let mut call = self.call.lock().unwrap();
-            call.start_send_status_from_server(&status,
-                                               self.base.send_metadata,
-                                               None,
-                                               self.base.flags)
-        };
-
-        SinkFailure {
-            _call: self.call,
-            close_f: self.close_f,
-            fail_f: Some(fail_f),
-        }
-    }
-}
-
-impl<T: Message> Sink for ResponseSink<T> {
-    type SinkItem = T;
-    type SinkError = Error;
-
-    fn start_send(&mut self, item: T) -> StartSend<T, Error> {
-        let mut call = self.call.lock().unwrap();
-        self.base
-            .start_send(&mut call, |buf| item.write_to_vec(buf))
-            .map(|s| if s {
-                     AsyncSink::Ready
-                 } else {
-                     AsyncSink::NotReady(item)
-                 })
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), Error> {
-        self.base.poll_complete()
-    }
-
-    fn close(&mut self) -> Poll<(), Error> {
-        if self.base.close_f.is_none() {
-            try_ready!(self.base.poll_complete());
-
-            let mut call = self.call.lock().unwrap();
-            let close_f = call.start_send_status_from_server(&self.status,
-                                                             self.base.send_metadata,
-                                                             None,
-                                                             self.base.flags);
-            self.base.close_f = Some(close_f);
+        pub struct $t<T> {
+            call: $holder,
+            close_f: BatchFuture,
+            write_flags: u32,
+            _resp: PhantomData<T>,
         }
 
-        if !self.flushed {
-            try_ready!(self.base.close_f.as_mut().unwrap().poll());
-            self.flushed = true;
+        impl<T: Message> $t<T> {
+            fn new(call: $holder, close_f: BatchFuture) -> $t<T> {
+                $t {
+                    call: call,
+                    close_f: close_f,
+                    write_flags: 0,
+                    _resp: PhantomData,
+                }
+            }
+
+            pub fn success(self, t: T) -> $rt {
+                self.complete(RpcStatus::ok(), Some(t))
+            }
+
+            pub fn fail(self, status: RpcStatus) -> $rt {
+                self.complete(status, None)
+            }
+
+            fn complete(mut self, status: RpcStatus, t: Option<T>) -> $rt {
+                let data = match t {
+                    Some(t) => Some(t.write_to_bytes().unwrap()),
+                    None => None,
+                };
+
+                let write_flags = self.write_flags;
+                let cq_f = self.call.call(|c| {
+                    c.start_send_status_from_server(&status, true, data, write_flags)
+                });
+
+                $rt {
+                    _call: self.call,
+                    close_f: self.close_f,
+                    cq_f: cq_f,
+                    flushed: false,
+                }
+            }
+        }
+    );
+}
+
+impl_unary_sink!(UnarySink, UnarySinkResult, Call);
+impl_unary_sink!(ClientStreamingSink, ClientStreamingSinkResult, Arc<Mutex<Call>>);
+
+// A macro helper to implement server side streaming sink.
+macro_rules! impl_stream_sink {
+    ($t:ident, $ft:ident, $holder:ty) => (
+        pub struct $t<T> {
+            call: $holder,
+            base: SinkBase,
+            close_f: BatchFuture,
+            status: RpcStatus,
+            flushed: bool,
+            _resp: PhantomData<T>,
         }
 
-        try_ready!(self.close_f.poll());
-        Ok(Async::Ready(()))
-    }
-}
+        impl<T> $t<T> {
+            fn new(call: $holder, close_f: BatchFuture) -> $t<T> {
+                $t {
+                    call: call,
+                    base: SinkBase::new(0, true),
+                    close_f: close_f,
+                    status: RpcStatus::ok(),
+                    flushed: false,
+                    _resp: PhantomData,
+                }
+            }
 
-pub struct SinkFailure {
-    _call: Arc<Mutex<Call>>,
-    close_f: BatchFuture,
-    fail_f: Option<BatchFuture>,
-}
+            pub fn set_status(&mut self, status: RpcStatus) {
+                assert!(self.base.close_f.is_none());
+                self.status = status;
+            }
 
-impl Future for SinkFailure {
-    type Item = ();
-    type Error = Error;
+            pub fn fail(mut self, status: RpcStatus) -> $ft {
+                assert!(self.base.close_f.is_none());
+                let send_metadata = self.base.send_metadata;
+                let flags = self.base.flags;
+                let fail_f = self.call.call(|c| {
+                    c.start_send_status_from_server(&status, send_metadata, None, flags)
+                });
 
-    fn poll(&mut self) -> Poll<(), Error> {
-        if let Some(ref mut f) = self.fail_f {
-            try_ready!(f.poll());
+                $ft {
+                    _call: self.call,
+                    close_f: self.close_f,
+                    fail_f: Some(fail_f),
+                }
+            }
         }
 
-        self.fail_f.take();
-        try_ready!(self.close_f.poll());
-        Ok(Async::Ready(()))
-    }
+        impl<T: Message> Sink for $t<T> {
+            type SinkItem = T;
+            type SinkError = Error;
+
+            fn start_send(&mut self, item: T) -> StartSend<T, Error> {
+                self.base
+                    .start_send(&mut self.call, |buf| item.write_to_vec(buf))
+                    .map(|s| if s {
+                            AsyncSink::Ready
+                        } else {
+                            AsyncSink::NotReady(item)
+                        })
+            }
+
+            fn poll_complete(&mut self) -> Poll<(), Error> {
+                self.base.poll_complete()
+            }
+
+            fn close(&mut self) -> Poll<(), Error> {
+                if self.base.close_f.is_none() {
+                    try_ready!(self.base.poll_complete());
+
+                    let send_metadata = self.base.send_metadata;
+                    let flags = self.base.flags;
+                    let status = &self.status;
+                    let close_f = self.call.call(|c| {
+                        c.start_send_status_from_server(status, send_metadata, None, flags)
+                    });
+                    self.base.close_f = Some(close_f);
+                }
+
+                if !self.flushed {
+                    try_ready!(self.base.close_f.as_mut().unwrap().poll());
+                    self.flushed = true;
+                }
+
+                try_ready!(self.close_f.poll());
+                Ok(Async::Ready(()))
+            }
+        }
+
+        pub struct $ft {
+            _call: $holder,
+            close_f: BatchFuture,
+            fail_f: Option<BatchFuture>,
+        }
+
+        impl Future for $ft {
+            type Item = ();
+            type Error = Error;
+
+            fn poll(&mut self) -> Poll<(), Error> {
+                if let Some(ref mut f) = self.fail_f {
+                    try_ready!(f.poll());
+                }
+
+                self.fail_f.take();
+                try_ready!(self.close_f.poll());
+                Ok(Async::Ready(()))
+            }
+        }
+    )
 }
 
+impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, Call);
+impl_stream_sink!(DuplexSink, DuplexSinkFailure, Arc<Mutex<Call>>);
+
+/// A context for rpc handling.
 pub struct RpcContext {
     ctx: RequestContext,
     deadline: Deadline,
@@ -464,10 +436,13 @@ impl RpcContext {
     }
 }
 
+// Following four helper functions are used to create a callback closure.
+
+// Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, P, UnaryResponseSink<Q>)
+          F: Fn(RpcContext, P, UnarySink<Q>)
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();
@@ -476,14 +451,15 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
         // TODO: log?
         Err(_) => return,
     };
-    let sink = UnaryResponseSink::new(call, close_f);
+    let sink = UnarySink::new(call, close_f);
     f(ctx, request, sink)
 }
 
+// Helper function to call client streaming handler.
 pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>)
+          F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>)
 {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
@@ -492,35 +468,33 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     };
 
     let req_s = RequestStream::new(call.clone());
-    let sink = ClientStreamingResponseSink::new(call, close_f);
+    let sink = ClientStreamingSink::new(call, close_f);
     f(ctx, req_s, sink)
 }
 
+// Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, P, ResponseSink<Q>)
+          F: Fn(RpcContext, P, ServerStreamingSink<Q>)
 {
-    // TODO: remove lock.
-    let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
-    let close_f = {
-        let mut call = call.lock().unwrap();
-        call.start_server_side()
-    };
+    let mut call = ctx.ctx.take_call().unwrap();
+    let close_f = call.start_server_side();
 
     let request = match protobuf::parse_from_bytes(payload) {
         Ok(t) => t,
         Err(_) => return,
     };
 
-    let sink = ResponseSink::new(call, close_f);
+    let sink = ServerStreamingSink::new(call, close_f);
     f(ctx, request, sink)
 }
 
+// Helper function to call duplex streaming handler.
 pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     where P: MessageStatic,
           Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>)
+          F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>)
 {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
@@ -529,10 +503,13 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
     };
 
     let req_s = RequestStream::new(call.clone());
-    let sink = ResponseSink::new(call, close_f);
+    let sink = DuplexSink::new(call, close_f);
     f(ctx, req_s, sink)
 }
 
+// Helper function to call handler.
+//
+// Invoked after a request is ready to be handled.
 fn execute(ctx: RequestContext, payload: &[u8], f: &CallBack) {
     let rpc_ctx = RpcContext::new(ctx);
     f(rpc_ctx, payload)

@@ -16,6 +16,7 @@ pub mod client;
 pub mod server;
 
 use std::{ptr, result, slice, usize};
+use std::sync::{Arc, Mutex};
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
@@ -244,6 +245,26 @@ impl Drop for Call {
     }
 }
 
+/// A helper trait that allow executing function on the inernal call struct.
+trait CallHolder {
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R;
+}
+
+impl CallHolder for Call {
+    #[inline]
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
+        f(self)
+    }
+}
+
+impl CallHolder for Arc<Mutex<Call>> {
+    #[inline]
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
+        let mut lock = self.lock().unwrap();
+        f(&mut lock)
+    }
+}
+
 /// A helper struct for constructing Stream object for batch requests.
 struct StreamingBase {
     close_f: Option<BatchFuture>,
@@ -260,7 +281,10 @@ impl StreamingBase {
         }
     }
 
-    fn poll(&mut self, call: &mut Call, skip_finish_check: bool) -> Poll<Option<Vec<u8>>, Error> {
+    fn poll<C: CallHolder>(&mut self,
+                           call: &mut C,
+                           skip_finish_check: bool)
+                           -> Poll<Option<Vec<u8>>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -297,7 +321,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.start_recv_message();
+        let msg_f = call.call(|c| c.start_recv_message());
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -327,7 +351,7 @@ impl SinkBase {
         }
     }
 
-    fn start_send<F, E>(&mut self, call: &mut Call, fill_buf: F) -> Result<bool>
+    fn start_send<F, E, C: CallHolder>(&mut self, call: &mut C, fill_buf: F) -> Result<bool>
         where F: FnOnce(&mut Vec<u8>) -> result::Result<(), E>,
               E: Into<Error>
     {
@@ -343,7 +367,8 @@ impl SinkBase {
         if let Err(e) = fill_buf(&mut self.buf) {
             return Err(e.into());
         }
-        let write_f = call.start_send_message(&self.buf, self.flags, self.send_metadata);
+        let write_f =
+            call.call(|c| c.start_send_message(&self.buf, self.flags, self.send_metadata));
         self.write_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
@@ -358,11 +383,11 @@ impl SinkBase {
         Ok(Async::Ready(()))
     }
 
-    fn close(&mut self, call: &mut Call) -> Poll<(), Error> {
+    fn close<C: CallHolder>(&mut self, call: &mut C) -> Poll<(), Error> {
         if self.close_f.is_none() {
             try_ready!(self.poll_complete());
 
-            let close_f = call.start_send_close_client();
+            let close_f = call.call(|c| c.start_send_close_client());
             self.close_f = Some(close_f);
         }
 

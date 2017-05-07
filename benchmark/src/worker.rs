@@ -18,7 +18,7 @@ use grpc_proto::testing::services_grpc::WorkerService;
 use grpc_proto::testing::control::{ClientArgs, ClientStatus, CoreRequest, CoreResponse,
                                    ServerArgs, ServerStatus, Void};
 use tokio_core::reactor::Remote;
-use grpc::{Environment, RequestStream, ResponseSink, RpcContext, UnaryResponseSink};
+use grpc::{DuplexSink, Environment, RequestStream, RpcContext, UnarySink};
 use error::Error;
 use futures::{Future, Sink, Stream};
 use futures::sync::oneshot::Sender;
@@ -48,7 +48,7 @@ impl WorkerService for Worker {
     fn run_server(&self,
                   _: RpcContext,
                   stream: RequestStream<ServerArgs>,
-                  sink: ResponseSink<ServerStatus>) {
+                  sink: DuplexSink<ServerStatus>) {
         let env = self.env.clone();
         let remote = self.remote.clone();
         self.remote
@@ -92,7 +92,7 @@ impl WorkerService for Worker {
     fn run_client(&self,
                   _: RpcContext,
                   stream: RequestStream<ClientArgs>,
-                  sink: ResponseSink<ClientStatus>) {
+                  sink: DuplexSink<ClientStatus>) {
         let env = self.env.clone();
         self.remote
             .spawn(move |_| {
@@ -125,7 +125,7 @@ impl WorkerService for Worker {
             })
     }
 
-    fn core_count(&self, _: RpcContext, _: CoreRequest, sink: UnaryResponseSink<CoreResponse>) {
+    fn core_count(&self, _: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
         let mut resp = CoreResponse::new();
         resp.set_cores(cpu_count as i32);
@@ -136,7 +136,7 @@ impl WorkerService for Worker {
                    })
     }
 
-    fn quit_worker(&self, _: RpcContext, _: Void, sink: ::grpc::UnaryResponseSink<Void>) {
+    fn quit_worker(&self, _: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
         self.remote
             .spawn(|_| {

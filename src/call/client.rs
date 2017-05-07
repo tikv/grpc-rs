@@ -1,22 +1,37 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-use async::{BatchMessage, BatchType, CqFuture};
-use call::{Call, Method, check_run};
 
-use channel::Channel;
-use error::Error;
-
-use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
-use grpc_sys;
-use protobuf::{self, Message, MessageStatic};
 use std::marker::PhantomData;
 use std::ptr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
+use grpc_sys;
+use protobuf::{self, Message, MessageStatic};
+
+use async::{BatchMessage, BatchType, CqFuture};
+use call::{Call, Method, check_run};
+use channel::Channel;
+use error::Error;
 use super::{SinkBase, StreamingBase};
 
+/// Update the flag bit in res.
+#[inline]
 fn change_flag(res: &mut u32, flag: u32, set: bool) {
     if set {
-        *res = flag;
+        *res |= flag;
     } else {
         *res &= !flag;
     }
@@ -30,6 +45,7 @@ pub struct CallOption {
 }
 
 impl CallOption {
+    /// Signal that the call is idempotent
     pub fn with_idempotent(mut self, is_idempotent: bool) -> CallOption {
         change_flag(&mut self.call_flags,
                     grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST,
@@ -37,6 +53,7 @@ impl CallOption {
         self
     }
 
+    /// Signal that the call should not return UNAVAILABLE before it has started
     pub fn with_wait_for_ready(mut self, wait_for_ready: bool) -> CallOption {
         change_flag(&mut self.call_flags,
                     grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY,
@@ -44,6 +61,7 @@ impl CallOption {
         self
     }
 
+    /// Signal that the call is cacheable. GRPC is free to use GET verb
     pub fn with_cacheable(mut self, cacheable: bool) -> CallOption {
         change_flag(&mut self.call_flags,
                     grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST,
@@ -51,6 +69,7 @@ impl CallOption {
         self
     }
 
+    /// Hint that the write may be buffered and need not go out on the wire immediately.
     pub fn with_buffer_hint(mut self, need_buffered: bool) -> CallOption {
         change_flag(&mut self.write_flags,
                     grpc_sys::GRPC_WRITE_BUFFER_HINT,
@@ -58,6 +77,7 @@ impl CallOption {
         self
     }
 
+    /// Force compression to be disabled.
     pub fn with_force_no_compress(mut self, no_compress: bool) -> CallOption {
         change_flag(&mut self.write_flags,
                     grpc_sys::GRPC_WRITE_NO_COMPRESS,
@@ -65,11 +85,13 @@ impl CallOption {
         self
     }
 
+    /// Set a timeout.
     pub fn with_timeout(mut self, timeout: Duration) -> CallOption {
         self.timeout = Some(timeout);
         self
     }
 
+    /// Get the timeout.
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
     }
@@ -141,7 +163,7 @@ impl Call {
     pub fn duplex_streaming<P, Q>(channel: &Channel,
                                   method: &Method,
                                   opt: CallOption)
-                                  -> DuplexStreamingCallHandler<P, Q> {
+                                  -> DuplexCallHandler<P, Q> {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
@@ -156,10 +178,13 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        DuplexStreamingCallHandler::new(call, cq_f, opt.write_flags)
+        DuplexCallHandler::new(call, cq_f, opt.write_flags)
     }
 }
 
+/// A handler to handle uanry async call.
+///
+/// The future is resolved once response is received.
 pub struct UnaryCallHandler<T> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
@@ -175,6 +200,7 @@ impl<T> UnaryCallHandler<T> {
         }
     }
 
+    /// Cancel the call.
     pub fn cancel(&self) {
         self.call.cancel()
     }
@@ -191,6 +217,7 @@ impl<T: MessageStatic> Future for UnaryCallHandler<T> {
     }
 }
 
+/// An unary response receiver. It's used for client streaming request.
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
     resp_f: CqFuture<BatchMessage>,
@@ -208,6 +235,10 @@ impl<T: MessageStatic> Future for UnaryResponseReceiver<T> {
     }
 }
 
+/// A handler for client streaming call.
+///
+/// Once all request is flushed, it can be converted to `UnaryResponseReceiver`
+/// to receive response asynchronously.
 pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
@@ -269,6 +300,7 @@ impl<P, Q: MessageStatic> ClientStreamingCallHandler<P, Q> {
     }
 }
 
+/// A handler for server streaming call.
 pub struct ServerStreamingCallHandler<Q> {
     call: Call,
     base: StreamingBase,
@@ -282,6 +314,10 @@ impl<Q> ServerStreamingCallHandler<Q> {
             base: StreamingBase::new(Some(finish_f)),
             _resp: PhantomData,
         }
+    }
+
+    pub fn cancel(&self) {
+        self.call.cancel()
     }
 }
 
@@ -300,7 +336,11 @@ impl<Q: MessageStatic> Stream for ServerStreamingCallHandler<Q> {
     }
 }
 
-pub struct DuplexStreamingCallHandler<P, Q> {
+/// A handler for duplex streaming call.
+///
+/// A receiver can be taken at any time. Request and response can be handled
+/// asynchronously.
+pub struct DuplexCallHandler<P, Q> {
     // start_batch needs to be synchronized;
     call: Arc<Mutex<Call>>,
     resp_f: Option<CqFuture<BatchMessage>>,
@@ -309,12 +349,12 @@ pub struct DuplexStreamingCallHandler<P, Q> {
     _resp: PhantomData<Q>,
 }
 
-impl<P, Q> DuplexStreamingCallHandler<P, Q> {
+impl<P, Q> DuplexCallHandler<P, Q> {
     fn new(call: Call,
            resp_f: CqFuture<BatchMessage>,
            write_flags: u32)
-           -> DuplexStreamingCallHandler<P, Q> {
-        DuplexStreamingCallHandler {
+           -> DuplexCallHandler<P, Q> {
+        DuplexCallHandler {
             call: Arc::new(Mutex::new(call)),
             resp_f: Some(resp_f),
             sink_base: SinkBase::new(write_flags, false),
@@ -324,14 +364,13 @@ impl<P, Q> DuplexStreamingCallHandler<P, Q> {
     }
 }
 
-impl<P: Message, Q> Sink for DuplexStreamingCallHandler<P, Q> {
+impl<P: Message, Q> Sink for DuplexCallHandler<P, Q> {
     type SinkItem = P;
     type SinkError = Error;
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
-        let mut call = self.call.lock().unwrap();
         self.sink_base
-            .start_send(&mut call, |buf| item.write_to_vec(buf))
+            .start_send(&mut self.call, |buf| item.write_to_vec(buf))
             .map(|s| if s {
                      AsyncSink::Ready
                  } else {
@@ -344,18 +383,18 @@ impl<P: Message, Q> Sink for DuplexStreamingCallHandler<P, Q> {
     }
 
     fn close(&mut self) -> Poll<(), Error> {
-        let mut call = self.call.lock().unwrap();
-        self.sink_base.close(&mut call)
+        self.sink_base.close(&mut self.call)
     }
 }
 
+/// A response receiver for duplex call.
 pub struct StreamingResponseReceiver<Q> {
     call: Arc<Mutex<Call>>,
     base: StreamingBase,
     _resp: PhantomData<Q>,
 }
 
-impl<P, Q: MessageStatic> DuplexStreamingCallHandler<P, Q> {
+impl<P, Q: MessageStatic> DuplexCallHandler<P, Q> {
     pub fn take_receiver(&mut self) -> Option<StreamingResponseReceiver<Q>> {
         let resp_f = match self.resp_f.take() {
             Some(resp_f) => resp_f,
@@ -383,8 +422,7 @@ impl<Q: MessageStatic> Stream for StreamingResponseReceiver<Q> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Q>, Error> {
-        let mut call = self.call.lock().unwrap();
-        match try_ready!(self.base.poll(&mut call, false)) {
+        match try_ready!(self.base.poll(&mut self.call, false)) {
             None => Ok(Async::Ready(None)),
             Some(data) => {
                 let msg = try!(protobuf::parse_from_bytes(&data));

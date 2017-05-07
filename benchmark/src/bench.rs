@@ -16,7 +16,7 @@ use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
 use tokio_core::reactor::Remote;
-use grpc::{RequestStream, ResponseSink, RpcContext, UnaryResponseSink};
+use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink};
 use futures::{Future, Sink, Stream};
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
@@ -38,10 +38,7 @@ impl Benchmark {
 }
 
 impl BenchmarkService for Benchmark {
-    fn unary_call(&self,
-                  _: RpcContext,
-                  req: SimpleRequest,
-                  sink: UnaryResponseSink<SimpleResponse>) {
+    fn unary_call(&self, _: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let resp = gen_resp(req);
         self.remote
             .spawn(|_| {
@@ -53,7 +50,7 @@ impl BenchmarkService for Benchmark {
     fn streaming_call(&self,
                       _: RpcContext,
                       stream: RequestStream<SimpleRequest>,
-                      sink: ResponseSink<SimpleResponse>) {
+                      sink: DuplexSink<SimpleResponse>) {
         self.remote
             .spawn(|_| {
                        sink.send_all(stream.map(gen_resp))

@@ -34,11 +34,11 @@ mod error;
 mod server;
 
 pub use call::{Method, MethodType, RpcStatus};
-pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,
+pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
                        ServerStreamingCallHandler, UnaryCallHandler};
-pub use call::server::{ClientStreamingResponseSink, ClientStreamingSinkResult, Deadline,
-                       RequestStream, ResponseSink, RpcContext, SinkFailure, UnaryResponseSink,
-                       UnarySinkResult};
+pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
+                       DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
+                       ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
 pub use channel::{Channel, ChannelBuilder};
 pub use client::Client;
 pub use env::Environment;

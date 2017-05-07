@@ -1,6 +1,6 @@
 
 use call::{Call, Method};
-use call::client::{CallOption, ClientStreamingCallHandler, DuplexStreamingCallHandler,
+use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
                    ServerStreamingCallHandler, UnaryCallHandler};
 use channel::Channel;
 
@@ -52,7 +52,7 @@ impl Client {
     pub fn duplex_streaming<P, Q>(&self,
                                   method: &Method,
                                   opt: CallOption)
-                                  -> DuplexStreamingCallHandler<P, Q> {
+                                  -> DuplexCallHandler<P, Q> {
         Call::duplex_streaming(&self.channel, method, opt)
     }
 }

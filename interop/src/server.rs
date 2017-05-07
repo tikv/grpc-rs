@@ -12,8 +12,8 @@
 // limitations under the License.
 
 
-use grpc::{self, ClientStreamingResponseSink, RequestStream, ResponseSink, RpcContext, RpcStatus,
-           UnaryResponseSink};
+use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
+           ServerStreamingSink, UnarySink};
 use tokio_core::reactor::Remote;
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
 
@@ -47,7 +47,7 @@ impl InteropTestService {
 }
 
 impl TestService for InteropTestService {
-    fn empty_call(&self, _: RpcContext, _: Empty, resp: UnaryResponseSink<Empty>) {
+    fn empty_call(&self, _: RpcContext, _: Empty, resp: UnarySink<Empty>) {
         self.remote
             .spawn(move |_| {
                        let res = Empty::new();
@@ -56,10 +56,7 @@ impl TestService for InteropTestService {
                    })
     }
 
-    fn unary_call(&self,
-                  _: RpcContext,
-                  mut req: SimpleRequest,
-                  sink: UnaryResponseSink<SimpleResponse>) {
+    fn unary_call(&self, _: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
@@ -81,17 +78,14 @@ impl TestService for InteropTestService {
                    })
     }
 
-    fn cacheable_unary_call(&self,
-                            _: RpcContext,
-                            _: SimpleRequest,
-                            _: UnaryResponseSink<SimpleResponse>) {
+    fn cacheable_unary_call(&self, _: RpcContext, _: SimpleRequest, _: UnarySink<SimpleResponse>) {
         unimplemented!()
     }
 
     fn streaming_output_call(&self,
                              _: RpcContext,
                              req: StreamingOutputCallRequest,
-                             sink: ResponseSink<StreamingOutputCallResponse>) {
+                             sink: ServerStreamingSink<StreamingOutputCallResponse>) {
         let resps: Vec<Result<_, grpc::Error>> = req.get_response_parameters()
             .into_iter()
             .map(|param| {
@@ -111,7 +105,7 @@ impl TestService for InteropTestService {
     fn streaming_input_call(&self,
                             _: RpcContext,
                             stream: RequestStream<StreamingInputCallRequest>,
-                            sink: ClientStreamingResponseSink<StreamingInputCallResponse>) {
+                            sink: ClientStreamingSink<StreamingInputCallResponse>) {
         let f = stream
             .fold(0,
                   |s, req| Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>)
@@ -130,7 +124,7 @@ impl TestService for InteropTestService {
     fn full_duplex_call(&self,
                         _: RpcContext,
                         stream: RequestStream<StreamingOutputCallRequest>,
-                        sink: ResponseSink<StreamingOutputCallResponse>) {
+                        sink: DuplexSink<StreamingOutputCallResponse>) {
         self.remote
             .spawn(|_| {
                 stream.map_err(Error::Grpc).fold(sink, |sink, mut req| {
@@ -148,7 +142,7 @@ impl TestService for InteropTestService {
                     }
                     send = Some(sink.send(resp));
                 }
-                future::poll_fn(move || -> Poll<ResponseSink<StreamingOutputCallResponse>, Error> {
+                future::poll_fn(move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
                     if let Some(ref mut send) = send {
                         let sink = try_ready!(send.poll());
                         Ok(Async::Ready(sink))
@@ -172,11 +166,11 @@ impl TestService for InteropTestService {
     fn half_duplex_call(&self,
                         _: RpcContext,
                         _: RequestStream<StreamingOutputCallRequest>,
-                        _: ResponseSink<StreamingOutputCallResponse>) {
+                        _: DuplexSink<StreamingOutputCallResponse>) {
         unimplemented!()
     }
 
-    fn unimplemented_call(&self, _: RpcContext, _: Empty, _: UnaryResponseSink<Empty>) {
+    fn unimplemented_call(&self, _: RpcContext, _: Empty, _: UnarySink<Empty>) {
         unimplemented!()
     }
 }

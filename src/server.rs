@@ -55,7 +55,7 @@ impl ServiceBuilder {
     pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
         where P: MessageStatic,
               Q: Message,
-              F: Fn(RpcContext, P, UnaryResponseSink<Q>) + 'static
+              F: Fn(RpcContext, P, UnarySink<Q>) + 'static
     {
         let h = Box::new(move |ctx, payload: &[u8]| execute_unary(ctx, payload, &handler));
         self.handlers
@@ -69,7 +69,7 @@ impl ServiceBuilder {
                                                  -> ServiceBuilder
         where P: MessageStatic,
               Q: Message,
-              F: Fn(RpcContext, RequestStream<P>, ClientStreamingResponseSink<Q>) + 'static
+              F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static
     {
         let h = Box::new(move |ctx, _: &[u8]| execute_client_streaming(ctx, &handler));
         self.handlers
@@ -84,7 +84,7 @@ impl ServiceBuilder {
                                                  -> ServiceBuilder
         where P: MessageStatic,
               Q: Message,
-              F: Fn(RpcContext, P, ResponseSink<Q>) + 'static
+              F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static
     {
         let h =
             Box::new(move |ctx, payload: &[u8]| execute_server_streaming(ctx, payload, &handler));
@@ -100,7 +100,7 @@ impl ServiceBuilder {
                                                  -> ServiceBuilder
         where P: MessageStatic,
               Q: Message,
-              F: Fn(RpcContext, RequestStream<P>, ResponseSink<Q>) + 'static
+              F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static
     {
         let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, &handler));
         self.handlers
