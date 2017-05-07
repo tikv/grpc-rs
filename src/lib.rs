@@ -30,5 +30,9 @@ mod env;
 mod call;
 mod error;
 
+pub use call::{Method, MethodType, RpcStatus};
+pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
+                       DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
+                       ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
 pub use env::Environment;
 pub use error::{Error, Result};

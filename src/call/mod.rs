@@ -15,7 +15,10 @@
 // TODO: remove following line once all changes are merged into master
 #![allow(dead_code)]
 
+pub mod server;
+
 use std::{ptr, result, slice, usize};
+use std::sync::{Arc, Mutex};
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
@@ -232,6 +235,40 @@ impl Call {
         })
     }
 
+    /// Abort a rpc call before handler is called.
+    pub fn abort(self, status: RpcStatus) {
+        let call_ptr = self.call;
+        let prom = Promise::abort(self);
+        let prom_box = Box::new(prom);
+        let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
+        let prom_ptr = Box::into_raw(prom_box);
+
+        let code = unsafe {
+            let details_ptr = status
+                .details
+                .as_ref()
+                .map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_len = status.details.as_ref().map_or(0, String::len);
+            grpc_sys::grpcwrap_call_send_status_from_server(call_ptr,
+                                                            batch_ptr,
+                                                            GrpcStatusCode::Unimplemented,
+                                                            details_ptr,
+                                                            details_len,
+                                                            ptr::null_mut(),
+                                                            1,
+                                                            ptr::null(),
+                                                            0,
+                                                            0,
+                                                            prom_ptr as *mut c_void)
+        };
+        if code != GrpcCallStatus::Ok {
+            unsafe {
+                Box::from_raw(prom_ptr);
+            }
+            panic!("create call fail: {:?}", code);
+        }
+    }
+
     /// Cancel the rpc call by client.
     fn cancel(&self) {
         unsafe { grpc_sys::grpc_call_cancel(self.call, ptr::null_mut()) }
@@ -241,6 +278,26 @@ impl Call {
 impl Drop for Call {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_call_destroy(self.call) }
+    }
+}
+
+/// A helper trait that allow executing function on the inernal call struct.
+trait CallHolder {
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R;
+}
+
+impl CallHolder for Call {
+    #[inline]
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
+        f(self)
+    }
+}
+
+impl CallHolder for Arc<Mutex<Call>> {
+    #[inline]
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
+        let mut lock = self.lock().unwrap();
+        f(&mut lock)
     }
 }
 
@@ -260,7 +317,10 @@ impl StreamingBase {
         }
     }
 
-    fn poll(&mut self, call: &mut Call, skip_finish_check: bool) -> Poll<Option<Vec<u8>>, Error> {
+    fn poll<C: CallHolder>(&mut self,
+                           call: &mut C,
+                           skip_finish_check: bool)
+                           -> Poll<Option<Vec<u8>>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -279,10 +339,12 @@ impl StreamingBase {
         }
 
         let mut bytes = None;
-        if let Some(ref mut msg_f) = self.msg_f {
-            bytes = try_ready!(msg_f.poll());
-            if bytes.is_none() {
-                self.read_done = true;
+        if !self.read_done {
+            if let Some(ref mut msg_f) = self.msg_f {
+                bytes = try_ready!(msg_f.poll());
+                if bytes.is_none() {
+                    self.read_done = true;
+                }
             }
         }
 
@@ -295,7 +357,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.start_recv_message();
+        let msg_f = call.call(|c| c.start_recv_message());
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -325,7 +387,7 @@ impl SinkBase {
         }
     }
 
-    fn start_send<F, E>(&mut self, call: &mut Call, fill_buf: F) -> Result<bool>
+    fn start_send<F, E, C: CallHolder>(&mut self, call: &mut C, fill_buf: F) -> Result<bool>
         where F: FnOnce(&mut Vec<u8>) -> result::Result<(), E>,
               E: Into<Error>
     {
@@ -341,7 +403,8 @@ impl SinkBase {
         if let Err(e) = fill_buf(&mut self.buf) {
             return Err(e.into());
         }
-        let write_f = call.start_send_message(&self.buf, self.flags, self.send_metadata);
+        let write_f =
+            call.call(|c| c.start_send_message(&self.buf, self.flags, self.send_metadata));
         self.write_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
@@ -356,11 +419,11 @@ impl SinkBase {
         Ok(Async::Ready(()))
     }
 
-    fn close(&mut self, call: &mut Call) -> Poll<(), Error> {
+    fn close<C: CallHolder>(&mut self, call: &mut C) -> Poll<(), Error> {
         if self.close_f.is_none() {
             try_ready!(self.poll_complete());
 
-            let close_f = call.start_send_close_client();
+            let close_f = call.call(|c| c.start_send_close_client());
             self.close_f = Some(close_f);
         }
 
