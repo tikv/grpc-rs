@@ -43,8 +43,8 @@ impl CpuRecorder {
         let user_usec = latest.ru_utime.tv_usec - self.usage_snap.ru_utime.tv_usec;
         let sys_sec = latest.ru_stime.tv_sec - self.usage_snap.ru_stime.tv_sec;
         let sys_usec = latest.ru_stime.tv_usec - self.usage_snap.ru_stime.tv_usec;
-        let user_time = user_sec as f64 + user_usec as f64 / 1_000_000_000f64;
-        let sys_time = sys_sec as f64 + sys_usec as f64 / 1_000_000_000f64;
+        let user_time = user_sec as f64 + user_usec as f64 / 1_000_000f64;
+        let sys_time = sys_sec as f64 + sys_usec as f64 / 1_000_000f64;
 
         let elapsed = now - self.last_reset_time;
         let real_time = dur_to_secs(elapsed);
@@ -73,6 +73,11 @@ pub fn cpu_num_cores() -> usize {
 #[inline]
 pub fn dur_to_secs(dur: Duration) -> f64 {
     dur.as_secs() as f64 + dur.subsec_nanos() as f64 / 1_000_000_000f64
+}
+
+#[inline]
+pub fn dur_to_nanos(dur: Duration) -> f64 {
+    dur.as_secs() as f64 * 1_000_000_000f64 + dur.subsec_nanos() as f64
 }
 
 // Histogram accumulates values in the form of a histogram with

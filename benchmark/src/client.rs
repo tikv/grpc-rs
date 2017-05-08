@@ -121,7 +121,7 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
     }
 
     fn observe_latency(&self, latency: Duration) {
-        let f = util::dur_to_secs(latency);
+        let f = util::dur_to_nanos(latency);
         let mut his = self.histogram.lock().unwrap();
         his.observe(f);
     }
@@ -175,13 +175,7 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
                         .and_then(move |(_, r)| {
-                            let elapsed = latency_timer.elapsed();
-                            let f = elapsed.as_secs() as f64 +
-                                    elapsed.subsec_nanos() as f64 / 1_000_000_000f64;
-                            {
-                                let mut his = executor.histogram.lock().unwrap();
-                                his.observe(f);
-                            }
+                            executor.observe_latency(latency_timer.elapsed());
                             let mut time = executor.back_off.back_off_async(&executor.timer);
                             let mut res = Some((h, executor, r));
                             future::poll_fn(move || {
@@ -213,9 +207,6 @@ impl Client {
 
         if cfg.get_core_limit() > 0 {
             println!("client config core limit is set but ignored");
-        }
-        if cfg.has_security_params() {
-            println!("client config security params is set but ignored");
         }
 
         let channels = (0..cfg.get_client_channels())
