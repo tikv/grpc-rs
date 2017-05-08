@@ -176,9 +176,14 @@ impl UnaryRequestContext {
         self.inner.take()
     }
 
-    pub fn handle(self, inner: &Arc<Inner>, data: &[u8]) {
+    pub fn handle(mut self, inner: &Arc<Inner>, data: Option<&[u8]>) {
         let handler = inner.get_method(self.request.method()).unwrap();
-        execute(self.request, data, handler.cb())
+        if let Some(data) = data {
+            return execute(self.request, data, handler.cb());
+        }
+
+        let status = RpcStatus::new(GrpcStatusCode::Internal, Some("No payload".to_owned()));
+        self.request.take_call().unwrap().abort(status)
     }
 }
 
