@@ -19,10 +19,13 @@ const GRPC_VERSION: &'static str = "1.3.0";
 
 #[cfg(not(feature = "static-link"))]
 mod imp {
+    use gcc;
+    use pkg_config;
+
     use super::GRPC_VERSION;
 
-    pub fn build_or_link_grpc(cc: &mut ::gcc::Config) {
-        if let Ok(lib) = ::pkg_config::Config::new()
+    pub fn build_or_link_grpc(cc: &mut gcc::Config) {
+        if let Ok(lib) = pkg_config::Config::new()
                .atleast_version(GRPC_VERSION)
                .probe("grpc_unsecure") {
             for inc_path in lib.include_paths {
@@ -39,6 +42,9 @@ mod imp {
     use std::env;
     use std::fs::DirBuilder;
     use std::process::Command;
+
+    use cmake;
+    use gcc;
 
     use super::GRPC_VERSION;
 
@@ -119,13 +125,13 @@ mod imp {
                      .args(&["-r", &self.to_dir])
                      .current_dir(&out_dir)
                      .status()
-                     .map_err(|err| format!("failed to execute tar: {}", err)));
+                     .map_err(|err| format!("failed to clean dir: {}", err)));
 
             Command::new("mv")
                 .args(&[&self.base_name, &self.to_dir])
                 .current_dir(&out_dir)
                 .status()
-                .map_err(|err| format!("mv execute failed: {}", err))
+                .map_err(|err| format!("failed to mv: {}", err))
                 .and_then(|status| if status.success() {
                               Ok(())
                           } else {

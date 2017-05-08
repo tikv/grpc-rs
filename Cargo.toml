@@ -14,3 +14,4 @@ clippy = { version = "*", optional = true }
 [features]
 default = []
 dev = ["clippy"]
+static-link = ["grpc-sys/static-link"]
