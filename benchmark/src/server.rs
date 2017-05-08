@@ -19,6 +19,7 @@ use grpc::{Environment, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
+use grpc_proto::util as proto_util;
 use tokio_core::reactor::Remote;
 
 use bench::Benchmark;
@@ -31,9 +32,6 @@ pub struct Server {
 
 impl Server {
     pub fn new(env: Arc<Environment>, cfg: &ServerConfig, remote: Remote) -> Result<Server> {
-        if cfg.has_security_params() {
-            println!("server config security params is set but ignored");
-        }
         if cfg.get_core_limit() > 0 {
             println!("server config core limit is set but ignored");
         }
@@ -44,10 +42,16 @@ impl Server {
             }
             _ => unimplemented!(),
         };
-        let mut s = ServerBuilder::new(env)
-            .bind("[::]", cfg.get_port() as u32)
-            .register_service(service)
-            .build();
+        let mut builder = ServerBuilder::new(env).register_service(service);
+        builder = if cfg.has_security_params() {
+            builder.bind_secure("[::]",
+                                cfg.get_port() as u32,
+                                proto_util::create_test_server_credentials())
+        } else {
+            builder.bind("[::]", cfg.get_port() as u32)
+        };
+
+        let mut s = builder.build();
         s.start();
         Ok(Server {
                server: s,

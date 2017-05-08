@@ -5,6 +5,7 @@ use call::{Method, MethodType};
 use call::server::*;
 use channel::ChannelArgs;
 use cq::CompletionQueue;
+use credentials::ServerCredentials;
 
 use env::Environment;
 use error::Error;
@@ -119,7 +120,7 @@ pub struct Service {
 
 pub struct ServerBuilder {
     env: Arc<Environment>,
-    addrs: Vec<(String, u32)>,
+    addrs: Vec<(String, u32, Option<ServerCredentials>)>,
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], Handler>,
@@ -137,7 +138,16 @@ impl ServerBuilder {
     }
 
     pub fn bind<S: Into<String>>(mut self, host: S, port: u32) -> ServerBuilder {
-        self.addrs.push((host.into(), port));
+        self.addrs.push((host.into(), port, None));
+        self
+    }
+
+    pub fn bind_secure<S: Into<String>>(mut self,
+                                        host: S,
+                                        port: u32,
+                                        c: ServerCredentials)
+                                        -> ServerBuilder {
+        self.addrs.push((host.into(), port, Some(c)));
         self
     }
 
@@ -162,13 +172,22 @@ impl ServerBuilder {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let bind_addrs: Vec<_> = self.addrs
                 .drain(..)
-                .map(|(host, port)| {
-                         let addr = format!("{}:{}\0", host, port);
-                         let bind_port =
-                             grpc_sys::grpc_server_add_insecure_http2_port(server,
-                                                                           addr.as_ptr() as _);
-                         (host, bind_port as u32)
-                     })
+                .map(|(host, port, certs)| {
+                    let addr = format!("{}:{}\0", host, port);
+                    let addr_ptr = addr.as_ptr();
+                    let bind_port = match certs {
+                        None => {
+                            grpc_sys::grpc_server_add_insecure_http2_port(server, addr_ptr as _)
+                        }
+                        Some(mut cert) => {
+                            grpc_sys::grpc_server_add_secure_http2_port(server,
+                                                                        addr_ptr as _,
+                                                                        cert.as_mut_ptr())
+                        }
+                    };
+
+                    (host, bind_port as u32)
+                })
                 .collect();
 
             for cq in self.env.completion_queues() {

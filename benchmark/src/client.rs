@@ -220,7 +220,20 @@ impl Client {
 
         let channels = (0..cfg.get_client_channels())
             .zip(cfg.get_server_targets().into_iter().cycle())
-            .map(|(_, addr)| ChannelBuilder::new(env.clone()).connect(addr));
+            .map(|(_, addr)| {
+                let mut builder = ChannelBuilder::new(env.clone());
+                if cfg.has_security_params() {
+                    let params = cfg.get_security_params();
+                    if params.get_server_host_override() != "" {
+                        builder = builder.override_ssl_target(params
+                                                                  .get_server_host_override()
+                                                                  .to_owned());
+                    }
+                    builder.secure_connect(addr, proto_util::create_test_channel_credentials())
+                } else {
+                    builder.connect(addr)
+                }
+            });
 
         if cfg.get_payload_config().has_bytebuf_params() {
             unimplemented!()

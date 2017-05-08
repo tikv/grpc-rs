@@ -12,6 +12,9 @@
 // limitations under the License.
 
 
+use grpc::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+           ServerCredentialsBuilder};
+
 use testing::messages::{Payload, ResponseParameters};
 
 pub fn new_payload(size: usize) -> Payload {
@@ -24,4 +27,17 @@ pub fn new_parameters(size: i32) -> ResponseParameters {
     let mut parameter = ResponseParameters::new();
     parameter.set_size(size);
     parameter
+}
+
+pub fn create_test_server_credentials() -> ServerCredentials {
+    let private_key = include_str!("../data/server1.key");
+    let cert = include_str!("../data/server1.pem");
+    ServerCredentialsBuilder::new()
+        .add_cert(cert, private_key)
+        .build()
+}
+
+pub fn create_test_channel_credentials() -> ChannelCredentials {
+    let ca = include_str!("../data/ca.pem");
+    ChannelCredentialsBuilder::new().root_cert(ca).build()
 }

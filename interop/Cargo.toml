@@ -1,7 +1,6 @@
 [package]
 name = "interop"
 version = "0.1.0"
-authors = ["Jay Lee <busyjaylee@gmail.com>"]
 
 [dependencies]
 grpc = { path = ".." }

@@ -21,6 +21,11 @@ fn main() {
         .flag("-O2")
         .compile("libgrpc_wrap.a");
 
-    println!("cargo:rustc-link-lib=grpc_unsecure");
-    println!("cargo:rustc-link-lib=gpr");
+    println!("cargo:rustc-link-search=native=/usr/local/lib/");
+    println!("cargo:rustc-link-lib=static=grpc");
+    println!("cargo:rustc-link-lib=cares");
+    println!("cargo:rustc-link-lib=ssl");
+    println!("cargo:rustc-link-lib=crypto");
+    println!("cargo:rustc-link-lib=z");
+    println!("cargo:rustc-link-lib=static=gpr");
 }
