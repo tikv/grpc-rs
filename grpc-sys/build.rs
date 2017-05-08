@@ -23,14 +23,13 @@ mod imp {
 
     pub fn build_or_link_grpc(cc: &mut ::gcc::Config) {
         if let Ok(lib) = ::pkg_config::Config::new()
-            .atleast_version(GRPC_VERSION)
-            .statik(true)
-            .probe("grpc_unsecure") {
+               .atleast_version(GRPC_VERSION)
+               .probe("grpc_unsecure") {
             for inc_path in lib.include_paths {
                 cc.include(inc_path);
             }
         } else {
-            panic!("can't find dynamic grpc library");
+            panic!("can't find a dynamic grpc library");
         }
     }
 }
@@ -39,133 +38,155 @@ mod imp {
 mod imp {
     use std::env;
     use std::fs::DirBuilder;
-    use std::path::{Path, PathBuf};
     use std::process::Command;
 
     use super::GRPC_VERSION;
 
     const ZLIB_VERSION: &'static str = "1.2.8";
-    const BORINGSSL_GIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
-    const CARES_VERSION: &'static str = "cares-1_12_0";
+    const BORINGSSL_COMMIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
+    const CARES_TAG: &'static str = "cares-1_12_0";
 
-    fn wget(url: &str, out: &str) -> Result<(), String> {
-        Command::new("wget")
-            .args(&["-q", "-c", "-O", out, url])
-            .status()
-            .map_err(|err| format!("wget execute failed: {}", err))
-            .and_then(|status| {
-                if status.success() {
-                    Ok(())
-                } else {
-                    Err(format!("wget exit with {}", status))
-                }
-            })
+    struct FakeGitSubmodule {
+        url: String,
+        base_name: String,
+        to_dir: String,
     }
 
-    fn tar_xf(file: &str) -> Result<(), String> {
-        Command::new("tar")
-            .args(&["zxf", file])
-            .status()
-            .map_err(|err| format!("tar execute failed: {}", err))
-            .and_then(|status| {
-                if status.success() {
-                    Ok(())
-                } else {
-                    Err(format!("tar exit with {}", status))
-                }
-            })
+    impl FakeGitSubmodule {
+        fn new_with_hash(account: &str,
+                         repo: &str,
+                         commit_hash: &str,
+                         to_dir: &str)
+                         -> FakeGitSubmodule {
+            FakeGitSubmodule {
+                url: format!("https://github.com/{}/{}/archive/{}.tar.gz",
+                             account,
+                             repo,
+                             commit_hash),
+                base_name: format!("{}-{}", repo, commit_hash),
+                to_dir: to_dir.to_owned(),
+            }
+        }
+
+        fn new_with_tag(account: &str, repo: &str, tag: &str, to_dir: &str) -> FakeGitSubmodule {
+            FakeGitSubmodule {
+                url: format!("https://github.com/{}/{}/archive/{}.tar.gz",
+                             account,
+                             repo,
+                             tag),
+                base_name: format!("{}-{}", repo, tag),
+                to_dir: to_dir.to_owned(),
+            }
+        }
+
+        fn new_with_semver(account: &str, repo: &str, ver: &str, to_dir: &str) -> FakeGitSubmodule {
+            FakeGitSubmodule {
+                url: format!("https://github.com/{}/{}/archive/v{}.tar.gz",
+                             account,
+                             repo,
+                             ver),
+                base_name: format!("{}-{}", repo, ver),
+                to_dir: to_dir.to_owned(),
+            }
+        }
+
+        fn init(&self) -> Result<(), String> {
+            let out_dir = env::var_os("OUT_DIR").unwrap();
+            let tgz_file_name = format!("{}.tar.gz", self.base_name);
+            try!(Command::new("wget")
+                     .args(&["-q", "-c", "-O", &tgz_file_name, &self.url])
+                     .current_dir(&out_dir)
+                     .status()
+                     .map_err(|err| format!("failed to execute wget: {}", err))
+                     .and_then(|status| if status.success() {
+                                   Ok(())
+                               } else {
+                                   Err(format!("wget exit with {}", status))
+                               }));
+
+            try!(Command::new("tar")
+                     .args(&["zxf", &tgz_file_name])
+                     .current_dir(&out_dir)
+                     .status()
+                     .map_err(|err| format!("failed to execute tar: {}", err))
+                     .and_then(|status| if status.success() {
+                                   Ok(())
+                               } else {
+                                   Err(format!("tar exit with {}", status))
+                               }));
+            // clean base dir
+            try!(Command::new("rm")
+                     .args(&["-r", &self.to_dir])
+                     .current_dir(&out_dir)
+                     .status()
+                     .map_err(|err| format!("failed to execute tar: {}", err)));
+
+            Command::new("mv")
+                .args(&[&self.base_name, &self.to_dir])
+                .current_dir(&out_dir)
+                .status()
+                .map_err(|err| format!("mv execute failed: {}", err))
+                .and_then(|status| if status.success() {
+                              Ok(())
+                          } else {
+                              Err(format!("mv exit with {}", status))
+                          })
+        }
     }
+
 
     pub fn build_or_link_grpc(cc: &mut ::gcc::Config) {
-        let cur_dir = env::current_dir().expect("Can't access current working directory");
-        let crate_dir = cur_dir.as_path().display();
-
         let out_dir = env::var("OUT_DIR").expect("Can't access OUT_DIR");
-        for sub_dir in &["grpc", "zlib", "ssl", "cares"] {
-            DirBuilder::new().recursive(true).create(format!("{}/{}", out_dir, sub_dir)).unwrap();
-        }
+        DirBuilder::new()
+            .recursive(true)
+            .create(format!("{}/{}", out_dir, "grpc"))
+            .unwrap();
 
-        if !Path::new(&format!("grpc-{}", GRPC_VERSION)).exists() {
-            wget(&format!("https://github.com/grpc/grpc/archive/v{}.tar.gz",
-                          GRPC_VERSION),
-                 "grpc.tar.gz")
-                .and_then(|_| tar_xf("grpc.tar.gz"))
-                .unwrap();
-        }
+        FakeGitSubmodule::new_with_semver("grpc", "grpc", GRPC_VERSION, "grpc")
+            .init()
+            .unwrap();
 
-        if !Path::new(&format!("zlib-{}", ZLIB_VERSION)).exists() {
-            wget(&format!("https://github.com/madler/zlib/archive/v{}.tar.gz",
-                          ZLIB_VERSION),
-                 "zlib.tar.gz")
-                .and_then(|_| tar_xf("zlib.tar.gz"))
-                .unwrap();
-        }
+        FakeGitSubmodule::new_with_semver("madler", "zlib", ZLIB_VERSION, "grpc/third_party/zlib")
+            .init()
+            .unwrap();
 
-        if !Path::new(&format!("boringssl-{}", BORINGSSL_GIT_HASH)).exists() {
-            wget(&format!("https://github.com/google/boringssl/archive/{}.tar.gz",
-                          BORINGSSL_GIT_HASH),
-                 "boringssl.tar.gz")
-                .and_then(|_| tar_xf("boringssl.tar.gz"))
+        FakeGitSubmodule::new_with_hash("google",
+                                        "boringssl",
+                                        BORINGSSL_COMMIT_HASH,
+                                        "grpc/third_party/boringssl")
+                .init()
                 .unwrap();
-        }
 
-        let cares_path = PathBuf::from(format!("grpc-{}/third_party/cares/cares", GRPC_VERSION));
-        if !cares_path.with_file_name("README.md").exists() {
-            wget(&format!("https://github.com/c-ares/c-ares/archive/{}.tar.gz",
-                          CARES_VERSION),
-                 "c-ares.tar.gz")
-                .and_then(|_| tar_xf("c-ares.tar.gz"))
+        FakeGitSubmodule::new_with_tag("c-ares",
+                                       "c-ares",
+                                       CARES_TAG,
+                                       "grpc/third_party/cares/cares")
+                .init()
                 .unwrap();
-            let _ = Command::new("rm")
-                .current_dir(&format!("c-ares-{}/", CARES_VERSION))
-                .args(&["acountry.c", "adig.c", "ahost.c"])
-                .status();
-            Command::new("cp")
-                .args(&["-a", &format!("c-ares-{}/", CARES_VERSION), cares_path.to_str().unwrap()])
-                .status()
-                .map_err(|err| format!("cp execute failed: {}", err))
-                .and_then(|status| {
-                    if status.success() {
-                        Ok(())
-                    } else {
-                        Err(format!("cp -a exit with {}", status))
-                    }
-                })
-                .unwrap();
-        }
 
-        let zlib_dst = ::cmake::Config::new(format!("zlib-{}", ZLIB_VERSION))
-            .out_dir(format!("{}/{}", out_dir, "zlib"))
+        // fix multiple _main symbols
+        let _ = Command::new("rm")
+            .current_dir(&format!("{}/grpc/third_party/cares/cares", out_dir))
+            .args(&["acountry.c", "adig.c", "ahost.c"])
+            .status();
+
+        let dst = ::cmake::Config::new(format!("{}/grpc", out_dir))
+            .build_target("grpc")
             .build();
 
-        println!("cargo:rustc-link-search=native={}/build",
-                 zlib_dst.display());
-
-        let cares_dst = ::cmake::Config::new(format!("grpc-{}/src/c-ares", GRPC_VERSION))
-            .out_dir(format!("{}/{}", out_dir, "cares"))
-            .build_target("cares")
-            .build();
-
-        println!("cargo:rustc-link-search=native={}/build",
-                 cares_dst.display());
-
-        let dst = ::cmake::Config::new(format!("grpc-{}", GRPC_VERSION))
-            .define("ZLIB_ROOT_DIR",
-                    format!("{}/zlib-{}", crate_dir, ZLIB_VERSION))
-            .define("BORINGSSL_ROOT_DIR",
-                    format!("{}/boringssl-{}", crate_dir, BORINGSSL_GIT_HASH))
-            .out_dir(format!("{}/{}", out_dir, "grpc"))
-            .build_target("grpc_unsecure")
-            .build();
-
+        println!("cargo:rustc-link-search=native={}/build", dst.display());
+        println!("cargo:rustc-link-search=native={}/build/third_party/cares",
+                 dst.display());
+        println!("cargo:rustc-link-search=native={}/build/third_party/zlib",
+                 dst.display());
         println!("cargo:rustc-link-search=native={}/build", dst.display());
 
         println!("cargo:rustc-link-lib=static=z");
         println!("cargo:rustc-link-lib=static=cares");
         println!("cargo:rustc-link-lib=static=gpr");
-        println!("cargo:rustc-link-lib=static=grpc_unsecure");
+        println!("cargo:rustc-link-lib=static=grpc");
 
-        cc.include(format!("grpc-{}/include", GRPC_VERSION));
+        cc.include(format!("{}/grpc/include", out_dir));
     }
 }
 
