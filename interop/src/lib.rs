@@ -19,9 +19,9 @@
 extern crate protobuf;
 #[macro_use]
 extern crate futures;
+extern crate futures_cpupool;
 extern crate grpc;
 extern crate grpc_sys;
-extern crate tokio_core;
 extern crate grpc_proto;
 
 mod client;

@@ -15,8 +15,8 @@
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
            ServerStreamingSink, UnarySink};
 use grpc_sys::GrpcStatusCode;
-use tokio_core::reactor::Remote;
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
+use futures_cpupool::CpuPool;
 
 use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::testing::empty::Empty;
@@ -38,23 +38,21 @@ impl From<grpc::Error> for Error {
 
 #[derive(Clone)]
 pub struct InteropTestService {
-    remote: Remote,
+    pool: CpuPool,
 }
 
 impl InteropTestService {
-    pub fn new(remote: Remote) -> InteropTestService {
-        InteropTestService { remote: remote }
+    pub fn new(pool: CpuPool) -> InteropTestService {
+        InteropTestService { pool: pool }
     }
 }
 
 impl TestService for InteropTestService {
     fn empty_call(&self, _: RpcContext, _: Empty, resp: UnarySink<Empty>) {
-        self.remote
-            .spawn(move |_| {
-                       let res = Empty::new();
-                       resp.success(res)
-                           .map_err(|e| panic!("failed to send response: {:?}", e))
-                   })
+        let res = Empty::new();
+        let f = resp.success(res)
+            .map_err(|e| panic!("failed to send response: {:?}", e));
+        self.pool.spawn(f).forget()
     }
 
     fn unary_call(&self, _: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
@@ -62,21 +60,17 @@ impl TestService for InteropTestService {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
             let status = RpcStatus::new(code.into(), msg);
-            self.remote
-                .spawn(|_| {
-                           sink.fail(status)
-                               .map_err(|e| panic!("failed to send response: {:?}", e))
-                       });
+            let f = sink.fail(status)
+                .map_err(|e| panic!("failed to send response: {:?}", e));
+            self.pool.spawn(f).forget();
             return;
         }
         let resp_size = req.get_response_size();
         let mut resp = SimpleResponse::new();
         resp.set_payload(util::new_payload(resp_size as usize));
-        self.remote
-            .spawn(|_| {
-                       sink.success(resp)
-                           .map_err(|e| panic!("failed to send response: {:?}", e))
-                   })
+        let f = sink.success(resp)
+            .map_err(|e| panic!("failed to send response: {:?}", e));
+        self.pool.spawn(f).forget()
     }
 
     fn cacheable_unary_call(&self, _: RpcContext, _: SimpleRequest, _: UnarySink<SimpleResponse>) {
@@ -95,12 +89,10 @@ impl TestService for InteropTestService {
                      Ok(resp)
                  })
             .collect();
-        self.remote
-            .spawn(|_| {
-                       sink.send_all(stream::iter(resps))
-                           .map(|_| {})
-                           .map_err(|e| panic!("failed to send response: {:?}", e))
-                   })
+        let f = sink.send_all(stream::iter(resps))
+            .map(|_| {})
+            .map_err(|e| panic!("failed to send response: {:?}", e));
+        self.pool.spawn(f).forget()
     }
 
     fn streaming_input_call(&self,
@@ -119,16 +111,16 @@ impl TestService for InteropTestService {
                          grpc::Error::RemoteStopped => {}
                          e => println!("failed to send streaming inptu: {:?}", e),
                      });
-        self.remote.spawn(|_| f)
+        self.pool.spawn(f).forget()
     }
 
     fn full_duplex_call(&self,
                         _: RpcContext,
                         stream: RequestStream<StreamingOutputCallRequest>,
                         sink: DuplexSink<StreamingOutputCallResponse>) {
-        self.remote
-            .spawn(|_| {
-                stream.map_err(Error::Grpc).fold(sink, |sink, mut req| {
+        let f = stream
+            .map_err(Error::Grpc)
+            .fold(sink, |sink, mut req| {
                 let mut failure = None;
                 let mut send = None;
                 if req.has_response_status() {
@@ -144,24 +136,22 @@ impl TestService for InteropTestService {
                     send = Some(sink.send(resp));
                 }
                 future::poll_fn(move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
-                    if let Some(ref mut send) = send {
-                        let sink = try_ready!(send.poll());
-                        Ok(Async::Ready(sink))
-                    } else {
-                        try_ready!(failure.as_mut().unwrap().poll());
-                        Err(Error::Abort)
-                    }
-                })
-            }).and_then(|mut sink| {
-                future::poll_fn(move || sink.close().map_err(From::from))
-            }).or_else(|e| {
-                match e {
-                    Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
-                    Error::Grpc(e) => println!("failed to handle duplex call: {:?}", e),
+                if let Some(ref mut send) = send {
+                    let sink = try_ready!(send.poll());
+                    Ok(Async::Ready(sink))
+                } else {
+                    try_ready!(failure.as_mut().unwrap().poll());
+                    Err(Error::Abort)
                 }
-                Ok(())
             })
             })
+            .and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
+            .map_err(|e| match e {
+                         Error::Grpc(grpc::Error::RemoteStopped) |
+                         Error::Abort => {}
+                         Error::Grpc(e) => println!("failed to handle duplex call: {:?}", e),
+                     });
+        self.pool.spawn(f).forget()
     }
 
     fn half_duplex_call(&self,
@@ -172,12 +162,8 @@ impl TestService for InteropTestService {
     }
 
     fn unimplemented_call(&self, _: RpcContext, _: Empty, sink: UnarySink<Empty>) {
-        self.remote
-            .spawn(|_| {
-                       sink.fail(RpcStatus::new(GrpcStatusCode::Unimplemented, None))
-                           .map_err(|e| {
-                                        println!("failed to report unimplemented method: {:?}", e)
-                                    })
-                   })
+        let f = sink.fail(RpcStatus::new(GrpcStatusCode::Unimplemented, None))
+            .map_err(|e| println!("failed to report unimplemented method: {:?}", e));
+        self.pool.spawn(f).forget()
     }
 }

@@ -15,7 +15,8 @@
 extern crate clap;
 extern crate grpc;
 extern crate interop;
-extern crate tokio_core;
+extern crate futures;
+extern crate futures_cpupool;
 extern crate grpc_proto;
 
 use std::sync::Arc;
@@ -24,7 +25,8 @@ use clap::{App, Arg};
 use grpc::{Environment, ServerBuilder};
 use interop::InteropTestService;
 use grpc_proto::testing::test_grpc;
-use tokio_core::reactor::Core;
+use futures::{Future, future};
+use futures_cpupool::CpuPool;
 
 fn main() {
     let matches = App::new("Interoperability Test Server")
@@ -43,10 +45,9 @@ fn main() {
         .parse()
         .unwrap();
 
-    let mut core = Core::new().unwrap();
-    let remote = core.remote();
+    let pool = CpuPool::new(1);
     let env = Arc::new(Environment::new(2));
-    let instance = InteropTestService::new(remote);
+    let instance = InteropTestService::new(pool);
     let service = test_grpc::create_test_service(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
@@ -59,7 +60,5 @@ fn main() {
 
     server.start();
 
-    loop {
-        core.turn(None)
-    }
+    let _ = future::empty::<(), ()>().wait();
 }
