@@ -179,7 +179,6 @@ mod imp {
                  dst.display());
         println!("cargo:rustc-link-search=native={}/build/third_party/zlib",
                  dst.display());
-        println!("cargo:rustc-link-search=native={}/build", dst.display());
 
         println!("cargo:rustc-link-lib=static=z");
         println!("cargo:rustc-link-lib=static=cares");
