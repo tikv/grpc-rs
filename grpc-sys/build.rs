@@ -135,7 +135,7 @@ mod imp {
     }
 
 
-    pub fn build_or_link_grpc(cc: &mut ::gcc::Config) {
+    pub fn build_or_link_grpc(cc: &mut gcc::Config) {
         let out_dir = env::var("OUT_DIR").expect("Can't access OUT_DIR");
         DirBuilder::new()
             .recursive(true)
@@ -170,7 +170,7 @@ mod imp {
             .args(&["acountry.c", "adig.c", "ahost.c"])
             .status();
 
-        let dst = ::cmake::Config::new(format!("{}/grpc", out_dir))
+        let dst = cmake::Config::new(format!("{}/grpc", out_dir))
             .build_target("grpc")
             .build();
 
@@ -190,7 +190,7 @@ mod imp {
 }
 
 fn main() {
-    let mut cc = ::gcc::Config::new();
+    let mut cc = gcc::Config::new();
 
     imp::build_or_link_grpc(&mut cc);
 
