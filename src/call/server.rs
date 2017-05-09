@@ -21,7 +21,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
                GrpcStatusCode};
 use protobuf::{self, Message, MessageStatic};
 
-use async::{BatchFuture, Promise};
+use async::{BatchFuture, CallTag};
 use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase};
 use cq::CompletionQueue;
 use error::Error;
@@ -93,15 +93,15 @@ impl RequestContext {
     /// request is received.
     pub fn handle_unary_req(self, inner: Arc<Inner>, _: &CompletionQueue) {
         // fetch message before calling callback.
-        let prom = Box::new(Promise::unary_request(self, inner));
-        let batch_ctx = prom.batch_ctx().unwrap().as_ptr();
-        let request_ctx = prom.request_ctx().unwrap().as_ptr();
-        let tag = Box::into_raw(prom);
+        let tag = Box::new(CallTag::unary_request(self, inner));
+        let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
+        let request_ctx = tag.request_ctx().unwrap().as_ptr();
+        let tag_ptr = Box::into_raw(tag);
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(request_ctx);
-            let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag as _);
+            let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag_ptr as _);
             if code != GrpcCallStatus::Ok {
-                Box::from_raw(tag);
+                Box::from_raw(tag_ptr);
                 // it should not failed.
                 panic!("try to receive message fail: {:?}", code);
             }
