@@ -249,7 +249,7 @@ impl Call {
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(call_ptr,
                                                             batch_ptr,
-                                                            GrpcStatusCode::Unimplemented,
+                                                            status.status,
                                                             details_ptr,
                                                             details_len,
                                                             ptr::null_mut(),
