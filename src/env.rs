@@ -18,7 +18,7 @@ use std::thread::{Builder, JoinHandle};
 
 use grpc_sys;
 
-use async::Promise;
+use async::CallTag;
 use cq::{CompletionQueue, EventType};
 
 // event loop
@@ -32,9 +32,9 @@ fn poll_queue(cq: Arc<CompletionQueue>) {
             EventType::OpComplete => {}
         }
 
-        let ctx: Box<Promise> = unsafe { Box::from_raw(e.tag as _) };
+        let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
 
-        ctx.resolve(&cq, e.success != 0);
+        tag.resolve(&cq, e.success != 0);
     }
 }
 

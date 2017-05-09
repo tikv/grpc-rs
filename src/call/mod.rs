@@ -24,7 +24,7 @@ use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
 use libc::c_void;
 
-use async::{BatchFuture, BatchType, Promise};
+use async::{BatchFuture, BatchType, CallTag};
 use error::{Error, Result};
 
 #[derive(Clone, Copy)]
@@ -133,14 +133,14 @@ impl Drop for BatchContext {
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
     where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus
 {
-    let (cq_f, prom) = Promise::batch_pair(bt);
-    let prom_box = Box::new(prom);
-    let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
-    let prom_ptr = Box::into_raw(prom_box);
-    let code = f(batch_ptr, prom_ptr as *mut c_void);
+    let (cq_f, tag) = CallTag::batch_pair(bt);
+    let tag_box = Box::new(tag);
+    let batch_ptr = tag_box.batch_ctx().unwrap().as_ptr();
+    let tag_ptr = Box::into_raw(tag_box);
+    let code = f(batch_ptr, tag_ptr as *mut c_void);
     if code != GrpcCallStatus::Ok {
         unsafe {
-            Box::from_raw(prom_ptr);
+            Box::from_raw(tag_ptr);
         }
         panic!("create call fail: {:?}", code);
     }
@@ -238,10 +238,10 @@ impl Call {
     /// Abort an rpc call before handler is called.
     pub fn abort(self, status: RpcStatus) {
         let call_ptr = self.call;
-        let prom = Promise::abort(self);
-        let prom_box = Box::new(prom);
-        let batch_ptr = prom_box.batch_ctx().unwrap().as_ptr();
-        let prom_ptr = Box::into_raw(prom_box);
+        let tag = CallTag::abort(self);
+        let tag_box = Box::new(tag);
+        let batch_ptr = tag_box.batch_ctx().unwrap().as_ptr();
+        let tag_ptr = Box::into_raw(tag_box);
 
         let code = unsafe {
             let details_ptr = status
@@ -259,11 +259,11 @@ impl Call {
                                                             ptr::null(),
                                                             0,
                                                             0,
-                                                            prom_ptr as *mut c_void)
+                                                            tag_ptr as *mut c_void)
         };
         if code != GrpcCallStatus::Ok {
             unsafe {
-                Box::from_raw(prom_ptr);
+                Box::from_raw(tag_ptr);
             }
             panic!("create call fail: {:?}", code);
         }
