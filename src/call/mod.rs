@@ -233,7 +233,7 @@ impl Call {
         })
     }
 
-    /// Abort a rpc call before handler is called.
+    /// Abort an rpc call before handler is called.
     pub fn abort(self, status: RpcStatus) {
         let call_ptr = self.call;
         let prom = Promise::abort(self);
