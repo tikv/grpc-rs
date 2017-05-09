@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #![cfg_attr(feature = "dev", feature(plugin))]
 #![cfg_attr(feature = "dev", plugin(clippy))]
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
@@ -25,12 +26,14 @@ extern crate futures;
 extern crate protobuf;
 
 mod async;
+mod call;
 mod cq;
 mod env;
-mod call;
 mod error;
 
 pub use call::{Method, MethodType, RpcStatus};
+pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
+                       ServerStreamingCallHandler, UnaryCallHandler};
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
