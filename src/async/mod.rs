@@ -16,6 +16,7 @@
 #![allow(dead_code)]
 
 mod promise;
+mod callback;
 mod lock;
 
 use std::fmt::{self, Debug, Formatter};
@@ -24,9 +25,10 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
-use call::BatchContext;
+use call::{BatchContext, Call};
 use cq::CompletionQueue;
 use error::{Error, Result};
+use self::callback::Abort;
 use self::lock::SpinLock;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 
@@ -108,6 +110,7 @@ pub type BatchFuture = CqFuture<BatchMessage>;
 // This enum is going to be passed to FFI, so don't use trait or generic here.
 pub enum Promise {
     Batch(BatchPromise),
+    Abort(Abort),
     Shutdown(ShutdownPromise),
 }
 
@@ -126,10 +129,16 @@ impl Promise {
         (CqFuture::new(inner), Promise::Shutdown(shutdown))
     }
 
+    /// Generate a promise for abort call before handler is called.
+    pub fn abort(call: Call) -> Promise {
+        Promise::Abort(Abort::new(call))
+    }
+
     /// Get the batch context from result holder.
     pub fn batch_ctx(&self) -> Option<&BatchContext> {
         match *self {
             Promise::Batch(ref prom) => Some(prom.context()),
+            Promise::Abort(ref cb) => Some(cb.batch_ctx()),
             _ => None,
         }
     }
@@ -138,6 +147,7 @@ impl Promise {
     pub fn resolve(self, _: &CompletionQueue, success: bool) {
         match self {
             Promise::Batch(prom) => prom.resolve(success),
+            Promise::Abort(_) => {}
             Promise::Shutdown(prom) => prom.resolve(success),
         }
     }
@@ -147,6 +157,7 @@ impl Debug for Promise {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Promise::Batch(_) => write!(f, "Context::Batch(..)"),
+            Promise::Abort(_) => write!(f, "Context::Abort(..)"),
             Promise::Shutdown(_) => write!(f, "Context::Shutdown"),
         }
     }

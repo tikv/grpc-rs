@@ -189,7 +189,7 @@ impl<'a> MethodGen<'a> {
     fn duplex_streaming(&self, method_name: &str) -> String {
         format!("{}(&self) -> {}<{}, {}>",
                 method_name,
-                fq_grpc("DuplexStreamingCallHandler"),
+                fq_grpc("DuplexCallHandler"),
                 self.input(),
                 self.output())
     }
@@ -198,7 +198,7 @@ impl<'a> MethodGen<'a> {
         format!("{}_opt(&self, opt: {}) -> {}<{}, {}>",
                 method_name,
                 fq_grpc("CallOption"),
-                fq_grpc("DuplexStreamingCallHandler"),
+                fq_grpc("DuplexCallHandler"),
                 self.input(),
                 self.output())
     }
@@ -283,10 +283,10 @@ impl<'a> MethodGen<'a> {
 
     fn write_service(&self, w: &mut CodeWriter) {
         let (req, resp) = match self.method_type().0 {
-            MethodType::Unary => ("", "UnaryResponseSink"),
-            MethodType::ClientStreaming => ("RequestStream", "ClientStreamingResponseSink"),
-            MethodType::ServerStreaming => ("", "ResponseSink"),
-            MethodType::Duplex => ("RequestStream", "ResponseSink"),
+            MethodType::Unary => ("", "UnarySink"),
+            MethodType::ClientStreaming => ("RequestStream", "ClientStreamingSink"),
+            MethodType::ServerStreaming => ("", "ServerStreamingSink"),
+            MethodType::Duplex => ("RequestStream", "DuplexSink"),
         };
         let req = if req.is_empty() {
             self.input()
@@ -313,9 +313,7 @@ impl<'a> MethodGen<'a> {
                          add,
                          self.const_method_name()),
                 "});",
-                |w| {
-                    w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
-                });
+                |w| { w.write_line(&format!("instance.{}(ctx, req, resp)", self.name())); });
     }
 }
 
@@ -334,14 +332,15 @@ impl<'a> ServiceGen<'a> {
         } else {
             format!("/{}.{}", file.get_package(), proto.get_name())
         };
-        let methods = proto.get_method()
+        let methods = proto
+            .get_method()
             .into_iter()
             .map(|m| {
-                MethodGen::new(m,
-                               proto.get_name().to_string(),
-                               service_path.clone(),
-                               root_scope)
-            })
+                     MethodGen::new(m,
+                                    proto.get_name().to_string(),
+                                    service_path.clone(),
+                                    root_scope)
+                 })
             .collect();
 
         ServiceGen {
@@ -359,17 +358,15 @@ impl<'a> ServiceGen<'a> {
     }
 
     fn write_client(&self, w: &mut CodeWriter) {
-        w.pub_struct(&self.client_name(), |w| {
-            w.field_decl("client", "::grpc::Client");
-        });
+        w.pub_struct(&self.client_name(),
+                     |w| { w.field_decl("client", "::grpc::Client"); });
 
         w.write_line("");
 
         w.impl_self_block(&self.client_name(), |w| {
             w.pub_fn("new(channel: ::grpc::Channel) -> Self", |w| {
-                w.expr_block(&self.client_name(), |w| {
-                    w.field_entry("client", "::grpc::Client::new(channel)");
-                });
+                w.expr_block(&self.client_name(),
+                             |w| { w.field_entry("client", "::grpc::Client::new(channel)"); });
             });
 
             for method in &self.methods {
@@ -380,10 +377,8 @@ impl<'a> ServiceGen<'a> {
     }
 
     fn write_server(&self, w: &mut CodeWriter) {
-        w.pub_trait(&self.service_name(), |w| {
-            for method in &self.methods {
-                method.write_service(w);
-            }
+        w.pub_trait(&self.service_name(), |w| for method in &self.methods {
+            method.write_service(w);
         });
 
         w.write_line("");
@@ -393,13 +388,13 @@ impl<'a> ServiceGen<'a> {
                           self.service_name(),
                           fq_grpc("Service")),
                  |w| {
-            w.write_line("let mut builder = ::grpc::ServiceBuilder::new();");
-            for method in &self.methods {
-                w.write_line("let instance = s.clone();");
-                method.write_bind(w);
-            }
-            w.write_line("builder.build()");
-        });
+                     w.write_line("let mut builder = ::grpc::ServiceBuilder::new();");
+                     for method in &self.methods {
+                         w.write_line("let instance = s.clone();");
+                         method.write_bind(w);
+                     }
+                     w.write_line("builder.build()");
+                 });
     }
 
     fn write_method_definitions(&self, w: &mut CodeWriter) {
@@ -442,15 +437,16 @@ fn gen_file(file: &FileDescriptorProto,
     }
 
     Some(compiler_plugin::GenResult {
-        name: base + "_grpc.rs",
-        content: v,
-    })
+             name: base + "_grpc.rs",
+             content: v,
+         })
 }
 
 pub fn gen(file_descriptors: &[FileDescriptorProto],
            files_to_generate: &[String])
            -> Vec<compiler_plugin::GenResult> {
-    let files_map: HashMap<&str, &FileDescriptorProto> = file_descriptors.iter()
+    let files_map: HashMap<&str, &FileDescriptorProto> = file_descriptors
+        .iter()
         .map(|f| (f.get_name(), f))
         .collect();
 
