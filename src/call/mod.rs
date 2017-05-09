@@ -15,6 +15,7 @@
 // TODO: remove following line once all changes are merged into master
 #![allow(dead_code)]
 
+pub mod client;
 pub mod server;
 
 use std::{ptr, result, slice, usize};
