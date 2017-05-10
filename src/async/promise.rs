@@ -14,9 +14,7 @@
 
 use std::sync::Arc;
 
-use grpc_sys::GrpcStatusCode;
-
-use call::BatchContext;
+use call::{BatchContext, RpcStatusCode};
 use error::Error;
 use super::{BatchMessage, Inner};
 
@@ -63,7 +61,7 @@ impl Batch {
             return;
         }
         let status = self.ctx.rpc_status();
-        if status.status != GrpcStatusCode::Ok {
+        if status.status != RpcStatusCode::Ok {
             guard.set_result(Err(Error::RpcFailure(status)));
             return;
         }
@@ -74,7 +72,7 @@ impl Batch {
     fn handle_unary_response(&mut self) {
         let mut guard = self.inner.lock();
         let status = self.ctx.rpc_status();
-        if status.status != GrpcStatusCode::Ok {
+        if status.status != RpcStatusCode::Ok {
             guard.set_result(Err(Error::RpcFailure(status)));
             return;
         }

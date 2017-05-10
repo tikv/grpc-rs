@@ -15,8 +15,7 @@
 use std::thread;
 use std::time::Duration;
 
-use grpc::{self, CallOption, Channel};
-use grpc_sys::GrpcStatusCode;
+use grpc::{self, CallOption, Channel, RpcStatusCode};
 use futures::{Future, Sink, Stream, future, stream};
 
 use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
@@ -131,7 +130,7 @@ impl Client {
         thread::sleep(Duration::from_millis(10));
         let receiver = handler.cancel();
         match receiver.wait().unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, GrpcStatusCode::Cancelled),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Cancelled),
             e => panic!("expected cancel, but got: {:?}", e),
         }
         println!("pass");
@@ -157,7 +156,7 @@ impl Client {
         assert_eq!(resp.get_payload().get_body().len(), 31415);
         handler.cancel();
         match receiver.into_future().wait() {
-            Err((grpc::Error::RpcFailure(s), _)) => assert_eq!(s.status, GrpcStatusCode::Cancelled),
+            Err((grpc::Error::RpcFailure(s), _)) => assert_eq!(s.status, RpcStatusCode::Cancelled),
             Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
             Ok((r, _)) => panic!("expected error, but got: {:?}", r),
         }
@@ -174,7 +173,7 @@ impl Client {
         let _ = handler.send(req).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
-                assert_eq!(s.status, GrpcStatusCode::DeadlineExceeded)
+                assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
             }
             Err((e, _)) => panic!("expected timeout, but got: {:?}", e),
             _ => panic!("expected error"),
@@ -192,7 +191,7 @@ impl Client {
         req.set_response_status(status.clone());
         match self.client.unary_call(req).unwrap_err() {
             grpc::Error::RpcFailure(s) => {
-                assert_eq!(s.status, GrpcStatusCode::Unknown);
+                assert_eq!(s.status, RpcStatusCode::Unknown);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
             }
             e => panic!("expected rpc failure: {:?}", e),
@@ -204,7 +203,7 @@ impl Client {
         handler.send(req).wait().unwrap();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
-                assert_eq!(s.status, GrpcStatusCode::Unknown);
+                assert_eq!(s.status, RpcStatusCode::Unknown);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
             }
             Err((e, _)) => panic!("expected rpc failure: {:?}", e),
@@ -218,7 +217,7 @@ impl Client {
         match self.client
                   .unimplemented_call(Empty::new())
                   .unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, GrpcStatusCode::Unimplemented),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");
@@ -228,7 +227,7 @@ impl Client {
         print!("testing unimplemented_service ... ");
         let client = UnimplementedServiceClient::new(self.channel.clone());
         match client.unimplemented_call(Empty::new()).unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, GrpcStatusCode::Unimplemented),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");

@@ -13,8 +13,7 @@
 
 
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
-           ServerStreamingSink, UnarySink};
-use grpc_sys::GrpcStatusCode;
+           ServerStreamingSink, UnarySink, RpcStatusCode};
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
 use futures_cpupool::CpuPool;
 
@@ -162,7 +161,7 @@ impl TestService for InteropTestService {
     }
 
     fn unimplemented_call(&self, _: RpcContext, _: Empty, sink: UnarySink<Empty>) {
-        let f = sink.fail(RpcStatus::new(GrpcStatusCode::Unimplemented, None))
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
             .map_err(|e| println!("failed to report unimplemented method: {:?}", e));
         self.pool.spawn(f).forget()
     }

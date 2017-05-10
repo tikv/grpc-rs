@@ -17,12 +17,11 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext,
-               GrpcStatusCode};
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 use protobuf::{self, Message, MessageStatic};
 
 use async::{BatchFuture, CallTag};
-use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase};
+use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase, RpcStatusCode};
 use cq::CompletionQueue;
 use error::Error;
 use server::{CallBack, Inner};
@@ -182,7 +181,7 @@ impl UnaryRequestContext {
             return execute(self.request, data, handler.cb());
         }
 
-        let status = RpcStatus::new(GrpcStatusCode::Internal, Some("No payload".to_owned()));
+        let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
         self.request.take_call().unwrap().abort(status)
     }
 }
@@ -456,7 +455,7 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
         Ok(f) => f,
         Err(e) => {
             let status =
-                RpcStatus::new(GrpcStatusCode::Internal,
+                RpcStatus::new(RpcStatusCode::Internal,
                                Some(format!("Failed to deserialize response message: {:?}", e)));
             call.abort(status);
             return;
@@ -496,7 +495,7 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f:
         Ok(t) => t,
         Err(e) => {
             let status =
-                RpcStatus::new(GrpcStatusCode::Internal,
+                RpcStatus::new(RpcStatusCode::Internal,
                                Some(format!("Failed to deserialize response message: {:?}", e)));
             call.abort(status);
             return;
@@ -528,7 +527,7 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
 pub fn execute_unimplemented(mut ctx: RequestContext) {
     let mut call = ctx.take_call().unwrap();
     call.start_server_side();
-    call.abort(RpcStatus::new(GrpcStatusCode::Unimplemented, None))
+    call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
 }
 
 // Helper function to call handler.
