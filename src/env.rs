@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread::{Builder, JoinHandle};
+use std::thread::{Builder as ThreadBuilder, JoinHandle};
 
 use grpc_sys;
 
@@ -49,7 +49,7 @@ impl Environment {
     /// Initialize grpc and create a threadpool to poll event loop.
     ///
     /// Each thread in threadpool will have one event loop.
-    pub fn new(cq_count: usize) -> Environment {
+    pub fn new(name: &str, cq_count: usize) -> Environment {
         assert!(cq_count > 0);
         unsafe {
             grpc_sys::grpc_init();
@@ -59,8 +59,8 @@ impl Environment {
         for i in 0..cq_count {
             let cq = Arc::new(CompletionQueue::new());
             let cq_ = cq.clone();
-            let handle = Builder::new()
-                .name(format!("grpc-pollthread-{}", i))
+            let handle = ThreadBuilder::new()
+                .name(format!("grpc-{}-{}", name, i))
                 .spawn(move || poll_queue(cq_))
                 .unwrap();
             cqs.push(cq);
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_basic_loop() {
-        let mut env = Environment::new(2);
+        let mut env = Environment::new("test", 2);
 
         let q1_ptr = env.pick_cq();
         let q2_ptr = env.pick_cq();
