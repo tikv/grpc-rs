@@ -108,57 +108,57 @@ pub type BatchFuture = CqFuture<BatchMessage>;
 
 /// A result holder for asynchronous execution.
 // This enum is going to be passed to FFI, so don't use trait or generic here.
-pub enum Promise {
+pub enum CallTag {
     Batch(BatchPromise),
     Abort(Abort),
     Shutdown(ShutdownPromise),
 }
 
-impl Promise {
-    /// Generate a future/promise pair for batch jobs.
-    pub fn batch_pair(ty: BatchType) -> (BatchFuture, Promise) {
+impl CallTag {
+    /// Generate a Future/CallTag pair for batch jobs.
+    pub fn batch_pair(ty: BatchType) -> (BatchFuture, CallTag) {
         let inner = new_inner();
         let batch = BatchPromise::new(ty, inner.clone());
-        (CqFuture::new(inner), Promise::Batch(batch))
+        (CqFuture::new(inner), CallTag::Batch(batch))
     }
 
-    /// Generate a future/promise pair for shutdown call.
-    pub fn shutdown_pair() -> (CqFuture<()>, Promise) {
+    /// Generate a Future/CallTag pair for shutdown call.
+    pub fn shutdown_pair() -> (CqFuture<()>, CallTag) {
         let inner = new_inner();
         let shutdown = ShutdownPromise::new(inner.clone());
-        (CqFuture::new(inner), Promise::Shutdown(shutdown))
+        (CqFuture::new(inner), CallTag::Shutdown(shutdown))
     }
 
-    /// Generate a promise for abort call before handler is called.
-    pub fn abort(call: Call) -> Promise {
-        Promise::Abort(Abort::new(call))
+    /// Generate a CallTag for abort call before handler is called.
+    pub fn abort(call: Call) -> CallTag {
+        CallTag::Abort(Abort::new(call))
     }
 
     /// Get the batch context from result holder.
     pub fn batch_ctx(&self) -> Option<&BatchContext> {
         match *self {
-            Promise::Batch(ref prom) => Some(prom.context()),
-            Promise::Abort(ref cb) => Some(cb.batch_ctx()),
+            CallTag::Batch(ref prom) => Some(prom.context()),
+            CallTag::Abort(ref cb) => Some(cb.batch_ctx()),
             _ => None,
         }
     }
 
-    /// Resolve the promise with given status.
+    /// Resolve the CallTag with given status.
     pub fn resolve(self, _: &CompletionQueue, success: bool) {
         match self {
-            Promise::Batch(prom) => prom.resolve(success),
-            Promise::Abort(_) => {}
-            Promise::Shutdown(prom) => prom.resolve(success),
+            CallTag::Batch(prom) => prom.resolve(success),
+            CallTag::Abort(_) => {}
+            CallTag::Shutdown(prom) => prom.resolve(success),
         }
     }
 }
 
-impl Debug for Promise {
+impl Debug for CallTag {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Promise::Batch(_) => write!(f, "Context::Batch(..)"),
-            Promise::Abort(_) => write!(f, "Context::Abort(..)"),
-            Promise::Shutdown(_) => write!(f, "Context::Shutdown"),
+            CallTag::Batch(_) => write!(f, "Context::Batch(..)"),
+            CallTag::Abort(_) => write!(f, "Context::Abort(..)"),
+            CallTag::Shutdown(_) => write!(f, "Context::Shutdown"),
         }
     }
 }
@@ -176,8 +176,8 @@ mod tests {
     fn test_resolve() {
         let env = Environment::new("test", 1);
 
-        let (cq_f1, prom1) = Promise::shutdown_pair();
-        let (cq_f2, prom2) = Promise::shutdown_pair();
+        let (cq_f1, tag1) = CallTag::shutdown_pair();
+        let (cq_f2, tag2) = CallTag::shutdown_pair();
         let (tx, rx) = mpsc::channel();
 
         let handler = thread::spawn(move || {
@@ -186,11 +186,11 @@ mod tests {
                                     });
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        prom1.resolve(&env.pick_cq(), true);
+        tag1.resolve(&env.pick_cq(), true);
         assert!(rx.recv().unwrap().is_ok());
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        prom2.resolve(&env.pick_cq(), false);
+        tag2.resolve(&env.pick_cq(), false);
         match rx.recv() {
             Ok(Err(Error::ShutdownFailed)) => {}
             res => panic!("expect shutdown failed, but got {:?}", res),
