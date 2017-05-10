@@ -230,7 +230,7 @@ impl Channel {
             let cq = self.cq.as_ptr();
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
-            let timeout = opt.timeout()
+            let timeout = opt.get_timeout()
                 .map_or_else(GprTimespec::inf_future, GprTimespec::from);
             grpc_sys::grpcwrap_channel_create_call(ch,
                                                    ptr::null_mut(),

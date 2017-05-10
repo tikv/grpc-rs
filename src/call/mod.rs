@@ -129,14 +129,18 @@ impl Drop for BatchContext {
     }
 }
 
+#[inline]
+fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
+    let tag_box = Box::new(tag);
+    (tag_box.batch_ctx().unwrap().as_ptr(), Box::into_raw(tag_box) as _)
+}
+
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
     where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
-    let tag_box = Box::new(tag);
-    let batch_ptr = tag_box.batch_ctx().unwrap().as_ptr();
-    let tag_ptr = Box::into_raw(tag_box);
+    let (batch_ptr, tag_ptr) = box_batch_tag(tag);
     let code = f(batch_ptr, tag_ptr as *mut c_void);
     if code != GrpcCallStatus::Ok {
         unsafe {
@@ -239,9 +243,7 @@ impl Call {
     pub fn abort(self, status: RpcStatus) {
         let call_ptr = self.call;
         let tag = CallTag::abort(self);
-        let tag_box = Box::new(tag);
-        let batch_ptr = tag_box.batch_ctx().unwrap().as_ptr();
-        let tag_ptr = Box::into_raw(tag_box);
+        let (batch_ptr, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
             let details_ptr = status

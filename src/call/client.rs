@@ -46,7 +46,7 @@ pub struct CallOption {
 
 impl CallOption {
     /// Signal that the call is idempotent
-    pub fn with_idempotent(mut self, is_idempotent: bool) -> CallOption {
+    pub fn idempotent(mut self, is_idempotent: bool) -> CallOption {
         change_flag(&mut self.call_flags,
                     grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST,
                     is_idempotent);
@@ -54,7 +54,7 @@ impl CallOption {
     }
 
     /// Signal that the call should not return UNAVAILABLE before it has started
-    pub fn with_wait_for_ready(mut self, wait_for_ready: bool) -> CallOption {
+    pub fn wait_for_ready(mut self, wait_for_ready: bool) -> CallOption {
         change_flag(&mut self.call_flags,
                     grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY,
                     wait_for_ready);
@@ -62,7 +62,7 @@ impl CallOption {
     }
 
     /// Signal that the call is cacheable. GRPC is free to use GET verb
-    pub fn with_cacheable(mut self, cacheable: bool) -> CallOption {
+    pub fn cacheable(mut self, cacheable: bool) -> CallOption {
         change_flag(&mut self.call_flags,
                     grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST,
                     cacheable);
@@ -70,7 +70,7 @@ impl CallOption {
     }
 
     /// Hint that the write may be buffered and need not go out on the wire immediately.
-    pub fn with_buffer_hint(mut self, need_buffered: bool) -> CallOption {
+    pub fn buffer_hint(mut self, need_buffered: bool) -> CallOption {
         change_flag(&mut self.write_flags,
                     grpc_sys::GRPC_WRITE_BUFFER_HINT,
                     need_buffered);
@@ -78,7 +78,7 @@ impl CallOption {
     }
 
     /// Force compression to be disabled.
-    pub fn with_force_no_compress(mut self, no_compress: bool) -> CallOption {
+    pub fn force_no_compress(mut self, no_compress: bool) -> CallOption {
         change_flag(&mut self.write_flags,
                     grpc_sys::GRPC_WRITE_NO_COMPRESS,
                     no_compress);
@@ -86,13 +86,13 @@ impl CallOption {
     }
 
     /// Set a timeout.
-    pub fn with_timeout(mut self, timeout: Duration) -> CallOption {
+    pub fn timeout(mut self, timeout: Duration) -> CallOption {
         self.timeout = Some(timeout);
         self
     }
 
     /// Get the timeout.
-    pub fn timeout(&self) -> Option<Duration> {
+    pub fn get_timeout(&self) -> Option<Duration> {
         self.timeout
     }
 }
@@ -182,7 +182,7 @@ impl Call {
     }
 }
 
-/// A handler to handle uanry async call.
+/// A handler to handle a uanry async call.
 ///
 /// The future is resolved once response is received.
 pub struct UnaryCallHandler<T> {
@@ -217,7 +217,7 @@ impl<T: MessageStatic> Future for UnaryCallHandler<T> {
     }
 }
 
-/// An unary response receiver. It's used for client streaming request.
+/// A unary response receiver. It's used for client streaming request.
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
     resp_f: CqFuture<BatchMessage>,
@@ -237,7 +237,7 @@ impl<T: MessageStatic> Future for UnaryResponseReceiver<T> {
 
 /// A handler for client streaming call.
 ///
-/// Once all request is flushed, it can be converted to `UnaryResponseReceiver`
+/// Once all requests are flushed, it can be converted to `UnaryResponseReceiver`
 /// to receive response asynchronously.
 pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
@@ -429,5 +429,17 @@ impl<Q: MessageStatic> Stream for StreamingResponseReceiver<Q> {
                 Ok(Async::Ready(Some(msg)))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_change_flag() {
+        let mut flag = 2 | 4;
+        super::change_flag(&mut flag, 8, true);
+        assert_eq!(flag, 2 | 4 | 8);
+        super::change_flag(&mut flag, 4, false);
+        assert_eq!(flag, 2 | 8);
     }
 }
