@@ -52,19 +52,19 @@ mod imp {
     const BORINGSSL_COMMIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
     const CARES_TAG: &'static str = "cares-1_12_0";
 
-    struct FakeGitSubmodule {
+    struct GithubRepoFetcher {
         url: String,
         base_name: String,
         to_dir: String,
     }
 
-    impl FakeGitSubmodule {
+    impl GithubRepoFetcher {
         fn new_with_hash(account: &str,
                          repo: &str,
                          commit_hash: &str,
                          to_dir: &str)
-                         -> FakeGitSubmodule {
-            FakeGitSubmodule {
+                         -> GithubRepoFetcher {
+            GithubRepoFetcher {
                 url: format!("https://github.com/{}/{}/archive/{}.tar.gz",
                              account,
                              repo,
@@ -74,8 +74,8 @@ mod imp {
             }
         }
 
-        fn new_with_tag(account: &str, repo: &str, tag: &str, to_dir: &str) -> FakeGitSubmodule {
-            FakeGitSubmodule {
+        fn new_with_tag(account: &str, repo: &str, tag: &str, to_dir: &str) -> GithubRepoFetcher {
+            GithubRepoFetcher {
                 url: format!("https://github.com/{}/{}/archive/{}.tar.gz",
                              account,
                              repo,
@@ -85,8 +85,8 @@ mod imp {
             }
         }
 
-        fn new_with_semver(account: &str, repo: &str, ver: &str, to_dir: &str) -> FakeGitSubmodule {
-            FakeGitSubmodule {
+        fn new_with_semver(account: &str, repo: &str, ver: &str, to_dir: &str) -> GithubRepoFetcher {
+            GithubRepoFetcher {
                 url: format!("https://github.com/{}/{}/archive/v{}.tar.gz",
                              account,
                              repo,
@@ -96,7 +96,7 @@ mod imp {
             }
         }
 
-        fn init(&self) -> Result<(), String> {
+        fn fetch(&self) -> Result<(), String> {
             let out_dir = env::var_os("OUT_DIR").unwrap();
             let tgz_file_name = format!("{}.tar.gz", self.base_name);
             try!(Command::new("wget")
@@ -148,26 +148,26 @@ mod imp {
             .create(format!("{}/{}", out_dir, "grpc"))
             .unwrap();
 
-        FakeGitSubmodule::new_with_semver("grpc", "grpc", GRPC_VERSION, "grpc")
-            .init()
+        GithubRepoFetcher::new_with_semver("grpc", "grpc", GRPC_VERSION, "grpc")
+            .fetch()
             .unwrap();
 
-        FakeGitSubmodule::new_with_semver("madler", "zlib", ZLIB_VERSION, "grpc/third_party/zlib")
-            .init()
+        GithubRepoFetcher::new_with_semver("madler", "zlib", ZLIB_VERSION, "grpc/third_party/zlib")
+            .fetch()
             .unwrap();
 
-        FakeGitSubmodule::new_with_hash("google",
+        GithubRepoFetcher::new_with_hash("google",
                                         "boringssl",
                                         BORINGSSL_COMMIT_HASH,
                                         "grpc/third_party/boringssl")
-                .init()
+                .fetch()
                 .unwrap();
 
-        FakeGitSubmodule::new_with_tag("c-ares",
+        GithubRepoFetcher::new_with_tag("c-ares",
                                        "c-ares",
                                        CARES_TAG,
                                        "grpc/third_party/cares/cares")
-                .init()
+                .fetch()
                 .unwrap();
 
         // fix multiple _main symbols
