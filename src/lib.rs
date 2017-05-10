@@ -31,7 +31,7 @@ mod cq;
 mod env;
 mod error;
 
-pub use call::{Method, MethodType, RpcStatus};
+pub use call::{Method, MethodType, RpcStatus, RpcStatusCode};
 pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
                        ServerStreamingCallHandler, UnaryCallHandler};
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
