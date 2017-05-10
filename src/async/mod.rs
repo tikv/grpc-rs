@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_resolve() {
-        let env = Environment::new("test", 1);
+        let env = Environment::new(1);
 
         let (cq_f1, tag1) = CallTag::shutdown_pair();
         let (cq_f2, tag2) = CallTag::shutdown_pair();
