@@ -1,0 +1,17 @@
+[package]
+name = "grpc-proto"
+version = "0.1.0"
+build = "build.rs"
+
+[dependencies]
+protobuf = "1.2"
+grpc = { path = ".." }
+clippy = { version = "*", optional = true }
+
+[features]
+default = []
+dev = ["clippy"]
+
+[build-dependencies]
+protobuf = "1.2"
+grpc-compiler = { path = "../compiler" }
