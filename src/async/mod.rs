@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_resolve() {
-        let env = Environment::new(1);
+        let env = Environment::new("test", 1);
 
         let (cq_f1, prom1) = Promise::shutdown_pair();
         let (cq_f2, prom2) = Promise::shutdown_pair();
