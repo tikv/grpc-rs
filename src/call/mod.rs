@@ -22,11 +22,13 @@ use std::{ptr, result, slice, usize};
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcStatusCode};
+use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
 use async::{BatchFuture, BatchType, CallTag};
 use error::{Error, Result};
+
+pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 
 #[derive(Clone, Copy)]
 pub enum MethodType {
@@ -51,12 +53,12 @@ impl Method {
 /// Status return from server.
 #[derive(Debug)]
 pub struct RpcStatus {
-    pub status: GrpcStatusCode,
+    pub status: RpcStatusCode,
     pub details: Option<String>,
 }
 
 impl RpcStatus {
-    pub fn new(status: GrpcStatusCode, details: Option<String>) -> RpcStatus {
+    pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
         RpcStatus {
             status: status,
             details: details,
@@ -65,7 +67,7 @@ impl RpcStatus {
 
     /// Generate an Ok status.
     pub fn ok() -> RpcStatus {
-        RpcStatus::new(GrpcStatusCode::Ok, None)
+        RpcStatus::new(RpcStatusCode::Ok, None)
     }
 }
 
@@ -87,7 +89,7 @@ impl BatchContext {
     pub fn rpc_status(&self) -> RpcStatus {
         let status =
             unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) };
-        let details = if status == GrpcStatusCode::Ok {
+        let details = if status == RpcStatusCode::Ok {
             None
         } else {
             unsafe {
