@@ -38,6 +38,56 @@ fn poll_queue(cq: Arc<CompletionQueue>) {
     }
 }
 
+pub struct EnvBuilder {
+    cq_count: usize,
+    name_prefix: Option<String>,
+}
+
+impl EnvBuilder {
+    pub fn new() -> EnvBuilder {
+        EnvBuilder {
+            cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
+            name_prefix: None,
+        }
+    }
+
+    pub fn cq_count(mut self, count: usize) -> EnvBuilder {
+        assert!(count > 0);
+        self.cq_count = count;
+        self
+    }
+
+    pub fn name_prefix<S: Into<String>>(mut self, prefix: S) -> EnvBuilder {
+        self.name_prefix = Some(prefix.into());
+        self
+    }
+
+    pub fn build(self) -> Environment {
+        unsafe {
+            grpc_sys::grpc_init();
+        }
+        let mut cqs = Vec::with_capacity(self.cq_count);
+        let mut handles = Vec::with_capacity(self.cq_count);
+        for i in 0..self.cq_count {
+            let cq = Arc::new(CompletionQueue::new());
+            let cq_ = cq.clone();
+            let mut builder = ThreadBuilder::new();
+            if let Some(ref prefix) = self.name_prefix {
+                builder = builder.name(format!("{}-{}", prefix, i));
+            }
+            let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
+            cqs.push(cq);
+            handles.push(handle);
+        }
+
+        Environment {
+            cqs: cqs,
+            idx: AtomicUsize::new(0),
+            _handles: handles,
+        }
+    }
+}
+
 /// An object that used to control concurrency and start event loop.
 pub struct Environment {
     cqs: Vec<Arc<CompletionQueue>>,
@@ -49,29 +99,12 @@ impl Environment {
     /// Initialize grpc and create a threadpool to poll event loop.
     ///
     /// Each thread in threadpool will have one event loop.
-    pub fn new(name: &str, cq_count: usize) -> Environment {
+    pub fn new(cq_count: usize) -> Environment {
         assert!(cq_count > 0);
-        unsafe {
-            grpc_sys::grpc_init();
-        }
-        let mut cqs = Vec::with_capacity(cq_count);
-        let mut handles = Vec::with_capacity(cq_count);
-        for i in 0..cq_count {
-            let cq = Arc::new(CompletionQueue::new());
-            let cq_ = cq.clone();
-            let handle = ThreadBuilder::new()
-                .name(format!("grpc-{}-{}", name, i))
-                .spawn(move || poll_queue(cq_))
-                .unwrap();
-            cqs.push(cq);
-            handles.push(handle);
-        }
-
-        Environment {
-            cqs: cqs,
-            idx: AtomicUsize::new(0),
-            _handles: handles,
-        }
+        EnvBuilder::new()
+            .name_prefix("grpc-poll")
+            .cq_count(cq_count)
+            .build()
     }
 
     /// Get all the created completion queues.
@@ -101,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_basic_loop() {
-        let mut env = Environment::new("test", 2);
+        let mut env = Environment::new(2);
 
         let q1_ptr = env.pick_cq();
         let q2_ptr = env.pick_cq();
