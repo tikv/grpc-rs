@@ -282,22 +282,19 @@ impl<'a> MethodGen<'a> {
     }
 
     fn write_service(&self, w: &mut CodeWriter) {
-        let (req, resp) = match self.method_type().0 {
-            MethodType::Unary => ("", "UnarySink"),
-            MethodType::ClientStreaming => ("RequestStream", "ClientStreamingSink"),
-            MethodType::ServerStreaming => ("", "ServerStreamingSink"),
-            MethodType::Duplex => ("RequestStream", "DuplexSink"),
+        let req_stream_type = format!("{}<{}>", fq_grpc("RequestStream"), self.input());
+        let (req, req_type, resp_type) = match self.method_type().0 {
+            MethodType::Unary => ("req", self.input(), "UnarySink"),
+            MethodType::ClientStreaming => ("stream", req_stream_type, "ClientStreamingSink"),
+            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamSink"),
+            MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
         };
-        let req = if req.is_empty() {
-            self.input()
-        } else {
-            format!("{}<{}>", fq_grpc(req), self.input())
-        };
-        let sig = format!("{}(&self, ctx: {}, req: {}, resp: {}<{}>)",
+        let sig = format!("{}(&self, ctx: {}, {}: {}, sink: {}<{}>)",
                           self.name(),
                           fq_grpc("RpcContext"),
                           req,
-                          fq_grpc(resp),
+                          req_type,
+                          fq_grpc(resp_type),
                           self.output());
         w.fn_def(&sig);
     }
