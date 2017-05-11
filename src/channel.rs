@@ -66,7 +66,7 @@ impl ChannelBuilder {
         }
     }
 
-    pub fn default_authority(mut self, authority: String) -> ChannelBuilder {
+    pub fn default_authority<S: Into<Vec<u8>>>(mut self, authority: S) -> ChannelBuilder {
         let authority = CString::new(authority).unwrap();
         self.options
             .insert(OPT_DEFAULT_AUTHORITY, Options::String(authority));
@@ -111,7 +111,7 @@ impl ChannelBuilder {
         self
     }
 
-    pub fn override_ssl_target(mut self, target: String) -> ChannelBuilder {
+    pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
         let target = CString::new(target).unwrap();
         self.options
             .insert(OPT_SSL_TARGET_NAME_OVERRIDE, Options::String(target));

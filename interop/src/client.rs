@@ -165,7 +165,7 @@ impl Client {
 
     pub fn timeout_on_sleeping_server(&self) {
         print!("testing timeout_of_sleeping_server ... ");
-        let opt = CallOption::default().timeout(Duration::new(0, 100_000));
+        let opt = CallOption::default().timeout(Duration::new(0, 10_000));
         let mut handler = self.client.full_duplex_call_opt(opt);
         let receiver = handler.take_receiver().unwrap();
         let mut req = StreamingOutputCallRequest::new();
@@ -176,7 +176,7 @@ impl Client {
                 assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
             }
             Err((e, _)) => panic!("expected timeout, but got: {:?}", e),
-            _ => panic!("expected error"),
+            Ok((r, _)) => panic!("expected error: {:?}", r),
         }
         println!("pass");
     }
