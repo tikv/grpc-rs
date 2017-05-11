@@ -88,9 +88,9 @@ mod tests {
         let (tx, rx) = mpsc::channel();
         let guard = lock1.lock();
         thread::spawn(move || {
-                          let _guard = lock2.lock();
-                          tx.send(()).unwrap();
-                      });
+            let _guard = lock2.lock();
+            tx.send(()).unwrap();
+        });
         thread::sleep(Duration::from_millis(10));
         assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
         drop(guard);

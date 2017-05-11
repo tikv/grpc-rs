@@ -85,7 +85,11 @@ mod imp {
             }
         }
 
-        fn new_with_semver(account: &str, repo: &str, ver: &str, to_dir: &str) -> GithubRepoFetcher {
+        fn new_with_semver(account: &str,
+                           repo: &str,
+                           ver: &str,
+                           to_dir: &str)
+                           -> GithubRepoFetcher {
             GithubRepoFetcher {
                 url: format!("https://github.com/{}/{}/archive/v{}.tar.gz",
                              account,
@@ -157,16 +161,16 @@ mod imp {
             .unwrap();
 
         GithubRepoFetcher::new_with_hash("google",
-                                        "boringssl",
-                                        BORINGSSL_COMMIT_HASH,
-                                        "grpc/third_party/boringssl")
+                                         "boringssl",
+                                         BORINGSSL_COMMIT_HASH,
+                                         "grpc/third_party/boringssl")
                 .fetch()
                 .unwrap();
 
         GithubRepoFetcher::new_with_tag("c-ares",
-                                       "c-ares",
-                                       CARES_TAG,
-                                       "grpc/third_party/cares/cares")
+                                        "c-ares",
+                                        CARES_TAG,
+                                        "grpc/third_party/cares/cares")
                 .fetch()
                 .unwrap();
 
