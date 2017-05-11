@@ -15,6 +15,7 @@ members = ["interop", "benchmark", "compiler"]
 [features]
 default = []
 dev = ["clippy"]
+static-link = ["grpc-sys/static-link"]
 
 [dev-dependencies]
 futures-cpupool = "0.1"

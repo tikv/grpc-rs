@@ -12,35 +12,37 @@
 // limitations under the License.
 
 
-use CallOption;
-use call::{Call, Method};
-
-use cq::CompletionQueue;
-use credentials::ChannelCredentials;
-use env::Environment;
-use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
-
-use libc::{c_char, c_int};
 use std::{mem, ptr};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::CString;
 use std::sync::Arc;
 
-// hack: add a '\0' to be compatible with c string without extra allocation.
-const OPT_DEFAULT_AUTHORITY: &'static str = "grpc.default_authority\0";
-const OPT_MAX_CONCURRENT_STREAMS: &'static str = "grpc.max_concurrent_streams\0";
-const OPT_MAX_RECEIVE_MESSAGE_LENGTH: &'static str = "grpc.max_receive_message_length\0";
-const OPT_MAX_SEND_MESSAGE_LENGTH: &'static str = "grpc.max_send_message_length\0";
-const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static str = "grpc.http2.initial_sequence_number\0";
-const OPT_SO_REUSE_PORT: &'static str = "grpc.so_reuseport\0";
-const OPT_SSL_TARGET_NAME_OVERRIDE: &'static str = "grpc.ssl_target_name_override\0";
-const PRIMARY_USER_AGENT_STRING: &'static str = "grpc.primary_user_agent\0";
+use libc::{c_char, c_int};
+use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 
+use CallOption;
+use call::{Call, Method};
+use credentials::ChannelCredentials;
+use cq::CompletionQueue;
+use env::Environment;
+
+
+// hack: add a '\0' to be compatible with c string without extra allocation.
+const OPT_DEFAULT_AUTHORITY: &'static [u8] = b"grpc.default_authority\0";
+const OPT_MAX_CONCURRENT_STREAMS: &'static [u8] = b"grpc.max_concurrent_streams\0";
+const OPT_MAX_RECEIVE_MESSAGE_LENGTH: &'static [u8] = b"grpc.max_receive_message_length\0";
+const OPT_MAX_SEND_MESSAGE_LENGTH: &'static [u8] = b"grpc.max_send_message_length\0";
+const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8] = b"grpc.http2.initial_sequence_number\0";
+const OPT_SO_REUSE_PORT: &'static [u8] = b"grpc.so_reuseport\0";
+const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
+const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
+
+/// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
     let version = env!("CARGO_PKG_VERSION");
     let trimed_agent = agent.trim();
-    let val = if trimed_agent.trim().is_empty() {
+    let val = if trimed_agent.is_empty() {
         format!("grpc-rust/{}", version)
     } else {
         format!("{} grpc-rust/{}", trimed_agent, version)
@@ -53,19 +55,21 @@ enum Options {
     String(CString),
 }
 
+/// Channel configuration object.
 pub struct ChannelBuilder {
-    environ: Arc<Environment>,
-    options: HashMap<&'static str, Options>,
+    env: Arc<Environment>,
+    options: HashMap<&'static [u8], Options>,
 }
 
 impl ChannelBuilder {
-    pub fn new(environ: Arc<Environment>) -> ChannelBuilder {
+    pub fn new(env: Arc<Environment>) -> ChannelBuilder {
         ChannelBuilder {
-            environ: environ,
+            env: env,
             options: HashMap::new(),
         }
     }
 
+    /// Default authority to pass if none specified on call construction.
     pub fn default_authority<S: Into<Vec<u8>>>(mut self, authority: S) -> ChannelBuilder {
         let authority = CString::new(authority).unwrap();
         self.options
@@ -73,30 +77,35 @@ impl ChannelBuilder {
         self
     }
 
+    /// Maximum number of concurrent incoming streams to allow on a http2 connection.
     pub fn max_concurrent_stream(mut self, num: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_MAX_CONCURRENT_STREAMS, Options::Integer(num));
         self
     }
 
+    /// Maximum message length that the channel can receive. usize::MAX means unlimited.
     pub fn max_receive_message_len(mut self, len: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_MAX_RECEIVE_MESSAGE_LENGTH, Options::Integer(len));
         self
     }
 
+    /// Maximum message length that the channel can send. -1 means unlimited.
     pub fn max_send_message_len(mut self, len: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_MAX_SEND_MESSAGE_LENGTH, Options::Integer(len));
         self
     }
 
+    /// Initial sequence number for http2 transports.
     pub fn https_initial_seq_number(mut self, number: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER, Options::Integer(number));
         self
     }
 
+    /// Primary user agent: goes at the start of the user-agent metadata sent on each request.
     pub fn primary_user_agent(mut self, agent: &str) -> ChannelBuilder {
         let agent_string = format_user_agent_string(agent);
         self.options
@@ -104,6 +113,7 @@ impl ChannelBuilder {
         self
     }
 
+    /// If enable, allow the use of SO_REUSEPORT if it's available (default true).
     pub fn reuse_port(mut self, reuse: bool) -> ChannelBuilder {
         let opt = if reuse { 1 } else { 0 };
         self.options
@@ -111,6 +121,8 @@ impl ChannelBuilder {
         self
     }
 
+    /// The caller of the secure_channel_create functions may override the target name used for SSL
+    /// host name checking using this channel argument. This *should* be used for testing only.
     pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
         let target = CString::new(target).unwrap();
         self.options
@@ -118,6 +130,7 @@ impl ChannelBuilder {
         self
     }
 
+    /// Build a channel args from the current configuration.
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
@@ -136,6 +149,7 @@ impl ChannelBuilder {
         unsafe { ChannelArgs::from_raw(args) }
     }
 
+    /// Build an insure connection to the address.
     pub fn connect(self, addr: &str) -> Channel {
         self.connect_with_creds(addr, None)
     }
@@ -162,9 +176,9 @@ impl ChannelBuilder {
         };
 
         Channel {
-            cq: self.environ.pick_cq(),
+            cq: self.env.pick_cq(),
             inner: Arc::new(ChannelInner {
-                                _environ: self.environ,
+                                _env: self.env,
                                 channel: channel,
                             }),
         }
@@ -202,7 +216,7 @@ impl Drop for ChannelArgs {
 }
 
 struct ChannelInner {
-    _environ: Arc<Environment>,
+    _env: Arc<Environment>,
     channel: *mut GrpcChannel,
 }
 
@@ -214,6 +228,7 @@ impl Drop for ChannelInner {
     }
 }
 
+/// The Channel struct allows creation of Call objects.
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
@@ -224,6 +239,7 @@ unsafe impl Send for Channel {}
 unsafe impl Sync for Channel {}
 
 impl Channel {
+    /// Create a call using the method and option.
     pub fn create_call(&self, method: &Method, opt: &CallOption) -> Call {
         let raw_call = unsafe {
             let ch = self.inner.channel;

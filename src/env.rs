@@ -46,7 +46,7 @@ pub struct EnvBuilder {
 impl EnvBuilder {
     pub fn new() -> EnvBuilder {
         EnvBuilder {
-            cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() },
+            cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
             name_prefix: None,
         }
     }
@@ -101,7 +101,10 @@ impl Environment {
     /// Each thread in threadpool will have one event loop.
     pub fn new(cq_count: usize) -> Environment {
         assert!(cq_count > 0);
-        EnvBuilder::new().name_prefix("grpc-poll").cq_count(cq_count).build()
+        EnvBuilder::new()
+            .name_prefix("grpc-poll")
+            .cq_count(cq_count)
+            .build()
     }
 
     /// Get all the created completion queues.

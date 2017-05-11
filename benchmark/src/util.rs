@@ -67,7 +67,7 @@ pub fn new_rusage() -> rusage {
 
 #[inline]
 pub fn cpu_num_cores() -> usize {
-    unsafe { grpc_sys::gpr_cpu_num_cores() }
+    unsafe { grpc_sys::gpr_cpu_num_cores() as usize }
 }
 
 #[inline]
