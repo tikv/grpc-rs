@@ -69,7 +69,7 @@ impl ChannelBuilder {
     }
 
     /// Default authority to pass if none specified on call construction.
-    pub fn default_authority(mut self, authority: String) -> ChannelBuilder {
+    pub fn default_authority<S: Into<Vec<u8>>>(mut self, authority: S) -> ChannelBuilder {
         let authority = CString::new(authority).unwrap();
         self.options
             .insert(OPT_DEFAULT_AUTHORITY, Options::String(authority));
