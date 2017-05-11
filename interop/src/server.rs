@@ -13,7 +13,7 @@
 
 
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
-           ServerStreamingSink, UnarySink, RpcStatusCode};
+           RpcStatusCode, ServerStreamingSink, UnarySink};
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
 use futures_cpupool::CpuPool;
 
@@ -135,14 +135,14 @@ impl TestService for InteropTestService {
                     send = Some(sink.send(resp));
                 }
                 future::poll_fn(move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
-                if let Some(ref mut send) = send {
-                    let sink = try_ready!(send.poll());
-                    Ok(Async::Ready(sink))
-                } else {
-                    try_ready!(failure.as_mut().unwrap().poll());
-                    Err(Error::Abort)
-                }
-            })
+                    if let Some(ref mut send) = send {
+                        let sink = try_ready!(send.poll());
+                        Ok(Async::Ready(sink))
+                    } else {
+                        try_ready!(failure.as_mut().unwrap().poll());
+                        Err(Error::Abort)
+                    }
+                })
             })
             .and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
             .map_err(|e| match e {

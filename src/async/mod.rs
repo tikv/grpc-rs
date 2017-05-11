@@ -145,7 +145,7 @@ impl CallTag {
     pub fn unary_request(ctx: RequestContext, inner: Arc<ServerInner>) -> CallTag {
         let cb = UnaryRequestCallback::new(ctx, inner);
         CallTag::UnaryRequest(cb)
-   }
+    }
 
     /// Get the batch context from result holder.
     pub fn batch_ctx(&self) -> Option<&BatchContext> {

@@ -22,8 +22,13 @@ macro_rules! mk_test {
     ($case_name:ident, $func:ident, $use_tls:expr) => (
         #[test]
         fn $case_name() {
-            let pool = CpuPool::new(1);
             let env = Arc::new(Environment::new(2));
+            let env2 = env.clone();
+            let pool = Builder::new().pool_size(1).before_stop(move || {
+                // So when env is dropped, there should be no thread running,
+                // hence all the handler should be shut down gracefully.
+                env2.completion_queues();
+            }).create();
 
             let instance = InteropTestService::new(pool.clone());
             let service = test_grpc::create_test_service(instance);
@@ -39,7 +44,8 @@ macro_rules! mk_test {
             let mut server = builder.build();
             server.start();
 
-            let builder = ChannelBuilder::new(env).override_ssl_target("foo.test.google.fr");
+            let builder = ChannelBuilder::new(env.clone())
+                              .override_ssl_target("foo.test.google.fr");
             let channel = {
                 let (ref host, port) = server.bind_addrs()[0];
                 if $use_tls {
@@ -53,8 +59,6 @@ macro_rules! mk_test {
             let client = Client::new(channel);
 
             client.$func();
-
-            let _ = server.shutdown().wait();
         }
     );
     ($func:ident) => {
@@ -65,8 +69,7 @@ macro_rules! mk_test {
             use interop::{InteropTestService, Client};
             use grpc_proto::testing::test_grpc;
             use grpc_proto::util;
-            use futures::Future;
-            use futures_cpupool::CpuPool;
+            use futures_cpupool::Builder;
 
             mk_test!(test_insecure, $func, false);
             mk_test!(test_secure, $func, true);

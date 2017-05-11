@@ -216,9 +216,9 @@ impl Client {
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
                     if params.get_server_host_override() != "" {
-                        builder = builder.override_ssl_target(params
-                                                                  .get_server_host_override()
-                                                                  .to_owned());
+                        builder =
+                            builder
+                                .override_ssl_target(params.get_server_host_override().to_owned());
                     }
                     builder.secure_connect(addr, proto_util::create_test_channel_credentials())
                 } else {

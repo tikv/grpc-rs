@@ -35,11 +35,7 @@ fn main() {
                  .help("The port the worker should listen on. For example, \"8080\"")
                  .takes_value(true))
         .get_matches();
-    let port: u32 = matches
-        .value_of("port")
-        .unwrap_or("8080")
-        .parse()
-        .unwrap();
+    let port: u32 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
 
     let mut core = Core::new().unwrap();
     let env = Arc::new(Environment::new(2));

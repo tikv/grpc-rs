@@ -88,10 +88,7 @@ fn compile_all<P: AsRef<Path>>(include: P, proto_path: P, module: &str) {
 }
 
 fn check_protoc() {
-    let output = Command::new("protoc")
-        .arg("--version")
-        .output()
-        .unwrap();
+    let output = Command::new("protoc").arg("--version").output().unwrap();
     if !output.status.success() {
         panic!("protoc is required.");
     }

@@ -105,17 +105,16 @@ impl Call {
                                       -> UnaryCallHandler<Q> {
         let call = channel.create_call(method, &opt);
         let payload = req.write_to_bytes().unwrap();
-        let cq_f =
-            check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-                grpc_sys::grpcwrap_call_start_unary(call.call,
-                                                    ctx,
-                                                    payload.as_ptr() as *const _,
-                                                    payload.len(),
-                                                    opt.write_flags,
-                                                    ptr::null_mut(),
-                                                    opt.call_flags,
-                                                    tag)
-            });
+        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_unary(call.call,
+                                                ctx,
+                                                payload.as_ptr() as *const _,
+                                                payload.len(),
+                                                opt.write_flags,
+                                                ptr::null_mut(),
+                                                opt.call_flags,
+                                                tag)
+        });
         UnaryCallHandler::new(call, cq_f)
     }
 

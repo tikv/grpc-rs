@@ -34,7 +34,7 @@ fn main() {
         .about("ref https://github.com/grpc/grpc/blob/v1.2.x/doc/interop-test-descriptions.md")
         .arg(Arg::with_name("host")
                  .long("host")
-                 .help("The server host to listen to. For example, \"localhost\" or \"127.0.0.1\"")
+                 .help("The server host to listen to. For example, \"localhost\" or \"127.0.0.1\"",)
                  .takes_value(true))
         .arg(Arg::with_name("port")
                  .long("port")
@@ -46,11 +46,7 @@ fn main() {
                  .takes_value(true))
         .get_matches();
     let host = matches.value_of("host").unwrap_or("127.0.0.1");
-    let port: u32 = matches
-        .value_of("port")
-        .unwrap_or("8080")
-        .parse()
-        .unwrap();
+    let port: u32 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
     let use_tls: bool = matches
         .value_of("use_tls")
         .unwrap_or("false")

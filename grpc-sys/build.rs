@@ -65,7 +65,7 @@ mod imp {
                           account,
                           repo,
                           arch_tag);
-        let out_dir = env::var_os("OUT_DIR").unwrap();
+        let out_dir = env::var("OUT_DIR").unwrap();
         let tgz_file_name = format!("{}-{}.tar.gz", repo, arch_tag);
         let cmds = vec![
             vec!["wget", "-q", "-O", &tgz_file_name, &url],

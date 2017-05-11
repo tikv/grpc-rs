@@ -214,9 +214,7 @@ impl Client {
 
     pub fn unimplemented_method(&self) {
         print!("testing unimplemented_method ... ");
-        match self.client
-                  .unimplemented_call(Empty::new())
-                  .unwrap_err() {
+        match self.client.unimplemented_call(Empty::new()).unwrap_err() {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
             e => panic!("expected rpc failure: {:?}", e),
         }

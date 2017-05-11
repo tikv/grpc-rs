@@ -21,7 +21,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 use protobuf::{self, Message, MessageStatic};
 
 use async::{BatchFuture, CallTag};
-use call::{BatchContext, Call, MethodType, SinkBase, StreamingBase, RpcStatusCode};
+use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use cq::CompletionQueue;
 use error::Error;
 use server::{CallBack, Inner};
