@@ -67,14 +67,16 @@ pub enum MethodType {
 mod test {
     #[test]
     fn test_snake_name() {
-        let cases = vec![("AsyncRequest", "async_request"),
-                         ("asyncRequest", "async_request"),
-                         ("async_request", "async_request"),
-                         ("createID", "create_id"),
-                         ("CreateIDForReq", "create_id_for_req"),
-                         ("Create_ID_For_Req", "create_id_for_req"),
-                         ("ID", "id"),
-                         ("id", "id")];
+        let cases = vec![
+            ("AsyncRequest", "async_request"),
+            ("asyncRequest", "async_request"),
+            ("async_request", "async_request"),
+            ("createID", "create_id"),
+            ("CreateIDForReq", "create_id_for_req"),
+            ("Create_ID_For_Req", "create_id_for_req"),
+            ("ID", "id"),
+            ("id", "id"),
+        ];
 
         for (origin, exp) in cases {
             let res = super::to_snake_case(&origin);
