@@ -27,6 +27,7 @@ extern crate protobuf;
 
 mod async;
 mod call;
+mod channel;
 mod cq;
 mod env;
 mod error;
@@ -37,5 +38,6 @@ pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
+pub use channel::{Channel, ChannelBuilder};
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
