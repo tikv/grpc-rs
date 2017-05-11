@@ -1,3 +1,5 @@
+dist: trusty
+sudo: false
 language: rust
 cache:
   directories:
@@ -16,18 +18,9 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
-    - autoconf
-    - libtool
-    - gcc-4.8
 before_script:
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then export CC=gcc-4.8; fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew install autoconf automake libtool shtool; fi
   - test -f "$GRPC_HEADER" || (git clone -b v1.2.5 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
   - export C_INCLUDE_PATH="$HOME/.cache/include"
