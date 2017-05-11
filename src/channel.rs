@@ -41,7 +41,7 @@ const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 fn format_user_agent_string(agent: &str) -> CString {
     let version = env!("CARGO_PKG_VERSION");
     let trimed_agent = agent.trim();
-    let val = if trimed_agent.trim().is_empty() {
+    let val = if trimed_agent.is_empty() {
         format!("grpc-rust/{}", version)
     } else {
         format!("{} grpc-rust/{}", trimed_agent, version)
@@ -56,14 +56,14 @@ enum Options {
 
 /// Channel configuration object.
 pub struct ChannelBuilder {
-    environ: Arc<Environment>,
+    env: Arc<Environment>,
     options: HashMap<&'static [u8], Options>,
 }
 
 impl ChannelBuilder {
-    pub fn new(environ: Arc<Environment>) -> ChannelBuilder {
+    pub fn new(env: Arc<Environment>) -> ChannelBuilder {
         ChannelBuilder {
-            environ: environ,
+            env: env,
             options: HashMap::new(),
         }
     }
@@ -160,9 +160,9 @@ impl ChannelBuilder {
             unsafe { grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut()) };
 
         Channel {
-            cq: self.environ.pick_cq(),
+            cq: self.env.pick_cq(),
             inner: Arc::new(ChannelInner {
-                                _environ: self.environ,
+                                _env: self.env,
                                 channel: channel,
                             }),
         }
@@ -196,7 +196,7 @@ impl Drop for ChannelArgs {
 }
 
 struct ChannelInner {
-    _environ: Arc<Environment>,
+    _env: Arc<Environment>,
     channel: *mut GrpcChannel,
 }
 
