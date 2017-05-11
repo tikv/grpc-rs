@@ -19,15 +19,13 @@ const GRPC_VERSION: &'static str = "1.3.0";
 
 #[cfg(not(feature = "static-link"))]
 mod imp {
-    use gcc;
-    use pkg_config;
+    use gcc::Config as GccConfig;
+    use pkg_config::Config as PkgConfig;
 
     use super::GRPC_VERSION;
 
-    pub fn build_or_link_grpc(cc: &mut gcc::Config) {
-        if let Ok(lib) = pkg_config::Config::new()
-               .atleast_version(GRPC_VERSION)
-               .probe("grpc_unsecure") {
+    pub fn build_or_link_grpc(cc: &mut GccConfig) {
+        if let Ok(lib) = PkgConfig::new().atleast_version(GRPC_VERSION).probe("grpc") {
             for inc_path in lib.include_paths {
                 cc.include(inc_path);
             }
@@ -40,156 +38,92 @@ mod imp {
 #[cfg(feature = "static-link")]
 mod imp {
     use std::env;
-    use std::fs::DirBuilder;
     use std::process::Command;
 
-    use cmake;
-    use gcc;
+    use cmake::Config as CMakeConfig;
+    use gcc::Config as GccConfig;
 
     use super::GRPC_VERSION;
 
-    const ZLIB_VERSION: &'static str = "1.2.8";
+    const ZLIB_VERSION: &'static str = "v1.2.8";
     const BORINGSSL_COMMIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
     const CARES_TAG: &'static str = "cares-1_12_0";
 
-    struct GithubRepoFetcher {
-        url: String,
-        base_name: String,
-        to_dir: String,
-    }
-
-    impl GithubRepoFetcher {
-        fn new_with_hash(account: &str,
-                         repo: &str,
-                         commit_hash: &str,
-                         to_dir: &str)
-                         -> GithubRepoFetcher {
-            GithubRepoFetcher {
-                url: format!("https://github.com/{}/{}/archive/{}.tar.gz",
-                             account,
-                             repo,
-                             commit_hash),
-                base_name: format!("{}-{}", repo, commit_hash),
-                to_dir: to_dir.to_owned(),
+    fn execute(cmd: &mut Command) {
+        match cmd.status() {
+            Err(e) => panic!("failed to execute {:?}: {}", cmd, e),
+            Ok(status) => {
+                if !status.success() {
+                    panic!("command {:?} exit with {}", cmd, status);
+                }
             }
-        }
-
-        fn new_with_tag(account: &str, repo: &str, tag: &str, to_dir: &str) -> GithubRepoFetcher {
-            GithubRepoFetcher {
-                url: format!("https://github.com/{}/{}/archive/{}.tar.gz",
-                             account,
-                             repo,
-                             tag),
-                base_name: format!("{}-{}", repo, tag),
-                to_dir: to_dir.to_owned(),
-            }
-        }
-
-        fn new_with_semver(account: &str, repo: &str, ver: &str, to_dir: &str) -> GithubRepoFetcher {
-            GithubRepoFetcher {
-                url: format!("https://github.com/{}/{}/archive/v{}.tar.gz",
-                             account,
-                             repo,
-                             ver),
-                base_name: format!("{}-{}", repo, ver),
-                to_dir: to_dir.to_owned(),
-            }
-        }
-
-        fn fetch(&self) -> Result<(), String> {
-            let out_dir = env::var_os("OUT_DIR").unwrap();
-            let tgz_file_name = format!("{}.tar.gz", self.base_name);
-            try!(Command::new("wget")
-                     .args(&["-q", "-c", "-O", &tgz_file_name, &self.url])
-                     .current_dir(&out_dir)
-                     .status()
-                     .map_err(|err| format!("failed to execute wget: {}", err))
-                     .and_then(|status| if status.success() {
-                                   Ok(())
-                               } else {
-                                   Err(format!("wget exit with {}", status))
-                               }));
-
-            try!(Command::new("tar")
-                     .args(&["zxf", &tgz_file_name])
-                     .current_dir(&out_dir)
-                     .status()
-                     .map_err(|err| format!("failed to execute tar: {}", err))
-                     .and_then(|status| if status.success() {
-                                   Ok(())
-                               } else {
-                                   Err(format!("tar exit with {}", status))
-                               }));
-            // clean base dir
-            try!(Command::new("rm")
-                     .args(&["-r", &self.to_dir])
-                     .current_dir(&out_dir)
-                     .status()
-                     .map_err(|err| format!("failed to clean dir: {}", err)));
-
-            Command::new("mv")
-                .args(&[&self.base_name, &self.to_dir])
-                .current_dir(&out_dir)
-                .status()
-                .map_err(|err| format!("failed to mv: {}", err))
-                .and_then(|status| if status.success() {
-                              Ok(())
-                          } else {
-                              Err(format!("mv exit with {}", status))
-                          })
         }
     }
 
+    fn fetch_and_extract(account: &str, repo: &str, arch_tag: &str, to_dir: &str) {
+        let url = format!("https://github.com/{}/{}/archive/{}.tar.gz",
+                          account,
+                          repo,
+                          arch_tag);
+        let out_dir = env::var_os("OUT_DIR").unwrap();
+        let tgz_file_name = format!("{}-{}.tar.gz", repo, arch_tag);
+        let cmds = vec![
+            vec!["wget", "-q", "-O", &tgz_file_name, &url],
+            vec!["rm", "-rf", &to_dir],
+            vec!["mkdir", "-p", &to_dir],
+            vec!["tar", "zxf", &tgz_file_name, "-C", to_dir, "--strip-components", "1"],
+        ];
+        for cmd in cmds {
+            execute(Command::new(cmd[0]).args(&cmd[1..]).current_dir(&out_dir));
+        }
+    }
 
-    pub fn build_or_link_grpc(cc: &mut gcc::Config) {
+    fn inflate_grpc() {
+        fetch_and_extract("grpc", "grpc", &format!("v{}", GRPC_VERSION), "grpc");
+
+        let submodules =
+            vec![
+                ("madler", "zlib", ZLIB_VERSION, "grpc/third_party/zlib"),
+                ("google", "boringssl", BORINGSSL_COMMIT_HASH, "grpc/third_party/boringssl"),
+                ("c-ares", "c-ares", CARES_TAG, "grpc/third_party/cares/cares"),
+            ];
+
+        for (account, repo, tag, to_dir) in submodules {
+            fetch_and_extract(account, repo, tag, to_dir);
+        }
+    }
+
+    pub fn build_or_link_grpc(cc: &mut GccConfig) {
         let out_dir = env::var("OUT_DIR").expect("Can't access OUT_DIR");
-        DirBuilder::new()
-            .recursive(true)
-            .create(format!("{}/{}", out_dir, "grpc"))
-            .unwrap();
 
-        GithubRepoFetcher::new_with_semver("grpc", "grpc", GRPC_VERSION, "grpc")
-            .fetch()
-            .unwrap();
-
-        GithubRepoFetcher::new_with_semver("madler", "zlib", ZLIB_VERSION, "grpc/third_party/zlib")
-            .fetch()
-            .unwrap();
-
-        GithubRepoFetcher::new_with_hash("google",
-                                        "boringssl",
-                                        BORINGSSL_COMMIT_HASH,
-                                        "grpc/third_party/boringssl")
-                .fetch()
-                .unwrap();
-
-        GithubRepoFetcher::new_with_tag("c-ares",
-                                       "c-ares",
-                                       CARES_TAG,
-                                       "grpc/third_party/cares/cares")
-                .fetch()
-                .unwrap();
+        inflate_grpc();
 
         // fix multiple _main symbols
-        let _ = Command::new("rm")
-            .current_dir(&format!("{}/grpc/third_party/cares/cares", out_dir))
-            .args(&["acountry.c", "adig.c", "ahost.c"])
-            .status();
+        execute(Command::new("rm")
+                    .current_dir(&format!("{}/grpc/third_party/cares/cares", out_dir))
+                    .args(&["acountry.c", "adig.c", "ahost.c"]));
 
-        let dst = cmake::Config::new(format!("{}/grpc", out_dir))
+        let dst = CMakeConfig::new(format!("{}/grpc", out_dir))
             .build_target("grpc")
             .build();
 
-        println!("cargo:rustc-link-search=native={}/build", dst.display());
-        println!("cargo:rustc-link-search=native={}/build/third_party/cares",
-                 dst.display());
-        println!("cargo:rustc-link-search=native={}/build/third_party/zlib",
-                 dst.display());
+        let build_dir = format!("{}/build", dst.display());
+        println!("cargo:rustc-link-search=native={}", build_dir);
+        println!("cargo:rustc-link-search=native={}/third_party/cares",
+                 build_dir);
+        println!("cargo:rustc-link-search=native={}/third_party/zlib",
+                 build_dir);
+        println!("cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
+                 build_dir);
+        println!("cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
+                 build_dir);
 
         println!("cargo:rustc-link-lib=static=z");
         println!("cargo:rustc-link-lib=static=cares");
         println!("cargo:rustc-link-lib=static=gpr");
         println!("cargo:rustc-link-lib=static=grpc");
+        println!("cargo:rustc-link-lib=static=ssl");
+        println!("cargo:rustc-link-lib=static=crypto");
 
         cc.include(format!("{}/grpc/include", out_dir));
     }
