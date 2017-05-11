@@ -41,3 +41,4 @@ script:
   - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then FEATURES="dev"; else FEATURES="default"; fi
   - cargo build
   - cargo test --all --features "$FEATURES"
+  - cargo test --all --features "static-link $FEATURES"
