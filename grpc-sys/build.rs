@@ -78,7 +78,7 @@ mod imp {
         }
     }
 
-    fn inflate_grpc() {
+    fn prepare_grpc() {
         fetch_and_extract("grpc", "grpc", &format!("v{}", GRPC_VERSION), "grpc");
 
         let submodules =
@@ -96,7 +96,7 @@ mod imp {
     pub fn build_or_link_grpc(cc: &mut GccConfig) {
         let out_dir = env::var("OUT_DIR").expect("Can't access OUT_DIR");
 
-        inflate_grpc();
+        prepare_grpc();
 
         // fix multiple _main symbols
         execute(Command::new("rm")
