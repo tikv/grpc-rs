@@ -23,6 +23,7 @@ use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 
 use CallOption;
 use call::{Call, Method};
+use credentials::ChannelCredentials;
 use cq::CompletionQueue;
 use env::Environment;
 
@@ -122,7 +123,7 @@ impl ChannelBuilder {
 
     /// The caller of the secure_channel_create functions may override the target name used for SSL
     /// host name checking using this channel argument. This *should* be used for testing only.
-    pub fn override_ssl_target(mut self, target: String) -> ChannelBuilder {
+    pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
         let target = CString::new(target).unwrap();
         self.options
             .insert(OPT_SSL_TARGET_NAME_OVERRIDE, Options::String(target));
@@ -149,15 +150,30 @@ impl ChannelBuilder {
     }
 
     /// Build an insure connection to the address.
-    pub fn connect(mut self, addr: &str) -> Channel {
+    pub fn connect(self, addr: &str) -> Channel {
+        self.connect_with_creds(addr, None)
+    }
+
+    fn connect_with_creds(mut self, addr: &str, creds: Option<ChannelCredentials>) -> Channel {
         let addr = CString::new(addr).unwrap();
         if let Entry::Vacant(e) = self.options.entry(PRIMARY_USER_AGENT_STRING) {
             e.insert(Options::String(format_user_agent_string("")));
         }
         let args = self.build_args();
         let addr_ptr = addr.as_ptr();
-        let channel =
-            unsafe { grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut()) };
+        let channel = unsafe {
+            match creds {
+                None => {
+                    grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut())
+                }
+                Some(mut creds) => {
+                    grpc_sys::grpc_secure_channel_create(creds.as_mut_ptr(),
+                                                         addr_ptr,
+                                                         args.args,
+                                                         ptr::null_mut())
+                }
+            }
+        };
 
         Channel {
             cq: self.env.pick_cq(),
@@ -166,6 +182,10 @@ impl ChannelBuilder {
                                 channel: channel,
                             }),
         }
+    }
+
+    pub fn secure_connect(self, addr: &str, creds: ChannelCredentials) -> Channel {
+        self.connect_with_creds(addr, Some(creds))
     }
 }
 
