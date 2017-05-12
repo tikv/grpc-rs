@@ -75,6 +75,30 @@ pub enum GrpcStatusCode {
     DataLoss = 15,
 }
 
+impl From<i32> for GrpcStatusCode {
+    fn from(code: i32) -> GrpcStatusCode {
+        match code {
+            0 => GrpcStatusCode::Ok,
+            1 => GrpcStatusCode::Cancelled,
+            3 => GrpcStatusCode::InvalidArgument,
+            4 => GrpcStatusCode::DeadlineExceeded,
+            5 => GrpcStatusCode::NotFound,
+            6 => GrpcStatusCode::AlreadyExists,
+            7 => GrpcStatusCode::PermissionDenied,
+            16 => GrpcStatusCode::Unauthenticated,
+            8 => GrpcStatusCode::ResourceExhausted,
+            9 => GrpcStatusCode::FailedPrecondition,
+            10 => GrpcStatusCode::Aborted,
+            11 => GrpcStatusCode::OutOfRange,
+            12 => GrpcStatusCode::Unimplemented,
+            13 => GrpcStatusCode::Internal,
+            14 => GrpcStatusCode::Unavailable,
+            15 => GrpcStatusCode::DataLoss,
+            _ => GrpcStatusCode::Unknown,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub enum GrpcCallStatus {
@@ -147,10 +171,12 @@ pub enum GrpcMetadataArray {}
 pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
+pub enum GrpcChannelCredentials {}
 pub enum GrpcCall {}
 pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
+pub enum GrpcServerCredentials {}
 pub enum GrpcRequestCallContext {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
@@ -215,6 +241,11 @@ extern "C" {
                                         args: *const GrpcChannelArgs,
                                         reserved: *mut c_void)
                                         -> *mut GrpcChannel;
+    pub fn grpc_secure_channel_create(creds: *mut GrpcChannelCredentials,
+                                      target: *const c_char,
+                                      args: *const GrpcChannelArgs,
+                                      reserved: *mut c_void)
+                                      -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
@@ -331,6 +362,10 @@ extern "C" {
     pub fn grpc_server_add_insecure_http2_port(server: *mut GrpcServer,
                                                addr: *const c_char)
                                                -> c_int;
+    pub fn grpc_server_add_secure_http2_port(server: *mut GrpcServer,
+                                             addr: *const c_char,
+                                             creds: *mut GrpcServerCredentials)
+                                             -> c_int;
     pub fn grpc_server_start(server: *mut GrpcServer);
     pub fn grpc_server_shutdown_and_notify(server: *mut GrpcServer,
                                            cq: *mut GrpcCompletionQueue,
@@ -359,6 +394,20 @@ extern "C" {
                                         ctx: *mut GrpcRequestCallContext,
                                         tag: *mut c_void)
                                         -> GrpcCallStatus;
+
+    pub fn grpcwrap_override_default_ssl_roots(certs: *const c_char);
+    pub fn grpcwrap_ssl_credentials_create(root_certs: *const c_char,
+                                           cert_chain: *const c_char,
+                                           private_key: *const c_char)
+                                           -> *mut GrpcChannelCredentials;
+    pub fn grpc_channel_credentials_release(credentials: *mut GrpcChannelCredentials);
+    pub fn grpcwrap_ssl_server_credentials_create(root_certs: *const c_char,
+                                                  cert_chain_array: *mut *const c_char,
+                                                  private_key_array: *mut *const c_char,
+                                                  num_pairs: size_t,
+                                                  force_client_auth: c_int)
+                                                  -> *mut GrpcServerCredentials;
+    pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
 }
 
 // TODO: more tests.
