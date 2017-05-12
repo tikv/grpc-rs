@@ -12,6 +12,9 @@
 // limitations under the License.
 
 
+// TODO: remove following line once all changes are merged into master
+#![allow(dead_code)]
+
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

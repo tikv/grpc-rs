@@ -32,6 +32,7 @@ mod cq;
 mod credentials;
 mod env;
 mod error;
+mod server;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode};
 pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
@@ -44,3 +45,4 @@ pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCrede
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
+pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

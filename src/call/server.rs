@@ -12,17 +12,19 @@
 // limitations under the License.
 
 
-use std::slice;
+use std::{result, slice};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcRequestCallContext};
+use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 use protobuf::{self, Message, MessageStatic};
 
-use async::BatchFuture;
-use call::{Call, RpcStatusCode, SinkBase, StreamingBase};
+use async::{BatchFuture, CallTag};
+use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use cq::CompletionQueue;
 use error::Error;
+use server::{CallBack, Inner};
 use super::{CallHolder, RpcStatus};
 
 pub struct Deadline {
@@ -48,13 +50,65 @@ impl Deadline {
 /// Context for accepting a request.
 pub struct RequestContext {
     ctx: *mut GrpcRequestCallContext,
+    inner: Option<Arc<Inner>>,
 }
 
 impl RequestContext {
-    pub fn new() -> RequestContext {
+    pub fn new(inner: Arc<Inner>) -> RequestContext {
         let ctx = unsafe { grpc_sys::grpcwrap_request_call_context_create() };
 
-        RequestContext { ctx: ctx }
+        RequestContext {
+            ctx: ctx,
+            inner: Some(inner),
+        }
+    }
+
+    /// Try to accept a client side streaming request.
+    ///
+    /// Return error if the request is a client side unary request.
+    pub fn handle_stream_req(self, inner: &Inner) -> result::Result<(), Self> {
+        match inner.get_handler(self.method()) {
+            Some(handler) => {
+                match handler.method_type() {
+                    MethodType::Unary |
+                    MethodType::ServerStreaming => Err(self),
+                    _ => {
+                        execute(self, &[], handler.cb());
+                        Ok(())
+                    }
+                }
+            }
+            None => {
+                execute_unimplemented(self);
+                Ok(())
+            }
+        }
+    }
+
+    /// Accept a client side unary request.
+    ///
+    /// This method should be called after `handle_stream_req`. When handling
+    /// client side unary request, handler will only be called after the unary
+    /// request is received.
+    pub fn handle_unary_req(self, inner: Arc<Inner>, _: &CompletionQueue) {
+        // fetch message before calling callback.
+        let tag = Box::new(CallTag::unary_request(self, inner));
+        let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
+        let request_ctx = tag.request_ctx().unwrap().as_ptr();
+        let tag_ptr = Box::into_raw(tag);
+        unsafe {
+            let call = grpc_sys::grpcwrap_request_call_context_get_call(request_ctx);
+            let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag_ptr as _);
+            if code != GrpcCallStatus::Ok {
+                Box::from_raw(tag_ptr);
+                // it should not failed.
+                panic!("try to receive message fail: {:?}", code);
+            }
+        }
+    }
+
+    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
+        self.inner.take()
     }
 
     pub fn as_ptr(&self) -> *mut GrpcRequestCallContext {
@@ -90,6 +144,45 @@ impl RequestContext {
         let t = unsafe { grpc_sys::grpcwrap_request_call_context_deadline(self.ctx) };
 
         Deadline::new(t)
+    }
+}
+
+/// A context for handling client side unary request.
+pub struct UnaryRequestContext {
+    request: RequestContext,
+    inner: Option<Arc<Inner>>,
+    batch: BatchContext,
+}
+
+impl UnaryRequestContext {
+    pub fn new(ctx: RequestContext, inner: Arc<Inner>) -> UnaryRequestContext {
+        UnaryRequestContext {
+            request: ctx,
+            inner: Some(inner),
+            batch: BatchContext::new(),
+        }
+    }
+
+    pub fn batch_ctx(&self) -> &BatchContext {
+        &self.batch
+    }
+
+    pub fn request_ctx(&self) -> &RequestContext {
+        &self.request
+    }
+
+    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
+        self.inner.take()
+    }
+
+    pub fn handle(mut self, inner: &Arc<Inner>, data: Option<&[u8]>) {
+        let handler = inner.get_handler(self.request.method()).unwrap();
+        if let Some(data) = data {
+            return execute(self.request, data, handler.cb());
+        }
+
+        let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
+        self.request.take_call().unwrap().abort(status)
     }
 }
 
@@ -435,4 +528,12 @@ pub fn execute_unimplemented(mut ctx: RequestContext) {
     let mut call = ctx.take_call().unwrap();
     call.start_server_side();
     call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+}
+
+// Helper function to call handler.
+//
+// Invoked after a request is ready to be handled.
+fn execute(ctx: RequestContext, payload: &[u8], f: &CallBack) {
+    let rpc_ctx = RpcContext::new(ctx);
+    f(rpc_ctx, payload)
 }

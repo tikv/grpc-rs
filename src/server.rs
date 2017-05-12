@@ -1,0 +1,352 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+use RpcContext;
+use async::{CallTag, CqFuture};
+use call::{Method, MethodType};
+use call::server::*;
+use channel::ChannelArgs;
+use cq::CompletionQueue;
+use credentials::ServerCredentials;
+
+use env::Environment;
+use error::Error;
+use futures::{Async, Future, Poll};
+use grpc_sys::{self, GrpcCallStatus, GrpcServer};
+
+use protobuf::{Message, MessageStatic};
+use std::collections::HashMap;
+use std::ptr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
+
+pub type CallBack = Box<Fn(RpcContext, &[u8])>;
+
+/// Handler is an rpc call holder.
+pub struct Handler {
+    method_type: MethodType,
+    cb: CallBack,
+}
+
+impl Handler {
+    pub fn new(method_type: MethodType, cb: CallBack) -> Handler {
+        Handler {
+            method_type: method_type,
+            cb: cb,
+        }
+    }
+
+    pub fn cb(&self) -> &CallBack {
+        &self.cb
+    }
+
+    pub fn method_type(&self) -> MethodType {
+        self.method_type
+    }
+}
+
+/// Service configuration struct.
+///
+/// Use it to build a service which can be registered to a server.
+pub struct ServiceBuilder {
+    handlers: HashMap<&'static [u8], Handler>,
+}
+
+impl ServiceBuilder {
+    pub fn new() -> ServiceBuilder {
+        ServiceBuilder { handlers: HashMap::new() }
+    }
+
+    /// Add a unary rpc call handler.
+    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
+        where P: MessageStatic,
+              Q: Message,
+              F: Fn(RpcContext, P, UnarySink<Q>) + 'static
+    {
+        let h = Box::new(move |ctx, payload: &[u8]| execute_unary(ctx, payload, &handler));
+        self.handlers
+            .insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
+        self
+    }
+
+    /// Add a client streaming rpc call handler.
+    pub fn add_client_streaming_handler<P, Q, F>(mut self,
+                                                 method: &Method,
+                                                 handler: F)
+                                                 -> ServiceBuilder
+        where P: MessageStatic,
+              Q: Message,
+              F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static
+    {
+        let h = Box::new(move |ctx, _: &[u8]| execute_client_streaming(ctx, &handler));
+        self.handlers
+            .insert(method.name.as_bytes(),
+                    Handler::new(MethodType::ClientStreaming, h));
+        self
+    }
+
+    /// Add a server streaming rpc call handler.
+    pub fn add_server_streaming_handler<P, Q, F>(mut self,
+                                                 method: &Method,
+                                                 handler: F)
+                                                 -> ServiceBuilder
+        where P: MessageStatic,
+              Q: Message,
+              F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static
+    {
+        let h =
+            Box::new(move |ctx, payload: &[u8]| execute_server_streaming(ctx, payload, &handler));
+        self.handlers
+            .insert(method.name.as_bytes(),
+                    Handler::new(MethodType::ServerStreaming, h));
+        self
+    }
+
+    /// Add a duplex streaming rpc call handler.
+    pub fn add_duplex_streaming_handler<P, Q, F>(mut self,
+                                                 method: &Method,
+                                                 handler: F)
+                                                 -> ServiceBuilder
+        where P: MessageStatic,
+              Q: Message,
+              F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static
+    {
+        let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, &handler));
+        self.handlers
+            .insert(method.name.as_bytes(), Handler::new(MethodType::Duplex, h));
+        self
+    }
+
+    pub fn build(self) -> Service {
+        Service { handlers: self.handlers }
+    }
+}
+
+pub struct Service {
+    handlers: HashMap<&'static [u8], Handler>,
+}
+
+/// Server configuration struct.
+pub struct ServerBuilder {
+    env: Arc<Environment>,
+    addrs: Vec<(String, u32, Option<ServerCredentials>)>,
+    args: Option<ChannelArgs>,
+    slots_per_cq: usize,
+    handlers: HashMap<&'static [u8], Handler>,
+}
+
+impl ServerBuilder {
+    pub fn new(env: Arc<Environment>) -> ServerBuilder {
+        ServerBuilder {
+            env: env,
+            addrs: Vec::new(),
+            args: None,
+            slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
+            handlers: HashMap::new(),
+        }
+    }
+
+    /// Bind to an address.
+    ///
+    /// This function can be called multiple times.
+    pub fn bind<S: Into<String>>(mut self, host: S, port: u32) -> ServerBuilder {
+        self.addrs.push((host.into(), port, None));
+        self
+    }
+
+    /// Bind to an address for secure connection.
+    ///
+    /// This function can be called multiple times.
+    pub fn bind_secure<S: Into<String>>(mut self,
+                                        host: S,
+                                        port: u32,
+                                        c: ServerCredentials)
+                                        -> ServerBuilder {
+        self.addrs.push((host.into(), port, Some(c)));
+        self
+    }
+
+    /// Add additional configuration for each incoming channel.
+    pub fn channel_args(mut self, args: ChannelArgs) -> ServerBuilder {
+        self.args = Some(args);
+        self
+    }
+
+    /// Set how many requests a completion queue can handled.
+    pub fn requests_slot_per_cq(mut self, slots: usize) -> ServerBuilder {
+        self.slots_per_cq = slots;
+        self
+    }
+
+    /// Register a service.
+    pub fn register_service(mut self, service: Service) -> ServerBuilder {
+        self.handlers.extend(service.handlers);
+        self
+    }
+
+    pub fn build(mut self) -> Server {
+        let args = self.args.map_or_else(ptr::null, |args| args.as_ptr());
+        unsafe {
+            let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
+            let bind_addrs: Vec<_> = self.addrs
+                .drain(..)
+                .map(|(host, port, certs)| {
+                    let addr = format!("{}:{}\0", host, port);
+                    let addr_ptr = addr.as_ptr();
+                    let bind_port = match certs {
+                        None => {
+                            grpc_sys::grpc_server_add_insecure_http2_port(server, addr_ptr as _)
+                        }
+                        Some(mut cert) => {
+                            grpc_sys::grpc_server_add_secure_http2_port(server,
+                                                                        addr_ptr as _,
+                                                                        cert.as_mut_ptr())
+                        }
+                    };
+
+                    (host, bind_port as u32)
+                })
+                .collect();
+
+            for cq in self.env.completion_queues() {
+                grpc_sys::grpc_server_register_completion_queue(server,
+                                                                cq.as_ptr(),
+                                                                ptr::null_mut());
+            }
+
+            Server {
+                inner: Arc::new(Inner {
+                                    env: self.env,
+                                    server: server,
+                                    shutdown: AtomicBool::new(false),
+                                    bind_addrs: bind_addrs,
+                                    slots_per_cq: self.slots_per_cq,
+                                    handlers: self.handlers,
+                                }),
+            }
+        }
+    }
+}
+
+pub struct Inner {
+    env: Arc<Environment>,
+    server: *mut GrpcServer,
+    bind_addrs: Vec<(String, u32)>,
+    slots_per_cq: usize,
+    shutdown: AtomicBool,
+    handlers: HashMap<&'static [u8], Handler>,
+}
+
+impl Inner {
+    /// Get the handler for the requested method path.
+    pub fn get_handler(&self, method: &[u8]) -> Option<&Handler> {
+        self.handlers.get(method)
+    }
+}
+
+/// Request notification of a new call.
+pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
+    if inner.shutdown.load(Ordering::Relaxed) {
+        return;
+    }
+    let server_ptr = inner.server;
+    let prom = CallTag::request(inner);
+    let request_ptr = prom.request_ctx().unwrap().as_ptr();
+    let prom_box = Box::new(prom);
+    let tag = Box::into_raw(prom_box);
+    let code = unsafe {
+        grpc_sys::grpcwrap_server_request_call(server_ptr, cq.as_ptr(), request_ptr, tag as *mut _)
+    };
+    if code != GrpcCallStatus::Ok {
+        Box::from(tag);
+        panic!("failed to request call: {:?}", code);
+    }
+}
+
+/// An asynchronize shutdown future.
+pub struct ShutdownFuture {
+    cq_f: CqFuture<()>,
+}
+
+impl Future for ShutdownFuture {
+    type Item = ();
+    type Error = Error;
+
+    fn poll(&mut self) -> Poll<(), Error> {
+        try_ready!(self.cq_f.poll());
+        Ok(Async::Ready(()))
+    }
+}
+
+// It's safe to request call simultaneously.
+unsafe impl Sync for Inner {}
+unsafe impl Send for Inner {}
+
+pub struct Server {
+    inner: Arc<Inner>,
+}
+
+impl Server {
+    /// Shutdown the server asynchronously.
+    pub fn shutdown(&mut self) -> ShutdownFuture {
+        let (cq_f, prom) = CallTag::shutdown_pair();
+        let prom_box = Box::new(prom);
+        let tag = Box::into_raw(prom_box);
+        unsafe {
+            let cq_ptr = self.inner.env.completion_queues()[0].as_ptr();
+            grpc_sys::grpc_server_shutdown_and_notify(self.inner.server, cq_ptr, tag as *mut _)
+        }
+        self.inner.shutdown.store(true, Ordering::SeqCst);
+        ShutdownFuture { cq_f: cq_f }
+    }
+
+    /// Cancel all in-progress calls.
+    ///
+    /// Only usable after shutdown.
+    pub fn cancel_all_calls(&mut self) {
+        unsafe { grpc_sys::grpc_server_cancel_all_calls(self.inner.server) }
+    }
+
+    /// Start a server.
+    ///
+    /// Tells all listeners to start listening.
+    pub fn start(&mut self) {
+        unsafe {
+            grpc_sys::grpc_server_start(self.inner.server);
+            for cq in self.inner.env.completion_queues() {
+                for _ in 0..self.inner.slots_per_cq {
+                    request_call(self.inner.clone(), cq);
+                }
+            }
+        }
+    }
+
+    /// Get the binded addresses.
+    pub fn bind_addrs(&self) -> &[(String, u32)] {
+        &self.inner.bind_addrs
+    }
+}
+
+impl Drop for Server {
+    fn drop(&mut self) {
+        // if the server is not shutdown completely, destroy a server will core.
+        // TODO: don't wait here
+        let f = self.shutdown();
+        self.cancel_all_calls();
+        let _ = f.wait();
+        unsafe { grpc_sys::grpc_server_destroy(self.inner.server) }
+    }
+}

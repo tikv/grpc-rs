@@ -12,9 +12,6 @@
 // limitations under the License.
 
 
-// TODO: remove following line once all changes are merged into master
-#![allow(dead_code)]
-
 mod promise;
 mod callback;
 mod lock;
@@ -26,11 +23,13 @@ use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
 use call::{BatchContext, Call};
+use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
-use self::callback::Abort;
+use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::lock::SpinLock;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
+use server::Inner as ServerInner;
 
 pub use self::promise::BatchType;
 
@@ -110,6 +109,8 @@ pub type BatchFuture = CqFuture<BatchMessage>;
 // This enum is going to be passed to FFI, so don't use trait or generic here.
 pub enum CallTag {
     Batch(BatchPromise),
+    Request(RequestCallback),
+    UnaryRequest(UnaryRequestCallback),
     Abort(Abort),
     Shutdown(ShutdownPromise),
 }
@@ -120,6 +121,12 @@ impl CallTag {
         let inner = new_inner();
         let batch = BatchPromise::new(ty, inner.clone());
         (CqFuture::new(inner), CallTag::Batch(batch))
+    }
+
+    /// Generate a CallTag for request job. We don't have a eventloop
+    /// to pull the future, so just the tag is enough.
+    pub fn request(inner: Arc<ServerInner>) -> CallTag {
+        CallTag::Request(RequestCallback::new(inner))
     }
 
     /// Generate a Future/CallTag pair for shutdown call.
@@ -134,19 +141,37 @@ impl CallTag {
         CallTag::Abort(Abort::new(call))
     }
 
+    /// Generate a CallTag for unary request job.
+    pub fn unary_request(ctx: RequestContext, inner: Arc<ServerInner>) -> CallTag {
+        let cb = UnaryRequestCallback::new(ctx, inner);
+        CallTag::UnaryRequest(cb)
+    }
+
     /// Get the batch context from result holder.
     pub fn batch_ctx(&self) -> Option<&BatchContext> {
         match *self {
             CallTag::Batch(ref prom) => Some(prom.context()),
+            CallTag::UnaryRequest(ref cb) => Some(cb.batch_ctx()),
             CallTag::Abort(ref cb) => Some(cb.batch_ctx()),
             _ => None,
         }
     }
 
+    /// Get the request context from the result holder.
+    pub fn request_ctx(&self) -> Option<&RequestContext> {
+        match *self {
+            CallTag::Request(ref prom) => Some(prom.context()),
+            CallTag::UnaryRequest(ref cb) => Some(cb.request_ctx()),
+            _ => None,
+        }
+    }
+
     /// Resolve the CallTag with given status.
-    pub fn resolve(self, _: &CompletionQueue, success: bool) {
+    pub fn resolve(self, cq: &CompletionQueue, success: bool) {
         match self {
             CallTag::Batch(prom) => prom.resolve(success),
+            CallTag::Request(cb) => cb.resolve(cq, success),
+            CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
         }
@@ -157,6 +182,8 @@ impl Debug for CallTag {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             CallTag::Batch(_) => write!(f, "Context::Batch(..)"),
+            CallTag::Request(_) => write!(f, "Context::Request(..)"),
+            CallTag::UnaryRequest(_) => write!(f, "Context::UnaryRequest(..)"),
             CallTag::Abort(_) => write!(f, "Context::Abort(..)"),
             CallTag::Shutdown(_) => write!(f, "Context::Shutdown"),
         }
