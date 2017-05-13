@@ -13,6 +13,7 @@
 
 
 use std::marker::PhantomData;
+use std::ptr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -20,8 +21,9 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 use protobuf::{self, Message, MessageStatic};
 
-use async::{BatchMessage, CqFuture};
-use call::Call;
+use async::{BatchMessage, BatchType, CqFuture};
+use call::{Call, Method, check_run};
+use channel::Channel;
 use error::Error;
 use super::{SinkBase, StreamingBase};
 
@@ -92,6 +94,90 @@ impl CallOption {
     /// Get the timeout.
     pub fn get_timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+}
+
+impl Call {
+    pub fn unary_async<P: Message, Q>(channel: &Channel,
+                                      method: &Method,
+                                      req: P,
+                                      opt: CallOption)
+                                      -> UnaryCallHandler<Q> {
+        let call = channel.create_call(method, &opt);
+        let payload = req.write_to_bytes().unwrap();
+        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_unary(call.call,
+                                                ctx,
+                                                payload.as_ptr() as *const _,
+                                                payload.len(),
+                                                opt.write_flags,
+                                                ptr::null_mut(),
+                                                opt.call_flags,
+                                                tag)
+        });
+        UnaryCallHandler::new(call, cq_f)
+    }
+
+    pub fn client_streaming<P, Q>(channel: &Channel,
+                                  method: &Method,
+                                  opt: CallOption)
+                                  -> ClientStreamingCallHandler<P, Q> {
+        let call = channel.create_call(method, &opt);
+        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_client_streaming(call.call,
+                                                           ctx,
+                                                           ptr::null_mut(),
+                                                           opt.call_flags,
+                                                           tag)
+        });
+        ClientStreamingCallHandler::new(call, cq_f, opt.write_flags)
+    }
+
+    pub fn server_streaming<P: Message, Q>(channel: &Channel,
+                                           method: &Method,
+                                           req: P,
+                                           opt: CallOption)
+                                           -> ServerStreamingCallHandler<Q> {
+        let call = channel.create_call(method, &opt);
+        let payload = req.write_to_bytes().unwrap();
+        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_server_streaming(call.call,
+                                                           ctx,
+                                                           payload.as_ptr() as _,
+                                                           payload.len(),
+                                                           opt.write_flags,
+                                                           ptr::null_mut(),
+                                                           opt.call_flags,
+                                                           tag)
+        });
+
+        // TODO: handle header
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+        });
+
+        ServerStreamingCallHandler::new(call, cq_f)
+    }
+
+    pub fn duplex_streaming<P, Q>(channel: &Channel,
+                                  method: &Method,
+                                  opt: CallOption)
+                                  -> DuplexCallHandler<P, Q> {
+        let call = channel.create_call(method, &opt);
+        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
+                                                           ctx,
+                                                           ptr::null_mut(),
+                                                           opt.call_flags,
+                                                           tag)
+        });
+
+        // TODO: handle header.
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+        });
+
+        DuplexCallHandler::new(call, cq_f, opt.write_flags)
     }
 }
 
