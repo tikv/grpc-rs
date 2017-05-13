@@ -12,9 +12,6 @@
 // limitations under the License.
 
 
-// TODO: remove following line once all changes are merged into master
-#![allow(dead_code)]
-
 use std::sync::Arc;
 
 use call::{BatchContext, RpcStatusCode};
