@@ -29,6 +29,7 @@ mod async;
 mod call;
 mod channel;
 mod cq;
+mod client;
 mod credentials;
 mod env;
 mod error;
@@ -41,6 +42,7 @@ pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
 pub use channel::{Channel, ChannelBuilder};
+pub use client::Client;
 pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};
