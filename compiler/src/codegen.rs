@@ -106,15 +106,22 @@ impl<'a> MethodGen<'a> {
     }
 
     fn write_definition(&self, w: &mut CodeWriter) {
-        w.block(&format!("const {}: {} = {} {{",
-                        self.const_method_name(),
-                        fq_grpc("Method"),
-                        fq_grpc("Method")),
-                &format!("}};"),
-                |w| {
-                    w.field_entry("ty", &self.method_type().1);
-                    w.field_entry("name", &self.fq_name());
-                });
+        let head = format!("const {}: {}<{}, {}> = {} {{",
+                           self.const_method_name(),
+                           fq_grpc("Method"),
+                           self.input(),
+                           self.output(),
+                           fq_grpc("Method"));
+        let pb_mar = format!("{} {{ ser: {}, de: {} }}",
+                             fq_grpc("Marshaller"),
+                             fq_grpc("pb_ser"),
+                             fq_grpc("pb_de"));
+        w.block(&head, "};", |w| {
+            w.field_entry("ty", &self.method_type().1);
+            w.field_entry("name", &self.fq_name());
+            w.field_entry("req_mar", &pb_mar);
+            w.field_entry("resp_mar", &pb_mar);
+        });
     }
 
     // Method signatures
@@ -210,27 +217,27 @@ impl<'a> MethodGen<'a> {
             MethodType::Unary => {
                 w.pub_fn(&self.unary_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.unary_call(&{}, req, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.unary(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt(req, {})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.unary_call_async(&{}, req, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async(&method_name), |w| {
                     w.write_line(&format!("self.{}_async_opt(req, {})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
 
@@ -238,14 +245,14 @@ impl<'a> MethodGen<'a> {
             MethodType::ClientStreaming => {
                 w.pub_fn(&self.client_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.client_streaming(&{}, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.client_streaming(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt({})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
 
@@ -253,14 +260,14 @@ impl<'a> MethodGen<'a> {
             MethodType::ServerStreaming => {
                 w.pub_fn(&self.server_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.server_streaming(&{}, req, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.server_streaming(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt(req, {})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
 
@@ -268,14 +275,14 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => {
                 w.pub_fn(&self.duplex_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.duplex_streaming(&{}, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.duplex_streaming(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt({})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
         };
@@ -307,8 +314,8 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => "add_duplex_streaming_handler",
         };
         w.block(&format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                        add,
-                        self.const_method_name()),
+                         add,
+                         self.const_method_name()),
                 "});",
                 |w| { w.write_line(&format!("instance.{}(ctx, req, resp)", self.name())); });
     }
@@ -381,9 +388,9 @@ impl<'a> ServiceGen<'a> {
         w.write_line("");
 
         w.pub_fn(&format!("create_{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
-                         to_snake_case(self.service_name()),
-                         self.service_name(),
-                         fq_grpc("Service")),
+                          to_snake_case(self.service_name()),
+                          self.service_name(),
+                          fq_grpc("Service")),
                  |w| {
                      w.write_line("let mut builder = ::grpc::ServiceBuilder::new();");
                      for method in &self.methods {
@@ -442,8 +449,10 @@ fn gen_file(file: &FileDescriptorProto,
 pub fn gen(file_descriptors: &[FileDescriptorProto],
            files_to_generate: &[String])
            -> Vec<compiler_plugin::GenResult> {
-    let files_map: HashMap<&str, &FileDescriptorProto> =
-        file_descriptors.iter().map(|f| (f.get_name(), f)).collect();
+    let files_map: HashMap<&str, &FileDescriptorProto> = file_descriptors
+        .iter()
+        .map(|f| (f.get_name(), f))
+        .collect();
 
     let root_scope = RootScope { file_descriptors: file_descriptors };
 

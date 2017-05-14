@@ -61,11 +61,13 @@ fn main() {
                   });
 
     let call = client.record_route();
-    let points: Vec<Result<_>> = vec![Ok((416560744, -746721964)),
-                                      Ok((406411633, -741722051)),
-                                      Ok((411633782, -746784970)),
-                                      Ok((406411633, -741722051)),
-                                      Ok((415830701, -742952812))];
+    let points: Vec<Result<_>> = vec![
+        Ok((416560744, -746721964)),
+        Ok((406411633, -741722051)),
+        Ok((411633782, -746784970)),
+        Ok((406411633, -741722051)),
+        Ok((415830701, -742952812)),
+    ];
     let record_route = call.send_all(stream::iter(points).map(|(lat, lon)| new_point(lat, lon)))
         .and_then(|(call, _)| call.into_receiver())
         .and_then(|s| {
@@ -81,12 +83,14 @@ fn main() {
                       Ok(())
                   });
 
-    let notes: Vec<Result<_>> = vec![Ok(new_note(0, 0, "message 1")),
-                                     Ok(new_note(0, 1, "message 2")),
-                                     Ok(new_note(1, 0, "message 3")),
-                                     Ok(new_note(0, 0, "message 4")),
-                                     Ok(new_note(0, 1, "message 5")),
-                                     Ok(new_note(1, 0, "message 6"))];
+    let notes: Vec<Result<_>> = vec![
+        Ok(new_note(0, 0, "message 1")),
+        Ok(new_note(0, 1, "message 2")),
+        Ok(new_note(1, 0, "message 3")),
+        Ok(new_note(0, 0, "message 4")),
+        Ok(new_note(0, 1, "message 5")),
+        Ok(new_note(1, 0, "message 6")),
+    ];
     let write = call.send_all(stream::iter(notes));
 
     let feature = client.get_feature(new_point(0, 0));

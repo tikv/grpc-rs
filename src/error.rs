@@ -16,13 +16,14 @@ use std::{error, result};
 use std::fmt::{self, Display, Formatter};
 
 use grpc_sys::GrpcCallStatus;
+#[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
 
 use call::RpcStatus;
 
 #[derive(Debug)]
 pub enum Error {
-    Protobuf(ProtobufError),
+    Codec(Box<error::Error + Send + Sync>),
     // return when failed to start an internal async call.
     CallFailure(GrpcCallStatus),
     // fail when the rpc request fail.
@@ -40,7 +41,7 @@ impl Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::Protobuf(_) => "Grpc Protobuf Error",
+            Error::Codec(_) => "Grpc Codec Error",
             Error::CallFailure(_) => "Grpc Call Error",
             Error::RpcFailure(_) => "Grpc Request Error",
             Error::RemoteStopped => "Remote is stopped.",
@@ -50,21 +51,22 @@ impl error::Error for Error {
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
-            Error::Protobuf(ref e) => Some(e),
+            Error::Codec(ref e) => Some(e.as_ref()),
             _ => None,
         }
     }
 }
 
+#[cfg(feature = "protobuf-codec")]
 impl From<ProtobufError> for Error {
     fn from(e: ProtobufError) -> Error {
-        Error::Protobuf(e)
+        Error::Codec(Box::new(e))
     }
 }
 
 pub type Result<T> = result::Result<T, Error>;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "protobuf-codec"))]
 mod tests {
     use std::error::Error as StdError;
 
@@ -76,7 +78,7 @@ mod tests {
     fn test_convert() {
         let error = ProtobufError::WireError("test".to_owned());
         let e: Error = error.into();
-        assert_eq!(e.description(), "Grpc Protobuf Error");
+        assert_eq!(e.description(), "Grpc Codec Error");
         assert!(e.cause().is_some());
     }
 }

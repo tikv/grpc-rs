@@ -12,6 +12,7 @@
 // limitations under the License.
 
 extern crate gcc;
+#[cfg(feature = "static-link")]
 extern crate cmake;
 extern crate pkg_config;
 
@@ -25,7 +26,9 @@ mod imp {
     use super::GRPC_VERSION;
 
     pub fn build_or_link_grpc(cc: &mut GccConfig) {
-        if let Ok(lib) = PkgConfig::new().atleast_version(GRPC_VERSION).probe("grpc") {
+        if let Ok(lib) = PkgConfig::new()
+               .atleast_version(GRPC_VERSION)
+               .probe("grpc") {
             for inc_path in lib.include_paths {
                 cc.include(inc_path);
             }
@@ -74,7 +77,9 @@ mod imp {
             vec!["tar", "zxf", &tgz_file_name, "-C", to_dir, "--strip-components", "1"],
         ];
         for cmd in cmds {
-            execute(Command::new(cmd[0]).args(&cmd[1..]).current_dir(&out_dir));
+            execute(Command::new(cmd[0])
+                        .args(&cmd[1..])
+                        .current_dir(&out_dir));
         }
     }
 

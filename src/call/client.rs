@@ -12,18 +12,17 @@
 // limitations under the License.
 
 
-use std::marker::PhantomData;
 use std::ptr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
-use protobuf::{self, Message, MessageStatic};
 
 use async::{BatchMessage, BatchType, CqFuture};
 use call::{Call, Method, check_run};
 use channel::Channel;
+use codec::{DeFn, SerFn};
 use error::Error;
 use super::{SinkBase, StreamingBase};
 
@@ -98,28 +97,30 @@ impl CallOption {
 }
 
 impl Call {
-    pub fn unary_async<P: Message, Q>(channel: &Channel,
-                                      method: &Method,
-                                      req: P,
-                                      opt: CallOption)
-                                      -> UnaryCallHandler<Q> {
+    pub fn unary_async<P, Q>(channel: &Channel,
+                             method: &Method<P, Q>,
+                             req: P,
+                             opt: CallOption)
+                             -> UnaryCallHandler<Q> {
         let call = channel.create_call(method, &opt);
-        let payload = req.write_to_bytes().unwrap();
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_unary(call.call,
-                                                ctx,
-                                                payload.as_ptr() as *const _,
-                                                payload.len(),
-                                                opt.write_flags,
-                                                ptr::null_mut(),
-                                                opt.call_flags,
-                                                tag)
-        });
-        UnaryCallHandler::new(call, cq_f)
+        let mut payload = vec![];
+        (method.req_ser())(&req, &mut payload);
+        let cq_f =
+            check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+                grpc_sys::grpcwrap_call_start_unary(call.call,
+                                                    ctx,
+                                                    payload.as_ptr() as *const _,
+                                                    payload.len(),
+                                                    opt.write_flags,
+                                                    ptr::null_mut(),
+                                                    opt.call_flags,
+                                                    tag)
+            });
+        UnaryCallHandler::new(call, cq_f, method.resp_de())
     }
 
     pub fn client_streaming<P, Q>(channel: &Channel,
-                                  method: &Method,
+                                  method: &Method<P, Q>,
                                   opt: CallOption)
                                   -> ClientStreamingCallHandler<P, Q> {
         let call = channel.create_call(method, &opt);
@@ -130,16 +131,21 @@ impl Call {
                                                            opt.call_flags,
                                                            tag)
         });
-        ClientStreamingCallHandler::new(call, cq_f, opt.write_flags)
+        ClientStreamingCallHandler::new(call,
+                                        cq_f,
+                                        opt.write_flags,
+                                        method.req_ser(),
+                                        method.resp_de())
     }
 
-    pub fn server_streaming<P: Message, Q>(channel: &Channel,
-                                           method: &Method,
-                                           req: P,
-                                           opt: CallOption)
-                                           -> ServerStreamingCallHandler<Q> {
+    pub fn server_streaming<P, Q>(channel: &Channel,
+                                  method: &Method<P, Q>,
+                                  req: P,
+                                  opt: CallOption)
+                                  -> ServerStreamingCallHandler<Q> {
         let call = channel.create_call(method, &opt);
-        let payload = req.write_to_bytes().unwrap();
+        let mut payload = vec![];
+        (method.req_ser())(&req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(call.call,
                                                            ctx,
@@ -156,11 +162,11 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        ServerStreamingCallHandler::new(call, cq_f)
+        ServerStreamingCallHandler::new(call, cq_f, method.resp_de())
     }
 
     pub fn duplex_streaming<P, Q>(channel: &Channel,
-                                  method: &Method,
+                                  method: &Method<P, Q>,
                                   opt: CallOption)
                                   -> DuplexCallHandler<P, Q> {
         let call = channel.create_call(method, &opt);
@@ -177,7 +183,11 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        DuplexCallHandler::new(call, cq_f, opt.write_flags)
+        DuplexCallHandler::new(call,
+                               cq_f,
+                               opt.write_flags,
+                               method.req_ser(),
+                               method.resp_de())
     }
 }
 
@@ -187,15 +197,15 @@ impl Call {
 pub struct UnaryCallHandler<T> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
-    _resp: PhantomData<T>,
+    resp_de: DeFn<T>,
 }
 
 impl<T> UnaryCallHandler<T> {
-    fn new(call: Call, resp_f: CqFuture<BatchMessage>) -> UnaryCallHandler<T> {
+    fn new(call: Call, resp_f: CqFuture<BatchMessage>, de: DeFn<T>) -> UnaryCallHandler<T> {
         UnaryCallHandler {
             call: call,
             resp_f: resp_f,
-            _resp: PhantomData,
+            resp_de: de,
         }
     }
 
@@ -205,13 +215,13 @@ impl<T> UnaryCallHandler<T> {
     }
 }
 
-impl<T: MessageStatic> Future for UnaryCallHandler<T> {
+impl<T> Future for UnaryCallHandler<T> {
     type Item = T;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = try!(protobuf::parse_from_bytes(&data.unwrap()));
+        let t = try!((self.resp_de)(&data.unwrap()));
         Ok(Async::Ready(t))
     }
 }
@@ -220,16 +230,16 @@ impl<T: MessageStatic> Future for UnaryCallHandler<T> {
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
     resp_f: CqFuture<BatchMessage>,
-    _resp: PhantomData<T>,
+    resp_de: DeFn<T>,
 }
 
-impl<T: MessageStatic> Future for UnaryResponseReceiver<T> {
+impl<T> Future for UnaryResponseReceiver<T> {
     type Item = T;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = try!(protobuf::parse_from_bytes(&data.unwrap()));
+        let t = try!((self.resp_de)(&data.unwrap()));
         Ok(Async::Ready(t))
     }
 }
@@ -242,32 +252,34 @@ pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
     sink_base: SinkBase,
-    _req: PhantomData<P>,
-    _resp: PhantomData<Q>,
+    req_ser: SerFn<P>,
+    resp_de: DeFn<Q>,
 }
 
 impl<P, Q> ClientStreamingCallHandler<P, Q> {
     fn new(call: Call,
            resp_f: CqFuture<BatchMessage>,
-           flags: u32)
+           flags: u32,
+           ser: SerFn<P>,
+           de: DeFn<Q>)
            -> ClientStreamingCallHandler<P, Q> {
         ClientStreamingCallHandler {
             call: call,
             resp_f: resp_f,
             sink_base: SinkBase::new(flags, false),
-            _req: PhantomData,
-            _resp: PhantomData,
+            req_ser: ser,
+            resp_de: de,
         }
     }
 }
 
-impl<P: Message, Q> Sink for ClientStreamingCallHandler<P, Q> {
+impl<P, Q> Sink for ClientStreamingCallHandler<P, Q> {
     type SinkItem = P;
     type SinkError = Error;
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
         self.sink_base
-            .start_send(&mut self.call, |buf| item.write_to_vec(buf))
+            .start_send(&mut self.call, &item, self.req_ser)
             .map(|s| if s {
                      AsyncSink::Ready
                  } else {
@@ -284,7 +296,7 @@ impl<P: Message, Q> Sink for ClientStreamingCallHandler<P, Q> {
     }
 }
 
-impl<P, Q: MessageStatic> ClientStreamingCallHandler<P, Q> {
+impl<P, Q> ClientStreamingCallHandler<P, Q> {
     pub fn cancel(self) -> UnaryResponseReceiver<Q> {
         self.call.cancel();
         self.into_receiver()
@@ -294,7 +306,7 @@ impl<P, Q: MessageStatic> ClientStreamingCallHandler<P, Q> {
         UnaryResponseReceiver {
             _call: self.call,
             resp_f: self.resp_f,
-            _resp: PhantomData,
+            resp_de: self.resp_de,
         }
     }
 }
@@ -303,15 +315,18 @@ impl<P, Q: MessageStatic> ClientStreamingCallHandler<P, Q> {
 pub struct ServerStreamingCallHandler<Q> {
     call: Call,
     base: StreamingBase,
-    _resp: PhantomData<Q>,
+    resp_de: DeFn<Q>,
 }
 
 impl<Q> ServerStreamingCallHandler<Q> {
-    fn new(call: Call, finish_f: CqFuture<BatchMessage>) -> ServerStreamingCallHandler<Q> {
+    fn new(call: Call,
+           finish_f: CqFuture<BatchMessage>,
+           de: DeFn<Q>)
+           -> ServerStreamingCallHandler<Q> {
         ServerStreamingCallHandler {
             call: call,
             base: StreamingBase::new(Some(finish_f)),
-            _resp: PhantomData,
+            resp_de: de,
         }
     }
 
@@ -320,7 +335,7 @@ impl<Q> ServerStreamingCallHandler<Q> {
     }
 }
 
-impl<Q: MessageStatic> Stream for ServerStreamingCallHandler<Q> {
+impl<Q> Stream for ServerStreamingCallHandler<Q> {
     type Item = Q;
     type Error = Error;
 
@@ -328,7 +343,7 @@ impl<Q: MessageStatic> Stream for ServerStreamingCallHandler<Q> {
         match try_ready!(self.base.poll(&mut self.call, false)) {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let msg = try!(protobuf::parse_from_bytes(&data));
+                let msg = try!((self.resp_de)(&data));
                 Ok(Async::Ready(Some(msg)))
             }
         }
@@ -344,32 +359,34 @@ pub struct DuplexCallHandler<P, Q> {
     call: Arc<Mutex<Call>>,
     resp_f: Option<CqFuture<BatchMessage>>,
     sink_base: SinkBase,
-    _req: PhantomData<P>,
-    _resp: PhantomData<Q>,
+    req_ser: SerFn<P>,
+    resp_de: DeFn<Q>,
 }
 
 impl<P, Q> DuplexCallHandler<P, Q> {
     fn new(call: Call,
            resp_f: CqFuture<BatchMessage>,
-           write_flags: u32)
+           write_flags: u32,
+           ser: SerFn<P>,
+           de: DeFn<Q>)
            -> DuplexCallHandler<P, Q> {
         DuplexCallHandler {
             call: Arc::new(Mutex::new(call)),
             resp_f: Some(resp_f),
             sink_base: SinkBase::new(write_flags, false),
-            _req: PhantomData,
-            _resp: PhantomData,
+            req_ser: ser,
+            resp_de: de,
         }
     }
 }
 
-impl<P: Message, Q> Sink for DuplexCallHandler<P, Q> {
+impl<P, Q> Sink for DuplexCallHandler<P, Q> {
     type SinkItem = P;
     type SinkError = Error;
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
         self.sink_base
-            .start_send(&mut self.call, |buf| item.write_to_vec(buf))
+            .start_send(&mut self.call, &item, self.req_ser)
             .map(|s| if s {
                      AsyncSink::Ready
                  } else {
@@ -390,10 +407,10 @@ impl<P: Message, Q> Sink for DuplexCallHandler<P, Q> {
 pub struct StreamingResponseReceiver<Q> {
     call: Arc<Mutex<Call>>,
     base: StreamingBase,
-    _resp: PhantomData<Q>,
+    resp_de: DeFn<Q>,
 }
 
-impl<P, Q: MessageStatic> DuplexCallHandler<P, Q> {
+impl<P, Q> DuplexCallHandler<P, Q> {
     pub fn take_receiver(&mut self) -> Option<StreamingResponseReceiver<Q>> {
         let resp_f = match self.resp_f.take() {
             Some(resp_f) => resp_f,
@@ -403,7 +420,7 @@ impl<P, Q: MessageStatic> DuplexCallHandler<P, Q> {
         Some(StreamingResponseReceiver {
                  call: self.call.clone(),
                  base: StreamingBase::new(Some(resp_f)),
-                 _resp: PhantomData,
+                 resp_de: self.resp_de,
              })
     }
 
@@ -416,7 +433,7 @@ impl<P, Q: MessageStatic> DuplexCallHandler<P, Q> {
     }
 }
 
-impl<Q: MessageStatic> Stream for StreamingResponseReceiver<Q> {
+impl<Q> Stream for StreamingResponseReceiver<Q> {
     type Item = Q;
     type Error = Error;
 
@@ -424,7 +441,7 @@ impl<Q: MessageStatic> Stream for StreamingResponseReceiver<Q> {
         match try_ready!(self.base.poll(&mut self.call, false)) {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let msg = try!(protobuf::parse_from_bytes(&data));
+                let msg = try!((self.resp_de)(&data));
                 Ok(Async::Ready(Some(msg)))
             }
         }

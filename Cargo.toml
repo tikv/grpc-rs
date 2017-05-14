@@ -6,15 +6,16 @@ version = "0.1.0"
 grpc-sys = { path = "grpc-sys", version = "0.1" }
 libc = "0.2"
 futures = "0.1"
-protobuf = "1.2"
+protobuf = { version = "1.2", optional = true }
 clippy = { version = "*", optional = true }
 
 [workspace]
 members = ["interop", "benchmark", "compiler"]
 
 [features]
-default = []
+default = ["protobuf-codec"]
 dev = ["clippy"]
+protobuf-codec = ["protobuf"]
 static-link = ["grpc-sys/static-link"]
 
 [dev-dependencies]
