@@ -22,7 +22,7 @@ use grpc_proto::testing::services_grpc;
 use grpc_proto::util as proto_util;
 use tokio_core::reactor::Remote;
 
-use bench::Benchmark;
+use bench::{self, Benchmark, Generic};
 use util::{self, CpuRecorder};
 
 pub struct Server {
@@ -39,6 +39,10 @@ impl Server {
             ServerType::ASYNC_SERVER => {
                 let b = Benchmark::new(remote);
                 services_grpc::create_benchmark_service(b)
+            }
+            ServerType::ASYNC_GENERIC_SERVER => {
+                let b = Generic::new(remote);
+                bench::create_generic_service(b)
             }
             _ => unimplemented!(),
         };

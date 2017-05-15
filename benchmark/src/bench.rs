@@ -16,7 +16,8 @@ use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
 use tokio_core::reactor::Remote;
-use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink};
+use grpc::{self, DuplexSink, Method, MethodType, RequestStream, RpcContext, ServiceBuilder,
+           UnarySink};
 use futures::{Future, Sink, Stream};
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
@@ -58,4 +59,57 @@ impl BenchmarkService for Benchmark {
                     .map(|_| {})
             })
     }
+}
+
+#[derive(Clone)]
+pub struct Generic {
+    remote: Remote,
+}
+
+impl Generic {
+    pub fn new(remote: Remote) -> Generic {
+        Generic { remote: remote }
+    }
+
+    pub fn streaming_call(&self,
+                          _: RpcContext,
+                          stream: RequestStream<Vec<u8>>,
+                          sink: DuplexSink<Vec<u8>>) {
+        self.remote
+            .spawn(|_| {
+                sink.send_all(stream.map(|req| req))
+                    .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                    .map(|_| {})
+            })
+    }
+}
+
+#[inline]
+pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
+    buf.extend_from_slice(t)
+}
+
+#[inline]
+pub fn bin_de(buf: &[u8]) -> grpc::Result<Vec<u8>> {
+    Ok(buf.to_vec())
+}
+
+pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Method {
+    ty: MethodType::Duplex,
+    name: "/grpc.testing.BenchmarkService/StreamingCall",
+    req_mar: ::grpc::Marshaller {
+        ser: bin_ser,
+        de: bin_de,
+    },
+    resp_mar: ::grpc::Marshaller {
+        ser: bin_ser,
+        de: bin_de,
+    },
+};
+
+pub fn create_generic_service(s: Generic) -> ::grpc::Service {
+    ServiceBuilder::new()
+        .add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
+                                      move |ctx, req, resp| s.streaming_call(ctx, req, resp))
+        .build()
 }

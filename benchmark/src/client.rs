@@ -12,11 +12,13 @@
 // limitations under the License.
 
 
+// TODO: clean up code.
+
 use std::sync::{Arc, Mutex};
 use std::{cmp, thread};
 use std::time::{Duration, Instant};
 
-use grpc::{Channel, ChannelBuilder, Environment};
+use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, Environment};
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
 use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
@@ -30,6 +32,7 @@ use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
 use tokio_timer::{Sleep, Timer};
 
+use bench;
 use error::Error;
 use util::{self, CpuRecorder, Histogram};
 
@@ -93,6 +96,73 @@ impl BackOff for Poisson {
         } else {
             None
         }
+    }
+}
+
+struct GenericExecutor<B> {
+    client: GrpcClient,
+    req: Vec<u8>,
+    histogram: Arc<Mutex<Histogram>>,
+    back_off: B,
+    timer: Timer,
+}
+
+impl<B: BackOff + Send + 'static> GenericExecutor<B> {
+    fn new(channel: Channel,
+           cfg: &ClientConfig,
+           histogram: Arc<Mutex<Histogram>>,
+           back_off: B,
+           timer: Timer)
+           -> GenericExecutor<B> {
+        let cap = cfg.get_payload_config().get_bytebuf_params().get_req_size();
+        let req = vec![0; cap as usize];
+        GenericExecutor {
+            client: GrpcClient::new(channel),
+            req: req,
+            histogram: histogram,
+            back_off: back_off,
+            timer: timer,
+        }
+    }
+
+    fn observe_latency(&self, latency: Duration) {
+        let f = util::dur_to_nanos(latency);
+        let mut his = self.histogram.lock().unwrap();
+        his.observe(f);
+    }
+
+    fn execute_stream(self, r: &CpuPool) {
+        let mut handler = self.client
+            .duplex_streaming(&bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
+                              CallOption::default());
+        let receiver = handler.take_receiver().unwrap();
+        let f = future::loop_fn((handler, self, receiver),
+                                move |(h, mut executor, receiver)| {
+            let latency_timer = Instant::now();
+            let send = h.send(executor.req.clone());
+            send.map_err(Error::from)
+                .and_then(move |h| {
+                    receiver
+                        .into_future()
+                        .map_err(|(e, _)| Error::from(e))
+                        .and_then(move |(_, r)| {
+                            executor.observe_latency(latency_timer.elapsed());
+                            let mut time = executor.back_off.back_off_async(&executor.timer);
+                            let mut res = Some((h, executor, r));
+                            future::poll_fn(move || {
+                                if let Some(ref mut t) = time {
+                                    try_ready!(t.poll());
+                                }
+                                time.take();
+                                let r = res.take().unwrap();
+                                let l: Loop<(), _> = Loop::Continue(r);
+                                Ok(Async::Ready(l))
+                            })
+                        })
+                })
+        })
+                .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
+        r.spawn(f).forget()
     }
 }
 
@@ -226,10 +296,6 @@ impl Client {
                 }
             });
 
-        if cfg.get_payload_config().has_bytebuf_params() {
-            unimplemented!()
-        }
-
         let client_type = cfg.get_client_type();
         let load_params = cfg.get_load_params();
         let poisson_lamda = if load_params.has_poisson() {
@@ -254,6 +320,9 @@ impl Client {
 
                 match client_type {
                     ClientType::SYNC_CLIENT => {
+                        if cfg.get_payload_config().has_bytebuf_params() {
+                            panic!("only async_client is supported for generic service.");
+                        }
                         if let Some(p) = poisson {
                             RequestExecutor::new(ch.clone(), cfg, his, p, t).execute_unary()
                         } else {
@@ -264,6 +333,9 @@ impl Client {
                     ClientType::ASYNC_CLIENT => {
                         match cfg.get_rpc_type() {
                             RpcType::UNARY => {
+                                if cfg.get_payload_config().has_bytebuf_params() {
+                                    panic!("only streaming is supported for generic service.");
+                                }
                                 if let Some(p) = poisson {
                                     RequestExecutor::new(ch.clone(), cfg, his, p, t)
                                         .execute_unary_async(&pool)
@@ -273,12 +345,22 @@ impl Client {
                                 }
                             }
                             RpcType::STREAMING => {
-                                if let Some(p) = poisson {
-                                    RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                        .execute_stream_ping_pong(&pool)
+                                if cfg.get_payload_config().has_bytebuf_params() {
+                                    if let Some(p) = poisson {
+                                        GenericExecutor::new(ch.clone(), cfg, his, p, t)
+                                            .execute_stream(&pool)
+                                    } else {
+                                        GenericExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
+                                            .execute_stream(&pool)
+                                    }
                                 } else {
-                                    RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                        .execute_stream_ping_pong(&pool)
+                                    if let Some(p) = poisson {
+                                        RequestExecutor::new(ch.clone(), cfg, his, p, t)
+                                            .execute_stream_ping_pong(&pool)
+                                    } else {
+                                        RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
+                                            .execute_stream_ping_pong(&pool)
+                                    }
                                 }
                             }
                         }
