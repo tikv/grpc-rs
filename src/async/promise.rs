@@ -49,9 +49,15 @@ impl Batch {
         &self.ctx
     }
 
-    fn read_one_msg(&mut self) {
+    fn read_one_msg(&mut self, success: bool) {
         let mut guard = self.inner.lock();
-        guard.set_result(Ok(self.ctx.recv_message()));
+        if success {
+            guard.set_result(Ok(self.ctx.recv_message()));
+        } else {
+            // rely on C core to handle the failed read (e.g. deliver approriate
+            // statusCode on the clientside).
+            guard.set_result(Ok(None));
+        }
     }
 
     fn finish_response(&mut self, succeed: bool) {
@@ -90,8 +96,7 @@ impl Batch {
                 self.finish_response(success);
             }
             BatchType::Read => {
-                assert!(success);
-                self.read_one_msg();
+                self.read_one_msg(success);
             }
         }
     }
