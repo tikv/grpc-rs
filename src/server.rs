@@ -12,6 +12,15 @@
 // limitations under the License.
 
 
+use std::collections::HashMap;
+use std::ptr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use futures::{Async, Future, Poll};
+use grpc_sys::{self, GrpcCallStatus, GrpcServer};
+use protobuf::{Message, MessageStatic};
+
 use RpcContext;
 use async::{CallTag, CqFuture};
 use call::{Method, MethodType};
@@ -19,17 +28,8 @@ use call::server::*;
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use credentials::ServerCredentials;
-
 use env::Environment;
-use error::Error;
-use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcCallStatus, GrpcServer};
-
-use protobuf::{Message, MessageStatic};
-use std::collections::HashMap;
-use std::ptr;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use error::{Error, Result};
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -142,7 +142,7 @@ pub struct Service {
 /// Server configuration struct.
 pub struct ServerBuilder {
     env: Arc<Environment>,
-    addrs: Vec<(String, u32, Option<ServerCredentials>)>,
+    addrs: Vec<(String, u16, Option<ServerCredentials>)>,
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], Handler>,
@@ -162,7 +162,7 @@ impl ServerBuilder {
     /// Bind to an address.
     ///
     /// This function can be called multiple times.
-    pub fn bind<S: Into<String>>(mut self, host: S, port: u32) -> ServerBuilder {
+    pub fn bind<S: Into<String>>(mut self, host: S, port: u16) -> ServerBuilder {
         self.addrs.push((host.into(), port, None));
         self
     }
@@ -172,7 +172,7 @@ impl ServerBuilder {
     /// This function can be called multiple times.
     pub fn bind_secure<S: Into<String>>(mut self,
                                         host: S,
-                                        port: u32,
+                                        port: u16,
                                         c: ServerCredentials)
                                         -> ServerBuilder {
         self.addrs.push((host.into(), port, Some(c)));
@@ -185,7 +185,7 @@ impl ServerBuilder {
         self
     }
 
-    /// Set how many requests a completion queue can handled.
+    /// Set how many requests a completion queue can handle.
     pub fn requests_slot_per_cq(mut self, slots: usize) -> ServerBuilder {
         self.slots_per_cq = slots;
         self
@@ -197,29 +197,30 @@ impl ServerBuilder {
         self
     }
 
-    pub fn build(mut self) -> Server {
+    pub fn build(mut self) -> Result<Server> {
         let args = self.args.map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            let bind_addrs: Vec<_> = self.addrs
-                .drain(..)
-                .map(|(host, port, certs)| {
-                    let addr = format!("{}:{}\0", host, port);
-                    let addr_ptr = addr.as_ptr();
-                    let bind_port = match certs {
-                        None => {
-                            grpc_sys::grpc_server_add_insecure_http2_port(server, addr_ptr as _)
-                        }
-                        Some(mut cert) => {
-                            grpc_sys::grpc_server_add_secure_http2_port(server,
-                                                                        addr_ptr as _,
-                                                                        cert.as_mut_ptr())
-                        }
-                    };
+            let mut bind_addrs = Vec::with_capacity(self.addrs.len());
+            for (host, port, certs) in self.addrs.drain(..) {
+                let addr = format!("{}:{}\0", host, port);
+                let addr_ptr = addr.as_ptr();
+                let bind_port = match certs {
+                    None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr_ptr as _),
+                    Some(mut cert) => {
+                        grpc_sys::grpc_server_add_secure_http2_port(server,
+                                                                    addr_ptr as _,
+                                                                    cert.as_mut_ptr())
+                    }
+                };
 
-                    (host, bind_port as u32)
-                })
-                .collect();
+                if bind_port == 0 {
+                    grpc_sys::grpc_server_destroy(server);
+                    return Err(Error::BindFail(host, port));
+                }
+
+                bind_addrs.push((host, bind_port as u16));
+            }
 
             for cq in self.env.completion_queues() {
                 grpc_sys::grpc_server_register_completion_queue(server,
@@ -227,16 +228,16 @@ impl ServerBuilder {
                                                                 ptr::null_mut());
             }
 
-            Server {
-                inner: Arc::new(Inner {
-                                    env: self.env,
-                                    server: server,
-                                    shutdown: AtomicBool::new(false),
-                                    bind_addrs: bind_addrs,
-                                    slots_per_cq: self.slots_per_cq,
-                                    handlers: self.handlers,
-                                }),
-            }
+            Ok(Server {
+                   inner: Arc::new(Inner {
+                                       env: self.env,
+                                       server: server,
+                                       shutdown: AtomicBool::new(false),
+                                       bind_addrs: bind_addrs,
+                                       slots_per_cq: self.slots_per_cq,
+                                       handlers: self.handlers,
+                                   }),
+               })
         }
     }
 }
@@ -244,7 +245,7 @@ impl ServerBuilder {
 pub struct Inner {
     env: Arc<Environment>,
     server: *mut GrpcServer,
-    bind_addrs: Vec<(String, u32)>,
+    bind_addrs: Vec<(String, u16)>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
     handlers: HashMap<&'static [u8], Handler>,
@@ -254,6 +255,12 @@ impl Inner {
     /// Get the handler for the requested method path.
     pub fn get_handler(&self, method: &[u8]) -> Option<&Handler> {
         self.handlers.get(method)
+    }
+}
+
+impl Drop for Inner {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpc_server_destroy(self.server) }
     }
 }
 
@@ -335,7 +342,7 @@ impl Server {
     }
 
     /// Get the binded addresses.
-    pub fn bind_addrs(&self) -> &[(String, u32)] {
+    pub fn bind_addrs(&self) -> &[(String, u16)] {
         &self.inner.bind_addrs
     }
 }
@@ -347,6 +354,5 @@ impl Drop for Server {
         let f = self.shutdown();
         self.cancel_all_calls();
         let _ = f.wait();
-        unsafe { grpc_sys::grpc_server_destroy(self.inner.server) }
     }
 }
