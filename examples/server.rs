@@ -82,11 +82,11 @@ impl RouteGuide for RouteGuideService {
                 Ok((Some(point), dis, summary)) as Result<_>
             })
             .and_then(move |(_, dis, mut s)| {
-                          s.set_distance(dis as i32);
-                          let dur = timer.elapsed();
-                          s.set_elapsed_time(dur.as_secs() as i32);
-                          resp.success(s)
-                      })
+                s.set_distance(dis as i32);
+                let dur = timer.elapsed();
+                s.set_elapsed_time(dur.as_secs() as i32);
+                resp.success(s)
+            })
             .map_err(|e| println!("failed to record route: {:?}", e));
         self.pool.spawn(f).forget()
     }
@@ -135,10 +135,10 @@ fn main() {
     }
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
-                      println!("Press ENTER to exit...");
-                      io::stdin().read(&mut [0]).unwrap();
-                      tx.send(())
-                  });
+        println!("Press ENTER to exit...");
+        io::stdin().read(&mut [0]).unwrap();
+        tx.send(())
+    });
     let _ = rx.wait();
     let _ = server.shutdown().wait();
 }

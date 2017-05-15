@@ -149,13 +149,13 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                     let mut time = executor.back_off.back_off_async(&executor.timer);
                     let mut res = Some(executor);
                     future::poll_fn(move || {
-                                        if let Some(ref mut t) = time {
-                                            try_ready!(t.poll());
-                                        }
-                                        time.take();
-                                        let l: Loop<(), _> = Loop::Continue(res.take().unwrap());
-                                        Ok(Async::Ready(l))
-                                    })
+                        if let Some(ref mut t) = time {
+                            try_ready!(t.poll());
+                        }
+                        time.take();
+                        let l: Loop<(), _> = Loop::Continue(res.take().unwrap());
+                        Ok(Async::Ready(l))
+                    })
                 })
         })
                 .map_err(|e| println!("failed to execute unary async: {:?}", e));

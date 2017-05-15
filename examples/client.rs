@@ -48,17 +48,17 @@ fn main() {
     let get_feature = client
         .get_feature_async(point)
         .and_then(|f| {
-                      println!("async get_feature: {:?}", f);
-                      Ok(())
-                  });
+            println!("async get_feature: {:?}", f);
+            Ok(())
+        });
 
     let rect = new_rect(400000000, -750000000, 420000000, -730000000);
     let list_features = client
         .list_features(rect)
         .for_each(|f| {
-                      println!("server streaming list_features: {:?}", f);
-                      Ok(())
-                  });
+            println!("server streaming list_features: {:?}", f);
+            Ok(())
+        });
 
     let call = client.record_route();
     let points: Vec<Result<_>> = vec![
@@ -71,17 +71,17 @@ fn main() {
     let record_route = call.send_all(stream::iter(points).map(|(lat, lon)| new_point(lat, lon)))
         .and_then(|(call, _)| call.into_receiver())
         .and_then(|s| {
-                      println!("client streaming record_route: {:?}", s);
-                      Ok(())
-                  });
+            println!("client streaming record_route: {:?}", s);
+            Ok(())
+        });
 
     let mut call = client.route_chat();
     let route_chat = call.take_receiver()
         .unwrap()
         .for_each(|note| {
-                      println!("duplex streaming route_chat: {:?}", note);
-                      Ok(())
-                  });
+            println!("duplex streaming route_chat: {:?}", note);
+            Ok(())
+        });
 
     let notes: Vec<Result<_>> = vec![
         Ok(new_note(0, 0, "message 1")),

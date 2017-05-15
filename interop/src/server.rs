@@ -83,10 +83,10 @@ impl TestService for InteropTestService {
         let resps: Vec<Result<_, grpc::Error>> = req.get_response_parameters()
             .into_iter()
             .map(|param| {
-                     let mut resp = StreamingOutputCallResponse::new();
-                     resp.set_payload(util::new_payload(param.get_size() as usize));
-                     Ok(resp)
-                 })
+                let mut resp = StreamingOutputCallResponse::new();
+                resp.set_payload(util::new_payload(param.get_size() as usize));
+                Ok(resp)
+            })
             .collect();
         let f = sink.send_all(stream::iter(resps))
             .map(|_| {})
@@ -102,10 +102,10 @@ impl TestService for InteropTestService {
             .fold(0,
                   |s, req| Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>)
             .and_then(|s| {
-                          let mut resp = StreamingInputCallResponse::new();
-                          resp.set_aggregated_payload_size(s as i32);
-                          sink.success(resp)
-                      })
+                let mut resp = StreamingInputCallResponse::new();
+                resp.set_aggregated_payload_size(s as i32);
+                sink.success(resp)
+            })
             .map_err(|e| match e {
                          grpc::Error::RemoteStopped => {}
                          e => println!("failed to send streaming inptu: {:?}", e),

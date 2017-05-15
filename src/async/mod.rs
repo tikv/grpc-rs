@@ -208,9 +208,9 @@ mod tests {
         let (tx, rx) = mpsc::channel();
 
         let handler = thread::spawn(move || {
-                                        tx.send(cq_f1.wait()).unwrap();
-                                        tx.send(cq_f2.wait()).unwrap();
-                                    });
+            tx.send(cq_f1.wait()).unwrap();
+            tx.send(cq_f2.wait()).unwrap();
+        });
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
         tag1.resolve(&env.pick_cq(), true);

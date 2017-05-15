@@ -131,18 +131,18 @@ impl WorkerService for Worker {
         resp.set_cores(cpu_count as i32);
         self.remote
             .spawn(|_| {
-                       sink.success(resp)
-                           .map_err(|e| println!("failed to report cpu count: {:?}", e))
-                   })
+                sink.success(resp)
+                    .map_err(|e| println!("failed to report cpu count: {:?}", e))
+            })
     }
 
     fn quit_worker(&self, _: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
         self.remote
             .spawn(|_| {
-                       sink.success(Void::new())
-                           .map_err(|e| println!("failed to report quick worker: {:?}", e))
-                   });
+                sink.success(Void::new())
+                    .map_err(|e| println!("failed to report quick worker: {:?}", e))
+            });
         if let Some(notifier) = notifier {
             let _ = notifier.send(());
         }

@@ -42,9 +42,9 @@ impl BenchmarkService for Benchmark {
         let resp = gen_resp(req);
         self.remote
             .spawn(|_| {
-                       sink.success(resp)
-                           .map_err(|e| println!("failed to handle unary: {:?}", e))
-                   })
+                sink.success(resp)
+                    .map_err(|e| println!("failed to handle unary: {:?}", e))
+            })
     }
 
     fn streaming_call(&self,
@@ -53,9 +53,9 @@ impl BenchmarkService for Benchmark {
                       sink: DuplexSink<SimpleResponse>) {
         self.remote
             .spawn(|_| {
-                       sink.send_all(stream.map(gen_resp))
-                           .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                           .map(|_| {})
-                   })
+                sink.send_all(stream.map(gen_resp))
+                    .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                    .map(|_| {})
+            })
     }
 }

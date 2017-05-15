@@ -60,10 +60,10 @@ impl Client {
         let reqs: Vec<grpc::Result<_>> = vec![27182, 8, 1828, 45904]
             .into_iter()
             .map(|s| {
-                     let mut req = StreamingInputCallRequest::new();
-                     req.set_payload(util::new_payload(s));
-                     Ok(req)
-                 })
+                let mut req = StreamingInputCallRequest::new();
+                req.set_payload(util::new_payload(s));
+                Ok(req)
+            })
             .collect();
         let mut handler = self.client.streaming_input_call();
         handler = handler.send_all(stream::iter(reqs)).wait().unwrap().0;
