@@ -285,7 +285,7 @@ impl<'a> MethodGen<'a> {
         let (req, req_type, resp_type) = match self.method_type().0 {
             MethodType::Unary => ("req", self.input(), "UnarySink"),
             MethodType::ClientStreaming => ("stream", req_stream_type, "ClientStreamingSink"),
-            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamSink"),
+            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamingSink"),
             MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
         };
         let sig = format!("{}(&self, ctx: {}, {}: {}, sink: {}<{}>)",
