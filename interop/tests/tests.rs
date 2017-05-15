@@ -41,7 +41,7 @@ macro_rules! mk_test {
                 builder.bind("localhost", 0)
             };
 
-            let mut server = builder.build();
+            let mut server = builder.build().unwrap();
             server.start();
 
             let builder = ChannelBuilder::new(env.clone())

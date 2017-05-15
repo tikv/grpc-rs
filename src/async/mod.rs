@@ -123,7 +123,7 @@ impl CallTag {
         (CqFuture::new(inner), CallTag::Batch(batch))
     }
 
-    /// Generate a CallTag for request job. We don't have a eventloop
+    /// Generate a CallTag for request job. We don't have an eventloop
     /// to pull the future, so just the tag is enough.
     pub fn request(inner: Arc<ServerInner>) -> CallTag {
         CallTag::Request(RequestCallback::new(inner))

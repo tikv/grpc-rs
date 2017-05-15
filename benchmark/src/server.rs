@@ -49,13 +49,13 @@ impl Server {
         let mut builder = ServerBuilder::new(env).register_service(service);
         builder = if cfg.has_security_params() {
             builder.bind_secure("[::]",
-                                cfg.get_port() as u32,
+                                cfg.get_port() as u16,
                                 proto_util::create_test_server_credentials())
         } else {
-            builder.bind("[::]", cfg.get_port() as u32)
+            builder.bind("[::]", cfg.get_port() as u16)
         };
 
-        let mut s = builder.build();
+        let mut s = builder.build().unwrap();
         s.start();
         Ok(Server {
                server: s,

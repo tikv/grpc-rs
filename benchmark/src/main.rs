@@ -35,7 +35,7 @@ fn main() {
                  .help("The port the worker should listen on. For example, \"8080\"")
                  .takes_value(true))
         .get_matches();
-    let port: u32 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
+    let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
 
     let mut core = Core::new().unwrap();
     let env = Arc::new(Environment::new(2));
@@ -45,7 +45,8 @@ fn main() {
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("[::]", port)
-        .build();
+        .build()
+        .unwrap();
 
     for &(ref host, port) in server.bind_addrs() {
         println!("listening on {}:{}", host, port);

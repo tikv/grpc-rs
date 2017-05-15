@@ -30,6 +30,7 @@ pub enum Error {
     RpcFailure(RpcStatus),
     RemoteStopped,
     ShutdownFailed,
+    BindFail(String, u16),
 }
 
 impl Display for Error {
@@ -46,6 +47,7 @@ impl error::Error for Error {
             Error::RpcFailure(_) => "Grpc Request Error",
             Error::RemoteStopped => "Remote is stopped.",
             Error::ShutdownFailed => "Failed to shutdown.",
+            Error::BindFail(_, _) => "Grpc Bind Error",
         }
     }
 

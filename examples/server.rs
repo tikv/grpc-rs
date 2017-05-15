@@ -128,7 +128,8 @@ fn main() {
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50051)
-        .build();
+        .build()
+        .unwrap();
     server.start();
     for &(ref host, port) in server.bind_addrs() {
         println!("listening on {}:{}", host, port);

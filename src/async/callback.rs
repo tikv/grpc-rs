@@ -12,11 +12,12 @@
 // limitations under the License.
 
 
+use std::sync::Arc;
+
 use call::{BatchContext, Call};
 use call::server::{RequestContext, UnaryRequestContext};
 use cq::CompletionQueue;
 use server::{self, Inner as ServerInner};
-use std::sync::Arc;
 
 pub struct Request {
     ctx: RequestContext,

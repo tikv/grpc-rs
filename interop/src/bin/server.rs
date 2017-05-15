@@ -46,7 +46,7 @@ fn main() {
                  .takes_value(true))
         .get_matches();
     let host = matches.value_of("host").unwrap_or("127.0.0.1");
-    let port: u32 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
+    let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
     let use_tls: bool = matches
         .value_of("use_tls")
         .unwrap_or("false")
@@ -66,7 +66,7 @@ fn main() {
         builder.bind(host, port)
     };
 
-    let mut server = builder.build();
+    let mut server = builder.build().unwrap();
     for &(ref host, port) in server.bind_addrs() {
         println!("listening on {}:{}", host, port);
     }

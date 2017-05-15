@@ -66,7 +66,7 @@ impl RequestContext {
     ///
     /// Return error if the request is a client side unary request.
     pub fn handle_stream_req(self, inner: &Inner) -> result::Result<(), Self> {
-        match inner.get_method(self.method()) {
+        match inner.get_handler(self.method()) {
             Some(handler) => {
                 match handler.method_type() {
                     MethodType::Unary |
@@ -175,7 +175,7 @@ impl UnaryRequestContext {
     }
 
     pub fn handle(mut self, inner: &Arc<Inner>, data: Option<&[u8]>) {
-        let handler = inner.get_method(self.request.method()).unwrap();
+        let handler = inner.get_handler(self.request.method()).unwrap();
         if let Some(data) = data {
             return execute(self.request, data, handler.cb());
         }
