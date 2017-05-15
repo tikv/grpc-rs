@@ -19,7 +19,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
-use protobuf::{Message, MessageStatic};
 
 use RpcContext;
 use async::{CallTag, CqFuture};
@@ -71,12 +70,13 @@ impl ServiceBuilder {
     }
 
     /// Add a unary rpc call handler.
-    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method, handler: F) -> ServiceBuilder
-        where P: MessageStatic,
-              Q: Message,
+    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method<P, Q>, handler: F) -> ServiceBuilder
+        where P: 'static,
+              Q: 'static,
               F: Fn(RpcContext, P, UnarySink<Q>) + 'static
     {
-        let h = Box::new(move |ctx, payload: &[u8]| execute_unary(ctx, payload, &handler));
+        let (ser, de) = (method.resp_ser(), method.req_de());
+        let h = Box::new(move |ctx, payload: &[u8]| execute_unary(ctx, ser, de, payload, &handler));
         self.handlers
             .insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
         self
@@ -84,14 +84,15 @@ impl ServiceBuilder {
 
     /// Add a client streaming rpc call handler.
     pub fn add_client_streaming_handler<P, Q, F>(mut self,
-                                                 method: &Method,
+                                                 method: &Method<P, Q>,
                                                  handler: F)
                                                  -> ServiceBuilder
-        where P: MessageStatic,
-              Q: Message,
+        where P: 'static,
+              Q: 'static,
               F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static
     {
-        let h = Box::new(move |ctx, _: &[u8]| execute_client_streaming(ctx, &handler));
+        let (ser, de) = (method.resp_ser(), method.req_de());
+        let h = Box::new(move |ctx, _: &[u8]| execute_client_streaming(ctx, ser, de, &handler));
         self.handlers
             .insert(method.name.as_bytes(),
                     Handler::new(MethodType::ClientStreaming, h));
@@ -100,15 +101,17 @@ impl ServiceBuilder {
 
     /// Add a server streaming rpc call handler.
     pub fn add_server_streaming_handler<P, Q, F>(mut self,
-                                                 method: &Method,
+                                                 method: &Method<P, Q>,
                                                  handler: F)
                                                  -> ServiceBuilder
-        where P: MessageStatic,
-              Q: Message,
+        where P: 'static,
+              Q: 'static,
               F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static
     {
-        let h =
-            Box::new(move |ctx, payload: &[u8]| execute_server_streaming(ctx, payload, &handler));
+        let (ser, de) = (method.resp_ser(), method.req_de());
+        let h = Box::new(move |ctx, payload: &[u8]| {
+                             execute_server_streaming(ctx, ser, de, payload, &handler)
+                         });
         self.handlers
             .insert(method.name.as_bytes(),
                     Handler::new(MethodType::ServerStreaming, h));
@@ -117,14 +120,15 @@ impl ServiceBuilder {
 
     /// Add a duplex streaming rpc call handler.
     pub fn add_duplex_streaming_handler<P, Q, F>(mut self,
-                                                 method: &Method,
+                                                 method: &Method<P, Q>,
                                                  handler: F)
                                                  -> ServiceBuilder
-        where P: MessageStatic,
-              Q: Message,
+        where P: 'static,
+              Q: 'static,
               F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static
     {
-        let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, &handler));
+        let (ser, de) = (method.resp_ser(), method.req_de());
+        let h = Box::new(move |ctx, _: &[u8]| execute_duplex_streaming(ctx, ser, de, &handler));
         self.handlers
             .insert(method.name.as_bytes(), Handler::new(MethodType::Duplex, h));
         self

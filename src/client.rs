@@ -13,7 +13,6 @@
 
 
 use futures::Future;
-use protobuf::{Message, MessageStatic};
 
 use call::{Call, Method};
 use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
@@ -33,21 +32,17 @@ impl Client {
     }
 
     /// Create a synchronized unary rpc call.
-    pub fn unary_call<P: Message, Q: MessageStatic>(&self,
-                                                    method: &Method,
-                                                    req: P,
-                                                    opt: CallOption)
-                                                    -> Result<Q> {
+    pub fn unary_call<P, Q>(&self, method: &Method<P, Q>, req: P, opt: CallOption) -> Result<Q> {
         let f = self.unary_call_async(method, req, opt);
         f.wait()
     }
 
     /// Create a asynchronized unary rpc call.
-    pub fn unary_call_async<P: Message, Q>(&self,
-                                           method: &Method,
-                                           req: P,
-                                           opt: CallOption)
-                                           -> UnaryCallHandler<Q> {
+    pub fn unary_call_async<P, Q>(&self,
+                                  method: &Method<P, Q>,
+                                  req: P,
+                                  opt: CallOption)
+                                  -> UnaryCallHandler<Q> {
         Call::unary_async(&self.channel, method, req, opt)
     }
 
@@ -55,7 +50,7 @@ impl Client {
     ///
     /// Client can send a stream of requests and server responds with a single response.
     pub fn client_streaming<P, Q>(&self,
-                                  method: &Method,
+                                  method: &Method<P, Q>,
                                   opt: CallOption)
                                   -> ClientStreamingCallHandler<P, Q> {
         Call::client_streaming(&self.channel, method, opt)
@@ -64,11 +59,11 @@ impl Client {
     /// Create a asynchronized server streaming call.
     ///
     /// Client sends on request and server responds with a stream of responses.
-    pub fn server_streaming<P: Message, Q>(&self,
-                                           method: &Method,
-                                           req: P,
-                                           opt: CallOption)
-                                           -> ServerStreamingCallHandler<Q> {
+    pub fn server_streaming<P, Q>(&self,
+                                  method: &Method<P, Q>,
+                                  req: P,
+                                  opt: CallOption)
+                                  -> ServerStreamingCallHandler<Q> {
         Call::server_streaming(&self.channel, method, req, opt)
     }
 
@@ -78,7 +73,7 @@ impl Client {
     /// The response stream is completely independent and both side can be sending messages
     /// at the same time.
     pub fn duplex_streaming<P, Q>(&self,
-                                  method: &Method,
+                                  method: &Method<P, Q>,
                                   opt: CallOption)
                                   -> DuplexCallHandler<P, Q> {
         Call::duplex_streaming(&self.channel, method, opt)

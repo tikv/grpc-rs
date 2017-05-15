@@ -240,7 +240,7 @@ unsafe impl Sync for Channel {}
 
 impl Channel {
     /// Create a call using the method and option.
-    pub fn create_call(&self, method: &Method, opt: &CallOption) -> Call {
+    pub fn create_call<P, Q>(&self, method: &Method<P, Q>, opt: &CallOption) -> Call {
         let raw_call = unsafe {
             let ch = self.inner.channel;
             let cq = self.cq.as_ptr();

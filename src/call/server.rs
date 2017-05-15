@@ -13,15 +13,14 @@
 
 
 use std::{result, slice};
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
-use protobuf::{self, Message, MessageStatic};
 
 use async::{BatchFuture, CallTag};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use codec::{DeFn, SerFn};
 use cq::CompletionQueue;
 use error::Error;
 use server::{CallBack, Inner};
@@ -195,20 +194,20 @@ impl Drop for RequestContext {
 pub struct RequestStream<T> {
     call: Arc<Mutex<Call>>,
     base: StreamingBase,
-    _req: PhantomData<T>,
+    de: DeFn<T>,
 }
 
 impl<T> RequestStream<T> {
-    fn new(call: Arc<Mutex<Call>>) -> RequestStream<T> {
+    fn new(call: Arc<Mutex<Call>>, de: DeFn<T>) -> RequestStream<T> {
         RequestStream {
             call: call,
             base: StreamingBase::new(None),
-            _req: PhantomData,
+            de: de,
         }
     }
 }
 
-impl<T: MessageStatic> Stream for RequestStream<T> {
+impl<T> Stream for RequestStream<T> {
     type Item = T;
     type Error = Error;
 
@@ -218,7 +217,7 @@ impl<T: MessageStatic> Stream for RequestStream<T> {
         match data {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let msg = try!(protobuf::parse_from_bytes(&data));
+                let msg = try!((self.de)(&data));
                 Ok(Async::Ready(Some(msg)))
             }
         }
@@ -256,16 +255,16 @@ macro_rules! impl_unary_sink {
             call: $holder,
             close_f: BatchFuture,
             write_flags: u32,
-            _resp: PhantomData<T>,
+            ser: SerFn<T>,
         }
 
-        impl<T: Message> $t<T> {
-            fn new(call: $holder, close_f: BatchFuture) -> $t<T> {
+        impl<T> $t<T> {
+            fn new(call: $holder, close_f: BatchFuture, ser: SerFn<T>) -> $t<T> {
                 $t {
                     call: call,
                     close_f: close_f,
                     write_flags: 0,
-                    _resp: PhantomData,
+                    ser: ser,
                 }
             }
 
@@ -278,10 +277,11 @@ macro_rules! impl_unary_sink {
             }
 
             fn complete(mut self, status: RpcStatus, t: Option<T>) -> $rt {
-                let data = match t {
-                    Some(t) => Some(t.write_to_bytes().unwrap()),
-                    None => None,
-                };
+                let data = t.as_ref().map(|t| {
+                    let mut buf = vec![];
+                    (self.ser)(t, &mut buf);
+                    buf
+                });
 
                 let write_flags = self.write_flags;
                 let cq_f = self.call.call(|c| {
@@ -311,18 +311,18 @@ macro_rules! impl_stream_sink {
             close_f: BatchFuture,
             status: RpcStatus,
             flushed: bool,
-            _resp: PhantomData<T>,
+            ser: SerFn<T>,
         }
 
         impl<T> $t<T> {
-            fn new(call: $holder, close_f: BatchFuture) -> $t<T> {
+            fn new(call: $holder, close_f: BatchFuture, ser: SerFn<T>) -> $t<T> {
                 $t {
                     call: call,
                     base: SinkBase::new(0, true),
                     close_f: close_f,
                     status: RpcStatus::ok(),
                     flushed: false,
-                    _resp: PhantomData,
+                    ser: ser,
                 }
             }
 
@@ -347,13 +347,13 @@ macro_rules! impl_stream_sink {
             }
         }
 
-        impl<T: Message> Sink for $t<T> {
+        impl<T> Sink for $t<T> {
             type SinkItem = T;
             type SinkError = Error;
 
             fn start_send(&mut self, item: T) -> StartSend<T, Error> {
                 self.base
-                    .start_send(&mut self.call, |buf| item.write_to_vec(buf))
+                    .start_send(&mut self.call, &item, self.ser)
                     .map(|s| if s {
                             AsyncSink::Ready
                         } else {
@@ -444,14 +444,16 @@ impl RpcContext {
 // Following four helper functions are used to create a callback closure.
 
 // Helper function to call a unary handler.
-pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
-    where P: MessageStatic,
-          Q: Message,
-          F: Fn(RpcContext, P, UnarySink<Q>)
+pub fn execute_unary<P, Q, F>(mut ctx: RpcContext,
+                              ser: SerFn<Q>,
+                              de: DeFn<P>,
+                              payload: &[u8],
+                              f: &F)
+    where F: Fn(RpcContext, P, UnarySink<Q>)
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();
-    let request = match protobuf::parse_from_bytes(payload) {
+    let request = match de(payload) {
         Ok(f) => f,
         Err(e) => {
             let status =
@@ -461,15 +463,13 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
             return;
         }
     };
-    let sink = UnarySink::new(call, close_f);
+    let sink = UnarySink::new(call, close_f, ser);
     f(ctx, request, sink)
 }
 
 // Helper function to call client streaming handler.
-pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
-    where P: MessageStatic,
-          Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>)
+pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, ser: SerFn<Q>, de: DeFn<P>, f: &F)
+    where F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>)
 {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
@@ -477,21 +477,23 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
         call.start_server_side()
     };
 
-    let req_s = RequestStream::new(call.clone());
-    let sink = ClientStreamingSink::new(call, close_f);
+    let req_s = RequestStream::new(call.clone(), de);
+    let sink = ClientStreamingSink::new(call, close_f, ser);
     f(ctx, req_s, sink)
 }
 
 // Helper function to call server streaming handler.
-pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f: &F)
-    where P: MessageStatic,
-          Q: Message,
-          F: Fn(RpcContext, P, ServerStreamingSink<Q>)
+pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
+                                         ser: SerFn<Q>,
+                                         de: DeFn<P>,
+                                         payload: &[u8],
+                                         f: &F)
+    where F: Fn(RpcContext, P, ServerStreamingSink<Q>)
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();
 
-    let request = match protobuf::parse_from_bytes(payload) {
+    let request = match de(payload) {
         Ok(t) => t,
         Err(e) => {
             let status =
@@ -502,15 +504,13 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext, payload: &[u8], f:
         }
     };
 
-    let sink = ServerStreamingSink::new(call, close_f);
+    let sink = ServerStreamingSink::new(call, close_f, ser);
     f(ctx, request, sink)
 }
 
 // Helper function to call duplex streaming handler.
-pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
-    where P: MessageStatic,
-          Q: Message,
-          F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>)
+pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, ser: SerFn<Q>, de: DeFn<P>, f: &F)
+    where F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>)
 {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
     let close_f = {
@@ -518,8 +518,8 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, f: &F)
         call.start_server_side()
     };
 
-    let req_s = RequestStream::new(call.clone());
-    let sink = DuplexSink::new(call, close_f);
+    let req_s = RequestStream::new(call.clone(), de);
+    let sink = DuplexSink::new(call, close_f, ser);
     f(ctx, req_s, sink)
 }
 
