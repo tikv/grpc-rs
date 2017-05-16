@@ -14,9 +14,9 @@
 extern crate benchmark;
 extern crate clap;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate grpc;
 extern crate grpc_proto;
-extern crate tokio_core;
 
 use std::sync::Arc;
 
@@ -25,7 +25,8 @@ use clap::{App, Arg};
 use futures::sync::oneshot;
 use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::services_grpc;
-use tokio_core::reactor::Core;
+use futures::Future;
+use futures_cpupool::CpuPool;
 
 fn main() {
     let matches = App::new("Benchmark QpsWorker")
@@ -37,10 +38,10 @@ fn main() {
         .get_matches();
     let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
 
-    let mut core = Core::new().unwrap();
+    let pool = CpuPool::new(2);
     let env = Arc::new(Environment::new(2));
     let (tx, rx) = oneshot::channel();
-    let worker = Worker::new(env.clone(), core.remote(), tx);
+    let worker = Worker::new(env.clone(), pool.clone(), tx);
     let service = services_grpc::create_worker_service(worker);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
@@ -54,5 +55,5 @@ fn main() {
 
     server.start();
 
-    let _ = core.run(rx);
+    let _ = rx.wait();
 }

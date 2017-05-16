@@ -15,10 +15,10 @@
 use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
-use tokio_core::reactor::Remote;
 use grpc::{self, DuplexSink, Method, MethodType, RequestStream, RpcContext, ServiceBuilder,
            UnarySink};
 use futures::{Future, Sink, Stream};
+use futures_cpupool::CpuPool;
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
@@ -29,58 +29,55 @@ fn gen_resp(req: SimpleRequest) -> SimpleResponse {
 
 #[derive(Clone)]
 pub struct Benchmark {
-    remote: Remote,
+    pool: CpuPool,
 }
 
 impl Benchmark {
-    pub fn new(remote: Remote) -> Benchmark {
-        Benchmark { remote: remote }
+    pub fn new(pool: CpuPool) -> Benchmark {
+        Benchmark { pool: pool }
     }
 }
 
 impl BenchmarkService for Benchmark {
     fn unary_call(&self, _: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let resp = gen_resp(req);
-        self.remote
-            .spawn(|_| {
-                sink.success(resp)
-                    .map_err(|e| println!("failed to handle unary: {:?}", e))
-            })
+        self.pool
+            .spawn(sink.success(resp)
+                       .map_err(|e| println!("failed to handle unary: {:?}", e)))
+            .forget();
     }
 
     fn streaming_call(&self,
                       _: RpcContext,
                       stream: RequestStream<SimpleRequest>,
                       sink: DuplexSink<SimpleResponse>) {
-        self.remote
-            .spawn(|_| {
-                sink.send_all(stream.map(gen_resp))
-                    .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                    .map(|_| {})
-            })
+        self.pool
+            .spawn(sink.send_all(stream.map(gen_resp))
+                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                       .map(|_| {}))
+            .forget()
     }
 }
 
 #[derive(Clone)]
 pub struct Generic {
-    remote: Remote,
+    pool: CpuPool,
 }
 
 impl Generic {
-    pub fn new(remote: Remote) -> Generic {
-        Generic { remote: remote }
+    pub fn new(pool: CpuPool) -> Generic {
+        Generic { pool: pool }
     }
 
     pub fn streaming_call(&self,
                           _: RpcContext,
                           stream: RequestStream<Vec<u8>>,
                           sink: DuplexSink<Vec<u8>>) {
-        self.remote
-            .spawn(|_| {
-                sink.send_all(stream.map(|req| req))
-                    .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                    .map(|_| {})
-            })
+        self.pool
+            .spawn(sink.send_all(stream.map(|req| req))
+                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                       .map(|_| {}))
+            .forget()
     }
 }
 

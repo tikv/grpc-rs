@@ -15,12 +15,12 @@
 use std::sync::Arc;
 
 use error::Result;
+use futures_cpupool::CpuPool;
 use grpc::{Environment, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
 use grpc_proto::util as proto_util;
-use tokio_core::reactor::Remote;
 
 use bench::{self, Benchmark, Generic};
 use util::{self, CpuRecorder};
@@ -31,17 +31,17 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(env: Arc<Environment>, cfg: &ServerConfig, remote: Remote) -> Result<Server> {
+    pub fn new(env: Arc<Environment>, cfg: &ServerConfig, pool: CpuPool) -> Result<Server> {
         if cfg.get_core_limit() > 0 {
             println!("server config core limit is set but ignored");
         }
         let service = match cfg.get_server_type() {
             ServerType::ASYNC_SERVER => {
-                let b = Benchmark::new(remote);
+                let b = Benchmark::new(pool);
                 services_grpc::create_benchmark_service(b)
             }
             ServerType::ASYNC_GENERIC_SERVER => {
-                let b = Generic::new(remote);
+                let b = Generic::new(pool);
                 bench::create_generic_service(b)
             }
             _ => unimplemented!(),
