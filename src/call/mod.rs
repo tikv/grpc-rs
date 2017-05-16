@@ -23,7 +23,7 @@ use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
 use async::{BatchFuture, BatchType, CallTag};
-use codec::{DeFn, Marshaller, SerFn};
+use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
@@ -46,22 +46,22 @@ pub struct Method<P, Q> {
 
 impl<P, Q> Method<P, Q> {
     #[inline]
-    pub fn req_ser(&self) -> SerFn<P> {
+    pub fn req_ser(&self) -> SerializeFn<P> {
         self.req_mar.ser
     }
 
     #[inline]
-    pub fn req_de(&self) -> DeFn<P> {
+    pub fn req_de(&self) -> DeserializeFn<P> {
         self.req_mar.de
     }
 
     #[inline]
-    pub fn resp_ser(&self) -> SerFn<Q> {
+    pub fn resp_ser(&self) -> SerializeFn<Q> {
         self.resp_mar.ser
     }
 
     #[inline]
-    pub fn resp_de(&self) -> DeFn<Q> {
+    pub fn resp_de(&self) -> DeserializeFn<Q> {
         self.resp_mar.de
     }
 }
@@ -408,7 +408,11 @@ impl SinkBase {
         }
     }
 
-    fn start_send<T, C: CallHolder>(&mut self, call: &mut C, t: &T, ser: SerFn<T>) -> Result<bool> {
+    fn start_send<T, C: CallHolder>(&mut self,
+                                    call: &mut C,
+                                    t: &T,
+                                    ser: SerializeFn<T>)
+                                    -> Result<bool> {
         if self.write_f.is_some() {
             // try its best not to return false.
             try!(self.poll_complete());

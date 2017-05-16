@@ -14,8 +14,8 @@
 
 use error::Result;
 
-pub type DeFn<T> = fn(&[u8]) -> Result<T>;
-pub type SerFn<T> = fn(&T, &mut Vec<u8>);
+pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
+pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
 
 /// Marshaller defines how to serialize and deserialize between T and byte slice.
 pub struct Marshaller<T> {
@@ -28,8 +28,8 @@ pub struct Marshaller<T> {
     //
     // const function is not stable yet (rust-lang/rust#24111), hence
     // make all fields public.
-    pub ser: SerFn<T>,
-    pub de: DeFn<T>,
+    pub ser: SerializeFn<T>,
+    pub de: DeserializeFn<T>,
 }
 
 #[cfg(feature = "protobuf-codec")]

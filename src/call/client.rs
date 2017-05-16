@@ -22,7 +22,7 @@ use grpc_sys;
 use async::{BatchMessage, BatchType, CqFuture};
 use call::{Call, Method, check_run};
 use channel::Channel;
-use codec::{DeFn, SerFn};
+use codec::{DeserializeFn, SerializeFn};
 use error::Error;
 use super::{SinkBase, StreamingBase};
 
@@ -196,11 +196,14 @@ impl Call {
 pub struct UnaryCallHandler<T> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
-    resp_de: DeFn<T>,
+    resp_de: DeserializeFn<T>,
 }
 
 impl<T> UnaryCallHandler<T> {
-    fn new(call: Call, resp_f: CqFuture<BatchMessage>, de: DeFn<T>) -> UnaryCallHandler<T> {
+    fn new(call: Call,
+           resp_f: CqFuture<BatchMessage>,
+           de: DeserializeFn<T>)
+           -> UnaryCallHandler<T> {
         UnaryCallHandler {
             call: call,
             resp_f: resp_f,
@@ -229,7 +232,7 @@ impl<T> Future for UnaryCallHandler<T> {
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
     resp_f: CqFuture<BatchMessage>,
-    resp_de: DeFn<T>,
+    resp_de: DeserializeFn<T>,
 }
 
 impl<T> Future for UnaryResponseReceiver<T> {
@@ -251,16 +254,16 @@ pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
     sink_base: SinkBase,
-    req_ser: SerFn<P>,
-    resp_de: DeFn<Q>,
+    req_ser: SerializeFn<P>,
+    resp_de: DeserializeFn<Q>,
 }
 
 impl<P, Q> ClientStreamingCallHandler<P, Q> {
     fn new(call: Call,
            resp_f: CqFuture<BatchMessage>,
            flags: u32,
-           ser: SerFn<P>,
-           de: DeFn<Q>)
+           ser: SerializeFn<P>,
+           de: DeserializeFn<Q>)
            -> ClientStreamingCallHandler<P, Q> {
         ClientStreamingCallHandler {
             call: call,
@@ -314,13 +317,13 @@ impl<P, Q> ClientStreamingCallHandler<P, Q> {
 pub struct ServerStreamingCallHandler<Q> {
     call: Call,
     base: StreamingBase,
-    resp_de: DeFn<Q>,
+    resp_de: DeserializeFn<Q>,
 }
 
 impl<Q> ServerStreamingCallHandler<Q> {
     fn new(call: Call,
            finish_f: CqFuture<BatchMessage>,
-           de: DeFn<Q>)
+           de: DeserializeFn<Q>)
            -> ServerStreamingCallHandler<Q> {
         ServerStreamingCallHandler {
             call: call,
@@ -358,16 +361,16 @@ pub struct DuplexCallHandler<P, Q> {
     call: Arc<Mutex<Call>>,
     resp_f: Option<CqFuture<BatchMessage>>,
     sink_base: SinkBase,
-    req_ser: SerFn<P>,
-    resp_de: DeFn<Q>,
+    req_ser: SerializeFn<P>,
+    resp_de: DeserializeFn<Q>,
 }
 
 impl<P, Q> DuplexCallHandler<P, Q> {
     fn new(call: Call,
            resp_f: CqFuture<BatchMessage>,
            write_flags: u32,
-           ser: SerFn<P>,
-           de: DeFn<Q>)
+           ser: SerializeFn<P>,
+           de: DeserializeFn<Q>)
            -> DuplexCallHandler<P, Q> {
         DuplexCallHandler {
             call: Arc::new(Mutex::new(call)),
@@ -406,7 +409,7 @@ impl<P, Q> Sink for DuplexCallHandler<P, Q> {
 pub struct StreamingResponseReceiver<Q> {
     call: Arc<Mutex<Call>>,
     base: StreamingBase,
-    resp_de: DeFn<Q>,
+    resp_de: DeserializeFn<Q>,
 }
 
 impl<P, Q> DuplexCallHandler<P, Q> {
