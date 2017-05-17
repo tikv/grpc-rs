@@ -12,6 +12,7 @@
 // limitations under the License.
 
 extern crate gcc;
+#[cfg(feature = "static-link")]
 extern crate cmake;
 extern crate pkg_config;
 
