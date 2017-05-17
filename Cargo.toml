@@ -17,3 +17,19 @@ default = ["protobuf-codec"]
 dev = ["clippy"]
 protobuf-codec = ["protobuf"]
 static-link = ["grpc-sys/static-link"]
+
+[[example]]
+name = "route_guide_client"
+path = "examples/route_guide/client.rs"
+
+[[example]]
+name = "route_guide_server"
+path = "examples/route_guide/server.rs"
+
+[dev-dependencies]
+futures-cpupool = "0.1"
+serde_json = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+grpc-proto = { path = "proto" }
+rand = "0.3"
