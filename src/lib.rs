@@ -23,11 +23,13 @@ extern crate grpc_sys;
 extern crate libc;
 #[macro_use]
 extern crate futures;
+#[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 
 mod async;
 mod call;
 mod channel;
+mod codec;
 mod cq;
 mod client;
 mod credentials;
@@ -43,6 +45,9 @@ pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
 pub use channel::{Channel, ChannelBuilder};
 pub use client::Client;
+pub use codec::Marshaller;
+#[cfg(feature = "protobuf-codec")]
+pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
 pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};

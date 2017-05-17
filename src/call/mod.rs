@@ -15,7 +15,7 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, result, slice, usize};
+use std::{ptr, slice, usize};
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, Future, Poll};
@@ -23,6 +23,7 @@ use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
 use async::{BatchFuture, BatchType, CallTag};
+use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
@@ -36,14 +37,32 @@ pub enum MethodType {
 }
 
 // TODO: add serializer and deserializer.
-pub struct Method {
+pub struct Method<P, Q> {
     pub ty: MethodType,
     pub name: &'static str,
+    pub req_mar: Marshaller<P>,
+    pub resp_mar: Marshaller<Q>,
 }
 
-impl Method {
-    pub fn new(ty: MethodType, name: &'static str) -> Method {
-        Method { ty: ty, name: name }
+impl<P, Q> Method<P, Q> {
+    #[inline]
+    pub fn req_ser(&self) -> SerializeFn<P> {
+        self.req_mar.ser
+    }
+
+    #[inline]
+    pub fn req_de(&self) -> DeserializeFn<P> {
+        self.req_mar.de
+    }
+
+    #[inline]
+    pub fn resp_ser(&self) -> SerializeFn<Q> {
+        self.resp_mar.ser
+    }
+
+    #[inline]
+    pub fn resp_de(&self) -> DeserializeFn<Q> {
+        self.resp_mar.de
     }
 }
 
@@ -389,10 +408,11 @@ impl SinkBase {
         }
     }
 
-    fn start_send<F, E, C: CallHolder>(&mut self, call: &mut C, fill_buf: F) -> Result<bool>
-        where F: FnOnce(&mut Vec<u8>) -> result::Result<(), E>,
-              E: Into<Error>
-    {
+    fn start_send<T, C: CallHolder>(&mut self,
+                                    call: &mut C,
+                                    t: &T,
+                                    ser: SerializeFn<T>)
+                                    -> Result<bool> {
         if self.write_f.is_some() {
             // try its best not to return false.
             try!(self.poll_complete());
@@ -402,9 +422,7 @@ impl SinkBase {
         }
 
         self.buf.clear();
-        if let Err(e) = fill_buf(&mut self.buf) {
-            return Err(e.into());
-        }
+        ser(t, &mut self.buf);
         let write_f =
             call.call(|c| c.start_send_message(&self.buf, self.flags, self.send_metadata));
         self.write_f = Some(write_f);

@@ -106,13 +106,21 @@ impl<'a> MethodGen<'a> {
     }
 
     fn write_definition(&self, w: &mut CodeWriter) {
-        let s = format!("const {}: {} = {} {{",
-                        self.const_method_name(),
-                        fq_grpc("Method"),
-                        fq_grpc("Method"));
-        w.block(&s, &format!("}};"), |w| {
+        let head = format!("const {}: {}<{}, {}> = {} {{",
+                           self.const_method_name(),
+                           fq_grpc("Method"),
+                           self.input(),
+                           self.output(),
+                           fq_grpc("Method"));
+        let pb_mar = format!("{} {{ ser: {}, de: {} }}",
+                             fq_grpc("Marshaller"),
+                             fq_grpc("pb_ser"),
+                             fq_grpc("pb_de"));
+        w.block(&head, "};", |w| {
             w.field_entry("ty", &self.method_type().1);
             w.field_entry("name", &self.fq_name());
+            w.field_entry("req_mar", &pb_mar);
+            w.field_entry("resp_mar", &pb_mar);
         });
     }
 
@@ -285,7 +293,7 @@ impl<'a> MethodGen<'a> {
         let (req, req_type, resp_type) = match self.method_type().0 {
             MethodType::Unary => ("req", self.input(), "UnarySink"),
             MethodType::ClientStreaming => ("stream", req_stream_type, "ClientStreamingSink"),
-            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamSink"),
+            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamingSink"),
             MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
         };
         let sig = format!("{}(&self, ctx: {}, {}: {}, sink: {}<{}>)",
