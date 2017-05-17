@@ -1,3 +1,17 @@
+// Copyright 2017 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
 extern crate protobuf;
 extern crate grpc_compiler;
 
@@ -12,6 +26,7 @@ use protobuf::codegen as pb_gen;
 use protobuf::compiler_plugin::GenResult;
 use protobuf::descriptor::{FileDescriptorProto, FileDescriptorSet};
 
+/// Descriptor file to module file.
 fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
     where P: AsRef<Path>,
           G: FnMut(&[FileDescriptorProto], &[String]) -> Vec<GenResult>,
@@ -38,7 +53,6 @@ fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
         let mut f = File::create(&out_file).unwrap();
         f.write_all(&res.content).unwrap();
         let (module_name, _) = res.name.split_at(res.name.len() - 3); // ".rs".len() == 3
-        writeln!(module, "#[path = {:?}]", out_file.display()).unwrap();
         writeln!(module, "pub mod {};", module_name).unwrap();
     }
 }

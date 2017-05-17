@@ -20,9 +20,9 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use async::{BatchFuture, CallTag};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
-use codec::{DeFn, SerFn};
+use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
-use error::{Error, Result};
+use error::Error;
 use server::{CallBack, Inner};
 use super::{CallHolder, RpcStatus};
 
@@ -194,11 +194,11 @@ impl Drop for RequestContext {
 pub struct RequestStream<T> {
     call: Arc<Mutex<Call>>,
     base: StreamingBase,
-    de: fn(&[u8]) -> Result<T>,
+    de: DeserializeFn<T>,
 }
 
 impl<T> RequestStream<T> {
-    fn new(call: Arc<Mutex<Call>>, de: fn(&[u8]) -> Result<T>) -> RequestStream<T> {
+    fn new(call: Arc<Mutex<Call>>, de: DeserializeFn<T>) -> RequestStream<T> {
         RequestStream {
             call: call,
             base: StreamingBase::new(None),
@@ -255,11 +255,11 @@ macro_rules! impl_unary_sink {
             call: $holder,
             close_f: BatchFuture,
             write_flags: u32,
-            ser: fn(&T, &mut Vec<u8>),
+            ser: SerializeFn<T>,
         }
 
         impl<T> $t<T> {
-            fn new(call: $holder, close_f: BatchFuture, ser: fn(&T, &mut Vec<u8>)) -> $t<T> {
+            fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
                     close_f: close_f,
@@ -311,11 +311,11 @@ macro_rules! impl_stream_sink {
             close_f: BatchFuture,
             status: RpcStatus,
             flushed: bool,
-            ser: fn(&T, &mut Vec<u8>),
+            ser: SerializeFn<T>,
         }
 
         impl<T> $t<T> {
-            fn new(call: $holder, close_f: BatchFuture, ser: fn(&T, &mut Vec<u8>)) -> $t<T> {
+            fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
                     base: SinkBase::new(0, true),
@@ -445,8 +445,8 @@ impl RpcContext {
 
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(mut ctx: RpcContext,
-                              ser: SerFn<Q>,
-                              de: DeFn<P>,
+                              ser: SerializeFn<Q>,
+                              de: DeserializeFn<P>,
                               payload: &[u8],
                               f: &F)
     where F: Fn(RpcContext, P, UnarySink<Q>)
@@ -468,7 +468,10 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext,
 }
 
 // Helper function to call client streaming handler.
-pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, ser: SerFn<Q>, de: DeFn<P>, f: &F)
+pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext,
+                                         ser: SerializeFn<Q>,
+                                         de: DeserializeFn<P>,
+                                         f: &F)
     where F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>)
 {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
@@ -484,8 +487,8 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext, ser: SerFn<Q>, de:
 
 // Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
-                                         ser: SerFn<Q>,
-                                         de: DeFn<P>,
+                                         ser: SerializeFn<Q>,
+                                         de: DeserializeFn<P>,
                                          payload: &[u8],
                                          f: &F)
     where F: Fn(RpcContext, P, ServerStreamingSink<Q>)
@@ -509,7 +512,10 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
 }
 
 // Helper function to call duplex streaming handler.
-pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext, ser: SerFn<Q>, de: DeFn<P>, f: &F)
+pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext,
+                                         ser: SerializeFn<Q>,
+                                         de: DeserializeFn<P>,
+                                         f: &F)
     where F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>)
 {
     let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));

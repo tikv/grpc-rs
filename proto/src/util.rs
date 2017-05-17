@@ -17,6 +17,7 @@ use grpc::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
 
 use testing::messages::{Payload, ResponseParameters};
 
+/// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
     let mut payload = Payload::new();
     payload.set_body(vec![0; size]);
