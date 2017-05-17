@@ -10,7 +10,7 @@ protobuf = { version = "1.2", optional = true }
 clippy = { version = "*", optional = true }
 
 [workspace]
-members = ["compiler"]
+members = ["proto", "compiler"]
 
 [features]
 default = ["protobuf-codec"]
