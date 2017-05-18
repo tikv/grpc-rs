@@ -318,7 +318,7 @@ macro_rules! impl_stream_sink {
             fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
-                    base: SinkBase::new(0, true),
+                    base: SinkBase::new(0, None, true),
                     close_f: close_f,
                     status: RpcStatus::ok(),
                     flushed: false,

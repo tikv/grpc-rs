@@ -232,6 +232,7 @@ impl<T> Future for UnaryCallHandler<T> {
 pub struct UnaryResponseReceiver<T> {
     _call: Call,
     resp_f: CqFuture<BatchMessage>,
+    resp: Option<BatchMessage>,
     resp_de: DeserializeFn<T>,
 }
 
@@ -240,7 +241,10 @@ impl<T> Future for UnaryResponseReceiver<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
-        let data = try_ready!(self.resp_f.poll());
+        let data = match self.resp.take() {
+            Some(msg) => msg,
+            None => try_ready!(self.resp_f.poll()),
+        };
         let t = try!((self.resp_de)(&data.unwrap()));
         Ok(Async::Ready(t))
     }
@@ -252,7 +256,6 @@ impl<T> Future for UnaryResponseReceiver<T> {
 /// to receive response asynchronously.
 pub struct ClientStreamingCallHandler<P, Q> {
     call: Call,
-    resp_f: CqFuture<BatchMessage>,
     sink_base: SinkBase,
     req_ser: SerializeFn<P>,
     resp_de: DeserializeFn<Q>,
@@ -267,8 +270,7 @@ impl<P, Q> ClientStreamingCallHandler<P, Q> {
            -> ClientStreamingCallHandler<P, Q> {
         ClientStreamingCallHandler {
             call: call,
-            resp_f: resp_f,
-            sink_base: SinkBase::new(flags, false),
+            sink_base: SinkBase::new(flags, Some(resp_f), false),
             req_ser: ser,
             resp_de: de,
         }
@@ -307,7 +309,8 @@ impl<P, Q> ClientStreamingCallHandler<P, Q> {
     pub fn into_receiver(self) -> UnaryResponseReceiver<Q> {
         UnaryResponseReceiver {
             _call: self.call,
-            resp_f: self.resp_f,
+            resp_f: self.sink_base.abort_f.unwrap(),
+            resp: self.sink_base.res,
             resp_de: self.resp_de,
         }
     }
@@ -356,6 +359,9 @@ impl<Q> Stream for ServerStreamingCallHandler<Q> {
 ///
 /// A receiver can be taken at any time. Request and response can be handled
 /// asynchronously.
+///
+/// Please note that, if the call finished early and the handler won't receive the
+/// notification.
 pub struct DuplexCallHandler<P, Q> {
     // start_batch needs to be synchronized;
     call: Arc<Mutex<Call>>,
@@ -375,7 +381,7 @@ impl<P, Q> DuplexCallHandler<P, Q> {
         DuplexCallHandler {
             call: Arc::new(Mutex::new(call)),
             resp_f: Some(resp_f),
-            sink_base: SinkBase::new(write_flags, false),
+            sink_base: SinkBase::new(write_flags, None, false),
             req_ser: ser,
             resp_de: de,
         }

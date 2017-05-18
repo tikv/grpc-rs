@@ -22,7 +22,7 @@ use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
-use async::{BatchFuture, BatchType, CallTag};
+use async::{BatchFuture, BatchMessage, BatchType, CallTag};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
@@ -392,20 +392,35 @@ impl StreamingBase {
 struct SinkBase {
     write_f: Option<BatchFuture>,
     close_f: Option<BatchFuture>,
+    abort_f: Option<BatchFuture>,
+    res: Option<BatchMessage>,
     buf: Vec<u8>,
     flags: u32,
     send_metadata: bool,
 }
 
 impl SinkBase {
-    fn new(flags: u32, send_metadata: bool) -> SinkBase {
+    fn new(flags: u32, abort_f: Option<BatchFuture>, send_metadata: bool) -> SinkBase {
         SinkBase {
             write_f: None,
             close_f: None,
+            abort_f: abort_f,
+            res: None,
             buf: Vec::new(),
             send_metadata: send_metadata,
             flags: flags,
         }
+    }
+
+    fn check_abort(&mut self) -> Result<()> {
+        if let Some(ref mut f) = self.abort_f {
+            if let Async::Ready(res) = try!(f.poll()) {
+                self.res = Some(res);
+                return Err(Error::StopEarly);
+            }
+        }
+
+        Ok(())
     }
 
     fn start_send<T, C: CallHolder>(&mut self,
@@ -419,6 +434,8 @@ impl SinkBase {
             if self.write_f.is_some() {
                 return Ok(false);
             }
+        } else {
+            try!(self.check_abort());
         }
 
         self.buf.clear();
@@ -431,6 +448,8 @@ impl SinkBase {
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
+        try!(self.check_abort());
+
         if let Some(ref mut write_f) = self.write_f {
             try_ready!(write_f.poll());
         }
@@ -445,6 +464,8 @@ impl SinkBase {
 
             let close_f = call.call(|c| c.start_send_close_client());
             self.close_f = Some(close_f);
+        } else {
+            try!(self.check_abort());
         }
 
         try_ready!(self.close_f.as_mut().unwrap().poll());
