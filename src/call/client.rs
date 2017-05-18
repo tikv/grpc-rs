@@ -19,7 +19,8 @@ use std::time::Duration;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
-use async::{BatchMessage, BatchType, CqFuture};
+use async::{self, BatchMessage, BatchType, CqFuture};
+use async::lock::SpinLock;
 use call::{Call, Method, check_run};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
@@ -121,7 +122,7 @@ impl Call {
     pub fn client_streaming<P, Q>(channel: &Channel,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> ClientStreamingCallHandler<P, Q> {
+                                  -> (ClientStreamingSink<P>, ClientStreamingReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
@@ -130,11 +131,14 @@ impl Call {
                                                            opt.call_flags,
                                                            tag)
         });
-        ClientStreamingCallHandler::new(call,
-                                        cq_f,
-                                        opt.write_flags,
-                                        method.req_ser(),
-                                        method.resp_de())
+
+        let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
+        let sink = ClientStreamingSink::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let recv = ClientStreamingReceiver {
+            call: share_call,
+            resp_de: method.resp_de(),
+        };
+        (sink, recv)
     }
 
     pub fn server_streaming<P, Q>(channel: &Channel,
@@ -228,60 +232,114 @@ impl<T> Future for UnaryCallHandler<T> {
     }
 }
 
-/// A unary response receiver. It's used for client streaming request.
-pub struct UnaryResponseReceiver<T> {
-    _call: Call,
-    resp_f: CqFuture<BatchMessage>,
+/// A share object for client streaming and duplex streaming call.
+///
+/// In both cases, receiver and sink can be polled in the same time,
+/// hence we need to share the call in the both sides and abort the sink
+/// once the call is canceled or finished early.
+struct ShareCall {
+    call: Call,
+    close_f: CqFuture<BatchMessage>,
+    finished: bool,
+    status: Option<RpcStatus>,
+}
+
+impl ShareCall {
+    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+        ShareCall {
+            call: call,
+            close_f: close_f,
+            finished: false,
+            status: None,
+        }
+    }
+
+    /// Poll if the call is still alive.
+    ///
+    /// If the call is still running, will register a notification for its completion.
+    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+        let res = match self.close_f.poll() {
+            Err(Error::RpcFailure(status)) => {
+                call.status = Some(status.clone());
+                Err(Error::RpcFailure(status))
+            }
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Ready(msg)) => {
+                call.status = Some(RpcStatus::ok());
+                Ok(Async::Ready(msg))
+            }
+            res => res,
+        };
+
+        call.finished = true;
+        res
+    }
+
+    /// Check if the call is finished.
+    fn check_alive(&mut self) -> Result<()> {
+        if self.finished {
+            // maybe can just take here.
+            return Err(Error::RpcFinished(self.status.clone()));
+        }
+
+        async::check_alive(&self.close_f)
+    }
+}
+
+/// Client streaming call response resolver.
+pub struct ClientStreamingReceiver<T> {
+    call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
 }
 
-impl<T> Future for UnaryResponseReceiver<T> {
+impl<T> Future for ClientStreamingReceiver<T> {
     type Item = T;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
-        let data = try_ready!(self.resp_f.poll());
-        let t = try!((self.resp_de)(&data.unwrap()));
+        let data = {
+            let call = self.call.lock();
+            try_ready!(call.poll_finish())
+        };
+        let t = try!((self.resp_de)(&data.unary()));
         Ok(Async::Ready(t))
     }
 }
 
-/// A handler for client streaming call.
-///
-/// Once all requests are flushed, it can be converted to `UnaryResponseReceiver`
-/// to receive response asynchronously.
-pub struct ClientStreamingCallHandler<P, Q> {
-    call: Call,
-    resp_f: CqFuture<BatchMessage>,
+/// A sink for client streaming call and duplex streaming call.
+pub struct StreamingCallSink<P> {
+    call: Arc<SpinLock<ShareCall>>,
     sink_base: SinkBase,
     req_ser: SerializeFn<P>,
-    resp_de: DeserializeFn<Q>,
 }
 
-impl<P, Q> ClientStreamingCallHandler<P, Q> {
-    fn new(call: Call,
-           resp_f: CqFuture<BatchMessage>,
+impl<P> StreamingCallSink<P> {
+    fn new(call: Arc<SpinLock<ShareCall>>,
            flags: u32,
-           ser: SerializeFn<P>,
-           de: DeserializeFn<Q>)
-           -> ClientStreamingCallHandler<P, Q> {
-        ClientStreamingCallHandler {
+           ser: SerializeFn<P>)
+           -> StreamingCallSink<P> {
+        StreamingCallSink {
             call: call,
-            resp_f: resp_f,
             sink_base: SinkBase::new(flags, false),
             req_ser: ser,
-            resp_de: de,
         }
+    }
+
+    pub fn cancel(self) {
+        let call = self.call.lock();
+        call.call.cancel();
     }
 }
 
-impl<P, Q> Sink for ClientStreamingCallHandler<P, Q> {
+impl<P> Sink for StreamingCallSink<P> {
     type SinkItem = P;
     type SinkError = Error;
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
+        let call = self.call.lock();
+        try!(call.check_alive());
         self.sink_base
-            .start_send(&mut self.call, &item, self.req_ser)
+            .start_send(&mut call.call, &item, self.req_ser)
             .map(|s| if s {
                      AsyncSink::Ready
                  } else {
@@ -290,25 +348,21 @@ impl<P, Q> Sink for ClientStreamingCallHandler<P, Q> {
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
+        {
+            let call = self.call.lock();
+            try!(call.check_alive());
+        }
         self.sink_base.poll_complete()
     }
 
     fn close(&mut self) -> Poll<(), Error> {
-        self.sink_base.close(&mut self.call)
-    }
-}
-
-impl<P, Q> ClientStreamingCallHandler<P, Q> {
-    pub fn cancel(self) -> UnaryResponseReceiver<Q> {
-        self.call.cancel();
-        self.into_receiver()
-    }
-
-    pub fn into_receiver(self) -> UnaryResponseReceiver<Q> {
-        UnaryResponseReceiver {
-            _call: self.call,
-            resp_f: self.resp_f,
-            resp_de: self.resp_de,
+        match self.sink_base.close(&mut self.call) {
+            Ok(Async::NotReady) => {
+                let call = self.call.lock();
+                try!(call.check_alive());
+                Ok(Async::NotReady)
+            },
+            res => res
         }
     }
 }
@@ -352,87 +406,11 @@ impl<Q> Stream for ServerStreamingCallHandler<Q> {
     }
 }
 
-/// A handler for duplex streaming call.
-///
-/// A receiver can be taken at any time. Request and response can be handled
-/// asynchronously.
-pub struct DuplexCallHandler<P, Q> {
-    // start_batch needs to be synchronized;
-    call: Arc<Mutex<Call>>,
-    resp_f: Option<CqFuture<BatchMessage>>,
-    sink_base: SinkBase,
-    req_ser: SerializeFn<P>,
-    resp_de: DeserializeFn<Q>,
-}
-
-impl<P, Q> DuplexCallHandler<P, Q> {
-    fn new(call: Call,
-           resp_f: CqFuture<BatchMessage>,
-           write_flags: u32,
-           ser: SerializeFn<P>,
-           de: DeserializeFn<Q>)
-           -> DuplexCallHandler<P, Q> {
-        DuplexCallHandler {
-            call: Arc::new(Mutex::new(call)),
-            resp_f: Some(resp_f),
-            sink_base: SinkBase::new(write_flags, false),
-            req_ser: ser,
-            resp_de: de,
-        }
-    }
-}
-
-impl<P, Q> Sink for DuplexCallHandler<P, Q> {
-    type SinkItem = P;
-    type SinkError = Error;
-
-    fn start_send(&mut self, item: P) -> StartSend<P, Error> {
-        self.sink_base
-            .start_send(&mut self.call, &item, self.req_ser)
-            .map(|s| if s {
-                     AsyncSink::Ready
-                 } else {
-                     AsyncSink::NotReady(item)
-                 })
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), Error> {
-        self.sink_base.poll_complete()
-    }
-
-    fn close(&mut self) -> Poll<(), Error> {
-        self.sink_base.close(&mut self.call)
-    }
-}
-
 /// A response receiver for duplex call.
 pub struct StreamingResponseReceiver<Q> {
-    call: Arc<Mutex<Call>>,
+    call: Arc<SpinLock<ShareCall>>,
     base: StreamingBase,
     resp_de: DeserializeFn<Q>,
-}
-
-impl<P, Q> DuplexCallHandler<P, Q> {
-    pub fn take_receiver(&mut self) -> Option<StreamingResponseReceiver<Q>> {
-        let resp_f = match self.resp_f.take() {
-            Some(resp_f) => resp_f,
-            None => return None,
-        };
-
-        Some(StreamingResponseReceiver {
-                 call: self.call.clone(),
-                 base: StreamingBase::new(Some(resp_f)),
-                 resp_de: self.resp_de,
-             })
-    }
-
-    pub fn cancel(mut self) -> Option<StreamingResponseReceiver<Q>> {
-        {
-            let call = self.call.lock().unwrap();
-            call.cancel();
-        }
-        self.take_receiver()
-    }
 }
 
 impl<Q> Stream for StreamingResponseReceiver<Q> {
@@ -440,6 +418,13 @@ impl<Q> Stream for StreamingResponseReceiver<Q> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Q>, Error> {
+        {
+            let call = self.call.lock();
+            match call.poll_finish() {
+                Ok(Async::NotReady) => {}
+                Ok(Async::Ready(_)) => 
+            }
+        }
         match try_ready!(self.base.poll(&mut self.call, false)) {
             None => Ok(Async::Ready(None)),
             Some(data) => {

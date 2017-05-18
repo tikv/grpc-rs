@@ -27,11 +27,11 @@ use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
-use self::lock::SpinLock;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::Inner as ServerInner;
 
 pub use self::promise::BatchType;
+pub use self::lock::SpinLock;
 
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
@@ -63,6 +63,20 @@ type Inner<T> = SpinLock<NotifyHandle<T>>;
 
 fn new_inner<T>() -> Arc<Inner<T>> {
     Arc::new(SpinLock::new(NotifyHandle::new()))
+}
+
+/// Get the future status without the need to poll.
+///
+/// If the future is polled successfully, this function will return None.
+/// Not implemented as method as it's only for internal usage.
+pub fn check_alive(f: &CqFuture) -> Result<()> {
+    let guard = self.inner.lock();
+    match guard.result {
+        None => Ok(()),
+        Some(Err(Error::RpcFailure(ref status))) => Err(Error::RpcFinished(Some(status))),
+        Some(Ok(_)) => Err(Error::RpcFinished(Some(RpcStatus::ok()))),
+        Some(Err(ref e)) => Err(Error::RpcFinished(None)),
+    }
 }
 
 /// A future object for task that is scheduled to `CompletionQueue`.
