@@ -12,7 +12,6 @@
 // limitations under the License.
 
 
-#[macro_use]
 extern crate futures;
 extern crate grpc;
 extern crate grpc_proto;
@@ -30,7 +29,7 @@ use std::time::Duration;
 use std::thread;
 
 use futures::{Future, Sink, Stream, future};
-use grpc::{ChannelBuilder, Environment, Error};
+use grpc::{ChannelBuilder, Environment};
 use grpc_proto::example::route_guide::{Point, Rectangle, RouteNote};
 use grpc_proto::example::route_guide_grpc::RouteGuideClient;
 use rand::Rng;
@@ -100,26 +99,17 @@ fn list_features(client: &RouteGuideClient) {
 fn record_route(client: &RouteGuideClient) {
     let features = util::load_db();
     let mut rng = rand::thread_rng();
-    let mut call = client.record_route();
+    let (mut sink, receiver) = client.record_route();
     for _ in 0..10 {
         let f = rng.choose(&features).unwrap();
         let point = f.get_location();
         println!("Visiting {}", util::format_point(point));
-        call = call.send(point.to_owned()).wait().unwrap();
+        sink = sink.send(point.to_owned()).wait().unwrap();
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
     }
-    let (mut call, mut receiver) = (Some(call), None);
-    let sumary = future::poll_fn::<_, Error, _>(|| {
-        if let Some(ref mut c) = call {
-            try_ready!(c.close());
-        }
-        if call.is_some() {
-            receiver = Some(call.take().unwrap().into_receiver());
-        }
-        receiver.as_mut().unwrap().poll()
-    })
-            .wait()
-            .unwrap();
+    // flush
+    future::poll_fn(|| sink.close()).wait().unwrap();
+    let sumary = receiver.wait().unwrap();
     println!("Finished trip with {} points", sumary.get_point_count());
     println!("Passed {} features", sumary.get_feature_count());
     println!("Travelled {} meters", sumary.get_distance());
@@ -127,8 +117,7 @@ fn record_route(client: &RouteGuideClient) {
 }
 
 fn route_chat(client: &RouteGuideClient) {
-    let mut call = client.route_chat();
-    let mut receiver = call.take_receiver().unwrap();
+    let (mut sink, mut receiver) = client.route_chat();
     let h = thread::spawn(move || {
         let notes = vec![
             ("First message", 0, 0),
@@ -140,9 +129,9 @@ fn route_chat(client: &RouteGuideClient) {
         for (msg, lat, lon) in notes {
             let note = new_note(lat, lon, msg);
             println!("Sending message {} at {}, {}", msg, lat, lon);
-            call = call.send(note).wait().unwrap();
+            sink = sink.send(note).wait().unwrap();
         }
-        future::poll_fn(|| call.close()).wait().unwrap();
+        future::poll_fn(|| sink.close()).wait().unwrap();
     });
 
     loop {
