@@ -13,19 +13,18 @@
 
 
 use std::ptr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
-use async::{self, BatchMessage, BatchType, CqFuture};
-use async::lock::SpinLock;
+use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
 use call::{Call, Method, check_run};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::Error;
-use super::{SinkBase, StreamingBase};
+use super::{ShareCall, ShareCallHolder, SinkBase};
 
 /// Update the flag bit in res.
 #[inline]
@@ -102,27 +101,28 @@ impl Call {
                              method: &Method<P, Q>,
                              req: P,
                              opt: CallOption)
-                             -> UnaryCallHandler<Q> {
+                             -> ClientUnaryReceiver<Q> {
         let call = channel.create_call(method, &opt);
         let mut payload = vec![];
         (method.req_ser())(&req, &mut payload);
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_unary(call.call,
-                                                ctx,
-                                                payload.as_ptr() as *const _,
-                                                payload.len(),
-                                                opt.write_flags,
-                                                ptr::null_mut(),
-                                                opt.call_flags,
-                                                tag)
-        });
-        UnaryCallHandler::new(call, cq_f, method.resp_de())
+        let cq_f =
+            check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+                grpc_sys::grpcwrap_call_start_unary(call.call,
+                                                    ctx,
+                                                    payload.as_ptr() as *const _,
+                                                    payload.len(),
+                                                    opt.write_flags,
+                                                    ptr::null_mut(),
+                                                    opt.call_flags,
+                                                    tag)
+            });
+        ClientUnaryReceiver::new(call, cq_f, method.resp_de())
     }
 
     pub fn client_streaming<P, Q>(channel: &Channel,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> (ClientStreamingSink<P>, ClientStreamingReceiver<Q>) {
+                                  -> (ClientCStreamSink<P>, ClientCStreamReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
@@ -133,8 +133,8 @@ impl Call {
         });
 
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
-        let sink = ClientStreamingSink::new(share_call.clone(), opt.write_flags, method.req_ser());
-        let recv = ClientStreamingReceiver {
+        let sink = ClientCStreamSink::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let recv = ClientCStreamReceiver {
             call: share_call,
             resp_de: method.resp_de(),
         };
@@ -145,7 +145,7 @@ impl Call {
                                   method: &Method<P, Q>,
                                   req: P,
                                   opt: CallOption)
-                                  -> ServerStreamingCallHandler<Q> {
+                                  -> ClientSStreamReceiver<Q> {
         let call = channel.create_call(method, &opt);
         let mut payload = vec![];
         (method.req_ser())(&req, &mut payload);
@@ -165,13 +165,13 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        ServerStreamingCallHandler::new(call, cq_f, method.resp_de())
+        ClientSStreamReceiver::new(call, cq_f, method.resp_de())
     }
 
     pub fn duplex_streaming<P, Q>(channel: &Channel,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> DuplexCallHandler<P, Q> {
+                                  -> (ClientDuplexSink<P>, ClientDuplexReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
@@ -186,29 +186,28 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        DuplexCallHandler::new(call,
-                               cq_f,
-                               opt.write_flags,
-                               method.req_ser(),
-                               method.resp_de())
+        let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
+        let sink = ClientDuplexSink::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
+        (sink, recv)
     }
 }
 
 /// A handler to handle a uanry async call.
 ///
 /// The future is resolved once response is received.
-pub struct UnaryCallHandler<T> {
+pub struct ClientUnaryReceiver<T> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
     resp_de: DeserializeFn<T>,
 }
 
-impl<T> UnaryCallHandler<T> {
+impl<T> ClientUnaryReceiver<T> {
     fn new(call: Call,
            resp_f: CqFuture<BatchMessage>,
            de: DeserializeFn<T>)
-           -> UnaryCallHandler<T> {
-        UnaryCallHandler {
+           -> ClientUnaryReceiver<T> {
+        ClientUnaryReceiver {
             call: call,
             resp_f: resp_f,
             resp_de: de,
@@ -216,12 +215,12 @@ impl<T> UnaryCallHandler<T> {
     }
 
     /// Cancel the call.
-    pub fn cancel(&self) {
+    pub fn cancel(&mut self) {
         self.call.cancel()
     }
 }
 
-impl<T> Future for UnaryCallHandler<T> {
+impl<T> Future for ClientUnaryReceiver<T> {
     type Item = T;
     type Error = Error;
 
@@ -232,76 +231,22 @@ impl<T> Future for UnaryCallHandler<T> {
     }
 }
 
-/// A share object for client streaming and duplex streaming call.
-///
-/// In both cases, receiver and sink can be polled in the same time,
-/// hence we need to share the call in the both sides and abort the sink
-/// once the call is canceled or finished early.
-struct ShareCall {
-    call: Call,
-    close_f: CqFuture<BatchMessage>,
-    finished: bool,
-    status: Option<RpcStatus>,
-}
-
-impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
-        ShareCall {
-            call: call,
-            close_f: close_f,
-            finished: false,
-            status: None,
-        }
-    }
-
-    /// Poll if the call is still alive.
-    ///
-    /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
-        let res = match self.close_f.poll() {
-            Err(Error::RpcFailure(status)) => {
-                call.status = Some(status.clone());
-                Err(Error::RpcFailure(status))
-            }
-            Ok(Async::NotReady) => return Ok(Async::NotReady),
-            Ok(Async::Ready(msg)) => {
-                call.status = Some(RpcStatus::ok());
-                Ok(Async::Ready(msg))
-            }
-            res => res,
-        };
-
-        call.finished = true;
-        res
-    }
-
-    /// Check if the call is finished.
-    fn check_alive(&mut self) -> Result<()> {
-        if self.finished {
-            // maybe can just take here.
-            return Err(Error::RpcFinished(self.status.clone()));
-        }
-
-        async::check_alive(&self.close_f)
-    }
-}
-
 /// Client streaming call response resolver.
-pub struct ClientStreamingReceiver<T> {
+pub struct ClientCStreamReceiver<T> {
     call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
 }
 
-impl<T> Future for ClientStreamingReceiver<T> {
+impl<T> Future for ClientCStreamReceiver<T> {
     type Item = T;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = {
-            let call = self.call.lock();
+            let mut call = self.call.lock();
             try_ready!(call.poll_finish())
         };
-        let t = try!((self.resp_de)(&data.unary()));
+        let t = try!((self.resp_de)(&data.unwrap()));
         Ok(Async::Ready(t))
     }
 }
@@ -325,7 +270,7 @@ impl<P> StreamingCallSink<P> {
         }
     }
 
-    pub fn cancel(self) {
+    pub fn cancel(&mut self) {
         let call = self.call.lock();
         call.call.cancel();
     }
@@ -336,7 +281,7 @@ impl<P> Sink for StreamingCallSink<P> {
     type SinkError = Error;
 
     fn start_send(&mut self, item: P) -> StartSend<P, Error> {
-        let call = self.call.lock();
+        let mut call = self.call.lock();
         try!(call.check_alive());
         self.sink_base
             .start_send(&mut call.call, &item, self.req_ser)
@@ -349,7 +294,7 @@ impl<P> Sink for StreamingCallSink<P> {
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
         {
-            let call = self.call.lock();
+            let mut call = self.call.lock();
             try!(call.check_alive());
         }
         self.sink_base.poll_complete()
@@ -358,80 +303,132 @@ impl<P> Sink for StreamingCallSink<P> {
     fn close(&mut self) -> Poll<(), Error> {
         match self.sink_base.close(&mut self.call) {
             Ok(Async::NotReady) => {
-                let call = self.call.lock();
+                let mut call = self.call.lock();
                 try!(call.check_alive());
                 Ok(Async::NotReady)
-            },
-            res => res
+            }
+            res => res,
+        }
+    }
+}
+
+pub type ClientCStreamSink<T> = StreamingCallSink<T>;
+pub type ClientDuplexSink<T> = StreamingCallSink<T>;
+
+struct ResponseStreamImpl<H, T> {
+    call: H,
+    msg_f: Option<BatchFuture>,
+    read_done: bool,
+    resp_de: DeserializeFn<T>,
+}
+
+impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
+    fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
+        ResponseStreamImpl {
+            call: call,
+            msg_f: None,
+            read_done: false,
+            resp_de: resp_de,
+        }
+    }
+
+    fn cancel(&mut self) {
+        self.call.call(|c| c.call.cancel())
+    }
+
+    fn poll(&mut self) -> Poll<Option<T>, Error> {
+        let mut finished = false;
+        try!(self.call
+                 .call(|c| {
+            if c.finished {
+                finished = true;
+                return Ok(());
+            }
+
+            let res = c.poll_finish().map(|_| ());
+            finished = c.finished;
+            res
+        }));
+
+        let mut bytes = None;
+        loop {
+            if !self.read_done {
+                if let Some(ref mut msg_f) = self.msg_f {
+                    bytes = try_ready!(msg_f.poll());
+                    if bytes.is_none() {
+                        self.read_done = true;
+                    }
+                }
+            }
+
+            if self.read_done {
+                if finished {
+                    return Ok(Async::Ready(None));
+                }
+                return Ok(Async::NotReady);
+            }
+
+            // so msg_f must be either stale or not initialised yet.
+            self.msg_f.take();
+            let msg_f = self.call.call(|c| c.call.start_recv_message());
+            self.msg_f = Some(msg_f);
+            if let Some(ref data) = bytes {
+                let msg = try!((self.resp_de)(&data));
+                return Ok(Async::Ready(Some(msg)));
+            }
         }
     }
 }
 
 /// A handler for server streaming call.
-pub struct ServerStreamingCallHandler<Q> {
-    call: Call,
-    base: StreamingBase,
-    resp_de: DeserializeFn<Q>,
+pub struct ClientSStreamReceiver<Q> {
+    imp: ResponseStreamImpl<ShareCall, Q>,
 }
 
-impl<Q> ServerStreamingCallHandler<Q> {
+impl<Q> ClientSStreamReceiver<Q> {
     fn new(call: Call,
            finish_f: CqFuture<BatchMessage>,
            de: DeserializeFn<Q>)
-           -> ServerStreamingCallHandler<Q> {
-        ServerStreamingCallHandler {
-            call: call,
-            base: StreamingBase::new(Some(finish_f)),
-            resp_de: de,
-        }
+           -> ClientSStreamReceiver<Q> {
+        let share_call = ShareCall::new(call, finish_f);
+        ClientSStreamReceiver { imp: ResponseStreamImpl::new(share_call, de) }
     }
 
-    pub fn cancel(&self) {
-        self.call.cancel()
+    pub fn cancel(&mut self) {
+        self.imp.cancel()
     }
 }
 
-impl<Q> Stream for ServerStreamingCallHandler<Q> {
+impl<Q> Stream for ClientSStreamReceiver<Q> {
     type Item = Q;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Q>, Error> {
-        match try_ready!(self.base.poll(&mut self.call, false)) {
-            None => Ok(Async::Ready(None)),
-            Some(data) => {
-                let msg = try!((self.resp_de)(&data));
-                Ok(Async::Ready(Some(msg)))
-            }
-        }
+        self.imp.poll()
     }
 }
 
 /// A response receiver for duplex call.
-pub struct StreamingResponseReceiver<Q> {
-    call: Arc<SpinLock<ShareCall>>,
-    base: StreamingBase,
-    resp_de: DeserializeFn<Q>,
+pub struct ClientDuplexReceiver<Q> {
+    imp: ResponseStreamImpl<Arc<SpinLock<ShareCall>>, Q>,
 }
 
-impl<Q> Stream for StreamingResponseReceiver<Q> {
+impl<Q> ClientDuplexReceiver<Q> {
+    fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<Q>) -> ClientDuplexReceiver<Q> {
+        ClientDuplexReceiver { imp: ResponseStreamImpl::new(call, de) }
+    }
+
+    pub fn cancel(&mut self) {
+        self.imp.cancel()
+    }
+}
+
+impl<Q> Stream for ClientDuplexReceiver<Q> {
     type Item = Q;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Q>, Error> {
-        {
-            let call = self.call.lock();
-            match call.poll_finish() {
-                Ok(Async::NotReady) => {}
-                Ok(Async::Ready(_)) => 
-            }
-        }
-        match try_ready!(self.base.poll(&mut self.call, false)) {
-            None => Ok(Async::Ready(None)),
-            Some(data) => {
-                let msg = try!((self.resp_de)(&data));
-                Ok(Async::Ready(Some(msg)))
-            }
-        }
+        self.imp.poll()
     }
 }
 

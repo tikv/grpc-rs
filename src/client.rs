@@ -15,8 +15,8 @@
 use futures::Future;
 
 use call::{Call, Method};
-use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
-                   ServerStreamingCallHandler, UnaryCallHandler};
+use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSink, ClientDuplexReceiver,
+                   ClientDuplexSink, ClientSStreamReceiver, ClientUnaryReceiver};
 use channel::Channel;
 
 use error::Result;
@@ -42,7 +42,7 @@ impl Client {
                                   method: &Method<P, Q>,
                                   req: P,
                                   opt: CallOption)
-                                  -> UnaryCallHandler<Q> {
+                                  -> ClientUnaryReceiver<Q> {
         Call::unary_async(&self.channel, method, req, opt)
     }
 
@@ -52,7 +52,7 @@ impl Client {
     pub fn client_streaming<P, Q>(&self,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> ClientStreamingCallHandler<P, Q> {
+                                  -> (ClientCStreamSink<P>, ClientCStreamReceiver<Q>) {
         Call::client_streaming(&self.channel, method, opt)
     }
 
@@ -63,7 +63,7 @@ impl Client {
                                   method: &Method<P, Q>,
                                   req: P,
                                   opt: CallOption)
-                                  -> ServerStreamingCallHandler<Q> {
+                                  -> ClientSStreamReceiver<Q> {
         Call::server_streaming(&self.channel, method, req, opt)
     }
 
@@ -75,7 +75,7 @@ impl Client {
     pub fn duplex_streaming<P, Q>(&self,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> DuplexCallHandler<P, Q> {
+                                  -> (ClientDuplexSink<P>, ClientDuplexReceiver<Q>) {
         Call::duplex_streaming(&self.channel, method, opt)
     }
 }

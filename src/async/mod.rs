@@ -22,7 +22,7 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
-use call::{BatchContext, Call};
+use call::{BatchContext, Call, RpcStatus};
 use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
@@ -69,13 +69,15 @@ fn new_inner<T>() -> Arc<Inner<T>> {
 ///
 /// If the future is polled successfully, this function will return None.
 /// Not implemented as method as it's only for internal usage.
-pub fn check_alive(f: &CqFuture) -> Result<()> {
-    let guard = self.inner.lock();
+pub fn check_alive<T>(f: &CqFuture<T>) -> Result<()> {
+    let guard = f.inner.lock();
     match guard.result {
         None => Ok(()),
-        Some(Err(Error::RpcFailure(ref status))) => Err(Error::RpcFinished(Some(status))),
+        Some(Err(Error::RpcFailure(ref status))) => {
+            Err(Error::RpcFinished(Some(status.to_owned())))
+        }
         Some(Ok(_)) => Err(Error::RpcFinished(Some(RpcStatus::ok()))),
-        Some(Err(ref e)) => Err(Error::RpcFinished(None)),
+        Some(Err(_)) => Err(Error::RpcFinished(None)),
     }
 }
 
