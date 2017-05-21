@@ -38,8 +38,9 @@ mod error;
 mod server;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode};
-pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSink, ClientDuplexReceiver,
-                       ClientDuplexSink, ClientSStreamReceiver, ClientUnaryReceiver};
+pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
+                       ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
+                       ClientUnaryReceiver};
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};

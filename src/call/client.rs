@@ -122,7 +122,7 @@ impl Call {
     pub fn client_streaming<P, Q>(channel: &Channel,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> (ClientCStreamSink<P>, ClientCStreamReceiver<Q>) {
+                                  -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(call.call,
@@ -133,7 +133,7 @@ impl Call {
         });
 
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
-        let sink = ClientCStreamSink::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let sink = ClientCStreamSender::new(share_call.clone(), opt.write_flags, method.req_ser());
         let recv = ClientCStreamReceiver {
             call: share_call,
             resp_de: method.resp_de(),
@@ -171,7 +171,7 @@ impl Call {
     pub fn duplex_streaming<P, Q>(channel: &Channel,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> (ClientDuplexSink<P>, ClientDuplexReceiver<Q>) {
+                                  -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
@@ -187,13 +187,13 @@ impl Call {
         });
 
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
-        let sink = ClientDuplexSink::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let sink = ClientDuplexSender::new(share_call.clone(), opt.write_flags, method.req_ser());
         let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
         (sink, recv)
     }
 }
 
-/// A handler to handle a uanry async call.
+/// A receiver for unary request.
 ///
 /// The future is resolved once response is received.
 pub struct ClientUnaryReceiver<T> {
@@ -231,10 +231,18 @@ impl<T> Future for ClientUnaryReceiver<T> {
     }
 }
 
-/// Client streaming call response resolver.
+/// A receiver for client streaming call.
 pub struct ClientCStreamReceiver<T> {
     call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
+}
+
+impl<T> ClientCStreamReceiver<T> {
+    /// Cancel the call.
+    pub fn cancel(&mut self) {
+        let lock = self.call.lock();
+        lock.call.cancel()
+    }
 }
 
 impl<T> Future for ClientCStreamReceiver<T> {
@@ -255,6 +263,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
 pub struct StreamingCallSink<P> {
     call: Arc<SpinLock<ShareCall>>,
     sink_base: SinkBase,
+    close_f: Option<BatchFuture>,
     req_ser: SerializeFn<P>,
 }
 
@@ -266,6 +275,7 @@ impl<P> StreamingCallSink<P> {
         StreamingCallSink {
             call: call,
             sink_base: SinkBase::new(flags, false),
+            close_f: None,
             req_ser: ser,
         }
     }
@@ -301,19 +311,25 @@ impl<P> Sink for StreamingCallSink<P> {
     }
 
     fn close(&mut self) -> Poll<(), Error> {
-        match self.sink_base.close(&mut self.call) {
-            Ok(Async::NotReady) => {
-                let mut call = self.call.lock();
-                try!(call.check_alive());
-                Ok(Async::NotReady)
-            }
-            res => res,
+        let mut call = self.call.lock();
+        if self.close_f.is_none() {
+            try_ready!(self.sink_base.poll_complete());
+
+            let close_f = call.call.start_send_close_client();
+            self.close_f = Some(close_f);
         }
+
+        if let Async::NotReady = try!(self.close_f.as_mut().unwrap().poll()) {
+            // if call is finished, can return early here.
+            try!(call.check_alive());
+            return Ok(Async::NotReady);
+        }
+        Ok(Async::Ready(()))
     }
 }
 
-pub type ClientCStreamSink<T> = StreamingCallSink<T>;
-pub type ClientDuplexSink<T> = StreamingCallSink<T>;
+pub type ClientCStreamSender<T> = StreamingCallSink<T>;
+pub type ClientDuplexSender<T> = StreamingCallSink<T>;
 
 struct ResponseStreamImpl<H, T> {
     call: H,
@@ -380,7 +396,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     }
 }
 
-/// A handler for server streaming call.
+/// A receiver for server streaming call.
 pub struct ClientSStreamReceiver<Q> {
     imp: ResponseStreamImpl<ShareCall, Q>,
 }

@@ -15,8 +15,8 @@
 use futures::Future;
 
 use call::{Call, Method};
-use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSink, ClientDuplexReceiver,
-                   ClientDuplexSink, ClientSStreamReceiver, ClientUnaryReceiver};
+use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
+                   ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver};
 use channel::Channel;
 
 use error::Result;
@@ -52,7 +52,7 @@ impl Client {
     pub fn client_streaming<P, Q>(&self,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> (ClientCStreamSink<P>, ClientCStreamReceiver<Q>) {
+                                  -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
         Call::client_streaming(&self.channel, method, opt)
     }
 
@@ -75,7 +75,7 @@ impl Client {
     pub fn duplex_streaming<P, Q>(&self,
                                   method: &Method<P, Q>,
                                   opt: CallOption)
-                                  -> (ClientDuplexSink<P>, ClientDuplexReceiver<Q>) {
+                                  -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
         Call::duplex_streaming(&self.channel, method, opt)
     }
 }

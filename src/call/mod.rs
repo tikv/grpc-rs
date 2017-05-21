@@ -304,7 +304,7 @@ impl Drop for Call {
 
 /// A share object for client streaming and duplex streaming call.
 ///
-/// In both cases, receiver and sink can be polled in the same time,
+/// In both cases, receiver and sender can be polled in the same time,
 /// hence we need to share the call in the both sides and abort the sink
 /// once the call is canceled or finished early.
 struct ShareCall {
@@ -469,8 +469,7 @@ impl StreamingBase {
 
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
-    write_f: Option<BatchFuture>,
-    close_f: Option<BatchFuture>,
+    batch_f: Option<BatchFuture>,
     buf: Vec<u8>,
     flags: u32,
     send_metadata: bool,
@@ -479,8 +478,7 @@ struct SinkBase {
 impl SinkBase {
     fn new(flags: u32, send_metadata: bool) -> SinkBase {
         SinkBase {
-            write_f: None,
-            close_f: None,
+            batch_f: None,
             buf: Vec::new(),
             send_metadata: send_metadata,
             flags: flags,
@@ -492,10 +490,10 @@ impl SinkBase {
                                     t: &T,
                                     ser: SerializeFn<T>)
                                     -> Result<bool> {
-        if self.write_f.is_some() {
+        if self.batch_f.is_some() {
             // try its best not to return false.
             try!(self.poll_complete());
-            if self.write_f.is_some() {
+            if self.batch_f.is_some() {
                 return Ok(false);
             }
         }
@@ -504,29 +502,17 @@ impl SinkBase {
         ser(t, &mut self.buf);
         let write_f =
             call.call(|c| c.start_send_message(&self.buf, self.flags, self.send_metadata));
-        self.write_f = Some(write_f);
+        self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
-        if let Some(ref mut write_f) = self.write_f {
-            try_ready!(write_f.poll());
+        if let Some(ref mut batch_f) = self.batch_f {
+            try_ready!(batch_f.poll());
         }
 
-        self.write_f.take();
-        Ok(Async::Ready(()))
-    }
-
-    fn close<C: CallHolder>(&mut self, call: &mut C) -> Poll<(), Error> {
-        if self.close_f.is_none() {
-            try_ready!(self.poll_complete());
-
-            let close_f = call.call(|c| c.start_send_close_client());
-            self.close_f = Some(close_f);
-        }
-
-        try_ready!(self.close_f.as_mut().unwrap().poll());
+        self.batch_f.take();
         Ok(Async::Ready(()))
     }
 }
