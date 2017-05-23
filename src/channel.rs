@@ -286,4 +286,8 @@ impl Channel {
 
         unsafe { Call::from_raw(raw_call) }
     }
+
+    pub fn cq(&self) -> &CompletionQueue {
+        self.cq.as_ref()
+    }
 }

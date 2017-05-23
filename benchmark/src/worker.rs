@@ -50,7 +50,6 @@ impl WorkerService for Worker {
                   stream: RequestStream<ServerArgs>,
                   sink: DuplexSink<ServerStatus>) {
         let mut server: Option<Server> = None;
-        let pool = self.pool.clone();
         let env = self.env.clone();
         let f = sink.sink_map_err(Error::from)
             .send_all(stream
@@ -62,7 +61,7 @@ impl WorkerService for Worker {
                                             server.shutdown();
                                             return Err(Error::ServerStarted);
                                         }
-                                        let s = try!(Server::new(env.clone(), cfg, pool.clone()));
+                                        let s = try!(Server::new(env.clone(), cfg));
                                         let status = s.get_status();
                                         server = Some(s);
                                         Ok(status)

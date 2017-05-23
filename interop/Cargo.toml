@@ -12,6 +12,14 @@ futures-cpupool = "0.1"
 clap = "2.23"
 clippy = { version = "*", optional = true }
 
+[[bin]]
+name = "interop_client"
+path = "src/bin/client.rs"
+
+[[bin]]
+name = "interop_server"
+path = "src/bin/server.rs"
+
 [features]
 default = []
 dev = ["clippy"]

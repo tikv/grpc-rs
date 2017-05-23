@@ -12,6 +12,7 @@
 // limitations under the License.
 
 
+mod executor;
 mod promise;
 mod callback;
 mod lock;
@@ -26,10 +27,12 @@ use call::{BatchContext, Call, RpcStatus};
 use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
+use self::executor::Alarm;
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::Inner as ServerInner;
 
+pub use self::executor::Executor;
 pub use self::promise::BatchType;
 pub use self::lock::SpinLock;
 
@@ -129,6 +132,7 @@ pub enum CallTag {
     UnaryRequest(UnaryRequestCallback),
     Abort(Abort),
     Shutdown(ShutdownPromise),
+    Alarm(Alarm),
 }
 
 impl CallTag {
@@ -190,6 +194,7 @@ impl CallTag {
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
+            CallTag::Alarm(alarm) => alarm.resolve(cq, success),
         }
     }
 }
@@ -197,11 +202,12 @@ impl CallTag {
 impl Debug for CallTag {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            CallTag::Batch(_) => write!(f, "Context::Batch(..)"),
-            CallTag::Request(_) => write!(f, "Context::Request(..)"),
-            CallTag::UnaryRequest(_) => write!(f, "Context::UnaryRequest(..)"),
-            CallTag::Abort(_) => write!(f, "Context::Abort(..)"),
-            CallTag::Shutdown(_) => write!(f, "Context::Shutdown"),
+            CallTag::Batch(ref ctx) => write!(f, "CallTag::Batch({:?})", ctx),
+            CallTag::Request(_) => write!(f, "CallTag::Request(..)"),
+            CallTag::UnaryRequest(_) => write!(f, "CallTag::UnaryRequest(..)"),
+            CallTag::Abort(_) => write!(f, "CallTag::Abort(..)"),
+            CallTag::Shutdown(_) => write!(f, "CallTag::Shutdown"),
+            CallTag::Alarm(_) => write!(f, "CallTag::Alarm"),
         }
     }
 }

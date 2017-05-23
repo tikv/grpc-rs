@@ -194,7 +194,7 @@ impl Client {
         let mut req = StreamingOutputCallRequest::new();
         req.set_response_status(status);
         let (sender, receiver) = self.client.full_duplex_call();
-        sender.send(req).wait().unwrap();
+        let _ = sender.send(req).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::Unknown);

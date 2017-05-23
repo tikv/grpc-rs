@@ -100,7 +100,7 @@ impl BackOff for Poisson {
 }
 
 struct GenericExecutor<B> {
-    client: GrpcClient,
+    client: Arc<GrpcClient>,
     req: Vec<u8>,
     histogram: Arc<Mutex<Histogram>>,
     back_off: B,
@@ -117,7 +117,7 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
         let cap = cfg.get_payload_config().get_bytebuf_params().get_req_size();
         let req = vec![0; cap as usize];
         GenericExecutor {
-            client: GrpcClient::new(channel),
+            client: Arc::new(GrpcClient::new(channel)),
             req: req,
             histogram: histogram,
             back_off: back_off,
@@ -131,7 +131,8 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
         his.observe(f);
     }
 
-    fn execute_stream(self, r: &CpuPool) {
+    fn execute_stream(self) {
+        let client = self.client.clone();
         let (sender, receiver) = self.client
             .duplex_streaming(&bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
                               CallOption::default());
@@ -161,7 +162,7 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
                 })
         })
                 .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
-        r.spawn(f).forget()
+        client.spawn(f)
     }
 }
 
@@ -346,10 +347,10 @@ impl Client {
                                 if cfg.get_payload_config().has_bytebuf_params() {
                                     if let Some(p) = poisson {
                                         GenericExecutor::new(ch.clone(), cfg, his, p, t)
-                                            .execute_stream(&pool)
+                                            .execute_stream()
                                     } else {
                                         GenericExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                            .execute_stream(&pool)
+                                            .execute_stream()
                                     }
                                 } else {
                                     if let Some(p) = poisson {

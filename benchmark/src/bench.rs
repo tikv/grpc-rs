@@ -18,7 +18,6 @@ use grpc_proto::util;
 use grpc::{self, DuplexSink, Method, MethodType, RequestStream, RpcContext, ServiceBuilder,
            UnarySink};
 use futures::{Future, Sink, Stream};
-use futures_cpupool::CpuPool;
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
@@ -28,56 +27,37 @@ fn gen_resp(req: SimpleRequest) -> SimpleResponse {
 }
 
 #[derive(Clone)]
-pub struct Benchmark {
-    pool: CpuPool,
-}
-
-impl Benchmark {
-    pub fn new(pool: CpuPool) -> Benchmark {
-        Benchmark { pool: pool }
-    }
-}
+pub struct Benchmark;
 
 impl BenchmarkService for Benchmark {
-    fn unary_call(&self, _: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let resp = gen_resp(req);
-        self.pool
-            .spawn(sink.success(resp)
+        ctx.spawn(sink.success(resp)
                        .map_err(|e| println!("failed to handle unary: {:?}", e)))
-            .forget();
     }
 
     fn streaming_call(&self,
-                      _: RpcContext,
+                      ctx: RpcContext,
                       stream: RequestStream<SimpleRequest>,
                       sink: DuplexSink<SimpleResponse>) {
-        self.pool
-            .spawn(sink.send_all(stream.map(gen_resp))
+        ctx.spawn(sink.send_all(stream.map(gen_resp))
                        .map_err(|e| println!("failed to handle streaming: {:?}", e))
                        .map(|_| {}))
-            .forget()
     }
 }
 
 #[derive(Clone)]
-pub struct Generic {
-    pool: CpuPool,
-}
+pub struct Generic;
 
 impl Generic {
-    pub fn new(pool: CpuPool) -> Generic {
-        Generic { pool: pool }
-    }
-
     pub fn streaming_call(&self,
-                          _: RpcContext,
+                          ctx: RpcContext,
                           stream: RequestStream<Vec<u8>>,
                           sink: DuplexSink<Vec<u8>>) {
-        self.pool
-            .spawn(sink.send_all(stream.map(|req| req))
+        println!("streaming_call started");
+        ctx.spawn(sink.send_all(stream.map(|req| req))
                        .map_err(|e| println!("failed to handle streaming: {:?}", e))
                        .map(|_| {}))
-            .forget()
     }
 }
 

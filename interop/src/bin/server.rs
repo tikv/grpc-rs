@@ -16,7 +16,6 @@ extern crate clap;
 extern crate grpc;
 extern crate interop;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate grpc_proto;
 
 use std::sync::Arc;
@@ -27,7 +26,6 @@ use interop::InteropTestService;
 use grpc_proto::testing::test_grpc;
 use grpc_proto::util;
 use futures::{Future, future};
-use futures_cpupool::CpuPool;
 
 fn main() {
     let matches = App::new("Interoperability Test Server")
@@ -53,10 +51,8 @@ fn main() {
         .parse()
         .unwrap();
 
-    let pool = CpuPool::new(1);
     let env = Arc::new(Environment::new(2));
-    let instance = InteropTestService::new(pool);
-    let service = test_grpc::create_test_service(instance);
+    let service = test_grpc::create_test_service(InteropTestService);
     let mut builder = ServerBuilder::new(env).register_service(service);
 
     builder = if use_tls {

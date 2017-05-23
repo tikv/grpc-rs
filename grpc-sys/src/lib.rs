@@ -178,6 +178,7 @@ pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcServerCredentials {}
 pub enum GrpcRequestCallContext {}
+pub enum GrpcAlarm {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -408,6 +409,10 @@ extern "C" {
                                                   force_client_auth: c_int)
                                                   -> *mut GrpcServerCredentials;
     pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
+
+    pub fn grpc_alarm_create(cq: *mut GrpcCompletionQueue, deadline: GprTimespec, tag: *mut c_void) -> *mut GrpcAlarm;
+    pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
+    pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 }
 
 // TODO: more tests.

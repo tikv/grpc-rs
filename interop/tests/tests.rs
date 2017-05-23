@@ -23,15 +23,8 @@ macro_rules! mk_test {
         #[test]
         fn $case_name() {
             let env = Arc::new(Environment::new(2));
-            let env2 = env.clone();
-            let pool = Builder::new().pool_size(1).before_stop(move || {
-                // So when env is dropped, there should be no thread running,
-                // hence all the handler should be shut down gracefully.
-                env2.completion_queues();
-            }).create();
 
-            let instance = InteropTestService::new(pool.clone());
-            let service = test_grpc::create_test_service(instance);
+            let service = test_grpc::create_test_service(InteropTestService);
             let mut builder = ServerBuilder::new(env.clone()).register_service(service);
 
             builder = if $use_tls {
@@ -69,7 +62,6 @@ macro_rules! mk_test {
             use interop::{InteropTestService, Client};
             use grpc_proto::testing::test_grpc;
             use grpc_proto::util;
-            use futures_cpupool::Builder;
 
             mk_test!(test_insecure, $func, false);
             mk_test!(test_secure, $func, true);
