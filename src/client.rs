@@ -14,6 +14,7 @@
 
 use futures::Future;
 
+use async::Executor;
 use call::{Call, Method};
 use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
                    ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver};
@@ -77,5 +78,15 @@ impl Client {
                                   opt: CallOption)
                                   -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
         Call::duplex_streaming(&self.channel, method, opt)
+    }
+
+    /// Spawn the future into current grpc poll thread.
+    ///
+    /// This can reduce a lot of context switching, but please make
+    /// sure there is no heavy work in the future.
+    pub fn spawn<F>(&self, f: F)
+        where F: Future<Item = (), Error = ()> + Send + 'static
+    {
+        Executor::new(self.channel.cq()).spawn(f)
     }
 }
