@@ -20,9 +20,9 @@
 #![allow(new_without_default)]
 
 extern crate grpc_sys;
-extern crate libc;
 #[macro_use]
 extern crate futures;
+extern crate libc;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 

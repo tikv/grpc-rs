@@ -12,11 +12,12 @@
 // limitations under the License.
 
 
-use std::{mem, ptr};
+use std::{cmp, mem, ptr, usize};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::CString;
 use std::sync::Arc;
+use std::time::Duration;
 
 use libc::{c_char, c_int};
 use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
@@ -33,6 +34,8 @@ const OPT_DEFAULT_AUTHORITY: &'static [u8] = b"grpc.default_authority\0";
 const OPT_MAX_CONCURRENT_STREAMS: &'static [u8] = b"grpc.max_concurrent_streams\0";
 const OPT_MAX_RECEIVE_MESSAGE_LENGTH: &'static [u8] = b"grpc.max_receive_message_length\0";
 const OPT_MAX_SEND_MESSAGE_LENGTH: &'static [u8] = b"grpc.max_send_message_length\0";
+const OPT_MAX_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.max_reconnect_backoff_ms\0";
+const OPT_INITIAL_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.initial_reconnect_backoff_ms\0";
 const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8] = b"grpc.http2.initial_sequence_number\0";
 const OPT_SO_REUSE_PORT: &'static [u8] = b"grpc.so_reuseport\0";
 const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
@@ -48,6 +51,11 @@ fn format_user_agent_string(agent: &str) -> CString {
         format!("{} grpc-rust/{}", trimed_agent, version)
     };
     CString::new(val).unwrap()
+}
+
+fn dur_to_ms(dur: Duration) -> usize {
+    let millis = dur.as_secs() * 1000 + dur.subsec_nanos() as u64 / 1_000_000;
+    cmp::min(usize::MAX as u64, millis) as usize
 }
 
 enum Options {
@@ -95,6 +103,22 @@ impl ChannelBuilder {
     pub fn max_send_message_len(mut self, len: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_MAX_SEND_MESSAGE_LENGTH, Options::Integer(len));
+        self
+    }
+
+    /// The maximum time between subsequent connection attempts.
+    pub fn max_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
+        self.options
+            .insert(OPT_MAX_RECONNECT_BACKOFF_MS,
+                    Options::Integer(dur_to_ms(backoff)));
+        self
+    }
+
+    /// The time between the first and second connection attempts.
+    pub fn initial_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
+        self.options
+            .insert(OPT_INITIAL_RECONNECT_BACKOFF_MS,
+                    Options::Integer(dur_to_ms(backoff)));
         self
     }
 
