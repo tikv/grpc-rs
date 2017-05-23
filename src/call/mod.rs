@@ -22,7 +22,7 @@ use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
-use async::{BatchFuture, BatchType, CallTag};
+use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
@@ -67,7 +67,7 @@ impl<P, Q> Method<P, Q> {
 }
 
 /// Status return from server.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RpcStatus {
     pub status: RpcStatusCode,
     pub details: Option<String>,
@@ -302,6 +302,77 @@ impl Drop for Call {
     }
 }
 
+/// A share object for client streaming and duplex streaming call.
+///
+/// In both cases, receiver and sender can be polled in the same time,
+/// hence we need to share the call in the both sides and abort the sink
+/// once the call is canceled or finished early.
+struct ShareCall {
+    call: Call,
+    close_f: CqFuture<BatchMessage>,
+    finished: bool,
+    status: Option<RpcStatus>,
+}
+
+impl ShareCall {
+    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+        ShareCall {
+            call: call,
+            close_f: close_f,
+            finished: false,
+            status: None,
+        }
+    }
+
+    /// Poll if the call is still alive.
+    ///
+    /// If the call is still running, will register a notification for its completion.
+    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+        let res = match self.close_f.poll() {
+            Err(Error::RpcFailure(status)) => {
+                self.status = Some(status.clone());
+                Err(Error::RpcFailure(status))
+            }
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Ready(msg)) => {
+                self.status = Some(RpcStatus::ok());
+                Ok(Async::Ready(msg))
+            }
+            res => res,
+        };
+
+        self.finished = true;
+        res
+    }
+
+    /// Check if the call is finished.
+    fn check_alive(&mut self) -> Result<()> {
+        if self.finished {
+            // maybe can just take here.
+            return Err(Error::RpcFinished(self.status.clone()));
+        }
+
+        async::check_alive(&self.close_f)
+    }
+}
+
+trait ShareCallHolder {
+    fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R;
+}
+
+impl ShareCallHolder for ShareCall {
+    fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R {
+        f(self)
+    }
+}
+
+impl ShareCallHolder for Arc<SpinLock<ShareCall>> {
+    fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R {
+        let mut call = self.lock();
+        f(&mut call)
+    }
+}
+
 /// A helper trait that allow executing function on the inernal call struct.
 trait CallHolder {
     fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R;
@@ -319,6 +390,14 @@ impl CallHolder for Arc<Mutex<Call>> {
     fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
         let mut lock = self.lock().unwrap();
         f(&mut lock)
+    }
+}
+
+impl CallHolder for Arc<SpinLock<ShareCall>> {
+    #[inline]
+    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
+        let mut lock = self.lock();
+        f(&mut lock.call)
     }
 }
 
@@ -390,8 +469,7 @@ impl StreamingBase {
 
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
-    write_f: Option<BatchFuture>,
-    close_f: Option<BatchFuture>,
+    batch_f: Option<BatchFuture>,
     buf: Vec<u8>,
     flags: u32,
     send_metadata: bool,
@@ -400,8 +478,7 @@ struct SinkBase {
 impl SinkBase {
     fn new(flags: u32, send_metadata: bool) -> SinkBase {
         SinkBase {
-            write_f: None,
-            close_f: None,
+            batch_f: None,
             buf: Vec::new(),
             send_metadata: send_metadata,
             flags: flags,
@@ -413,10 +490,10 @@ impl SinkBase {
                                     t: &T,
                                     ser: SerializeFn<T>)
                                     -> Result<bool> {
-        if self.write_f.is_some() {
+        if self.batch_f.is_some() {
             // try its best not to return false.
             try!(self.poll_complete());
-            if self.write_f.is_some() {
+            if self.batch_f.is_some() {
                 return Ok(false);
             }
         }
@@ -425,29 +502,17 @@ impl SinkBase {
         ser(t, &mut self.buf);
         let write_f =
             call.call(|c| c.start_send_message(&self.buf, self.flags, self.send_metadata));
-        self.write_f = Some(write_f);
+        self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
-        if let Some(ref mut write_f) = self.write_f {
-            try_ready!(write_f.poll());
+        if let Some(ref mut batch_f) = self.batch_f {
+            try_ready!(batch_f.poll());
         }
 
-        self.write_f.take();
-        Ok(Async::Ready(()))
-    }
-
-    fn close<C: CallHolder>(&mut self, call: &mut C) -> Poll<(), Error> {
-        if self.close_f.is_none() {
-            try_ready!(self.poll_complete());
-
-            let close_f = call.call(|c| c.start_send_close_client());
-            self.close_f = Some(close_f);
-        }
-
-        try_ready!(self.close_f.as_mut().unwrap().poll());
+        self.batch_f.take();
         Ok(Async::Ready(()))
     }
 }

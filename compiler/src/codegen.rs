@@ -146,7 +146,7 @@ impl<'a> MethodGen<'a> {
         format!("{}_async(&self, req: {}) -> {}<{}>",
                 method_name,
                 self.input(),
-                fq_grpc("UnaryCallHandler"),
+                fq_grpc("ClientUnaryReceiver"),
                 self.output())
     }
 
@@ -155,24 +155,26 @@ impl<'a> MethodGen<'a> {
                 method_name,
                 self.input(),
                 fq_grpc("CallOption"),
-                fq_grpc("UnaryCallHandler"),
+                fq_grpc("ClientUnaryReceiver"),
                 self.output())
     }
 
     fn client_streaming(&self, method_name: &str) -> String {
-        format!("{}(&self) -> {}<{}, {}>",
+        format!("{}(&self) -> ({}<{}>, {}<{}>)",
                 method_name,
-                fq_grpc("ClientStreamingCallHandler"),
+                fq_grpc("ClientCStreamSender"),
                 self.input(),
+                fq_grpc("ClientCStreamReceiver"),
                 self.output())
     }
 
     fn client_streaming_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, opt: {}) -> {}<{}, {}>",
+        format!("{}_opt(&self, opt: {}) -> ({}<{}>, {}<{}>)",
                 method_name,
                 fq_grpc("CallOption"),
-                fq_grpc("ClientStreamingCallHandler"),
+                fq_grpc("ClientCStreamSender"),
                 self.input(),
+                fq_grpc("ClientCStreamReceiver"),
                 self.output())
     }
 
@@ -180,7 +182,7 @@ impl<'a> MethodGen<'a> {
         format!("{}(&self, req: {}) -> {}<{}>",
                 method_name,
                 self.input(),
-                fq_grpc("ServerStreamingCallHandler"),
+                fq_grpc("ClientSStreamReceiver"),
                 self.output())
     }
 
@@ -189,24 +191,26 @@ impl<'a> MethodGen<'a> {
                 method_name,
                 self.input(),
                 fq_grpc("CallOption"),
-                fq_grpc("ServerStreamingCallHandler"),
+                fq_grpc("ClientSStreamReceiver"),
                 self.output())
     }
 
     fn duplex_streaming(&self, method_name: &str) -> String {
-        format!("{}(&self) -> {}<{}, {}>",
+        format!("{}(&self) -> ({}<{}>, {}<{}>)",
                 method_name,
-                fq_grpc("DuplexCallHandler"),
+                fq_grpc("ClientDuplexSender"),
                 self.input(),
+                fq_grpc("ClientDuplexReceiver"),
                 self.output())
     }
 
     fn duplex_streaming_opt(&self, method_name: &str) -> String {
-        format!("{}_opt(&self, opt: {}) -> {}<{}, {}>",
+        format!("{}_opt(&self, opt: {}) -> ({}<{}>, {}<{}>)",
                 method_name,
                 fq_grpc("CallOption"),
-                fq_grpc("DuplexCallHandler"),
+                fq_grpc("ClientDuplexSender"),
                 self.input(),
+                fq_grpc("ClientDuplexReceiver"),
                 self.output())
     }
 
@@ -217,27 +221,27 @@ impl<'a> MethodGen<'a> {
             MethodType::Unary => {
                 w.pub_fn(&self.unary_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.unary_call(&{}, req, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.unary(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt(req, {})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.unary_call_async(&{}, req, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async(&method_name), |w| {
                     w.write_line(&format!("self.{}_async_opt(req, {})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
 
@@ -245,14 +249,14 @@ impl<'a> MethodGen<'a> {
             MethodType::ClientStreaming => {
                 w.pub_fn(&self.client_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.client_streaming(&{}, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.client_streaming(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt({})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
 
@@ -260,14 +264,14 @@ impl<'a> MethodGen<'a> {
             MethodType::ServerStreaming => {
                 w.pub_fn(&self.server_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.server_streaming(&{}, req, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.server_streaming(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt(req, {})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
 
@@ -275,14 +279,14 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => {
                 w.pub_fn(&self.duplex_streaming_opt(&method_name), |w| {
                     w.write_line(&format!("self.client.duplex_streaming(&{}, opt)",
-                                         self.const_method_name()));
+                                          self.const_method_name()));
                 });
                 w.write_line("");
 
                 w.pub_fn(&self.duplex_streaming(&method_name), |w| {
                     w.write_line(&format!("self.{}_opt({})",
-                                         method_name,
-                                         fq_grpc("CallOption::default()")));
+                                          method_name,
+                                          fq_grpc("CallOption::default()")));
                 });
             }
         };
@@ -314,8 +318,8 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => "add_duplex_streaming_handler",
         };
         w.block(&format!("builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                        add,
-                        self.const_method_name()),
+                         add,
+                         self.const_method_name()),
                 "});",
                 |w| { w.write_line(&format!("instance.{}(ctx, req, resp)", self.name())); });
     }
@@ -449,8 +453,10 @@ fn gen_file(file: &FileDescriptorProto,
 pub fn gen(file_descriptors: &[FileDescriptorProto],
            files_to_generate: &[String])
            -> Vec<compiler_plugin::GenResult> {
-    let files_map: HashMap<&str, &FileDescriptorProto> =
-        file_descriptors.iter().map(|f| (f.get_name(), f)).collect();
+    let files_map: HashMap<&str, &FileDescriptorProto> = file_descriptors
+        .iter()
+        .map(|f| (f.get_name(), f))
+        .collect();
 
     let root_scope = RootScope { file_descriptors: file_descriptors };
 
