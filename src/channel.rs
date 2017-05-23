@@ -54,8 +54,8 @@ fn format_user_agent_string(agent: &str) -> CString {
 }
 
 fn dur_to_ms(dur: Duration) -> usize {
-    let micro = dur.as_secs() * 1000 + dur.subsec_nanos() as u64 / 1_000_000;
-    cmp::min(usize::MAX as u64, micro) as usize
+    let millis = dur.as_secs() * 1000 + dur.subsec_nanos() as u64 / 1_000_000;
+    cmp::min(usize::MAX as u64, millis) as usize
 }
 
 enum Options {
