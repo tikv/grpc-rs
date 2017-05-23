@@ -28,8 +28,8 @@ pub enum Error {
     CallFailure(GrpcCallStatus),
     // fail when the rpc request fail.
     RpcFailure(RpcStatus),
-    // return when streaming call finish early.
-    StopEarly,
+    // return when trying to write to a finished rpc call.
+    RpcFinished(Option<RpcStatus>),
     RemoteStopped,
     ShutdownFailed,
     BindFail(String, u16),
@@ -47,9 +47,9 @@ impl error::Error for Error {
             Error::Codec(_) => "Grpc Codec Error",
             Error::CallFailure(_) => "Grpc Call Error",
             Error::RpcFailure(_) => "Grpc Request Error",
+            Error::RpcFinished(_) => "Grpc Finish Error",
             Error::RemoteStopped => "Remote is stopped.",
             Error::ShutdownFailed => "Failed to shutdown.",
-            Error::StopEarly => "Streaming stop early",
             Error::BindFail(_, _) => "Grpc Bind Error",
         }
     }

@@ -132,23 +132,22 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
     }
 
     fn execute_stream(self, r: &CpuPool) {
-        let mut handler = self.client
+        let (sender, receiver) = self.client
             .duplex_streaming(&bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
                               CallOption::default());
-        let receiver = handler.take_receiver().unwrap();
-        let f = future::loop_fn((handler, self, receiver),
-                                move |(h, mut executor, receiver)| {
+        let f = future::loop_fn((sender, self, receiver),
+                                move |(sender, mut executor, receiver)| {
             let latency_timer = Instant::now();
-            let send = h.send(executor.req.clone());
+            let send = sender.send(executor.req.clone());
             send.map_err(Error::from)
-                .and_then(move |h| {
+                .and_then(move |sender| {
                     receiver
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
                         .and_then(move |(_, r)| {
                             executor.observe_latency(latency_timer.elapsed());
                             let mut time = executor.back_off.back_off_async(&executor.timer);
-                            let mut res = Some((h, executor, r));
+                            let mut res = Some((sender, executor, r));
                             future::poll_fn(move || {
                                 if let Some(ref mut t) = time {
                                     try_ready!(t.poll());
@@ -233,21 +232,20 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
     }
 
     fn execute_stream_ping_pong(self, r: &CpuPool) {
-        let mut handler = self.client.streaming_call();
-        let receiver = handler.take_receiver().unwrap();
-        let f = future::loop_fn((handler, self, receiver),
-                                move |(h, mut executor, receiver)| {
+        let (sender, receiver) = self.client.streaming_call();
+        let f = future::loop_fn((sender, self, receiver),
+                                move |(sender, mut executor, receiver)| {
             let latency_timer = Instant::now();
-            let send = h.send(executor.req.clone());
+            let send = sender.send(executor.req.clone());
             send.map_err(Error::from)
-                .and_then(move |h| {
+                .and_then(move |sender| {
                     receiver
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
                         .and_then(move |(_, r)| {
                             executor.observe_latency(latency_timer.elapsed());
                             let mut time = executor.back_off.back_off_async(&executor.timer);
-                            let mut res = Some((h, executor, r));
+                            let mut res = Some((sender, executor, r));
                             future::poll_fn(move || {
                                 if let Some(ref mut t) = time {
                                     try_ready!(t.poll());

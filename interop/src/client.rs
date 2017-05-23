@@ -65,9 +65,9 @@ impl Client {
                 Ok(req)
             })
             .collect();
-        let mut handler = self.client.streaming_input_call();
-        handler = handler.send_all(stream::iter(reqs)).wait().unwrap().0;
-        let resp = handler.into_receiver().wait().unwrap();
+        let (sender, receiver) = self.client.streaming_input_call();
+        sender.send_all(stream::iter(reqs)).wait().unwrap().0;
+        let resp = receiver.wait().unwrap();
         assert_eq!(74922, resp.get_aggregated_payload_size());
         println!("pass");
     }
@@ -91,16 +91,14 @@ impl Client {
 
     pub fn ping_pong(&self) {
         print!("testing ping pong ... ");
-        let mut handler = self.client.full_duplex_call();
-        let mut receiver = handler.take_receiver().unwrap();
+        let (mut sender, mut receiver) = self.client.full_duplex_call();
         let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
         for (resp_size, payload_size) in cases {
             let mut req = StreamingOutputCallRequest::new();
             req.mut_response_parameters()
                 .push(util::new_parameters(resp_size));
             req.set_payload(util::new_payload(payload_size));
-            let send = handler.send(req);
-            handler = send.wait().unwrap();
+            sender = sender.send(req).wait().unwrap();
             let resp = match receiver.into_future().wait() {
                 Ok((resp, recv)) => {
                     receiver = recv;
@@ -115,9 +113,8 @@ impl Client {
 
     pub fn empty_stream(&self) {
         print!("testing empty stream ... ");
-        let mut handler = self.client.full_duplex_call();
-        let receiver = handler.take_receiver().unwrap();
-        future::poll_fn(|| handler.close()).wait().unwrap();
+        let (mut sender, receiver) = self.client.full_duplex_call();
+        future::poll_fn(|| sender.close()).wait().unwrap();
         let resps = receiver.collect().wait().unwrap();
         assert!(resps.is_empty());
         println!("pass");
@@ -125,10 +122,10 @@ impl Client {
 
     pub fn cancel_after_begin(&self) {
         print!("testing cancel_after_begin ... ");
-        let handler = self.client.streaming_input_call();
+        let (mut sender, receiver) = self.client.streaming_input_call();
         // so request has been sent.
         thread::sleep(Duration::from_millis(10));
-        let receiver = handler.cancel();
+        sender.cancel();
         match receiver.wait().unwrap_err() {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Cancelled),
             e => panic!("expected cancel, but got: {:?}", e),
@@ -138,13 +135,12 @@ impl Client {
 
     pub fn cancel_after_first_response(&self) {
         print!("testing cancel_after_first_response ... ");
-        let mut handler = self.client.full_duplex_call();
-        let mut receiver = handler.take_receiver().unwrap();
+        let (mut sender, mut receiver) = self.client.full_duplex_call();
         let mut req = StreamingOutputCallRequest::new();
         req.mut_response_parameters()
             .push(util::new_parameters(31415));
         req.set_payload(util::new_payload(27182));
-        handler = handler.send(req).wait().unwrap();
+        sender = sender.send(req).wait().unwrap();
         let resp = match receiver.into_future().wait() {
             Ok((r, recv)) => {
                 receiver = recv;
@@ -154,7 +150,7 @@ impl Client {
         };
 
         assert_eq!(resp.get_payload().get_body().len(), 31415);
-        handler.cancel();
+        sender.cancel();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => assert_eq!(s.status, RpcStatusCode::Cancelled),
             Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
@@ -166,11 +162,10 @@ impl Client {
     pub fn timeout_on_sleeping_server(&self) {
         print!("testing timeout_of_sleeping_server ... ");
         let opt = CallOption::default().timeout(Duration::new(0, 10_000));
-        let mut handler = self.client.full_duplex_call_opt(opt);
-        let receiver = handler.take_receiver().unwrap();
+        let (sender, receiver) = self.client.full_duplex_call_opt(opt);
         let mut req = StreamingOutputCallRequest::new();
         req.set_payload(util::new_payload(27182));
-        let _ = handler.send(req).wait();
+        let _ = sender.send(req).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
@@ -198,9 +193,8 @@ impl Client {
         }
         let mut req = StreamingOutputCallRequest::new();
         req.set_response_status(status);
-        let mut handler = self.client.full_duplex_call();
-        let receiver = handler.take_receiver().unwrap();
-        handler.send(req).wait().unwrap();
+        let (sender, receiver) = self.client.full_duplex_call();
+        sender.send(req).wait().unwrap();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::Unknown);

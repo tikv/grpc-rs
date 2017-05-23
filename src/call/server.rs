@@ -309,6 +309,7 @@ macro_rules! impl_stream_sink {
             call: $holder,
             base: SinkBase,
             close_f: BatchFuture,
+            flush_f: Option<BatchFuture>,
             status: RpcStatus,
             flushed: bool,
             ser: SerializeFn<T>,
@@ -318,8 +319,9 @@ macro_rules! impl_stream_sink {
             fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
-                    base: SinkBase::new(0, None, true),
+                    base: SinkBase::new(0, true),
                     close_f: close_f,
+                    flush_f: None,
                     status: RpcStatus::ok(),
                     flushed: false,
                     ser: ser,
@@ -327,12 +329,12 @@ macro_rules! impl_stream_sink {
             }
 
             pub fn set_status(&mut self, status: RpcStatus) {
-                assert!(self.base.close_f.is_none());
+                assert!(self.flush_f.is_none());
                 self.status = status;
             }
 
             pub fn fail(mut self, status: RpcStatus) -> $ft {
-                assert!(self.base.close_f.is_none());
+                assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
                 let flags = self.base.flags;
                 let fail_f = self.call.call(|c| {
@@ -366,20 +368,20 @@ macro_rules! impl_stream_sink {
             }
 
             fn close(&mut self) -> Poll<(), Error> {
-                if self.base.close_f.is_none() {
+                if self.flush_f.is_none() {
                     try_ready!(self.base.poll_complete());
 
                     let send_metadata = self.base.send_metadata;
                     let flags = self.base.flags;
                     let status = &self.status;
-                    let close_f = self.call.call(|c| {
+                    let flush_f = self.call.call(|c| {
                         c.start_send_status_from_server(status, send_metadata, None, flags)
                     });
-                    self.base.close_f = Some(close_f);
+                    self.flush_f = Some(flush_f);
                 }
 
                 if !self.flushed {
-                    try_ready!(self.base.close_f.as_mut().unwrap().poll());
+                    try_ready!(self.flush_f.as_mut().unwrap().poll());
                     self.flushed = true;
                 }
 

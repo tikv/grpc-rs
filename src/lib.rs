@@ -20,9 +20,9 @@
 #![allow(new_without_default)]
 
 extern crate grpc_sys;
-extern crate libc;
 #[macro_use]
 extern crate futures;
+extern crate libc;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 
@@ -38,8 +38,9 @@ mod error;
 mod server;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode};
-pub use call::client::{CallOption, ClientStreamingCallHandler, DuplexCallHandler,
-                       ServerStreamingCallHandler, UnaryCallHandler};
+pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
+                       ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
+                       ClientUnaryReceiver};
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
