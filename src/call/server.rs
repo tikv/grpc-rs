@@ -65,7 +65,10 @@ impl RequestContext {
     /// Try to accept a client side streaming request.
     ///
     /// Return error if the request is a client side unary request.
-    pub fn handle_stream_req(self, cq: &CompletionQueue, inner: &Inner) -> result::Result<(), Self> {
+    pub fn handle_stream_req(self,
+                             cq: &CompletionQueue,
+                             inner: &Inner)
+                             -> result::Result<(), Self> {
         match inner.get_handler(self.method()) {
             Some(handler) => {
                 match handler.method_type() {
@@ -444,8 +447,12 @@ impl<'a> RpcContext<'a> {
         &self.deadline
     }
 
+    /// Spawn the future into current grpc poll thread.
+    ///
+    /// This can reduce a lot of context switching, but please make
+    /// sure there is no heavy work in the future.
     pub fn spawn<F>(&self, f: F)
-        where F: Future<Item=(), Error=()> + Send + 'static
+        where F: Future<Item = (), Error = ()> + Send + 'static
     {
         self.executor.spawn(f)
     }

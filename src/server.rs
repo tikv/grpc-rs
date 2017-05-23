@@ -76,7 +76,9 @@ impl ServiceBuilder {
               F: Fn(RpcContext, P, UnarySink<Q>) + 'static
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: &[u8]| execute_unary(ctx, ser, de, payload, &handler));
+        let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
+                             execute_unary(ctx, ser, de, payload, &handler)
+                         });
         self.handlers
             .insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
         self
@@ -92,7 +94,9 @@ impl ServiceBuilder {
               F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: &[u8]| execute_client_streaming(ctx, ser, de, &handler));
+        let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
+                             execute_client_streaming(ctx, ser, de, &handler)
+                         });
         self.handlers
             .insert(method.name.as_bytes(),
                     Handler::new(MethodType::ClientStreaming, h));
@@ -128,7 +132,9 @@ impl ServiceBuilder {
               F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: &[u8]| execute_duplex_streaming(ctx, ser, de, &handler));
+        let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
+                             execute_duplex_streaming(ctx, ser, de, &handler)
+                         });
         self.handlers
             .insert(method.name.as_bytes(), Handler::new(MethodType::Duplex, h));
         self

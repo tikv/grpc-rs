@@ -410,7 +410,10 @@ extern "C" {
                                                   -> *mut GrpcServerCredentials;
     pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
 
-    pub fn grpc_alarm_create(cq: *mut GrpcCompletionQueue, deadline: GprTimespec, tag: *mut c_void) -> *mut GrpcAlarm;
+    pub fn grpc_alarm_create(cq: *mut GrpcCompletionQueue,
+                             deadline: GprTimespec,
+                             tag: *mut c_void)
+                             -> *mut GrpcAlarm;
     pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 }
