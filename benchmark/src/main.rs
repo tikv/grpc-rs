@@ -19,7 +19,6 @@ extern crate grpc;
 extern crate grpc_proto;
 
 use std::sync::Arc;
-use std::thread;
 
 use benchmark::Worker;
 use clap::{App, Arg};
@@ -56,5 +55,5 @@ fn main() {
 
     server.start();
 
-    thread::sleep_ms(120000);
+    let _ = rx.wait();
 }
