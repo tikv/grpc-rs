@@ -12,8 +12,9 @@
 // limitations under the License.
 
 
-extern crate protobuf;
+extern crate futures;
 extern crate grpc;
+extern crate protobuf;
 
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));

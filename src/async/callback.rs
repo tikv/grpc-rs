@@ -40,7 +40,7 @@ impl Request {
             return;
         }
 
-        match self.ctx.handle_stream_req(&inner) {
+        match self.ctx.handle_stream_req(cq, &inner) {
             Ok(_) => server::request_call(inner, cq),
             Err(ctx) => ctx.handle_unary_req(inner, cq),
         }
@@ -73,7 +73,8 @@ impl UnaryRequest {
         }
 
         let data = self.ctx.batch_ctx().recv_message();
-        self.ctx.handle(&inner, data.as_ref().map(|v| v.as_slice()));
+        self.ctx
+            .handle(&inner, cq, data.as_ref().map(|v| v.as_slice()));
         server::request_call(inner, cq);
     }
 }

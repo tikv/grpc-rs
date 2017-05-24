@@ -13,6 +13,7 @@
 
 
 use std::sync::Arc;
+use std::fmt::{self, Debug, Formatter};
 
 use call::{BatchContext, RpcStatusCode};
 use error::Error;
@@ -99,6 +100,12 @@ impl Batch {
                 self.read_one_msg(success);
             }
         }
+    }
+}
+
+impl Debug for Batch {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "Batch [{:?}]", self.ty)
     }
 }
 

@@ -16,7 +16,6 @@ extern crate grpc;
 extern crate grpc_proto;
 extern crate protobuf;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -32,7 +31,6 @@ use std::{io, thread};
 use grpc::*;
 use futures::*;
 use futures::sync::oneshot;
-use futures_cpupool::CpuPool;
 
 use util::*;
 use grpc_proto::example::route_guide::*;
@@ -41,22 +39,21 @@ use grpc_proto::example::route_guide_grpc::{self, RouteGuide};
 
 #[derive(Clone)]
 struct RouteGuideService {
-    pool: CpuPool,
     data: Arc<Vec<Feature>>,
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&self, _: RpcContext, point: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
         let data = self.data.clone();
         let resp = data.iter()
             .find(|f| same_point(f.get_location(), &point))
             .map_or_else(Feature::new, ToOwned::to_owned);
         let f = sink.success(resp)
             .map_err(|e| println!("failed to handle getfeature request: {:?}", e));
-        self.pool.spawn(f).forget()
+        ctx.spawn(f)
     }
 
-    fn list_features(&self, _: RpcContext, rect: Rectangle, resp: ServerStreamingSink<Feature>) {
+    fn list_features(&self, ctx: RpcContext, rect: Rectangle, resp: ServerStreamingSink<Feature>) {
         let data = self.data.clone();
         let features: Vec<Result<_>> = data.iter()
             .filter_map(|f| if fit_in(f.get_location(), &rect) {
@@ -68,11 +65,11 @@ impl RouteGuide for RouteGuideService {
         let f = resp.send_all(stream::iter(features))
             .map(|_| {})
             .map_err(|e| println!("failed to handle listfeatures request: {:?}", e));
-        self.pool.spawn(f).forget()
+        ctx.spawn(f)
     }
 
     fn record_route(&self,
-                    _: RpcContext,
+                    ctx: RpcContext,
                     points: RequestStream<Point>,
                     resp: ClientStreamingSink<RouteSummary>) {
         let data = self.data.clone();
@@ -101,11 +98,11 @@ impl RouteGuide for RouteGuideService {
                 resp.success(s)
             })
             .map_err(|e| println!("failed to record route: {:?}", e));
-        self.pool.spawn(f).forget()
+        ctx.spawn(f)
     }
 
     fn route_chat(&self,
-                  _: RpcContext,
+                  ctx: RpcContext,
                   notes: RequestStream<RouteNote>,
                   resp: DuplexSink<RouteNote>) {
         let mut buffer: Vec<RouteNote> = Vec::new();
@@ -126,17 +123,13 @@ impl RouteGuide for RouteGuideService {
         let f = resp.send_all(to_send)
             .map(|_| {})
             .map_err(|e| println!("failed to route chat: {:?}", e));
-        self.pool.spawn(f).forget()
+        ctx.spawn(f)
     }
 }
 
 fn main() {
-    let pool = CpuPool::new(1);
     let env = Arc::new(Environment::new(2));
-    let instance = RouteGuideService {
-        pool: pool.clone(),
-        data: Arc::new(load_db()),
-    };
+    let instance = RouteGuideService { data: Arc::new(load_db()) };
     let service = route_guide_grpc::create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
