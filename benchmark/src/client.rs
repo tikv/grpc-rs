@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, Environment, EnvBuilder};
+use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment};
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
 use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;

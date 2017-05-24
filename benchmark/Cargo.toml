@@ -6,7 +6,6 @@ version = "0.1.0"
 grpc = { path = ".." }
 grpc-proto = { path = "../proto" }
 futures = "0.1"
-futures-cpupool = "0.1"
 libc = "0.2"
 grpc-sys = { path = "../grpc-sys" }
 rand = "0.3"

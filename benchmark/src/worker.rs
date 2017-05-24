@@ -14,7 +14,6 @@
 
 use std::sync::{Arc, Mutex};
 
-use futures_cpupool::CpuPool;
 use grpc_proto::testing::services_grpc::WorkerService;
 use grpc_proto::testing::control::{ClientArgs, ClientStatus, CoreRequest, CoreResponse,
                                    ServerArgs, ServerStatus, Void};
@@ -30,15 +29,13 @@ use server::Server;
 #[derive(Clone)]
 pub struct Worker {
     env: Arc<Environment>,
-    pool: CpuPool,
     shutdown_notifier: Arc<Mutex<Option<Sender<()>>>>,
 }
 
 impl Worker {
-    pub fn new(env: Arc<Environment>, pool: CpuPool, sender: Sender<()>) -> Worker {
+    pub fn new(env: Arc<Environment>, sender: Sender<()>) -> Worker {
         Worker {
             env: env,
-            pool: pool,
             shutdown_notifier: Arc::new(Mutex::new(Some(sender))),
         }
     }
@@ -46,7 +43,7 @@ impl Worker {
 
 impl WorkerService for Worker {
     fn run_server(&self,
-                  _: RpcContext,
+                  ctx: RpcContext,
                   stream: RequestStream<ServerArgs>,
                   sink: DuplexSink<ServerStatus>) {
         let mut server: Option<Server> = None;
@@ -77,11 +74,11 @@ impl WorkerService for Worker {
                                     }))
             .map(|_| println!("server shutdown."))
             .map_err(|e| println!("run server failed: {:?}", e));
-        self.pool.spawn(f).forget()
+        ctx.spawn(f)
     }
 
     fn run_client(&self,
-                  _: RpcContext,
+                  ctx: RpcContext,
                   stream: RequestStream<ClientArgs>,
                   sink: DuplexSink<ClientStatus>) {
         let mut client: Option<Client> = None;
@@ -108,25 +105,21 @@ impl WorkerService for Worker {
                                     }))
             .map(|_| {})
             .map_err(|e| println!("run client failed: {:?}", e));
-        self.pool.spawn(f).forget()
+        ctx.spawn(f)
     }
 
-    fn core_count(&self, _: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
+    fn core_count(&self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
         let mut resp = CoreResponse::new();
         resp.set_cores(cpu_count as i32);
-        self.pool
-            .spawn(sink.success(resp)
-                       .map_err(|e| println!("failed to report cpu count: {:?}", e)))
-            .forget()
+        ctx.spawn(sink.success(resp)
+                      .map_err(|e| println!("failed to report cpu count: {:?}", e)))
     }
 
-    fn quit_worker(&self, _: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
+    fn quit_worker(&self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
-        self.pool
-            .spawn(sink.success(Void::new())
-                       .map_err(|e| println!("failed to report quick worker: {:?}", e)))
-            .forget();
+        ctx.spawn(sink.success(Void::new())
+                      .map_err(|e| println!("failed to report quick worker: {:?}", e)));
         if let Some(notifier) = notifier {
             let _ = notifier.send(());
         }

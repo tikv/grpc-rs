@@ -8,7 +8,6 @@ grpc-sys = { path = "../grpc-sys" }
 grpc-proto = { path = "../proto" }
 protobuf = "1.2"
 futures = "0.1"
-futures-cpupool = "0.1"
 clap = "2.23"
 clippy = { version = "*", optional = true }
 

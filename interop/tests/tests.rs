@@ -15,7 +15,6 @@
 extern crate grpc;
 extern crate interop;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate grpc_proto;
 
 macro_rules! mk_test {

@@ -33,7 +33,7 @@ impl BenchmarkService for Benchmark {
     fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let resp = gen_resp(req);
         ctx.spawn(sink.success(resp)
-                       .map_err(|e| println!("failed to handle unary: {:?}", e)))
+                      .map_err(|e| println!("failed to handle unary: {:?}", e)))
     }
 
     fn streaming_call(&self,
@@ -41,8 +41,8 @@ impl BenchmarkService for Benchmark {
                       stream: RequestStream<SimpleRequest>,
                       sink: DuplexSink<SimpleResponse>) {
         ctx.spawn(sink.send_all(stream.map(gen_resp))
-                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                       .map(|_| {}))
+                      .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                      .map(|_| {}))
     }
 }
 
@@ -56,8 +56,8 @@ impl Generic {
                           sink: DuplexSink<Vec<u8>>) {
         println!("streaming_call started");
         ctx.spawn(sink.send_all(stream.map(|req| req))
-                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                       .map(|_| {}))
+                      .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                      .map(|_| {}))
     }
 }
 

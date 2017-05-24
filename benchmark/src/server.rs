@@ -36,12 +36,8 @@ impl Server {
             println!("server config core limit is set but ignored");
         }
         let service = match cfg.get_server_type() {
-            ServerType::ASYNC_SERVER => {
-                services_grpc::create_benchmark_service(Benchmark)
-            }
-            ServerType::ASYNC_GENERIC_SERVER => {
-                bench::create_generic_service(Generic)
-            }
+            ServerType::ASYNC_SERVER => services_grpc::create_benchmark_service(Benchmark),
+            ServerType::ASYNC_GENERIC_SERVER => bench::create_generic_service(Generic),
             _ => unimplemented!(),
         };
         let mut builder = ServerBuilder::new(env).register_service(service);

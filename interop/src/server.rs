@@ -45,7 +45,10 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn unary_call(&self, ctx: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(&self,
+                  ctx: RpcContext,
+                  mut req: SimpleRequest,
+                  sink: UnarySink<SimpleResponse>) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
