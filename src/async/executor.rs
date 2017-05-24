@@ -29,7 +29,7 @@ use super::CallTag;
 /// Alarm acts as a notification hook that wakes up poll thread once
 /// inner future is ready to make progress.
 pub struct AlarmHandle {
-    f: Spawn<BoxFuture<(), ()>>,
+    f: Option<Spawn<BoxFuture<(), ()>>>,
     finished: bool,
     alarm: *mut GrpcAlarm,
 }
@@ -40,7 +40,7 @@ impl AlarmHandle {
     /// `alarm` will be initialized lazily.
     pub fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmHandle {
         AlarmHandle {
-            f: s,
+            f: Some(s),
             finished: false,
             alarm: ptr::null_mut(),
         }
@@ -108,9 +108,14 @@ impl Alarm {
 // TODO: support timeout and trace future.
 fn spawn(cq: &CompletionQueue, unpark: Arc<AlarmUnpark>) {
     let mut handle = unpark.handle.lock();
-    match handle.f.poll_future(unpark.clone()) {
+    match handle.f.as_mut().unwrap().poll_future(unpark.clone()) {
         Err(_) |
-        Ok(Async::Ready(_)) => return,
+        Ok(Async::Ready(_)) => {
+            // Future stores unpark, and unpark contains future,
+            // hence circular reference. Take the future to break it.
+            handle.f.take();
+            return;
+        }
         _ => {}
     }
 
