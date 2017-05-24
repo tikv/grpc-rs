@@ -15,10 +15,10 @@
 // TODO: clean up code.
 
 use std::sync::{Arc, Mutex};
-use std::{cmp, thread};
+use std::thread;
 use std::time::{Duration, Instant};
 
-use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, Environment};
+use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, Environment, EnvBuilder};
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
 use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
@@ -26,7 +26,6 @@ use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
 use futures::{Async, Future, Sink, Stream, future};
 use futures::future::Loop;
-use futures_cpupool::CpuPool;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
@@ -167,7 +166,7 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
 }
 
 struct RequestExecutor<B> {
-    client: BenchmarkServiceClient,
+    client: Arc<BenchmarkServiceClient>,
     req: SimpleRequest,
     histogram: Arc<Mutex<Histogram>>,
     back_off: B,
@@ -182,7 +181,7 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
            timer: Timer)
            -> RequestExecutor<B> {
         RequestExecutor {
-            client: BenchmarkServiceClient::new(channel),
+            client: Arc::new(BenchmarkServiceClient::new(channel)),
             req: gen_req(cfg),
             histogram: histogram,
             back_off: back_off,
@@ -206,7 +205,8 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                       });
     }
 
-    fn execute_unary_async(self, pool: &CpuPool) {
+    fn execute_unary_async(self) {
+        let client = self.client.clone();
         let f = future::loop_fn(self, move |mut executor| {
             let latency_timer = Instant::now();
             let handler = executor.client.unary_call_async(executor.req.clone());
@@ -229,10 +229,11 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                 })
         })
                 .map_err(|e| println!("failed to execute unary async: {:?}", e));
-        pool.spawn(f).forget()
+        client.spawn(f);
     }
 
-    fn execute_stream_ping_pong(self, r: &CpuPool) {
+    fn execute_stream_ping_pong(self) {
+        let client = self.client.clone();
         let (sender, receiver) = self.client.streaming_call();
         let f = future::loop_fn((sender, self, receiver),
                                 move |(sender, mut executor, receiver)| {
@@ -260,28 +261,28 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                 })
         })
                 .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
-        r.spawn(f).forget()
+        client.spawn(f)
     }
 }
 
 pub struct Client {
     recorder: CpuRecorder,
     histogram: Arc<Mutex<Histogram>>,
-    _pool: CpuPool,
+    _env: Arc<Environment>,
 }
 
 impl Client {
-    pub fn new(env: Arc<Environment>, cfg: &ClientConfig) -> Client {
-        let pool = CpuPool::new(cmp::max(cfg.get_async_client_threads() as usize, 1));
-
+    pub fn new(cfg: &ClientConfig) -> Client {
+        let env = Arc::new(EnvBuilder::new().build());
         if cfg.get_core_limit() > 0 {
             println!("client config core limit is set but ignored");
         }
 
+        let ch_env = env.clone();
         let channels = (0..cfg.get_client_channels())
             .zip(cfg.get_server_targets().into_iter().cycle())
             .map(|(_, addr)| {
-                let mut builder = ChannelBuilder::new(env.clone());
+                let mut builder = ChannelBuilder::new(ch_env.clone());
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
                     if params.get_server_host_override() != "" {
@@ -337,10 +338,10 @@ impl Client {
                                 }
                                 if let Some(p) = poisson {
                                     RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                        .execute_unary_async(&pool)
+                                        .execute_unary_async()
                                 } else {
                                     RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                        .execute_unary_async(&pool)
+                                        .execute_unary_async()
                                 }
                             }
                             RpcType::STREAMING => {
@@ -355,10 +356,10 @@ impl Client {
                                 } else {
                                     if let Some(p) = poisson {
                                         RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                            .execute_stream_ping_pong(&pool)
+                                            .execute_stream_ping_pong()
                                     } else {
                                         RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                            .execute_stream_ping_pong(&pool)
+                                            .execute_stream_ping_pong()
                                     }
                                 }
                             }
@@ -372,7 +373,7 @@ impl Client {
         Client {
             recorder: recorder,
             histogram: his,
-            _pool: pool,
+            _env: env,
         }
     }
 

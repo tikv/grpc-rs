@@ -5,6 +5,7 @@ build = "build.rs"
 
 [dependencies]
 protobuf = "1.2"
+futures = "0.1"
 grpc = { path = ".." }
 
 [build-dependencies]

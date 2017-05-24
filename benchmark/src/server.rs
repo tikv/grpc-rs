@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use error::Result;
-use grpc::{Environment, Server as GrpcServer, ServerBuilder, ShutdownFuture};
+use grpc::{EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
@@ -30,7 +30,8 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(env: Arc<Environment>, cfg: &ServerConfig) -> Result<Server> {
+    pub fn new(cfg: &ServerConfig) -> Result<Server> {
+        let env = Arc::new(EnvBuilder::new().build());
         if cfg.get_core_limit() > 0 {
             println!("server config core limit is set but ignored");
         }

@@ -57,7 +57,7 @@ impl AlarmHandle {
             // hack: because grpc's alarm feels more like a timer,
             // but what we need here is a notification hook. Hence
             // use cancel to implement the alarm behaviour.
-            grpc_sys::grpc_alarm_cancel(self.alarm)
+            grpc_sys::grpc_alarm_cancel(self.alarm);
         }
     }
 }
@@ -116,6 +116,12 @@ fn spawn(cq: &CompletionQueue, unpark: Arc<AlarmUnpark>) {
 
     // handle.f is not resolved yet, need to register another alarm for notification.
     let tag = Box::new(CallTag::Alarm(Alarm { unpark: unpark.clone() }));
+
+    if !handle.alarm.is_null() {
+        unsafe {
+            grpc_sys::grpc_alarm_destroy(handle.alarm);
+        }
+    }
     handle.alarm = unsafe {
         grpc_sys::grpc_alarm_create(cq.as_ptr(),
                                     GprTimespec::inf_future(),

@@ -50,7 +50,6 @@ impl WorkerService for Worker {
                   stream: RequestStream<ServerArgs>,
                   sink: DuplexSink<ServerStatus>) {
         let mut server: Option<Server> = None;
-        let env = self.env.clone();
         let f = sink.sink_map_err(Error::from)
             .send_all(stream
                           .map_err(Error::from)
@@ -61,7 +60,7 @@ impl WorkerService for Worker {
                                             server.shutdown();
                                             return Err(Error::ServerStarted);
                                         }
-                                        let s = try!(Server::new(env.clone(), cfg));
+                                        let s = try!(Server::new(cfg));
                                         let status = s.get_status();
                                         server = Some(s);
                                         Ok(status)
@@ -85,7 +84,6 @@ impl WorkerService for Worker {
                   _: RpcContext,
                   stream: RequestStream<ClientArgs>,
                   sink: DuplexSink<ClientStatus>) {
-        let env = self.env.clone();
         let mut client: Option<Client> = None;
         let f = sink.sink_map_err(Error::from)
             .send_all(stream
@@ -94,7 +92,7 @@ impl WorkerService for Worker {
                                         let cfg = arg.get_setup();
                                         println!("receive client setup: {:?}", cfg);
                                         client.take();
-                                        let c = Client::new(env.clone(), cfg);
+                                        let c = Client::new(cfg);
                                         client = Some(c);
                                         Ok(ClientStatus::new())
                                     } else {
