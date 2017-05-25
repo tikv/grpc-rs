@@ -19,13 +19,13 @@ extern crate protobuf;
 
 use std::io::Read;
 use std::sync::Arc;
-use std::{thread, io};
+use std::{io, thread};
 
 use futures::Future;
 use futures::sync::oneshot;
-use grpc::{ServerBuilder, RpcContext, UnarySink, Environment};
+use grpc::{Environment, RpcContext, ServerBuilder, UnarySink};
 
-use grpc_proto::example::helloworld::{HelloRequest, HelloReply};
+use grpc_proto::example::helloworld::{HelloReply, HelloRequest};
 use grpc_proto::example::helloworld_grpc::{self, Greeter};
 
 #[derive(Clone)]
@@ -36,7 +36,8 @@ impl Greeter for GreeterService {
         let msg = format!("Hello {}", req.get_name());
         let mut resp = HelloReply::new();
         resp.set_message(msg);
-        let f = sink.success(resp).map_err(move |e| println!("failed to reply {:?}: {:?}", req, e));
+        let f = sink.success(resp)
+            .map_err(move |e| println!("failed to reply {:?}: {:?}", req, e));
         ctx.spawn(f)
     }
 }

@@ -19,7 +19,7 @@ extern crate protobuf;
 
 use std::sync::Arc;
 
-use grpc::{EnvBuilder, ChannelBuilder};
+use grpc::{ChannelBuilder, EnvBuilder};
 use grpc_proto::example::helloworld::HelloRequest;
 use grpc_proto::example::helloworld_grpc::GreeterClient;
 
