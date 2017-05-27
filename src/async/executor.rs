@@ -14,6 +14,7 @@
 
 use std::ptr;
 use std::sync::Arc;
+use std::thread::{self, ThreadId};
 
 use futures::executor::{self, Spawn, Unpark};
 use futures::future::BoxFuture;
@@ -21,7 +22,7 @@ use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
 use cq::CompletionQueue;
-use super::lock::SpinLock;
+use super::lock::{LockGuard, SpinLock};
 use super::CallTag;
 
 /// A handle to an alarm.
@@ -30,6 +31,7 @@ use super::CallTag;
 /// inner future is ready to make progress.
 pub struct AlarmHandle {
     f: Option<Spawn<BoxFuture<(), ()>>>,
+    worker_id: ThreadId,
     finished: bool,
     alarm: *mut GrpcAlarm,
 }
@@ -38,9 +40,10 @@ impl AlarmHandle {
     /// Create an alarm for the future.
     ///
     /// `alarm` will be initialized lazily.
-    pub fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmHandle {
+    pub fn new(s: Spawn<BoxFuture<(), ()>>, worker_id: ThreadId) -> AlarmHandle {
         AlarmHandle {
             f: Some(s),
+            worker_id: worker_id,
             finished: false,
             alarm: ptr::null_mut(),
         }
@@ -73,12 +76,12 @@ impl Drop for AlarmHandle {
 
 /// A custom unpark implemented with Alarm.
 pub struct AlarmUnpark {
-    handle: SpinLock<AlarmHandle>,
+    handle: Arc<SpinLock<AlarmHandle>>,
 }
 
 impl AlarmUnpark {
-    fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmUnpark {
-        AlarmUnpark { handle: SpinLock::new(AlarmHandle::new(s)) }
+    fn new(s: Spawn<BoxFuture<(), ()>>, worker_id: ThreadId) -> AlarmUnpark {
+        AlarmUnpark { handle: Arc::new(SpinLock::new(AlarmHandle::new(s, worker_id))) }
     }
 }
 
@@ -88,7 +91,13 @@ unsafe impl Sync for AlarmUnpark {}
 impl Unpark for AlarmUnpark {
     fn unpark(&self) {
         let mut handle = self.handle.lock();
-        handle.alarm()
+        if handle.worker_id == thread::current().id() {
+            // Holder thread is already woken up, so we can reuse the alarm in this case.
+            poll(&mut handle,
+                 Arc::new(AlarmUnpark { handle: self.handle.clone() }));
+        } else {
+            handle.alarm()
+        }
     }
 }
 
@@ -105,18 +114,26 @@ impl Alarm {
     }
 }
 
-// TODO: support timeout and trace future.
-fn spawn(cq: &CompletionQueue, unpark: Arc<AlarmUnpark>) {
-    let mut handle = unpark.handle.lock();
+#[inline]
+fn poll<'a>(handle: &mut LockGuard<'a, AlarmHandle>, unpark: Arc<AlarmUnpark>) -> bool {
     match handle.f.as_mut().unwrap().poll_future(unpark.clone()) {
         Err(_) |
         Ok(Async::Ready(_)) => {
             // Future stores unpark, and unpark contains future,
             // hence circular reference. Take the future to break it.
             handle.f.take();
-            return;
+            true
         }
-        _ => {}
+        _ => false,
+    }
+}
+
+// TODO: support timeout and trace future.
+fn spawn(cq: &CompletionQueue, unpark: Arc<AlarmUnpark>) {
+    let mut handle = unpark.handle.lock();
+
+    if poll(&mut handle, unpark.clone()) {
+        return;
     }
 
     // handle.f is not resolved yet, need to register another alarm for notification.
@@ -153,7 +170,7 @@ impl<'a> Executor<'a> {
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
         let s = executor::spawn(f.boxed());
-        let unpark = Arc::new(AlarmUnpark::new(s));
+        let unpark = Arc::new(AlarmUnpark::new(s, self.cq.worker_id()));
         spawn(self.cq, unpark)
     }
 }
