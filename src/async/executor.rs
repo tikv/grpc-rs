@@ -116,6 +116,11 @@ impl Alarm {
 
 #[inline]
 fn poll<'a>(handle: &mut LockGuard<'a, AlarmHandle>, unpark: Arc<AlarmUnpark>) -> bool {
+    if handle.f.is_none() {
+        // the future is resolved, skip.
+        return true;
+    }
+
     match handle.f.as_mut().unwrap().poll_future(unpark.clone()) {
         Err(_) |
         Ok(Async::Ready(_)) => {
