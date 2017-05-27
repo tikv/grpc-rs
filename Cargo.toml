@@ -26,6 +26,14 @@ path = "examples/route_guide/client.rs"
 name = "route_guide_server"
 path = "examples/route_guide/server.rs"
 
+[[example]]
+name = "greeter_client"
+path = "examples/hello_world/client.rs"
+
+[[example]]
+name = "greeter_server"
+path = "examples/hello_world/server.rs"
+
 [dev-dependencies]
 serde_json = "1.0"
 serde = "1.0"
