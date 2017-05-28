@@ -14,16 +14,15 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
+use std::thread::{Builder as ThreadBuilder, JoinHandle};
 
 use grpc_sys;
 
 use async::CallTag;
-use cq::{CompletionQueue, CompletionQueueHandle, EventType};
+use cq::{CompletionQueue, EventType};
 
 // event loop
-fn poll_queue(handle: Arc<CompletionQueueHandle>) {
-    let cq = CompletionQueue::new(handle, thread::current().id());
+fn poll_queue(cq: Arc<CompletionQueue>) {
     loop {
         let e = cq.next();
         match e.event_type {
@@ -70,14 +69,14 @@ impl EnvBuilder {
         let mut cqs = Vec::with_capacity(self.cq_count);
         let mut handles = Vec::with_capacity(self.cq_count);
         for i in 0..self.cq_count {
-            let cq = Arc::new(CompletionQueueHandle::new());
+            let cq = Arc::new(CompletionQueue::new());
             let cq_ = cq.clone();
             let mut builder = ThreadBuilder::new();
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
             let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
-            cqs.push(CompletionQueue::new(cq, handle.thread().id()));
+            cqs.push(cq);
             handles.push(handle);
         }
 
@@ -91,7 +90,7 @@ impl EnvBuilder {
 
 /// An object that used to control concurrency and start event loop.
 pub struct Environment {
-    cqs: Vec<CompletionQueue>,
+    cqs: Vec<Arc<CompletionQueue>>,
     idx: AtomicUsize,
     _handles: Vec<JoinHandle<()>>,
 }
@@ -109,12 +108,12 @@ impl Environment {
     }
 
     /// Get all the created completion queues.
-    pub fn completion_queues(&self) -> &[CompletionQueue] {
+    pub fn completion_queues(&self) -> &[Arc<CompletionQueue>] {
         self.cqs.as_slice()
     }
 
     /// Pick an arbitrary completion queue.
-    pub fn pick_cq(&self) -> CompletionQueue {
+    pub fn pick_cq(&self) -> Arc<CompletionQueue> {
         let idx = self.idx.fetch_add(1, Ordering::Relaxed);
         self.cqs[idx % self.cqs.len()].clone()
     }

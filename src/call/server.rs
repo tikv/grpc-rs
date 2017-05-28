@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
-use async::{BatchFuture, CallTag, Executor};
+use async::{self, BatchFuture, CallTag};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
@@ -65,17 +65,14 @@ impl RequestContext {
     /// Try to accept a client side streaming request.
     ///
     /// Return error if the request is a client side unary request.
-    pub fn handle_stream_req(self,
-                             cq: &CompletionQueue,
-                             inner: &Inner)
-                             -> result::Result<(), Self> {
+    pub fn handle_stream_req(self, inner: &Inner) -> result::Result<(), Self> {
         match inner.get_handler(self.method()) {
             Some(handler) => {
                 match handler.method_type() {
                     MethodType::Unary |
                     MethodType::ServerStreaming => Err(self),
                     _ => {
-                        execute(self, cq, &[], handler.cb());
+                        execute(self, &[], handler.cb());
                         Ok(())
                     }
                 }
@@ -177,10 +174,10 @@ impl UnaryRequestContext {
         self.inner.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<&[u8]>) {
+    pub fn handle(mut self, inner: &Arc<Inner>, data: Option<&[u8]>) {
         let handler = inner.get_handler(self.request.method()).unwrap();
         if let Some(data) = data {
-            return execute(self.request, cq, data, handler.cb());
+            return execute(self.request, data, handler.cb());
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
@@ -420,18 +417,16 @@ impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, Call);
 impl_stream_sink!(DuplexSink, DuplexSinkFailure, Arc<Mutex<Call>>);
 
 /// A context for rpc handling.
-pub struct RpcContext<'a> {
+pub struct RpcContext {
     ctx: RequestContext,
-    executor: Executor<'a>,
     deadline: Deadline,
 }
 
-impl<'a> RpcContext<'a> {
-    fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext {
+impl RpcContext {
+    fn new(ctx: RequestContext) -> RpcContext {
         RpcContext {
             deadline: ctx.deadline(),
             ctx: ctx,
-            executor: Executor::new(cq),
         }
     }
 
@@ -454,7 +449,7 @@ impl<'a> RpcContext<'a> {
     pub fn spawn<F>(&self, f: F)
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
-        self.executor.spawn(f)
+        async::spawn(f)
     }
 }
 
@@ -556,7 +551,7 @@ pub fn execute_unimplemented(mut ctx: RequestContext) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &CallBack) {
-    let rpc_ctx = RpcContext::new(ctx, cq);
+fn execute(ctx: RequestContext, payload: &[u8], f: &CallBack) {
+    let rpc_ctx = RpcContext::new(ctx);
     f(rpc_ctx, payload)
 }
