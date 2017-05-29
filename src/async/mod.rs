@@ -52,12 +52,9 @@ impl<T> NotifyHandle<T> {
     }
 
     /// Set the result and notify future if necessary.
-    fn set_result(&mut self, res: Result<T>) {
+    fn set_result(&mut self, res: Result<T>) -> Option<Task> {
         self.result = Some(res);
-
-        if let Some(ref t) = self.park {
-            t.unpark();
-        }
+        return self.park.take();
     }
 }
 

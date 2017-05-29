@@ -51,40 +51,47 @@ impl Batch {
     }
 
     fn read_one_msg(&mut self, success: bool) {
-        let mut guard = self.inner.lock();
-        if success {
-            guard.set_result(Ok(self.ctx.recv_message()));
-        } else {
-            // rely on C core to handle the failed read (e.g. deliver approriate
-            // statusCode on the clientside).
-            guard.set_result(Ok(None));
-        }
+        let task = {
+            let mut guard = self.inner.lock();
+            if success {
+                guard.set_result(Ok(self.ctx.recv_message()))
+            } else {
+                // rely on C core to handle the failed read (e.g. deliver approriate
+                // statusCode on the clientside).
+                guard.set_result(Ok(None))
+            }
+        };
+        task.map(|t| t.unpark());
     }
 
     fn finish_response(&mut self, succeed: bool) {
-        let mut guard = self.inner.lock();
-        if !succeed {
-            guard.set_result(Err(Error::RemoteStopped));
-            return;
-        }
-        let status = self.ctx.rpc_status();
-        if status.status != RpcStatusCode::Ok {
-            guard.set_result(Err(Error::RpcFailure(status)));
-            return;
-        }
-
-        guard.set_result(Ok(None))
+        let task = {
+            let mut guard = self.inner.lock();
+            if succeed {
+                let status = self.ctx.rpc_status();
+                if status.status != RpcStatusCode::Ok {
+                    guard.set_result(Err(Error::RpcFailure(status)))
+                } else {
+                    guard.set_result(Ok(None))
+                }
+            } else {
+                guard.set_result(Err(Error::RemoteStopped))
+            }
+        };
+        task.map(|t| t.unpark());
     }
 
     fn handle_unary_response(&mut self) {
-        let mut guard = self.inner.lock();
-        let status = self.ctx.rpc_status();
-        if status.status != RpcStatusCode::Ok {
-            guard.set_result(Err(Error::RpcFailure(status)));
-            return;
-        }
-
-        guard.set_result(Ok(self.ctx.recv_message()))
+        let task = {
+            let mut guard = self.inner.lock();
+            let status = self.ctx.rpc_status();
+            if status.status != RpcStatusCode::Ok {
+                guard.set_result(Err(Error::RpcFailure(status)))
+            } else {
+                guard.set_result(Ok(self.ctx.recv_message()))
+            }
+        };
+        task.map(|t| t.unpark());
     }
 
     pub fn resolve(mut self, success: bool) {
@@ -120,11 +127,14 @@ impl Shutdown {
     }
 
     pub fn resolve(self, success: bool) {
-        let mut guard = self.inner.lock();
-        if success {
-            guard.set_result(Ok(()))
-        } else {
-            guard.set_result(Err(Error::ShutdownFailed))
-        }
+        let task = {
+            let mut guard = self.inner.lock();
+            if success {
+                guard.set_result(Ok(()))
+            } else {
+                guard.set_result(Err(Error::ShutdownFailed))
+            }
+        };
+        task.map(|t| t.unpark());
     }
 }
