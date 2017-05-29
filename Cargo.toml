@@ -10,7 +10,7 @@ protobuf = { version = "1.2", optional = true }
 clippy = { version = "*", optional = true }
 
 [workspace]
-members = ["proto", "compiler"]
+members = ["proto", "compiler", "interop"]
 
 [features]
 default = ["protobuf-codec"]
@@ -40,3 +40,6 @@ serde = "1.0"
 serde_derive = "1.0"
 grpc-proto = { path = "proto" }
 rand = "0.3"
+
+[profile.release]
+debug = true
