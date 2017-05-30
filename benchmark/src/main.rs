@@ -38,7 +38,7 @@ fn main() {
 
     let env = Arc::new(Environment::new(2));
     let (tx, rx) = oneshot::channel();
-    let worker = Worker::new(env.clone(), tx);
+    let worker = Worker::new(tx);
     let service = services_grpc::create_worker_service(worker);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
@@ -53,4 +53,6 @@ fn main() {
     server.start();
 
     let _ = rx.wait();
+
+    let _ = server.shutdown().wait();
 }

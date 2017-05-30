@@ -19,9 +19,6 @@ use tokio_timer::TimerError;
 
 #[derive(Debug)]
 pub enum Error {
-    ClientNotStarted,
-    ServerStarted,
-    ServerNotStarted,
     Grpc(grpc::Error),
     Timer(TimerError),
 }

@@ -54,7 +54,6 @@ impl Generic {
                           ctx: RpcContext,
                           stream: RequestStream<Vec<u8>>,
                           sink: DuplexSink<Vec<u8>>) {
-        println!("streaming_call started");
         ctx.spawn(sink.send_all(stream.map(|req| req))
                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
                       .map(|_| {}))

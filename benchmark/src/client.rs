@@ -12,9 +12,8 @@
 // limitations under the License.
 
 
-// TODO: clean up code.
-
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -24,7 +23,8 @@ use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
-use futures::{Async, Future, Sink, Stream, future};
+use futures::{Async, BoxFuture, Future, Sink, Stream, future};
+use futures::sync::oneshot::{self, Receiver, Sender};
 use futures::future::Loop;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
@@ -44,28 +44,17 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     req
 }
 
-trait BackOff {
-    fn back_off_time(&mut self) -> Option<Duration>;
-
-    fn back_off(&mut self) {
-        if let Some(dur) = self.back_off_time() {
-            thread::sleep(dur)
-        }
-    }
-
-    fn back_off_async(&mut self, timer: &Timer) -> Option<Sleep> {
-        self.back_off_time().map(|dur| timer.sleep(dur))
-    }
+trait Backoff {
+    fn backoff_time(&mut self) -> Option<Duration>;
 }
 
 struct ClosedLoop;
 
-impl BackOff for ClosedLoop {
-    fn back_off_time(&mut self) -> Option<Duration> {
+impl Backoff for ClosedLoop {
+    fn backoff_time(&mut self) -> Option<Duration> {
         None
     }
 }
-
 
 struct Poisson {
     exp: Exp,
@@ -83,11 +72,11 @@ impl Poisson {
     }
 }
 
-impl BackOff for Poisson {
-    fn back_off_time(&mut self) -> Option<Duration> {
-        let back_off_time = self.exp.sample(&mut self.r);
-        let sec = back_off_time as u64;
-        let ns = (back_off_time.fract() * 1_000_000_000f64) as u32;
+impl Backoff for Poisson {
+    fn backoff_time(&mut self) -> Option<Duration> {
+        let backoff_time = self.exp.sample(&mut self.r);
+        let sec = backoff_time as u64;
+        let ns = (backoff_time.fract() * 1_000_000_000f64) as u32;
         self.last_time = self.last_time + Duration::new(sec, ns);
         let now = Instant::now();
         if self.last_time > now {
@@ -98,36 +87,67 @@ impl BackOff for Poisson {
     }
 }
 
-struct GenericExecutor<B> {
-    client: Arc<GrpcClient>,
-    req: Vec<u8>,
+struct ExecutorContext<B> {
+    keep_running: Arc<AtomicBool>,
     histogram: Arc<Mutex<Histogram>>,
-    back_off: B,
+    backoff: B,
     timer: Timer,
+    _trace: Sender<()>,
 }
 
-impl<B: BackOff + Send + 'static> GenericExecutor<B> {
-    fn new(channel: Channel,
-           cfg: &ClientConfig,
-           histogram: Arc<Mutex<Histogram>>,
-           back_off: B,
+impl<B: Backoff> ExecutorContext<B> {
+    fn new(histogram: Arc<Mutex<Histogram>>,
+           keep_running: Arc<AtomicBool>,
+           backoff: B,
            timer: Timer)
-           -> GenericExecutor<B> {
-        let cap = cfg.get_payload_config().get_bytebuf_params().get_req_size();
-        let req = vec![0; cap as usize];
-        GenericExecutor {
-            client: Arc::new(GrpcClient::new(channel)),
-            req: req,
-            histogram: histogram,
-            back_off: back_off,
-            timer: timer,
-        }
+           -> (ExecutorContext<B>, Receiver<()>) {
+        let (tx, rx) = oneshot::channel();
+        (ExecutorContext {
+             keep_running: keep_running,
+             histogram: histogram,
+             backoff: backoff,
+             timer: timer,
+             _trace: tx,
+         },
+         rx)
     }
 
     fn observe_latency(&self, latency: Duration) {
         let f = util::dur_to_nanos(latency);
         let mut his = self.histogram.lock().unwrap();
         his.observe(f);
+    }
+
+    fn backoff_async(&mut self) -> Option<Sleep> {
+        self.backoff.backoff_time().map(|dur| self.timer.sleep(dur))
+    }
+
+    fn backoff(&mut self) {
+        if let Some(dur) = self.backoff.backoff_time() {
+            thread::sleep(dur)
+        }
+    }
+
+    fn keep_running(&self) -> bool {
+        self.keep_running.load(Ordering::Relaxed)
+    }
+}
+
+struct GenericExecutor<B> {
+    ctx: ExecutorContext<B>,
+    client: Arc<GrpcClient>,
+    req: Vec<u8>,
+}
+
+impl<B: Backoff + Send + 'static> GenericExecutor<B> {
+    fn new(ctx: ExecutorContext<B>, channel: Channel, cfg: &ClientConfig) -> GenericExecutor<B> {
+        let cap = cfg.get_payload_config().get_bytebuf_params().get_req_size();
+        let req = vec![0; cap as usize];
+        GenericExecutor {
+            ctx: ctx,
+            client: Arc::new(GrpcClient::new(channel)),
+            req: req,
+        }
     }
 
     fn execute_stream(self) {
@@ -145,8 +165,8 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
                         .and_then(move |(_, r)| {
-                            executor.observe_latency(latency_timer.elapsed());
-                            let mut time = executor.back_off.back_off_async(&executor.timer);
+                            executor.ctx.observe_latency(latency_timer.elapsed());
+                            let mut time = executor.ctx.backoff_async();
                             let mut res = Some((sender, executor, r));
                             future::poll_fn(move || {
                                 if let Some(ref mut t) = time {
@@ -154,54 +174,51 @@ impl<B: BackOff + Send + 'static> GenericExecutor<B> {
                                 }
                                 time.take();
                                 let r = res.take().unwrap();
-                                let l: Loop<(), _> = Loop::Continue(r);
+                                let l = if r.1.ctx.keep_running() {
+                                    Loop::Continue(r)
+                                } else {
+                                    Loop::Break(r)
+                                };
                                 Ok(Async::Ready(l))
                             })
                         })
                 })
         })
+                .and_then(|(mut s, e, r)| {
+                    future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
+                })
+                .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)))
+                .map(|_| ())
                 .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
         client.spawn(f)
     }
 }
 
 struct RequestExecutor<B> {
+    ctx: ExecutorContext<B>,
     client: Arc<BenchmarkServiceClient>,
     req: SimpleRequest,
-    histogram: Arc<Mutex<Histogram>>,
-    back_off: B,
-    timer: Timer,
 }
 
-impl<B: BackOff + Send + 'static> RequestExecutor<B> {
-    fn new(channel: Channel,
-           cfg: &ClientConfig,
-           histogram: Arc<Mutex<Histogram>>,
-           back_off: B,
-           timer: Timer)
-           -> RequestExecutor<B> {
+impl<B: Backoff + Send + 'static> RequestExecutor<B> {
+    fn new(ctx: ExecutorContext<B>, channel: Channel, cfg: &ClientConfig) -> RequestExecutor<B> {
         RequestExecutor {
+            ctx: ctx,
             client: Arc::new(BenchmarkServiceClient::new(channel)),
             req: gen_req(cfg),
-            histogram: histogram,
-            back_off: back_off,
-            timer: timer,
         }
-    }
-
-    fn observe_latency(&self, latency: Duration) {
-        let f = util::dur_to_nanos(latency);
-        let mut his = self.histogram.lock().unwrap();
-        his.observe(f);
     }
 
     fn execute_unary(mut self) {
         thread::spawn(move || loop {
+                          if !self.ctx.keep_running() {
+                              break;
+                          }
                           let latency_timer = Instant::now();
                           self.client.unary_call(self.req.clone()).unwrap();
                           let elapsed = latency_timer.elapsed();
-                          self.observe_latency(elapsed);
-                          self.back_off.back_off();
+                          self.ctx.observe_latency(elapsed);
+                          self.ctx.backoff();
                       });
     }
 
@@ -215,15 +232,20 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                 .map_err(Error::from)
                 .and_then(move |_| {
                     let elapsed = latency_timer.elapsed();
-                    executor.observe_latency(elapsed);
-                    let mut time = executor.back_off.back_off_async(&executor.timer);
+                    executor.ctx.observe_latency(elapsed);
+                    let mut time = executor.ctx.backoff_async();
                     let mut res = Some(executor);
                     future::poll_fn(move || {
                         if let Some(ref mut t) = time {
                             try_ready!(t.poll());
                         }
                         time.take();
-                        let l: Loop<(), _> = Loop::Continue(res.take().unwrap());
+                        let executor = res.take().unwrap();
+                        let l = if executor.ctx.keep_running() {
+                            Loop::Continue(executor)
+                        } else {
+                            Loop::Break(())
+                        };
                         Ok(Async::Ready(l))
                     })
                 })
@@ -245,8 +267,8 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
                         .and_then(move |(_, r)| {
-                            executor.observe_latency(latency_timer.elapsed());
-                            let mut time = executor.back_off.back_off_async(&executor.timer);
+                            executor.ctx.observe_latency(latency_timer.elapsed());
+                            let mut time = executor.ctx.backoff_async();
                             let mut res = Some((sender, executor, r));
                             future::poll_fn(move || {
                                 if let Some(ref mut t) = time {
@@ -254,21 +276,64 @@ impl<B: BackOff + Send + 'static> RequestExecutor<B> {
                                 }
                                 time.take();
                                 let r = res.take().unwrap();
-                                let l: Loop<(), _> = Loop::Continue(r);
+                                let l = if r.1.ctx.keep_running() {
+                                    Loop::Continue(r)
+                                } else {
+                                    Loop::Break(r)
+                                };
                                 Ok(Async::Ready(l))
                             })
                         })
                 })
         })
+                .and_then(|(mut s, e, r)| {
+                    future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
+                })
+                .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)))
+                .map(|_| ())
                 .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
         client.spawn(f)
     }
 }
 
+fn execute<B: Backoff + Send + 'static>(ctx: ExecutorContext<B>,
+                                        ch: Channel,
+                                        client_type: ClientType,
+                                        cfg: &ClientConfig) {
+    match client_type {
+        ClientType::SYNC_CLIENT => {
+            if cfg.get_payload_config().has_bytebuf_params() {
+                panic!("only async_client is supported for generic service.");
+            }
+            RequestExecutor::new(ctx, ch, cfg).execute_unary()
+        }
+        ClientType::ASYNC_CLIENT => {
+            match cfg.get_rpc_type() {
+                RpcType::UNARY => {
+                    if cfg.get_payload_config().has_bytebuf_params() {
+                        panic!("only streaming is supported for generic service.");
+                    }
+                    RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
+                }
+                RpcType::STREAMING => {
+                    if cfg.get_payload_config().has_bytebuf_params() {
+                        GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                    } else {
+                        RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                    }
+                }
+            }
+        }
+        _ => unimplemented!(),
+    }
+}
+
 pub struct Client {
+    keep_running: Arc<AtomicBool>,
     recorder: CpuRecorder,
     histogram: Arc<Mutex<Histogram>>,
     _env: Arc<Environment>,
+    running_reqs: Option<Vec<Receiver<()>>>,
 }
 
 impl Client {
@@ -298,82 +363,46 @@ impl Client {
 
         let client_type = cfg.get_client_type();
         let load_params = cfg.get_load_params();
-        let poisson_lamda = if load_params.has_poisson() {
-            let poisson = load_params.get_poisson();
-            Some(poisson.get_offered_load() / cfg.get_client_channels() as f64 /
-                 cfg.get_outstanding_rpcs_per_channel() as f64)
-        } else {
-            None
-        };
+        let client_channels = cfg.get_client_channels() as usize;
+        let outstanding_rpcs_per_channel = cfg.get_outstanding_rpcs_per_channel() as usize;
 
         let recorder = CpuRecorder::new();
         let his_param = cfg.get_histogram_params();
         let his = Arc::new(Mutex::new(Histogram::new(his_param.get_resolution(),
                                                      his_param.get_max_possible())));
         let timer = Timer::default();
+        let keep_running = Arc::new(AtomicBool::new(true));
+        let mut running_reqs = Vec::with_capacity(client_channels * outstanding_rpcs_per_channel);
 
         for ch in channels {
             for _ in 0..cfg.get_outstanding_rpcs_per_channel() {
                 let his = his.clone();
-                let t = timer.clone();
-                let poisson = poisson_lamda.map(Poisson::new);
-
-                match client_type {
-                    ClientType::SYNC_CLIENT => {
-                        if cfg.get_payload_config().has_bytebuf_params() {
-                            panic!("only async_client is supported for generic service.");
-                        }
-                        if let Some(p) = poisson {
-                            RequestExecutor::new(ch.clone(), cfg, his, p, t).execute_unary()
-                        } else {
-                            RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                .execute_unary()
-                        }
-                    }
-                    ClientType::ASYNC_CLIENT => {
-                        match cfg.get_rpc_type() {
-                            RpcType::UNARY => {
-                                if cfg.get_payload_config().has_bytebuf_params() {
-                                    panic!("only streaming is supported for generic service.");
-                                }
-                                if let Some(p) = poisson {
-                                    RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                        .execute_unary_async()
-                                } else {
-                                    RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                        .execute_unary_async()
-                                }
-                            }
-                            RpcType::STREAMING => {
-                                if cfg.get_payload_config().has_bytebuf_params() {
-                                    if let Some(p) = poisson {
-                                        GenericExecutor::new(ch.clone(), cfg, his, p, t)
-                                            .execute_stream()
-                                    } else {
-                                        GenericExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                            .execute_stream()
-                                    }
-                                } else {
-                                    if let Some(p) = poisson {
-                                        RequestExecutor::new(ch.clone(), cfg, his, p, t)
-                                            .execute_stream_ping_pong()
-                                    } else {
-                                        RequestExecutor::new(ch.clone(), cfg, his, ClosedLoop, t)
-                                            .execute_stream_ping_pong()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => unimplemented!(),
-                }
+                let timer = timer.clone();
+                let ch = ch.clone();
+                let rx = if load_params.has_poisson() {
+                    let lambda = load_params.get_poisson().get_offered_load() /
+                                 client_channels as f64 /
+                                 outstanding_rpcs_per_channel as f64;
+                    let poisson = Poisson::new(lambda);
+                    let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson, timer);
+                    execute(ctx, ch, client_type, cfg);
+                    rx
+                } else {
+                    let (ctx, rx) =
+                        ExecutorContext::new(his, keep_running.clone(), ClosedLoop, timer);
+                    execute(ctx, ch, client_type, cfg);
+                    rx
+                };
+                running_reqs.push(rx);
             }
         }
 
         Client {
+            keep_running: keep_running,
             recorder: recorder,
             histogram: his,
             _env: env,
+            running_reqs: Some(running_reqs),
         }
     }
 
@@ -391,5 +420,20 @@ impl Client {
         }
 
         stats
+    }
+
+    pub fn shutdown(&mut self) -> BoxFuture<(), Error> {
+        self.keep_running.store(false, Ordering::Relaxed);
+        let mut tasks = self.running_reqs.take().unwrap();
+        let mut idx = tasks.len();
+        Box::new(future::poll_fn(move || {
+            while idx > 0 {
+                if let Ok(Async::NotReady) = tasks[idx - 1].poll() {
+                    return Ok(Async::NotReady);
+                }
+                idx -= 1;
+            }
+            Ok(Async::Ready(()))
+        }))
     }
 }
