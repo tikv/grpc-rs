@@ -58,12 +58,14 @@ impl Server {
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
-        let (real_time, user_time, sys_time) = self.recorder.cpu_time(reset);
+        let sample = self.recorder.cpu_time(reset);
 
         let mut stats = ServerStats::new();
-        stats.set_time_elapsed(real_time);
-        stats.set_time_user(user_time);
-        stats.set_time_system(sys_time);
+        stats.set_time_elapsed(sample.real_time);
+        stats.set_time_user(sample.user_time);
+        stats.set_time_system(sample.sys_time);
+        stats.set_total_cpu_time(sample.total_cpu);
+        stats.set_idle_cpu_time(sample.idle_cpu);
         stats
     }
 

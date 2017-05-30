@@ -19,8 +19,18 @@ use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
 use libc::{self, rusage};
 
+pub struct Sample {
+    pub real_time: f64,
+    pub user_time: f64,
+    pub sys_time: f64,
+    pub total_cpu: u64,
+    pub idle_cpu: u64,
+}
+
 pub struct CpuRecorder {
     usage_snap: rusage,
+    total_cpu: u64,
+    idle_cpu: u64,
     last_reset_time: Instant,
 }
 
@@ -28,16 +38,20 @@ impl CpuRecorder {
     pub fn new() -> CpuRecorder {
         let mut usage = new_rusage();
         unsafe { assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut usage), 0) };
+        let (total_cpu, idle_cpu) = get_cpu_usage();
         CpuRecorder {
             usage_snap: usage,
+            total_cpu: total_cpu,
+            idle_cpu: idle_cpu,
             last_reset_time: Instant::now(),
         }
     }
 
-    pub fn cpu_time(&mut self, reset: bool) -> (f64, f64, f64) {
+    pub fn cpu_time(&mut self, reset: bool) -> Sample {
         let now = Instant::now();
         let mut latest = new_rusage();
         unsafe { assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut latest), 0) };
+        let (total_cpu, idle_cpu) = get_cpu_usage();
 
         let user_sec = latest.ru_utime.tv_sec - self.usage_snap.ru_utime.tv_sec;
         let user_usec = latest.ru_utime.tv_usec - self.usage_snap.ru_utime.tv_usec;
@@ -45,6 +59,8 @@ impl CpuRecorder {
         let sys_usec = latest.ru_stime.tv_usec - self.usage_snap.ru_stime.tv_usec;
         let user_time = user_sec as f64 + user_usec as f64 / 1_000_000f64;
         let sys_time = sys_sec as f64 + sys_usec as f64 / 1_000_000f64;
+        let total_cpu_diff = total_cpu - self.total_cpu;
+        let idle_cpu_diff = idle_cpu - self.idle_cpu;
 
         let elapsed = now - self.last_reset_time;
         let real_time = dur_to_secs(elapsed);
@@ -52,9 +68,17 @@ impl CpuRecorder {
         if reset {
             self.usage_snap = latest;
             self.last_reset_time = now;
+            self.total_cpu = total_cpu;
+            self.idle_cpu = idle_cpu;
         }
 
-        (real_time, user_time, sys_time)
+        Sample {
+            real_time: real_time,
+            user_time: user_time,
+            sys_time: sys_time,
+            total_cpu: total_cpu_diff,
+            idle_cpu: idle_cpu_diff,
+        }
     }
 }
 
@@ -63,6 +87,29 @@ pub fn new_rusage() -> rusage {
     // Note: compiler will complain if the size is not correct.
     let data = [0u8; 144];
     unsafe { mem::transmute(data) }
+}
+
+#[cfg(target_os = "linux")]
+fn get_cpu_usage() -> (u64, u64) {
+    use std::fs::File;
+    use std::io::Read;
+
+    let mut f = File::open("/proc/stat").unwrap();
+    let mut usages = String::default();
+    let (mut total_usage, mut idle_usage) = (0, 0);
+    f.read_to_string(&mut usages).unwrap();
+    for (idx, usage) in usages[5..].split_whitespace().take(10).enumerate() {
+        total_usage += usage.parse().unwrap();
+        if idx == 3 {
+            idle_usage = usage.parse().unwrap();
+        }
+    }
+    (total_usage, idle_usage)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn get_cpu_usage() -> (u64, u64) {
+    (0, 0)
 }
 
 #[inline]

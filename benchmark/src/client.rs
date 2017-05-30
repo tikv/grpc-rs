@@ -56,6 +56,7 @@ impl Backoff for ClosedLoop {
     }
 }
 
+/// A timer that generates Poisson process load.
 struct Poisson {
     exp: Exp,
     r: XorShiftRng,
@@ -133,6 +134,7 @@ impl<B: Backoff> ExecutorContext<B> {
     }
 }
 
+/// An executor that executes generic requests.
 struct GenericExecutor<B> {
     ctx: ExecutorContext<B>,
     client: Arc<GrpcClient>,
@@ -194,6 +196,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
     }
 }
 
+/// An executor that executes protobuf requests.
 struct RequestExecutor<B> {
     ctx: ExecutorContext<B>,
     client: Arc<BenchmarkServiceClient>,
@@ -409,10 +412,10 @@ impl Client {
     pub fn get_stats(&mut self, reset: bool) -> ClientStats {
         let mut stats = ClientStats::new();
 
-        let (real_time, user_time, sys_time) = self.recorder.cpu_time(reset);
-        stats.set_time_elapsed(real_time);
-        stats.set_time_user(user_time);
-        stats.set_time_system(sys_time);
+        let sample = self.recorder.cpu_time(reset);
+        stats.set_time_elapsed(sample.real_time);
+        stats.set_time_user(sample.user_time);
+        stats.set_time_system(sample.sys_time);
 
         {
             let mut his = self.histogram.lock().unwrap();
