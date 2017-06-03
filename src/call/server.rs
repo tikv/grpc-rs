@@ -24,7 +24,7 @@ use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
 use server::{CallBack, Inner};
-use super::{CallHolder, RpcStatus};
+use super::{CallHolder, RpcStatus, WriteFlags};
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -322,7 +322,7 @@ macro_rules! impl_stream_sink {
             fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
-                    base: SinkBase::new(0, true),
+                    base: SinkBase::new(true),
                     close_f: close_f,
                     flush_f: None,
                     status: RpcStatus::ok(),
@@ -339,9 +339,8 @@ macro_rules! impl_stream_sink {
             pub fn fail(mut self, status: RpcStatus) -> $ft {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
-                let flags = self.base.flags;
                 let fail_f = self.call.call(|c| {
-                    c.start_send_status_from_server(&status, send_metadata, None, flags)
+                    c.start_send_status_from_server(&status, send_metadata, None, 0)
                 });
 
                 $ft {
@@ -353,12 +352,12 @@ macro_rules! impl_stream_sink {
         }
 
         impl<T> Sink for $t<T> {
-            type SinkItem = T;
+            type SinkItem = (T, WriteFlags);
             type SinkError = Error;
 
-            fn start_send(&mut self, item: T) -> StartSend<T, Error> {
+            fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
                 self.base
-                    .start_send(&mut self.call, &item, self.ser)
+                    .start_send(&mut self.call, &item.0, item.1, self.ser)
                     .map(|s| if s {
                             AsyncSink::Ready
                         } else {
@@ -375,10 +374,9 @@ macro_rules! impl_stream_sink {
                     try_ready!(self.base.poll_complete());
 
                     let send_metadata = self.base.send_metadata;
-                    let flags = self.base.flags;
                     let status = &self.status;
                     let flush_f = self.call.call(|c| {
-                        c.start_send_status_from_server(status, send_metadata, None, flags)
+                        c.start_send_status_from_server(status, send_metadata, None, 0)
                     });
                     self.flush_f = Some(flush_f);
                 }

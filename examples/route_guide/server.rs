@@ -57,7 +57,7 @@ impl RouteGuide for RouteGuideService {
         let data = self.data.clone();
         let features: Vec<Result<_>> = data.iter()
             .filter_map(|f| if fit_in(f.get_location(), &rect) {
-                            Some(Ok(f.to_owned()))
+                            Some(Ok((f.to_owned(), WriteFlags::default())))
                         } else {
                             None
                         })
@@ -111,7 +111,7 @@ impl RouteGuide for RouteGuideService {
                 let to_prints: Vec<Result<_>> = buffer
                     .iter()
                     .filter_map(|n| if same_point(n.get_location(), note.get_location()) {
-                                    Some(Ok(n.to_owned()))
+                                    Some(Ok((n.to_owned(), WriteFlags::default())))
                                 } else {
                                     None
                                 })

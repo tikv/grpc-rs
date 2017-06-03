@@ -29,7 +29,7 @@ use std::time::Duration;
 use std::thread;
 
 use futures::{Future, Sink, Stream, future};
-use grpc::{ChannelBuilder, Environment};
+use grpc::*;
 use grpc_proto::example::route_guide::{Point, Rectangle, RouteNote};
 use grpc_proto::example::route_guide_grpc::RouteGuideClient;
 use rand::Rng;
@@ -104,7 +104,9 @@ fn record_route(client: &RouteGuideClient) {
         let f = rng.choose(&features).unwrap();
         let point = f.get_location();
         println!("Visiting {}", util::format_point(point));
-        sink = sink.send(point.to_owned()).wait().unwrap();
+        sink = sink.send((point.to_owned(), WriteFlags::default()))
+            .wait()
+            .unwrap();
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
     }
     // flush
@@ -129,7 +131,7 @@ fn route_chat(client: &RouteGuideClient) {
         for (msg, lat, lon) in notes {
             let note = new_note(lat, lon, msg);
             println!("Sending message {} at {}, {}", msg, lat, lon);
-            sink = sink.send(note).wait().unwrap();
+            sink = sink.send((note, WriteFlags::default())).wait().unwrap();
         }
         future::poll_fn(|| sink.close()).wait().unwrap();
     });
