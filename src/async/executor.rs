@@ -15,7 +15,7 @@
 use std::ptr;
 use std::sync::Arc;
 
-use futures::executor::{self, Spawn, Unpark};
+use futures::executor::{self, Notify, Spawn};
 use futures::future::BoxFuture;
 use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
@@ -71,22 +71,22 @@ impl Drop for AlarmHandle {
     }
 }
 
-/// A custom unpark implemented with Alarm.
-pub struct AlarmUnpark {
+/// A custom notify implemented with Alarm.
+pub struct AlarmNotify {
     handle: SpinLock<AlarmHandle>,
 }
 
-impl AlarmUnpark {
-    fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmUnpark {
-        AlarmUnpark { handle: SpinLock::new(AlarmHandle::new(s)) }
+impl AlarmNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmNotify {
+        AlarmNotify { handle: SpinLock::new(AlarmHandle::new(s)) }
     }
 }
 
-unsafe impl Send for AlarmUnpark {}
-unsafe impl Sync for AlarmUnpark {}
+unsafe impl Send for AlarmNotify {}
+unsafe impl Sync for AlarmNotify {}
 
-impl Unpark for AlarmUnpark {
-    fn unpark(&self) {
+impl Notify for AlarmNotify {
+    fn notify(&self, _: usize) {
         let mut handle = self.handle.lock();
         handle.alarm()
     }
@@ -94,24 +94,24 @@ impl Unpark for AlarmUnpark {
 
 /// A call tag for custom asynchronious notification.
 pub struct Alarm {
-    unpark: Arc<AlarmUnpark>,
+    notify: Arc<AlarmNotify>,
 }
 
 impl Alarm {
     pub fn resolve(self, cq: &CompletionQueue, success: bool) {
         // it should always be canceled for now.
         assert!(!success);
-        spawn(cq, self.unpark);
+        spawn(cq, self.notify);
     }
 }
 
 // TODO: support timeout and trace future.
-fn spawn(cq: &CompletionQueue, unpark: Arc<AlarmUnpark>) {
-    let mut handle = unpark.handle.lock();
-    match handle.f.as_mut().unwrap().poll_future(unpark.clone()) {
+fn spawn(cq: &CompletionQueue, notify: Arc<AlarmNotify>) {
+    let mut handle = notify.handle.lock();
+    match handle.f.as_mut().unwrap().poll_future_notify(&notify, 0) {
         Err(_) |
         Ok(Async::Ready(_)) => {
-            // Future stores unpark, and unpark contains future,
+            // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
             handle.f.take();
             return;
@@ -120,7 +120,7 @@ fn spawn(cq: &CompletionQueue, unpark: Arc<AlarmUnpark>) {
     }
 
     // handle.f is not resolved yet, need to register another alarm for notification.
-    let tag = Box::new(CallTag::Alarm(Alarm { unpark: unpark.clone() }));
+    let tag = Box::new(CallTag::Alarm(Alarm { notify: notify.clone() }));
 
     if !handle.alarm.is_null() {
         unsafe {
@@ -153,7 +153,7 @@ impl<'a> Executor<'a> {
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
         let s = executor::spawn(f.boxed());
-        let unpark = Arc::new(AlarmUnpark::new(s));
-        spawn(self.cq, unpark)
+        let notify = Arc::new(AlarmNotify::new(s));
+        spawn(self.cq, notify)
     }
 }
