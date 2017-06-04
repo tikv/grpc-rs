@@ -37,7 +37,7 @@ mod env;
 mod error;
 mod server;
 
-pub use call::{Method, MethodType, RpcStatus, RpcStatusCode};
+pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
                        ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
                        ClientUnaryReceiver};

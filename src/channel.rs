@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use std::{cmp, mem, ptr, usize};
+use std::{cmp, ptr, usize};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::CString;
