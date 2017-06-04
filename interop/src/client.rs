@@ -15,7 +15,7 @@
 use std::thread;
 use std::time::Duration;
 
-use grpc::{self, CallOption, Channel, RpcStatusCode};
+use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{Future, Sink, Stream, future, stream};
 
 use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
@@ -62,7 +62,7 @@ impl Client {
             .map(|s| {
                 let mut req = StreamingInputCallRequest::new();
                 req.set_payload(util::new_payload(s));
-                Ok(req)
+                Ok((req, WriteFlags::default()))
             })
             .collect();
         let (sender, receiver) = self.client.streaming_input_call();
@@ -98,7 +98,7 @@ impl Client {
             req.mut_response_parameters()
                 .push(util::new_parameters(resp_size));
             req.set_payload(util::new_payload(payload_size));
-            sender = sender.send(req).wait().unwrap();
+            sender = sender.send((req, WriteFlags::default())).wait().unwrap();
             let resp = match receiver.into_future().wait() {
                 Ok((resp, recv)) => {
                     receiver = recv;
@@ -140,7 +140,7 @@ impl Client {
         req.mut_response_parameters()
             .push(util::new_parameters(31415));
         req.set_payload(util::new_payload(27182));
-        sender = sender.send(req).wait().unwrap();
+        sender = sender.send((req, WriteFlags::default())).wait().unwrap();
         let resp = match receiver.into_future().wait() {
             Ok((r, recv)) => {
                 receiver = recv;
@@ -165,7 +165,7 @@ impl Client {
         let (sender, receiver) = self.client.full_duplex_call_opt(opt);
         let mut req = StreamingOutputCallRequest::new();
         req.set_payload(util::new_payload(27182));
-        let _ = sender.send(req).wait();
+        let _ = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
@@ -194,7 +194,7 @@ impl Client {
         let mut req = StreamingOutputCallRequest::new();
         req.set_response_status(status);
         let (sender, receiver) = self.client.full_duplex_call();
-        let _ = sender.send(req).wait();
+        let _ = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::Unknown);

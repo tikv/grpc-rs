@@ -13,7 +13,7 @@
 
 
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
-           RpcStatusCode, ServerStreamingSink, UnarySink};
+           RpcStatusCode, ServerStreamingSink, UnarySink, WriteFlags};
 use futures::{Async, Future, Poll, Sink, Stream, future, stream};
 
 use grpc_proto::testing::test_grpc::TestService;
@@ -79,7 +79,7 @@ impl TestService for InteropTestService {
             .map(|param| {
                 let mut resp = StreamingOutputCallResponse::new();
                 resp.set_payload(util::new_payload(param.get_size() as usize));
-                Ok(resp)
+                Ok((resp, WriteFlags::default()))
             })
             .collect();
         let f = sink.send_all(stream::iter(resps))
@@ -126,7 +126,7 @@ impl TestService for InteropTestService {
                     if let Some(param) = req.get_response_parameters().get(0) {
                         resp.set_payload(util::new_payload(param.get_size() as usize));
                     }
-                    send = Some(sink.send(resp));
+                    send = Some(sink.send((resp, WriteFlags::default())));
                 }
                 future::poll_fn(move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
                     if let Some(ref mut send) = send {
