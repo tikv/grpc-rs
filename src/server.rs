@@ -208,7 +208,9 @@ impl ServerBuilder {
     }
 
     pub fn build(mut self) -> Result<Server> {
-        let args = self.args.map_or_else(ptr::null, |args| args.as_ptr());
+        let args = self.args
+            .as_ref()
+            .map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let mut bind_addrs = Vec::with_capacity(self.addrs.len());

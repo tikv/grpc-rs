@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use std::{cmp, mem, ptr, usize};
+use std::{cmp, ptr, usize};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::CString;
@@ -170,7 +170,7 @@ impl ChannelBuilder {
                 }
             }
         }
-        unsafe { ChannelArgs::from_raw(args) }
+        ChannelArgs { args: args }
     }
 
     /// Build an insure connection to the address.
@@ -218,18 +218,8 @@ pub struct ChannelArgs {
 }
 
 impl ChannelArgs {
-    pub unsafe fn from_raw(args: *mut GrpcChannelArgs) -> ChannelArgs {
-        ChannelArgs { args: args }
-    }
-
     pub fn as_ptr(&self) -> *const GrpcChannelArgs {
         self.args
-    }
-
-    pub fn into_raw(self) -> *mut GrpcChannelArgs {
-        let args = self.args;
-        mem::forget(self);
-        args
     }
 }
 
