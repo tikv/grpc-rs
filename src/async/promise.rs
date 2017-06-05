@@ -61,7 +61,7 @@ impl Batch {
                 guard.set_result(Ok(None))
             }
         };
-        task.map(|t| t.unpark());
+        task.map(|t| t.notify());
     }
 
     fn finish_response(&mut self, succeed: bool) {
@@ -78,7 +78,7 @@ impl Batch {
                 guard.set_result(Err(Error::RemoteStopped))
             }
         };
-        task.map(|t| t.unpark());
+        task.map(|t| t.notify());
     }
 
     fn handle_unary_response(&mut self) {
@@ -91,7 +91,7 @@ impl Batch {
                 guard.set_result(Ok(self.ctx.recv_message()))
             }
         };
-        task.map(|t| t.unpark());
+        task.map(|t| t.notify());
     }
 
     pub fn resolve(mut self, success: bool) {
@@ -135,6 +135,6 @@ impl Shutdown {
                 guard.set_result(Err(Error::ShutdownFailed))
             }
         };
-        task.map(|t| t.unpark());
+        task.map(|t| t.notify());
     }
 }

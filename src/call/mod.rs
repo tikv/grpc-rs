@@ -467,27 +467,49 @@ impl StreamingBase {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+pub struct WriteFlags {
+    flags: u32,
+}
+
+impl WriteFlags {
+    /// Hint that the write may be buffered and need not go out on the wire immediately.
+    pub fn buffer_hint(mut self, need_buffered: bool) -> WriteFlags {
+        client::change_flag(&mut self.flags,
+                            grpc_sys::GRPC_WRITE_BUFFER_HINT,
+                            need_buffered);
+        self
+    }
+
+    /// Force compression to be disabled.
+    pub fn force_no_compress(mut self, no_compress: bool) -> WriteFlags {
+        client::change_flag(&mut self.flags,
+                            grpc_sys::GRPC_WRITE_NO_COMPRESS,
+                            no_compress);
+        self
+    }
+}
+
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
     batch_f: Option<BatchFuture>,
     buf: Vec<u8>,
-    flags: u32,
     send_metadata: bool,
 }
 
 impl SinkBase {
-    fn new(flags: u32, send_metadata: bool) -> SinkBase {
+    fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
             buf: Vec::new(),
             send_metadata: send_metadata,
-            flags: flags,
         }
     }
 
     fn start_send<T, C: CallHolder>(&mut self,
                                     call: &mut C,
                                     t: &T,
+                                    flags: WriteFlags,
                                     ser: SerializeFn<T>)
                                     -> Result<bool> {
         if self.batch_f.is_some() {
@@ -501,7 +523,7 @@ impl SinkBase {
         self.buf.clear();
         ser(t, &mut self.buf);
         let write_f =
-            call.call(|c| c.start_send_message(&self.buf, self.flags, self.send_metadata));
+            call.call(|c| c.start_send_message(&self.buf, flags.flags, self.send_metadata));
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)

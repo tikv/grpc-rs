@@ -38,7 +38,7 @@ pub use self::lock::SpinLock;
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
     result: Option<Result<T>>,
-    park: Option<Task>,
+    task: Option<Task>,
     stale: bool,
 }
 
@@ -46,7 +46,7 @@ impl<T> NotifyHandle<T> {
     fn new() -> NotifyHandle<T> {
         NotifyHandle {
             result: None,
-            park: None,
+            task: None,
             stale: false,
         }
     }
@@ -54,7 +54,7 @@ impl<T> NotifyHandle<T> {
     /// Set the result and notify future if necessary.
     fn set_result(&mut self, res: Result<T>) -> Option<Task> {
         self.result = Some(res);
-        return self.park.take();
+        return self.task.take();
     }
 }
 
@@ -108,8 +108,10 @@ impl<T> Future for CqFuture<T> {
         }
 
         // So the task has not been finished yet, add notification hook.
-        if guard.park.is_none() {
-            guard.park = Some(task::park());
+        if guard.task.is_none() {
+            guard.task = Some(task::current());
+        } else if !guard.task.as_ref().unwrap().will_notify_current() {
+            guard.task = Some(task::current());
         }
 
         Ok(Async::NotReady)

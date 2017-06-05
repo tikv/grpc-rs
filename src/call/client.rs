@@ -24,11 +24,11 @@ use call::{Call, Method, check_run};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::Error;
-use super::{ShareCall, ShareCallHolder, SinkBase};
+use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 
 /// Update the flag bit in res.
 #[inline]
-fn change_flag(res: &mut u32, flag: u32, set: bool) {
+pub fn change_flag(res: &mut u32, flag: u32, set: bool) {
     if set {
         *res |= flag;
     } else {
@@ -39,7 +39,7 @@ fn change_flag(res: &mut u32, flag: u32, set: bool) {
 #[derive(Default)]
 pub struct CallOption {
     timeout: Option<Duration>,
-    write_flags: u32,
+    write_flags: WriteFlags,
     call_flags: u32,
 }
 
@@ -68,19 +68,8 @@ impl CallOption {
         self
     }
 
-    /// Hint that the write may be buffered and need not go out on the wire immediately.
-    pub fn buffer_hint(mut self, need_buffered: bool) -> CallOption {
-        change_flag(&mut self.write_flags,
-                    grpc_sys::GRPC_WRITE_BUFFER_HINT,
-                    need_buffered);
-        self
-    }
-
-    /// Force compression to be disabled.
-    pub fn force_no_compress(mut self, no_compress: bool) -> CallOption {
-        change_flag(&mut self.write_flags,
-                    grpc_sys::GRPC_WRITE_NO_COMPRESS,
-                    no_compress);
+    pub fn write_flags(mut self, write_flags: WriteFlags) -> CallOption {
+        self.write_flags = write_flags;
         self
     }
 
@@ -110,7 +99,7 @@ impl Call {
                                                 ctx,
                                                 payload.as_ptr() as *const _,
                                                 payload.len(),
-                                                opt.write_flags,
+                                                opt.write_flags.flags,
                                                 ptr::null_mut(),
                                                 opt.call_flags,
                                                 tag)
@@ -132,7 +121,7 @@ impl Call {
         });
 
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
-        let sink = ClientCStreamSender::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser());
         let recv = ClientCStreamReceiver {
             call: share_call,
             resp_de: method.resp_de(),
@@ -153,7 +142,7 @@ impl Call {
                                                            ctx,
                                                            payload.as_ptr() as _,
                                                            payload.len(),
-                                                           opt.write_flags,
+                                                           opt.write_flags.flags,
                                                            ptr::null_mut(),
                                                            opt.call_flags,
                                                            tag)
@@ -186,7 +175,7 @@ impl Call {
         });
 
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
-        let sink = ClientDuplexSender::new(share_call.clone(), opt.write_flags, method.req_ser());
+        let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
         let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
         (sink, recv)
     }
@@ -267,13 +256,10 @@ pub struct StreamingCallSink<P> {
 }
 
 impl<P> StreamingCallSink<P> {
-    fn new(call: Arc<SpinLock<ShareCall>>,
-           flags: u32,
-           ser: SerializeFn<P>)
-           -> StreamingCallSink<P> {
+    fn new(call: Arc<SpinLock<ShareCall>>, ser: SerializeFn<P>) -> StreamingCallSink<P> {
         StreamingCallSink {
             call: call,
-            sink_base: SinkBase::new(flags, false),
+            sink_base: SinkBase::new(false),
             close_f: None,
             req_ser: ser,
         }
@@ -286,18 +272,18 @@ impl<P> StreamingCallSink<P> {
 }
 
 impl<P> Sink for StreamingCallSink<P> {
-    type SinkItem = P;
+    type SinkItem = (P, WriteFlags);
     type SinkError = Error;
 
-    fn start_send(&mut self, item: P) -> StartSend<P, Error> {
+    fn start_send(&mut self, (msg, flags): Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
         let mut call = self.call.lock();
         try!(call.check_alive());
         self.sink_base
-            .start_send(&mut call.call, &item, self.req_ser)
+            .start_send(&mut call.call, &msg, flags, self.req_ser)
             .map(|s| if s {
                      AsyncSink::Ready
                  } else {
-                     AsyncSink::NotReady(item)
+                     AsyncSink::NotReady((msg, flags))
                  })
     }
 

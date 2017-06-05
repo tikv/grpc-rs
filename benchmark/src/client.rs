@@ -17,7 +17,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment};
+use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment,
+           WriteFlags};
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
 use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
@@ -160,7 +161,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         let f = future::loop_fn((sender, self, receiver),
                                 move |(sender, mut executor, receiver)| {
             let latency_timer = Instant::now();
-            let send = sender.send(executor.req.clone());
+            let send = sender.send((executor.req.clone(), WriteFlags::default()));
             send.map_err(Error::from)
                 .and_then(move |sender| {
                     receiver
@@ -263,7 +264,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let f = future::loop_fn((sender, self, receiver),
                                 move |(sender, mut executor, receiver)| {
             let latency_timer = Instant::now();
-            let send = sender.send(executor.req.clone());
+            let send = sender.send((executor.req.clone(), WriteFlags::default()));
             send.map_err(Error::from)
                 .and_then(move |sender| {
                     receiver

@@ -36,7 +36,7 @@ pub struct CpuRecorder {
 
 impl CpuRecorder {
     pub fn new() -> CpuRecorder {
-        let mut usage = new_rusage();
+        let mut usage = unsafe { mem::zeroed() };
         unsafe { assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut usage), 0) };
         let (total_cpu, idle_cpu) = get_cpu_usage();
         CpuRecorder {
@@ -49,7 +49,7 @@ impl CpuRecorder {
 
     pub fn cpu_time(&mut self, reset: bool) -> Sample {
         let now = Instant::now();
-        let mut latest = new_rusage();
+        let mut latest = unsafe { mem::zeroed() };
         unsafe { assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut latest), 0) };
         let (total_cpu, idle_cpu) = get_cpu_usage();
 
@@ -80,13 +80,6 @@ impl CpuRecorder {
             idle_cpu: idle_cpu_diff,
         }
     }
-}
-
-pub fn new_rusage() -> rusage {
-    // hack: so we don't need to list all the field of rusage.
-    // Note: compiler will complain if the size is not correct.
-    let data = [0u8; 144];
-    unsafe { mem::transmute(data) }
 }
 
 #[cfg(target_os = "linux")]

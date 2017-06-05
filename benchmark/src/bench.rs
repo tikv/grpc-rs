@@ -16,7 +16,7 @@ use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
 use grpc::{self, DuplexSink, Method, MethodType, RequestStream, RpcContext, ServiceBuilder,
-           UnarySink};
+           UnarySink, WriteFlags};
 use futures::{Future, Sink, Stream};
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
@@ -40,7 +40,7 @@ impl BenchmarkService for Benchmark {
                       ctx: RpcContext,
                       stream: RequestStream<SimpleRequest>,
                       sink: DuplexSink<SimpleResponse>) {
-        ctx.spawn(sink.send_all(stream.map(gen_resp))
+        ctx.spawn(sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())))
                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
                       .map(|_| {}))
     }
@@ -54,7 +54,7 @@ impl Generic {
                           ctx: RpcContext,
                           stream: RequestStream<Vec<u8>>,
                           sink: DuplexSink<Vec<u8>>) {
-        ctx.spawn(sink.send_all(stream.map(|req| req))
+        ctx.spawn(sink.send_all(stream.map(|req| (req, WriteFlags::default())))
                       .map_err(|e| println!("failed to handle streaming: {:?}", e))
                       .map(|_| {}))
     }

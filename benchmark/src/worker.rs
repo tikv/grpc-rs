@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use grpc_proto::testing::services_grpc::WorkerService;
 use grpc_proto::testing::control::{ClientArgs, ClientStatus, CoreRequest, CoreResponse,
                                    ServerArgs, ServerStatus, Void};
-use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink};
+use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 use error::Error;
 use futures::{Future, Sink, Stream, future};
 use futures::sync::oneshot::Sender;
@@ -50,7 +50,7 @@ impl WorkerService for Worker {
                 println!("receive server setup: {:?}", cfg);
                 let server = try!(Server::new(cfg));
                 let status = server.get_status();
-                Ok(sink.send(status)
+                Ok(sink.send((status, WriteFlags::default()))
                        .and_then(|sink| {
                     stream.fold((sink, server), |(sink, mut server), arg| {
                         let mark = arg.get_mark();
@@ -58,7 +58,8 @@ impl WorkerService for Worker {
                         let stats = server.get_stats(mark.get_reset());
                         let mut status = server.get_status();
                         status.set_stats(stats);
-                        sink.send(status).map(|sink| (sink, server))
+                        sink.send((status, WriteFlags::default()))
+                            .map(|sink| (sink, server))
                     })
                 })
                        .and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
@@ -82,7 +83,7 @@ impl WorkerService for Worker {
                 let cfg = arg.as_ref().unwrap().get_setup();
                 println!("receive client setup: {:?}", cfg);
                 let client = Client::new(cfg);
-                sink.send(ClientStatus::new())
+                sink.send((ClientStatus::new(), WriteFlags::default()))
                     .and_then(|sink| {
                         stream.fold((sink, client), |(sink, mut client), arg| {
                             let mark = arg.get_mark();
@@ -90,7 +91,8 @@ impl WorkerService for Worker {
                             let stats = client.get_stats(mark.get_reset());
                             let mut status = ClientStatus::new();
                             status.set_stats(stats);
-                            sink.send(status).map(|sink| (sink, client))
+                            sink.send((status, WriteFlags::default()))
+                                .map(|sink| (sink, client))
                         })
                     })
                     .map_err(Error::from)
