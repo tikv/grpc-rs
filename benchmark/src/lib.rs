@@ -26,5 +26,6 @@ extern crate grpc_sys;
 extern crate rand;
 extern crate tokio_timer;
 
+mod bench;
 mod error;
 mod util;
