@@ -66,7 +66,7 @@ impl Client {
             })
             .collect();
         let (sender, receiver) = self.client.streaming_input_call();
-        sender.send_all(stream::iter(reqs)).wait().unwrap().0;
+        sender.send_all(stream::iter(reqs)).wait().unwrap();
         let resp = receiver.wait().unwrap();
         assert_eq!(74922, resp.get_aggregated_payload_size());
         println!("pass");
@@ -107,6 +107,11 @@ impl Client {
                 Err((e, _)) => panic!("{:?}", e),
             };
             assert_eq!(resp.get_payload().get_body().len(), resp_size as usize);
+        }
+        future::poll_fn(|| sender.close()).wait().unwrap();
+        match receiver.into_future().wait() {
+            Ok((resp, _)) => assert!(resp.is_none()),
+            Err((e, _)) => panic!("{:?}", e),
         }
         println!("pass");
     }
