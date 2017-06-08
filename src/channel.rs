@@ -39,6 +39,7 @@ const OPT_INITIAL_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.initial_reconnect
 const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8] = b"grpc.http2.initial_sequence_number\0";
 const OPT_SO_REUSE_PORT: &'static [u8] = b"grpc.so_reuseport\0";
 const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
+const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_bytes\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -126,6 +127,15 @@ impl ChannelBuilder {
     pub fn https_initial_seq_number(mut self, number: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER, Options::Integer(number));
+        self
+    }
+
+    /// Amount to read ahead on individual streams. Defaults to 64kb, larger
+    /// values can help throughput on high-latency connections.
+    pub fn stream_initial_window_size(mut self, window_size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_STREAM_INITIAL_WINDOW_SIZE,
+                    Options::Integer(window_size));
         self
     }
 
