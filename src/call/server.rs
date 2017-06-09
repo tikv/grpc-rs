@@ -18,7 +18,7 @@ use std::sync::Arc;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
-use async::{BatchFuture, CallTag, Executor, SpinLock};
+use async::{self, BatchFuture, CallTag, SpinLock};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
