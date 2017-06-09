@@ -41,7 +41,7 @@ use protobuf::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
 
-use super::util::{MethodType, fq_grpc, to_snake_case};
+use super::util::{self, MethodType, fq_grpc, to_snake_case};
 
 struct MethodGen<'a> {
     proto: &'a MethodDescriptorProto,
@@ -345,7 +345,7 @@ impl<'a> ServiceGen<'a> {
             .into_iter()
             .map(|m| {
                 MethodGen::new(m,
-                               proto.get_name().to_string(),
+                               util::to_camel_case(proto.get_name()),
                                service_path.clone(),
                                root_scope)
             })
@@ -357,8 +357,8 @@ impl<'a> ServiceGen<'a> {
         }
     }
 
-    fn service_name(&self) -> &str {
-        self.proto.get_name()
+    fn service_name(&self) -> String {
+        util::to_camel_case(self.proto.get_name())
     }
 
     fn client_name(&self) -> String {
@@ -396,7 +396,7 @@ impl<'a> ServiceGen<'a> {
         w.write_line("");
 
         let s = format!("create_{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
-                        to_snake_case(self.service_name()),
+                        to_snake_case(&self.service_name()),
                         self.service_name(),
                         fq_grpc("Service"));
         w.pub_fn(&s, |w| {
