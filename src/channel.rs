@@ -169,19 +169,22 @@ impl ChannelBuilder {
 
     /// How large a slice to try and read from the wire each time.
     pub fn tcp_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
-        self.options.insert(OPT_TCP_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self.options
+            .insert(OPT_TCP_READ_CHUNK_SIZE, Options::Integer(bytes));
         self
     }
 
     /// How minimal large a slice to try and read from the wire each time.
     pub fn tcp_min_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
-        self.options.insert(OPT_TCP_MIN_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self.options
+            .insert(OPT_TCP_MIN_READ_CHUNK_SIZE, Options::Integer(bytes));
         self
     }
 
     /// How maximal large a slice to try and read from the wire each time.
     pub fn tcp_max_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
-        self.options.insert(OPT_TCP_MAX_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self.options
+            .insert(OPT_TCP_MAX_READ_CHUNK_SIZE, Options::Integer(bytes));
         self
     }
 
@@ -194,9 +197,11 @@ impl ChannelBuilder {
                 Options::Integer(val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
                 },
-                Options::String(ref val) => unsafe {
-                    grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
-                },
+                Options::String(ref val) => {
+                    unsafe {
+                        grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
+                    }
+                }
             }
         }
         ChannelArgs { args: args }
@@ -231,9 +236,9 @@ impl ChannelBuilder {
         Channel {
             cq: self.env.pick_cq(),
             inner: Arc::new(ChannelInner {
-                _env: self.env,
-                channel: channel,
-            }),
+                                _env: self.env,
+                                channel: channel,
+                            }),
         }
     }
 
