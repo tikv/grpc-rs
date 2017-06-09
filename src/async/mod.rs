@@ -23,7 +23,7 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
-use call::{BatchContext, Call, RpcStatus};
+use call::{BatchContext, Call};
 use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
@@ -75,8 +75,7 @@ pub fn check_alive<T>(f: &CqFuture<T>) -> Result<()> {
         Some(Err(Error::RpcFailure(ref status))) => {
             Err(Error::RpcFinished(Some(status.to_owned())))
         }
-        Some(Ok(_)) => Err(Error::RpcFinished(Some(RpcStatus::ok()))),
-        Some(Err(_)) => Err(Error::RpcFinished(None)),
+        Some(Ok(_)) | Some(Err(_)) => Err(Error::RpcFinished(None)),
     }
 }
 

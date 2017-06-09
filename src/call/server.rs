@@ -13,18 +13,18 @@
 
 
 use std::{result, slice};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
-use async::{self, BatchFuture, CallTag};
+use async::{BatchFuture, CallTag, Executor, SpinLock};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
 use server::{CallBack, Inner};
-use super::{CallHolder, RpcStatus, WriteFlags};
+use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -192,13 +192,13 @@ impl Drop for RequestContext {
 }
 
 pub struct RequestStream<T> {
-    call: Arc<Mutex<Call>>,
+    call: Arc<SpinLock<ShareCall>>,
     base: StreamingBase,
     de: DeserializeFn<T>,
 }
 
 impl<T> RequestStream<T> {
-    fn new(call: Arc<Mutex<Call>>, de: DeserializeFn<T>) -> RequestStream<T> {
+    fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<T>) -> RequestStream<T> {
         RequestStream {
             call: call,
             base: StreamingBase::new(None),
@@ -212,6 +212,10 @@ impl<T> Stream for RequestStream<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
+        {
+            let mut call = self.call.lock();
+            try!(call.check_alive());
+        }
         let data = try_ready!(self.base.poll(&mut self.call, false));
 
         match data {
@@ -230,8 +234,7 @@ impl<T> Stream for RequestStream<T> {
 macro_rules! impl_unary_sink {
     ($t:ident, $rt:ident, $holder:ty) => (
         pub struct $rt {
-            _call: $holder,
-            close_f: BatchFuture,
+            call: $holder,
             cq_f: BatchFuture,
             flushed: bool,
         }
@@ -246,23 +249,21 @@ macro_rules! impl_unary_sink {
                     self.flushed = true;
                 }
 
-                try_ready!(self.close_f.poll());
+                try_ready!(self.call.call(|c| c.poll_finish()));
                 Ok(Async::Ready(()))
             }
         }
 
         pub struct $t<T> {
             call: $holder,
-            close_f: BatchFuture,
             write_flags: u32,
             ser: SerializeFn<T>,
         }
 
         impl<T> $t<T> {
-            fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
+            fn new(call: $holder, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
-                    close_f: close_f,
                     write_flags: 0,
                     ser: ser,
                 }
@@ -285,12 +286,11 @@ macro_rules! impl_unary_sink {
 
                 let write_flags = self.write_flags;
                 let cq_f = self.call.call(|c| {
-                    c.start_send_status_from_server(&status, true, data, write_flags)
+                    c.call.start_send_status_from_server(&status, true, data, write_flags)
                 });
 
                 $rt {
-                    _call: self.call,
-                    close_f: self.close_f,
+                    call: self.call,
                     cq_f: cq_f,
                     flushed: false,
                 }
@@ -299,8 +299,8 @@ macro_rules! impl_unary_sink {
     );
 }
 
-impl_unary_sink!(UnarySink, UnarySinkResult, Call);
-impl_unary_sink!(ClientStreamingSink, ClientStreamingSinkResult, Arc<Mutex<Call>>);
+impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
+impl_unary_sink!(ClientStreamingSink, ClientStreamingSinkResult, Arc<SpinLock<ShareCall>>);
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {
@@ -308,7 +308,6 @@ macro_rules! impl_stream_sink {
         pub struct $t<T> {
             call: $holder,
             base: SinkBase,
-            close_f: BatchFuture,
             flush_f: Option<BatchFuture>,
             status: RpcStatus,
             flushed: bool,
@@ -316,11 +315,10 @@ macro_rules! impl_stream_sink {
         }
 
         impl<T> $t<T> {
-            fn new(call: $holder, close_f: BatchFuture, ser: SerializeFn<T>) -> $t<T> {
+            fn new(call: $holder, ser: SerializeFn<T>) -> $t<T> {
                 $t {
                     call: call,
                     base: SinkBase::new(true),
-                    close_f: close_f,
                     flush_f: None,
                     status: RpcStatus::ok(),
                     flushed: false,
@@ -337,12 +335,11 @@ macro_rules! impl_stream_sink {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
                 let fail_f = self.call.call(|c| {
-                    c.start_send_status_from_server(&status, send_metadata, None, 0)
+                    c.call.start_send_status_from_server(&status, send_metadata, None, 0)
                 });
 
                 $ft {
-                    _call: self.call,
-                    close_f: self.close_f,
+                    call: self.call,
                     fail_f: Some(fail_f),
                 }
             }
@@ -353,6 +350,9 @@ macro_rules! impl_stream_sink {
             type SinkError = Error;
 
             fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
+                if let Async::Ready(_) = try!(self.call.call(|c| c.poll_finish())) {
+                    return Err(Error::RemoteStopped);
+                }
                 self.base
                     .start_send(&mut self.call, &item.0, item.1, self.ser)
                     .map(|s| if s {
@@ -373,7 +373,7 @@ macro_rules! impl_stream_sink {
                     let send_metadata = self.base.send_metadata;
                     let status = &self.status;
                     let flush_f = self.call.call(|c| {
-                        c.start_send_status_from_server(status, send_metadata, None, 0)
+                        c.call.start_send_status_from_server(status, send_metadata, None, 0)
                     });
                     self.flush_f = Some(flush_f);
                 }
@@ -383,14 +383,13 @@ macro_rules! impl_stream_sink {
                     self.flushed = true;
                 }
 
-                try_ready!(self.close_f.poll());
+                try_ready!(self.call.call(|c| c.poll_finish()));
                 Ok(Async::Ready(()))
             }
         }
 
         pub struct $ft {
-            _call: $holder,
-            close_f: BatchFuture,
+            call: $holder,
             fail_f: Option<BatchFuture>,
         }
 
@@ -399,20 +398,27 @@ macro_rules! impl_stream_sink {
             type Error = Error;
 
             fn poll(&mut self) -> Poll<(), Error> {
+                let readiness = try!(self.call.call(|c| {
+                    if c.finished {
+                        return Ok(Async::Ready(()));
+                    }
+
+                    c.poll_finish().map(|r| r.map(|_| ()))
+                }));
+
                 if let Some(ref mut f) = self.fail_f {
                     try_ready!(f.poll());
                 }
 
                 self.fail_f.take();
-                try_ready!(self.close_f.poll());
-                Ok(Async::Ready(()))
+                Ok(readiness)
             }
         }
     )
 }
 
-impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, Call);
-impl_stream_sink!(DuplexSink, DuplexSinkFailure, Arc<Mutex<Call>>);
+impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, ShareCall);
+impl_stream_sink!(DuplexSink, DuplexSinkFailure, Arc<SpinLock<ShareCall>>);
 
 /// A context for rpc handling.
 pub struct RpcContext {
@@ -473,7 +479,7 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext,
             return;
         }
     };
-    let sink = UnarySink::new(call, close_f, ser);
+    let sink = UnarySink::new(ShareCall::new(call, close_f), ser);
     f(ctx, request, sink)
 }
 
@@ -484,14 +490,12 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext,
                                          f: &F)
     where F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>)
 {
-    let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
-    let close_f = {
-        let mut call = call.lock().unwrap();
-        call.start_server_side()
-    };
+    let mut call = ctx.ctx.take_call().unwrap();
+    let close_f = call.start_server_side();
+    let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
     let req_s = RequestStream::new(call.clone(), de);
-    let sink = ClientStreamingSink::new(call, close_f, ser);
+    let sink = ClientStreamingSink::new(call, ser);
     f(ctx, req_s, sink)
 }
 
@@ -517,7 +521,7 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
         }
     };
 
-    let sink = ServerStreamingSink::new(call, close_f, ser);
+    let sink = ServerStreamingSink::new(ShareCall::new(call, close_f), ser);
     f(ctx, request, sink)
 }
 
@@ -528,14 +532,12 @@ pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext,
                                          f: &F)
     where F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>)
 {
-    let call = Arc::new(Mutex::new(ctx.ctx.take_call().unwrap()));
-    let close_f = {
-        let mut call = call.lock().unwrap();
-        call.start_server_side()
-    };
+    let mut call = ctx.ctx.take_call().unwrap();
+    let close_f = call.start_server_side();
+    let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
     let req_s = RequestStream::new(call.clone(), de);
-    let sink = DuplexSink::new(call, close_f, ser);
+    let sink = DuplexSink::new(call, ser);
     f(ctx, req_s, sink)
 }
 
