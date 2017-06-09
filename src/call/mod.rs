@@ -16,7 +16,7 @@ pub mod client;
 pub mod server;
 
 use std::{ptr, slice, usize};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
@@ -385,11 +385,10 @@ impl CallHolder for Call {
     }
 }
 
-impl CallHolder for Arc<Mutex<Call>> {
+impl CallHolder for ShareCall {
     #[inline]
     fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
-        let mut lock = self.lock().unwrap();
-        f(&mut lock)
+        f(&mut self.call)
     }
 }
 

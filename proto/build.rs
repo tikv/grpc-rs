@@ -19,12 +19,19 @@ use std::fs::{self, File};
 use std::env;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output};
 
 use grpc_compiler::codegen as grpc_gen;
 use protobuf::codegen as pb_gen;
 use protobuf::compiler_plugin::GenResult;
 use protobuf::descriptor::{FileDescriptorProto, FileDescriptorSet};
+
+fn run_command(cmd: &mut Command) -> Output {
+    match cmd.output() {
+        Err(e) => panic!("failed to run [{:?}]: {:?}", cmd, e),
+        Ok(output) => output,
+    }
+}
 
 /// Descriptor file to module file.
 fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
@@ -102,7 +109,7 @@ fn compile_all<P: AsRef<Path>>(include: P, proto_path: P, module: &str) {
 }
 
 fn check_protoc() {
-    let output = Command::new("protoc").arg("--version").output().unwrap();
+    let output = run_command(Command::new("protoc").arg("--version"));
     if !output.status.success() {
         panic!("protoc is required.");
     }
