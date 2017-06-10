@@ -190,7 +190,7 @@ impl ChannelBuilder {
     }
 
     pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
-        self.options.insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(bytes));
+        self.options.insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
         self
     }
 
