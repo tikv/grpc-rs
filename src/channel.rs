@@ -280,7 +280,7 @@ impl Drop for ChannelInner {
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
-    cq: Arc<CompletionQueue>,
+    cq: CompletionQueue,
 }
 
 unsafe impl Send for Channel {}
@@ -312,6 +312,6 @@ impl Channel {
     }
 
     pub fn cq(&self) -> &CompletionQueue {
-        self.cq.as_ref()
+        &self.cq
     }
 }

@@ -53,12 +53,10 @@ impl<T> NotifyHandle<T> {
     }
 
     /// Set the result and notify future if necessary.
-    fn set_result(&mut self, res: Result<T>) {
+    fn set_result(&mut self, res: Result<T>) -> Option<Task> {
         self.result = Some(res);
 
-        if let Some(ref t) = self.task {
-            t.notify();
-        }
+        self.task.take()
     }
 }
 
@@ -195,7 +193,7 @@ impl CallTag {
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
-            CallTag::Alarm(alarm) => alarm.resolve(cq, success),
+            CallTag::Alarm(alarm) => alarm.resolve(success),
         }
     }
 }

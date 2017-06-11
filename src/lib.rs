@@ -12,6 +12,8 @@
 // limitations under the License.
 
 
+#![feature(thread_id)]
+
 #![cfg_attr(feature = "dev", feature(plugin))]
 #![cfg_attr(feature = "dev", plugin(clippy))]
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
