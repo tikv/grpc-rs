@@ -43,6 +43,7 @@ const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_byt
 const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chunk_size\0";
 const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
 const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
+const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -185,6 +186,14 @@ impl ChannelBuilder {
     pub fn tcp_max_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_TCP_MAX_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self
+    }
+
+    /// How much data are we willing to queue up per stream if
+    /// write_buffer_hint is set. This is an upper bound.
+    pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
         self
     }
 
