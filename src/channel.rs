@@ -44,6 +44,7 @@ const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_byt
 const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chunk_size\0";
 const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
 const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
+const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
 const OPT_DEFALUT_COMPRESSION_ALGORITHM : &'static [u8] = b"grpc.default_compression_algorithm\0";
 const OPT_DEFAULT_COMPRESSION_LEVEL : &'static [u8] = b"grpc.default_compression_level\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
@@ -191,6 +192,14 @@ impl ChannelBuilder {
         self
     }
 
+    /// How much data are we willing to queue up per stream if
+    /// write_buffer_hint is set. This is an upper bound.
+    pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
+        self
+    }
+
     // Default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, alg: CompressionAlgorithms) -> ChannelBuilder {
         self.options
@@ -202,8 +211,6 @@ impl ChannelBuilder {
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options
             .insert(OPT_DEFAULT_COMPRESSION_LEVEL, Options::Integer(level as usize));
-        self
-    }
 
     /// Build a channel args from the current configuration.
     pub fn build_args(&self) -> ChannelArgs {
