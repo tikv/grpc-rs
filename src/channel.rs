@@ -189,6 +189,8 @@ impl ChannelBuilder {
         self
     }
 
+    /// How much data are we willing to queue up per stream if
+    /// write_buffer_hint is set. This is an upper bound.
     pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
         self.options
             .insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
