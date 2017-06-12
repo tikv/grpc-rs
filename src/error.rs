@@ -76,12 +76,13 @@ mod tests {
     use std::error::Error as StdError;
 
     use protobuf::ProtobufError;
+    use protobuf::error::WireError;
 
     use super::Error;
 
     #[test]
     fn test_convert() {
-        let error = ProtobufError::WireError("test".to_owned());
+        let error = ProtobufError::WireError(WireError::UnexpectedEof);
         let e: Error = error.into();
         assert_eq!(e.description(), "Grpc Codec Error");
         assert!(e.cause().is_some());
