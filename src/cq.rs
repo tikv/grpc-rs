@@ -14,7 +14,6 @@
 
 use std::ptr;
 use std::sync::Arc;
-use std::thread::ThreadId;
 
 use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
 
@@ -46,11 +45,11 @@ impl Drop for CompletionQueueHandle {
 #[derive(Clone)]
 pub struct CompletionQueue {
     handle: Arc<CompletionQueueHandle>,
-    id: ThreadId,
+    id: usize,
 }
 
 impl CompletionQueue {
-    pub fn new(handle: Arc<CompletionQueueHandle>, id: ThreadId) -> CompletionQueue {
+    pub fn new(handle: Arc<CompletionQueueHandle>, id: usize) -> CompletionQueue {
         CompletionQueue {
             handle: handle,
             id: id,
@@ -79,7 +78,7 @@ impl CompletionQueue {
         self.handle.cq
     }
 
-    pub fn worker_id(&self) -> ThreadId {
+    pub fn worker_id(&self) -> usize {
         self.id
     }
 }

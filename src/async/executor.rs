@@ -13,7 +13,6 @@
 
 
 use std::sync::Arc;
-use std::thread::{self, ThreadId};
 
 use futures::executor::{self, Notify, Spawn};
 use futures::future::BoxFuture;
@@ -23,6 +22,7 @@ use grpc_sys::{self, GprTimespec, GrpcAlarm};
 use cq::CompletionQueue;
 use super::lock::SpinLock;
 use super::CallTag;
+use util;
 
 
 struct Alarm {
@@ -94,7 +94,7 @@ impl SpawnHandle {
 #[derive(Clone)]
 pub struct SpawnNotify {
     handle: Arc<SpinLock<SpawnHandle>>,
-    worker_id: ThreadId,
+    worker_id: usize,
 }
 
 impl SpawnNotify {
@@ -117,7 +117,7 @@ unsafe impl Sync for SpawnNotify {}
 
 impl Notify for SpawnNotify {
     fn notify(&self, _: usize) {
-        if thread::current().id() == self.worker_id {
+        if util::get_worker_id() == self.worker_id {
             poll(Arc::new(self.clone()), false)
         } else {
             let mut handle = self.handle.lock();

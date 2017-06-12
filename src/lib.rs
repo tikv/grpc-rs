@@ -12,8 +12,6 @@
 // limitations under the License.
 
 
-#![feature(thread_id)]
-
 #![cfg_attr(feature = "dev", feature(plugin))]
 #![cfg_attr(feature = "dev", plugin(clippy))]
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
@@ -38,6 +36,7 @@ mod credentials;
 mod env;
 mod error;
 mod server;
+mod util;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,

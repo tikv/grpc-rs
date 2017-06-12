@@ -356,7 +356,7 @@ impl ShareCall {
     }
 }
 
-/// A helper trait that allows executing function on the inernal ShareCall struct.
+/// A helper trait that allows executing function on the inernal `ShareCall` struct.
 trait ShareCallHolder {
     fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R;
 }
