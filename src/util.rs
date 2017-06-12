@@ -23,16 +23,12 @@ thread_local!(
 
 /// Set an id to `WORKER_ID`.
 pub fn set_worker_id(id: usize) {
-    WORKER_ID.with(|tid| {
-        *tid.borrow_mut() = id;
-    })
+    WORKER_ID.with(|tid| { *tid.borrow_mut() = id; })
 }
 
 /// Get the `WORKER_ID`.
 pub fn get_worker_id() -> usize {
-    WORKER_ID.with(|tid| {
-        *tid.borrow()
-    })
+    WORKER_ID.with(|tid| *tid.borrow())
 }
 
 #[cfg(test)]
@@ -49,7 +45,9 @@ mod tests {
             assert_eq!(super::get_worker_id(), 0);
             super::set_worker_id(2);
             assert_eq!(super::get_worker_id(), 2);
-        }).join().unwrap();
+        })
+                .join()
+                .unwrap();
 
         assert_eq!(super::get_worker_id(), 1);
     }
