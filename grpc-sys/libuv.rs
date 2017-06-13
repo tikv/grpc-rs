@@ -3,8 +3,6 @@ use std::path::{Path, PathBuf};
 use std::env;
 use std::process::Command;
 
-use pkg_config;
-
 pub fn libuv_dir() -> PathBuf {
     Path::new("libuv").to_owned()
 }
@@ -27,9 +25,6 @@ fn libuv_force_fetch() -> bool {
 }
 fn libuv_clean_compile() -> bool {
     env::var("LIBUV_SYS_CLEAN_COMPILE").is_ok()
-}
-fn use_system_libuv() -> bool {
-    env::var("LIBUV_SYS_USE_SYSTEM").is_ok()
 }
 
 fn download_libuv() {
@@ -80,6 +75,7 @@ fn build_libuv() {
             .wait()
             .unwrap();
         Command::new("./configure")
+            .arg("--with-pic")
             .current_dir(libuv_dir())
             .spawn()
             .unwrap()
@@ -149,26 +145,21 @@ pub fn compile() -> Option<String> {
         panic!("Cannot cross compile to/from Windows due to use of a batch file build");
     }
 
-    if use_system_libuv() {
-        pkg_config::find_library("libuv").unwrap();
-        None
-    } else {
-        get_libuv();
-        println!("cargo:rustc-link-lib=static=uv");
-        println!("cargo:rustc-link-search=native={}",
-                 env::current_dir().unwrap().join(libuv_lib().parent().unwrap()).to_str().unwrap());
-        if target.contains("linux") {
-            println!("cargo:rustc-link-lib=rt");
-        } else if target.contains("windows") {
-            println!("cargo:rustc-link-lib=advapi32");
-            println!("cargo:rustc-link-lib=iphlpapi");
-            println!("cargo:rustc-link-lib=psapi");
-            println!("cargo:rustc-link-lib=shell32");
-            println!("cargo:rustc-link-lib=userenv");
-            println!("cargo:rustc-link-lib=ws2_32");
-        } else if target.contains("freebsd") {
-            println!("cargo:rustc-link-lib=kvm");
-        }
-        Some(env::current_dir().unwrap().join(libuv_dir()).to_str().unwrap().to_owned())
+    get_libuv();
+    println!("cargo:rustc-link-lib=static=uv");
+    println!("cargo:rustc-link-search=native={}",
+             env::current_dir().unwrap().join(libuv_lib().parent().unwrap()).to_str().unwrap());
+    if target.contains("linux") {
+        println!("cargo:rustc-link-lib=rt");
+    } else if target.contains("windows") {
+        println!("cargo:rustc-link-lib=advapi32");
+        println!("cargo:rustc-link-lib=iphlpapi");
+        println!("cargo:rustc-link-lib=psapi");
+        println!("cargo:rustc-link-lib=shell32");
+        println!("cargo:rustc-link-lib=userenv");
+        println!("cargo:rustc-link-lib=ws2_32");
+    } else if target.contains("freebsd") {
+        println!("cargo:rustc-link-lib=kvm");
     }
+    Some(env::current_dir().unwrap().join(libuv_dir()).to_str().unwrap().to_owned())
 }
