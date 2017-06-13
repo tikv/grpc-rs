@@ -18,6 +18,9 @@ extern crate pkg_config;
 
 const GRPC_VERSION: &'static str = "1.3.0";
 
+#[cfg(feature = "libuv")]
+mod libuv;
+
 #[cfg(not(feature = "static-link"))]
 mod imp {
     use gcc::Config as GccConfig;
@@ -104,7 +107,22 @@ mod imp {
                     .current_dir(&format!("{}/grpc/third_party/cares/cares", out_dir))
                     .args(&["acountry.c", "adig.c", "ahost.c"]));
 
-        let dst = CMakeConfig::new(format!("{}/grpc", out_dir))
+        let mut cfg = CMakeConfig::new(format!("{}/grpc", out_dir));
+
+        #[cfg(feature = "libuv")]
+        {
+            use super::libuv;
+
+            if let Some(path) = libuv::compile() {
+                let flags = format!("-DGRPC_UV -I{}/include", path);
+                cfg.define("CMAKE_C_FLAGS", &flags)
+                    .define("CMAKE_CXX_FLAGS", &flags)
+                    .define("CMAKE_INCLUDE_PATH", &flags);
+            }
+
+        }
+
+        let dst = cfg
             .build_target("grpc")
             .build();
 

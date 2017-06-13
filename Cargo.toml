@@ -17,6 +17,7 @@ default = ["protobuf-codec"]
 dev = ["clippy"]
 protobuf-codec = ["protobuf"]
 static-link = ["grpc-sys/static-link"]
+libuv = ["grpc-sys/libuv"]
 
 [[example]]
 name = "route_guide_client"
