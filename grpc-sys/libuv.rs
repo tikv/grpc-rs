@@ -10,7 +10,7 @@ fn libuv_repo() -> String {
     "https://github.com/libuv/libuv.git".to_owned()
 }
 fn libuv_revision() -> String {
-    "v1.9.1".to_owned()
+    "v1.12.0".to_owned()
 }
 fn libuv_lib() -> PathBuf {
     if cfg!(windows) {
@@ -26,7 +26,6 @@ fn libuv_force_fetch() -> bool {
 fn libuv_clean_compile() -> bool {
     env::var("LIBUV_SYS_CLEAN_COMPILE").is_ok()
 }
-
 fn download_libuv() {
     println!("Downloading libuv...");
     fs::create_dir_all(libuv_dir()).unwrap();
