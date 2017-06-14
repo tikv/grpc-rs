@@ -36,6 +36,7 @@ mod credentials;
 mod env;
 mod error;
 mod server;
+mod util;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
