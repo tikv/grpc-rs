@@ -16,3 +16,4 @@ pkg-config = "0.3"
 default = []
 static-link = ["cmake"]
 dev = ["clippy"]
+libuv = []
