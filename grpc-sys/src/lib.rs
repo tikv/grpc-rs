@@ -155,9 +155,9 @@ pub enum GrpcCompressionLevel {
 
 #[repr(C)]
 pub enum GrpcCompressionAlgorithms {
-  None = 0,
-  Deflate,
-  Gzip,
+    None = 0,
+    Deflate,
+    Gzip,
 }
 
 #[repr(C)]
