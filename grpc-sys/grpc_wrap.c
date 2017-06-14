@@ -377,15 +377,21 @@ GPR_EXPORT grpc_call *GPR_CALLTYPE grpcwrap_channel_create_call(
     grpc_channel *channel, grpc_call *parent_call, uint32_t propagation_mask,
     grpc_completion_queue *cq, const char *method, size_t method_len,
     const char *host, size_t host_len, gpr_timespec deadline) {
-  grpc_slice method_slice = grpc_slice_from_static_buffer(method, method_len);
+  grpc_slice method_slice = grpc_slice_from_copied_buffer(method, method_len);
   grpc_slice *host_slice_ptr = NULL;
   grpc_slice host_slice;
   if (host != NULL) {
-    host_slice = grpc_slice_from_static_buffer(host, host_len);
+    host_slice = grpc_slice_from_copied_buffer(host, host_len);
     host_slice_ptr = &host_slice;
   }
-  return grpc_channel_create_call(channel, parent_call, propagation_mask, cq,
-                                  method_slice, host_slice_ptr, deadline, NULL);
+  grpc_call *ret =
+      grpc_channel_create_call(channel, parent_call, propagation_mask, cq,
+                               method_slice, host_slice_ptr, deadline, NULL);
+  grpc_slice_unref(method_slice);
+  if (host != NULL) {
+    grpc_slice_unref(host_slice);
+  }
+  return ret;
 }
 
 /* Channel args */
@@ -681,7 +687,9 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
     ops[nops].reserved = NULL;
     nops++;
   }
-  return grpc_call_start_batch(call, ops, nops, tag, NULL);
+  grpc_call_error ret = grpc_call_start_batch(call, ops, nops, tag, NULL);
+  grpc_slice_unref(status_details_slice);
+  return ret;
 }
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_recv_message(
