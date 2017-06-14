@@ -276,10 +276,12 @@ impl<P> Sink for StreamingCallSink<P> {
     type SinkError = Error;
 
     fn start_send(&mut self, (msg, flags): Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
-        let mut call = self.call.lock();
-        try!(call.check_alive());
+        {
+            let mut call = self.call.lock();
+            try!(call.check_alive());
+        }
         self.sink_base
-            .start_send(&mut call.call, &msg, flags, self.req_ser)
+            .start_send(&mut self.call, &msg, flags, self.req_ser)
             .map(|s| if s {
                      AsyncSink::Ready
                  } else {
