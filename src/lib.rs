@@ -45,7 +45,7 @@ pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
-pub use channel::{Channel, ChannelBuilder};
+pub use channel::{Channel, ChannelBuilder, CompressionLevel, CompressionAlgorithms};
 pub use client::Client;
 pub use codec::Marshaller;
 #[cfg(feature = "protobuf-codec")]

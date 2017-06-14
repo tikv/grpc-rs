@@ -154,6 +154,13 @@ pub enum GrpcCompressionLevel {
 }
 
 #[repr(C)]
+pub enum GrpcCompressionAlgorithms {
+    None = 0,
+    Deflate,
+    Gzip,
+}
+
+#[repr(C)]
 pub enum GrpcServerRegisterMethodPayloadHandling {
     None,
     ReadInitialByteBuffer,
