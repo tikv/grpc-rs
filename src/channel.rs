@@ -220,9 +220,9 @@ impl ChannelBuilder {
     }
 
     // Default compression algorithm for the channel.
-    pub fn default_compression_algorithm(mut self, alg: CompressionAlgorithms) -> ChannelBuilder {
+    pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
         self.options
-            .insert(OPT_DEFALUT_COMPRESSION_ALGORITHM, Options::Integer(alg as usize));
+            .insert(OPT_DEFALUT_COMPRESSION_ALGORITHM, Options::Integer(algo as usize));
         self
     }
 
