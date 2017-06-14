@@ -45,6 +45,8 @@ const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chun
 const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
 const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
 const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
+const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
+const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
 const OPT_DEFALUT_COMPRESSION_ALGORITHM : &'static [u8] = b"grpc.default_compression_algorithm\0";
 const OPT_DEFAULT_COMPRESSION_LEVEL : &'static [u8] = b"grpc.default_compression_level\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
@@ -200,6 +202,23 @@ impl ChannelBuilder {
         self
     }
 
+    /// How big a frame are we willing to receive via HTTP2.
+    /// Min 16384, max 16777215.
+    /// Larger values give lower CPU usage for large messages, but more head of line
+    /// blocking for small messages.
+    pub fn http2_max_frame_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_MAX_FRAME_SIZE, Options::Integer(size));
+        self
+    }
+
+    /// Set BDP probing.
+    pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
+        let enable_int = Options::Integer(if enable { 1 } else { 0 });
+        self.options.insert(OPT_HTTP2_BDP_PROBE, enable_int);
+        self
+    }
+
     // Default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, alg: CompressionAlgorithms) -> ChannelBuilder {
         self.options
@@ -211,6 +230,8 @@ impl ChannelBuilder {
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options
             .insert(OPT_DEFAULT_COMPRESSION_LEVEL, Options::Integer(level as usize));
+        self
+    }
 
     /// Build a channel args from the current configuration.
     pub fn build_args(&self) -> ChannelArgs {
