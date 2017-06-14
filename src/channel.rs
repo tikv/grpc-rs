@@ -39,6 +39,13 @@ const OPT_INITIAL_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.initial_reconnect
 const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8] = b"grpc.http2.initial_sequence_number\0";
 const OPT_SO_REUSE_PORT: &'static [u8] = b"grpc.so_reuseport\0";
 const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
+const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_bytes\0";
+const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chunk_size\0";
+const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
+const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
+const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
+const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
+const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -129,6 +136,15 @@ impl ChannelBuilder {
         self
     }
 
+    /// Amount to read ahead on individual streams. Defaults to 64kb, larger
+    /// values can help throughput on high-latency connections.
+    pub fn stream_initial_window_size(mut self, window_size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_STREAM_INITIAL_WINDOW_SIZE,
+                    Options::Integer(window_size));
+        self
+    }
+
     /// Primary user agent: goes at the start of the user-agent metadata sent on each request.
     pub fn primary_user_agent(mut self, agent: &str) -> ChannelBuilder {
         let agent_string = format_user_agent_string(agent);
@@ -151,6 +167,52 @@ impl ChannelBuilder {
         let target = CString::new(target).unwrap();
         self.options
             .insert(OPT_SSL_TARGET_NAME_OVERRIDE, Options::String(target));
+        self
+    }
+
+    /// How large a slice to try and read from the wire each time.
+    pub fn tcp_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_TCP_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self
+    }
+
+    /// How minimal large a slice to try and read from the wire each time.
+    pub fn tcp_min_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_TCP_MIN_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self
+    }
+
+    /// How maximal large a slice to try and read from the wire each time.
+    pub fn tcp_max_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_TCP_MAX_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self
+    }
+
+    /// How much data are we willing to queue up per stream if
+    /// write_buffer_hint is set. This is an upper bound.
+    pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
+        self
+    }
+
+    /// How big a frame are we willing to receive via HTTP2.
+    /// Min 16384, max 16777215.
+    /// Larger values give lower CPU usage for large messages, but more head of line
+    /// blocking for small messages.
+    pub fn http2_max_frame_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_MAX_FRAME_SIZE, Options::Integer(size));
+        self
+    }
+
+    /// Set BDP probing.
+    pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
+        let enable_int = Options::Integer(if enable { 1 } else { 0 });
+        self.options.insert(OPT_HTTP2_BDP_PROBE, enable_int);
         self
     }
 
