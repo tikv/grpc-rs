@@ -28,6 +28,7 @@ use credentials::ChannelCredentials;
 use cq::CompletionQueue;
 use env::Environment;
 
+pub use grpc_sys::{GrpcCompressionLevel as CompressionLevel, GrpcCompressionAlgorithms as CompressionAlgorithms};
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
 const OPT_DEFAULT_AUTHORITY: &'static [u8] = b"grpc.default_authority\0";
@@ -43,6 +44,11 @@ const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_byt
 const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chunk_size\0";
 const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
 const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
+const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
+const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
+const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
+const OPT_DEFALUT_COMPRESSION_ALGORITHM : &'static [u8] = b"grpc.default_compression_algorithm\0";
+const OPT_DEFAULT_COMPRESSION_LEVEL : &'static [u8] = b"grpc.default_compression_level\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -188,6 +194,45 @@ impl ChannelBuilder {
         self
     }
 
+    /// How much data are we willing to queue up per stream if
+    /// write_buffer_hint is set. This is an upper bound.
+    pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
+        self
+    }
+
+    /// How big a frame are we willing to receive via HTTP2.
+    /// Min 16384, max 16777215.
+    /// Larger values give lower CPU usage for large messages, but more head of line
+    /// blocking for small messages.
+    pub fn http2_max_frame_size(mut self, size: usize) -> ChannelBuilder {
+        self.options
+            .insert(OPT_HTTP2_MAX_FRAME_SIZE, Options::Integer(size));
+        self
+    }
+
+    /// Set BDP probing.
+    pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
+        let enable_int = Options::Integer(if enable { 1 } else { 0 });
+        self.options.insert(OPT_HTTP2_BDP_PROBE, enable_int);
+        self
+    }
+
+    // Default compression algorithm for the channel.
+    pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
+        self.options
+            .insert(OPT_DEFALUT_COMPRESSION_ALGORITHM, Options::Integer(algo as usize));
+        self
+    }
+
+    // Default compression level for the channel.
+    pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
+        self.options
+            .insert(OPT_DEFAULT_COMPRESSION_LEVEL, Options::Integer(level as usize));
+        self
+    }
+
     /// Build a channel args from the current configuration.
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
@@ -280,7 +325,7 @@ impl Drop for ChannelInner {
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
-    cq: Arc<CompletionQueue>,
+    cq: CompletionQueue,
 }
 
 unsafe impl Send for Channel {}
@@ -312,6 +357,6 @@ impl Channel {
     }
 
     pub fn cq(&self) -> &CompletionQueue {
-        self.cq.as_ref()
+        &self.cq
     }
 }

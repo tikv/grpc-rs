@@ -27,7 +27,7 @@ use interop::Client;
 
 fn main() {
     let matches = App::new("Interoperability Test Client")
-        .about("ref https://github.com/grpc/grpc/blob/v1.2.x/doc/interop-test-descriptions.md")
+        .about("ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md")
         .arg(Arg::with_name("host")
                  .long("server_host")
                  .help("The server host to connect to. For example, \"localhost\" or \"127.0.0.1\"")

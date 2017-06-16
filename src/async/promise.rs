@@ -69,10 +69,10 @@ impl Batch {
             let mut guard = self.inner.lock();
             if succeed {
                 let status = self.ctx.rpc_status();
-                if status.status != RpcStatusCode::Ok {
-                    guard.set_result(Err(Error::RpcFailure(status)))
-                } else {
+                if status.status == RpcStatusCode::Ok {
                     guard.set_result(Ok(None))
+                } else {
+                    guard.set_result(Err(Error::RpcFailure(status)))
                 }
             } else {
                 guard.set_result(Err(Error::RemoteStopped))
@@ -85,10 +85,10 @@ impl Batch {
         let task = {
             let mut guard = self.inner.lock();
             let status = self.ctx.rpc_status();
-            if status.status != RpcStatusCode::Ok {
-                guard.set_result(Err(Error::RpcFailure(status)))
-            } else {
+            if status.status == RpcStatusCode::Ok {
                 guard.set_result(Ok(self.ctx.recv_message()))
+            } else {
+                guard.set_result(Err(Error::RpcFailure(status)))
             }
         };
         task.map(|t| t.notify());

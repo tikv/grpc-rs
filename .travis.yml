@@ -30,11 +30,16 @@ before_script:
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-  - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then which rustfmt || cargo install rustfmt; fi
 script:
-  - if [[ $TRAVIS_RUST_VERSION == "stable" ]] && [[ $TRAVIS_OS_NAME == "linux" ]]; then cargo fmt -- --write-mode=diff && cargo fmt -p interop -- --write-mode=diff; fi
   - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then FEATURES="dev"; else FEATURES="default"; fi
   - export RUSTFLAGS=-Dwarnings
   - cargo build
   - cargo test --all --features "$FEATURES"
   - cargo test --all --features "static-link $FEATURES"
+
+notifications:
+    webhooks: http://23.248.162.207:28082/travis
+
+branches:
+    only:
+        - auto

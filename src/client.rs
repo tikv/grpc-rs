@@ -14,7 +14,7 @@
 
 use futures::Future;
 
-use async;
+use async::Executor;
 use call::{Call, Method};
 use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
                    ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver};
@@ -87,6 +87,6 @@ impl Client {
     pub fn spawn<F>(&self, f: F)
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
-        async::spawn(f)
+        Executor::new(self.channel.cq()).spawn(f)
     }
 }

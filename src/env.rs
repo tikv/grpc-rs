@@ -19,10 +19,13 @@ use std::thread::{Builder as ThreadBuilder, JoinHandle};
 use grpc_sys;
 
 use async::CallTag;
-use cq::{CompletionQueue, EventType};
+use cq::{CompletionQueue, CompletionQueueHandle, EventType};
+use util;
 
 // event loop
-fn poll_queue(cq: Arc<CompletionQueue>) {
+fn poll_queue(cq: Arc<CompletionQueueHandle>, id: usize) {
+    util::set_worker_id(id);
+    let cq = CompletionQueue::new(cq, id);
     loop {
         let e = cq.next();
         match e.event_type {
@@ -69,14 +72,14 @@ impl EnvBuilder {
         let mut cqs = Vec::with_capacity(self.cq_count);
         let mut handles = Vec::with_capacity(self.cq_count);
         for i in 0..self.cq_count {
-            let cq = Arc::new(CompletionQueue::new());
+            let cq = Arc::new(CompletionQueueHandle::new());
             let cq_ = cq.clone();
             let mut builder = ThreadBuilder::new();
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
-            let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
-            cqs.push(cq);
+            let handle = builder.spawn(move || poll_queue(cq_, i + 1)).unwrap();
+            cqs.push(CompletionQueue::new(cq, i + 1));
             handles.push(handle);
         }
 
@@ -90,7 +93,7 @@ impl EnvBuilder {
 
 /// An object that used to control concurrency and start event loop.
 pub struct Environment {
-    cqs: Vec<Arc<CompletionQueue>>,
+    cqs: Vec<CompletionQueue>,
     idx: AtomicUsize,
     _handles: Vec<JoinHandle<()>>,
 }
@@ -108,12 +111,12 @@ impl Environment {
     }
 
     /// Get all the created completion queues.
-    pub fn completion_queues(&self) -> &[Arc<CompletionQueue>] {
+    pub fn completion_queues(&self) -> &[CompletionQueue] {
         self.cqs.as_slice()
     }
 
     /// Pick an arbitrary completion queue.
-    pub fn pick_cq(&self) -> Arc<CompletionQueue> {
+    pub fn pick_cq(&self) -> CompletionQueue {
         let idx = self.idx.fetch_add(1, Ordering::Relaxed);
         self.cqs[idx % self.cqs.len()].clone()
     }

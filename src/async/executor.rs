@@ -11,76 +11,169 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(deprecated)]
 
 use std::sync::Arc;
 
-use futures::executor::{self, Spawn, Unpark};
+use futures::executor::{self, Notify, Spawn};
 use futures::future::BoxFuture;
 use futures::{Async, Future};
+use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
-use super::lock::{LockGuard, SpinLock};
+use cq::CompletionQueue;
+use super::lock::SpinLock;
+use super::CallTag;
+use util;
 
-struct FutureHolder {
+
+struct Alarm {
+    alarm: *mut GrpcAlarm,
+}
+
+impl Alarm {
+    fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Alarm {
+        let alarm = unsafe {
+            let ptr = Box::into_raw(tag);
+            let timeout = GprTimespec::inf_future();
+            grpc_sys::grpc_alarm_create(cq.as_ptr(), timeout, ptr as _)
+        };
+        Alarm { alarm: alarm }
+    }
+
+    fn alarm(&mut self) {
+        // hack: because grpc's alarm feels more like a timer,
+        // but what we need here is a notification hook. Hence
+        // use cancel to implement the alarm behaviour.
+        unsafe { grpc_sys::grpc_alarm_cancel(self.alarm) }
+    }
+}
+
+impl Drop for Alarm {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpc_alarm_destroy(self.alarm) }
+    }
+}
+
+/// A handle to a `Spawn`.
+pub struct SpawnHandle {
     f: Option<Spawn<BoxFuture<(), ()>>>,
+    cq: CompletionQueue,
+    alarm: Option<Alarm>,
+    alarmed: bool,
 }
 
-impl FutureHolder {
-    pub fn new(s: Spawn<BoxFuture<(), ()>>) -> FutureHolder {
-        FutureHolder { f: Some(s) }
+impl SpawnHandle {
+    /// Create a SpawnHandle.
+    ///
+    /// Inner future is expected to be polled in the same thread as cq.
+    pub fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnHandle {
+        SpawnHandle {
+            f: Some(s),
+            cq: cq,
+            alarm: None,
+            alarmed: false,
+        }
+    }
+
+    /// Notify the alarm.
+    ///
+    /// It only makes sence to call this function from the thread
+    /// that cq is not run on.
+    pub fn notify(&mut self, tag: Box<CallTag>) {
+        self.alarm.take();
+        let mut alarm = Alarm::new(&self.cq, tag);
+        alarm.alarm();
+        // We need to keep the alarm until tag is resolved.
+        self.alarm = Some(alarm);
     }
 }
 
-/// A custom unpark that poll the future immediately instead of notify any poller.
-pub struct EagerUnpark {
-    handle: Arc<SpinLock<FutureHolder>>,
+/// A custom notify.
+///
+/// It will poll the inner future directly if it's notified on the
+/// same thread as inner cq.
+#[derive(Clone)]
+pub struct SpawnNotify {
+    handle: Arc<SpinLock<SpawnHandle>>,
+    worker_id: usize,
 }
 
-impl EagerUnpark {
-    fn new(s: Spawn<BoxFuture<(), ()>>) -> EagerUnpark {
-        EagerUnpark { handle: Arc::new(SpinLock::new(FutureHolder::new(s))) }
+impl SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnNotify {
+        SpawnNotify {
+            worker_id: cq.worker_id(),
+            handle: Arc::new(SpinLock::new(SpawnHandle::new(s, cq))),
+        }
+    }
+
+    pub fn resolve(self, success: bool) {
+        // it should always be canceled for now.
+        assert!(!success);
+        poll(Arc::new(self.clone()), true);
     }
 }
 
-// BoxFuture is Send, hence EagerUnpark is Send and Sync.
-unsafe impl Send for EagerUnpark {}
-unsafe impl Sync for EagerUnpark {}
+unsafe impl Send for SpawnNotify {}
+unsafe impl Sync for SpawnNotify {}
 
-impl Unpark for EagerUnpark {
-    fn unpark(&self) {
-        let mut handle = self.handle.lock();
-        poll(&mut handle,
-             Arc::new(EagerUnpark { handle: self.handle.clone() }));
+impl Notify for SpawnNotify {
+    fn notify(&self, _: usize) {
+        if util::get_worker_id() == self.worker_id {
+            poll(Arc::new(self.clone()), false)
+        } else {
+            let mut handle = self.handle.lock();
+            if handle.alarmed {
+                return;
+            }
+            handle.notify(Box::new(CallTag::Spawn(self.clone())));
+            handle.alarmed = true;
+        }
     }
 }
 
-#[inline]
-fn poll<'a>(handle: &mut LockGuard<'a, FutureHolder>, unpark: Arc<EagerUnpark>) {
+/// Poll the future.
+///
+/// `woken` indicates that if the alarm is woken by a cancel action.
+fn poll(notify: Arc<SpawnNotify>, woken: bool) {
+    let mut handle = notify.handle.lock();
+    if woken {
+        handle.alarmed = false;
+    }
     if handle.f.is_none() {
-        // the future is resolved, skip.
+        // it's resolved, no need to poll again.
         return;
     }
-
-    match handle.f.as_mut().unwrap().poll_future(unpark) {
+    match handle.f.as_mut().unwrap().poll_future_notify(&notify, 0) {
         Err(_) |
         Ok(Async::Ready(_)) => {
-            // Future stores unpark, and unpark contains future,
+            // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
             handle.f.take();
+            return;
         }
         _ => {}
     }
 }
 
-/// Spawn the future into inner poll loop.
-///
-/// If you want to trace the future, you may need to create a sender/receiver
-/// pair by yourself.
-pub fn spawn<F>(f: F)
-    where F: Future<Item = (), Error = ()> + Send + 'static
-{
-    let s = executor::spawn(f.boxed());
-    let unpark = Arc::new(EagerUnpark::new(s));
-    let mut handle = unpark.handle.lock();
-    poll(&mut handle, unpark.clone())
+/// An executor that drives a future in the grpc poll thread, which
+/// can reduce thread context switching.
+pub struct Executor<'a> {
+    cq: &'a CompletionQueue,
+}
+
+impl<'a> Executor<'a> {
+    pub fn new(cq: &CompletionQueue) -> Executor {
+        Executor { cq: cq }
+    }
+
+    /// Spawn the future into inner poll loop.
+    ///
+    /// If you want to trace the future, you may need to create a sender/receiver
+    /// pair by yourself.
+    pub fn spawn<F>(&self, f: F)
+        where F: Future<Item = (), Error = ()> + Send + 'static
+    {
+        let s = executor::spawn(f.boxed());
+        let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));
+        poll(notify, false)
+    }
 }
