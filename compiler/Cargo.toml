@@ -4,8 +4,6 @@ version = "0.1.0"
 description = "gRPC compiler for grpc-rs"
 license = "MIT/Apache-2.0"
 
-workspace = ".."
-
 [dependencies]
 protobuf = "1.2"
 
