@@ -356,6 +356,7 @@ impl ShareCall {
     }
 }
 
+/// A helper trait that allows executing function on the inernal `ShareCall` struct.
 trait ShareCallHolder {
     fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R;
 }
@@ -370,33 +371,6 @@ impl ShareCallHolder for Arc<SpinLock<ShareCall>> {
     fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R {
         let mut call = self.lock();
         f(&mut call)
-    }
-}
-
-/// A helper trait that allow executing function on the inernal call struct.
-trait CallHolder {
-    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R;
-}
-
-impl CallHolder for Call {
-    #[inline]
-    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
-        f(self)
-    }
-}
-
-impl CallHolder for ShareCall {
-    #[inline]
-    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
-        f(&mut self.call)
-    }
-}
-
-impl CallHolder for Arc<SpinLock<ShareCall>> {
-    #[inline]
-    fn call<R, F: FnOnce(&mut Call) -> R>(&mut self, f: F) -> R {
-        let mut lock = self.lock();
-        f(&mut lock.call)
     }
 }
 
@@ -416,10 +390,10 @@ impl StreamingBase {
         }
     }
 
-    fn poll<C: CallHolder>(&mut self,
-                           call: &mut C,
-                           skip_finish_check: bool)
-                           -> Poll<Option<Vec<u8>>, Error> {
+    fn poll<C: ShareCallHolder>(&mut self,
+                                call: &mut C,
+                                skip_finish_check: bool)
+                                -> Poll<Option<Vec<u8>>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -456,7 +430,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.call(|c| c.start_recv_message());
+        let msg_f = call.call(|c| c.call.start_recv_message());
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -505,12 +479,12 @@ impl SinkBase {
         }
     }
 
-    fn start_send<T, C: CallHolder>(&mut self,
-                                    call: &mut C,
-                                    t: &T,
-                                    flags: WriteFlags,
-                                    ser: SerializeFn<T>)
-                                    -> Result<bool> {
+    fn start_send<T, C: ShareCallHolder>(&mut self,
+                                         call: &mut C,
+                                         t: &T,
+                                         flags: WriteFlags,
+                                         ser: SerializeFn<T>)
+                                         -> Result<bool> {
         if self.batch_f.is_some() {
             // try its best not to return false.
             try!(self.poll_complete());
@@ -521,8 +495,10 @@ impl SinkBase {
 
         self.buf.clear();
         ser(t, &mut self.buf);
-        let write_f =
-            call.call(|c| c.start_send_message(&self.buf, flags.flags, self.send_metadata));
+        let write_f = call.call(|c| {
+            c.call
+                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+        });
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)

@@ -27,7 +27,7 @@ use call::{BatchContext, Call};
 use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
-use self::executor::Alarm;
+use self::executor::SpawnNotify;
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::Inner as ServerInner;
@@ -53,12 +53,10 @@ impl<T> NotifyHandle<T> {
     }
 
     /// Set the result and notify future if necessary.
-    fn set_result(&mut self, res: Result<T>) {
+    fn set_result(&mut self, res: Result<T>) -> Option<Task> {
         self.result = Some(res);
 
-        if let Some(ref t) = self.task {
-            t.notify();
-        }
+        self.task.take()
     }
 }
 
@@ -133,7 +131,7 @@ pub enum CallTag {
     UnaryRequest(UnaryRequestCallback),
     Abort(Abort),
     Shutdown(ShutdownPromise),
-    Alarm(Alarm),
+    Spawn(SpawnNotify),
 }
 
 impl CallTag {
@@ -195,7 +193,7 @@ impl CallTag {
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
-            CallTag::Alarm(alarm) => alarm.resolve(cq, success),
+            CallTag::Spawn(notify) => notify.resolve(success),
         }
     }
 }
@@ -208,7 +206,7 @@ impl Debug for CallTag {
             CallTag::UnaryRequest(_) => write!(f, "CallTag::UnaryRequest(..)"),
             CallTag::Abort(_) => write!(f, "CallTag::Abort(..)"),
             CallTag::Shutdown(_) => write!(f, "CallTag::Shutdown"),
-            CallTag::Alarm(_) => write!(f, "CallTag::Alarm"),
+            CallTag::Spawn(_) => write!(f, "CallTag::Spawn"),
         }
     }
 }

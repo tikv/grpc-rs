@@ -12,7 +12,6 @@
 // limitations under the License.
 
 
-use std::ptr;
 use std::sync::Arc;
 
 use futures::executor::{self, Notify, Spawn};
@@ -23,91 +22,126 @@ use grpc_sys::{self, GprTimespec, GrpcAlarm};
 use cq::CompletionQueue;
 use super::lock::SpinLock;
 use super::CallTag;
+use util;
 
-/// A handle to an alarm.
-///
-/// Alarm acts as a notification hook that wakes up poll thread once
-/// inner future is ready to make progress.
-pub struct AlarmHandle {
-    f: Option<Spawn<BoxFuture<(), ()>>>,
-    finished: bool,
+
+struct Alarm {
     alarm: *mut GrpcAlarm,
 }
 
-impl AlarmHandle {
-    /// Create an alarm for the future.
-    ///
-    /// `alarm` will be initialized lazily.
-    pub fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmHandle {
-        AlarmHandle {
-            f: Some(s),
-            finished: false,
-            alarm: ptr::null_mut(),
-        }
+impl Alarm {
+    fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Alarm {
+        let alarm = unsafe {
+            let ptr = Box::into_raw(tag);
+            let timeout = GprTimespec::inf_future();
+            grpc_sys::grpc_alarm_create(cq.as_ptr(), timeout, ptr as _)
+        };
+        Alarm { alarm: alarm }
     }
 
-    /// Notify the alarm.
-    pub fn alarm(&mut self) {
-        self.finished = true;
-        if self.alarm.is_null() {
-            // So the handle is notified but not polled again (yet).
-            return;
-        }
-        unsafe {
-            // hack: because grpc's alarm feels more like a timer,
-            // but what we need here is a notification hook. Hence
-            // use cancel to implement the alarm behaviour.
-            grpc_sys::grpc_alarm_cancel(self.alarm);
-        }
+    fn alarm(&mut self) {
+        // hack: because grpc's alarm feels more like a timer,
+        // but what we need here is a notification hook. Hence
+        // use cancel to implement the alarm behaviour.
+        unsafe { grpc_sys::grpc_alarm_cancel(self.alarm) }
     }
 }
 
-impl Drop for AlarmHandle {
+impl Drop for Alarm {
     fn drop(&mut self) {
-        if self.alarm.is_null() {
-            return;
-        }
         unsafe { grpc_sys::grpc_alarm_destroy(self.alarm) }
     }
 }
 
-/// A custom notify implemented with Alarm.
-pub struct AlarmNotify {
-    handle: SpinLock<AlarmHandle>,
+/// A handle to a `Spawn`.
+pub struct SpawnHandle {
+    f: Option<Spawn<BoxFuture<(), ()>>>,
+    cq: CompletionQueue,
+    alarm: Option<Alarm>,
+    alarmed: bool,
 }
 
-impl AlarmNotify {
-    fn new(s: Spawn<BoxFuture<(), ()>>) -> AlarmNotify {
-        AlarmNotify { handle: SpinLock::new(AlarmHandle::new(s)) }
+impl SpawnHandle {
+    /// Create a SpawnHandle.
+    ///
+    /// Inner future is expected to be polled in the same thread as cq.
+    pub fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnHandle {
+        SpawnHandle {
+            f: Some(s),
+            cq: cq,
+            alarm: None,
+            alarmed: false,
+        }
+    }
+
+    /// Notify the alarm.
+    ///
+    /// It only makes sence to call this function from the thread
+    /// that cq is not run on.
+    pub fn notify(&mut self, tag: Box<CallTag>) {
+        self.alarm.take();
+        let mut alarm = Alarm::new(&self.cq, tag);
+        alarm.alarm();
+        // We need to keep the alarm until tag is resolved.
+        self.alarm = Some(alarm);
     }
 }
 
-unsafe impl Send for AlarmNotify {}
-unsafe impl Sync for AlarmNotify {}
+/// A custom notify.
+///
+/// It will poll the inner future directly if it's notified on the
+/// same thread as inner cq.
+#[derive(Clone)]
+pub struct SpawnNotify {
+    handle: Arc<SpinLock<SpawnHandle>>,
+    worker_id: usize,
+}
 
-impl Notify for AlarmNotify {
-    fn notify(&self, _: usize) {
-        let mut handle = self.handle.lock();
-        handle.alarm()
+impl SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnNotify {
+        SpawnNotify {
+            worker_id: cq.worker_id(),
+            handle: Arc::new(SpinLock::new(SpawnHandle::new(s, cq))),
+        }
     }
-}
 
-/// A call tag for custom asynchronious notification.
-pub struct Alarm {
-    notify: Arc<AlarmNotify>,
-}
-
-impl Alarm {
-    pub fn resolve(self, cq: &CompletionQueue, success: bool) {
+    pub fn resolve(self, success: bool) {
         // it should always be canceled for now.
         assert!(!success);
-        spawn(cq, self.notify);
+        poll(Arc::new(self.clone()), true);
     }
 }
 
-// TODO: support timeout and trace future.
-fn spawn(cq: &CompletionQueue, notify: Arc<AlarmNotify>) {
+unsafe impl Send for SpawnNotify {}
+unsafe impl Sync for SpawnNotify {}
+
+impl Notify for SpawnNotify {
+    fn notify(&self, _: usize) {
+        if util::get_worker_id() == self.worker_id {
+            poll(Arc::new(self.clone()), false)
+        } else {
+            let mut handle = self.handle.lock();
+            if handle.alarmed {
+                return;
+            }
+            handle.notify(Box::new(CallTag::Spawn(self.clone())));
+            handle.alarmed = true;
+        }
+    }
+}
+
+/// Poll the future.
+///
+/// `woken` indicates that if the alarm is woken by a cancel action.
+fn poll(notify: Arc<SpawnNotify>, woken: bool) {
     let mut handle = notify.handle.lock();
+    if woken {
+        handle.alarmed = false;
+    }
+    if handle.f.is_none() {
+        // it's resolved, no need to poll again.
+        return;
+    }
     match handle.f.as_mut().unwrap().poll_future_notify(&notify, 0) {
         Err(_) |
         Ok(Async::Ready(_)) => {
@@ -118,20 +152,6 @@ fn spawn(cq: &CompletionQueue, notify: Arc<AlarmNotify>) {
         }
         _ => {}
     }
-
-    // handle.f is not resolved yet, need to register another alarm for notification.
-    let tag = Box::new(CallTag::Alarm(Alarm { notify: notify.clone() }));
-
-    if !handle.alarm.is_null() {
-        unsafe {
-            grpc_sys::grpc_alarm_destroy(handle.alarm);
-        }
-    }
-    handle.alarm = unsafe {
-        grpc_sys::grpc_alarm_create(cq.as_ptr(),
-                                    GprTimespec::inf_future(),
-                                    Box::into_raw(tag) as _)
-    };
 }
 
 /// An executor that drives a future in the grpc poll thread, which
@@ -153,7 +173,7 @@ impl<'a> Executor<'a> {
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
         let s = executor::spawn(f.boxed());
-        let notify = Arc::new(AlarmNotify::new(s));
-        spawn(self.cq, notify)
+        let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));
+        poll(notify, false)
     }
 }
