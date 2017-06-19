@@ -36,7 +36,3 @@ script:
   - cargo build
   - cargo test --all --features "$FEATURES"
   - cargo test --all --features "static-link $FEATURES"
-
-branches:
-    only:
-        - auto
