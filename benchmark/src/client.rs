@@ -354,7 +354,7 @@ impl Client {
                 let mut builder = ChannelBuilder::new(ch_env.clone());
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
-                    if params.get_server_host_override() != "" {
+                    if !params.get_server_host_override().is_empty() {
                         builder =
                             builder
                                 .override_ssl_target(params.get_server_host_override().to_owned());
