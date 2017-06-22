@@ -15,9 +15,6 @@
 #![cfg_attr(feature = "dev", plugin(clippy))]
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
-// TODO: remove following line when all implementation are merged.
-#![allow(dead_code)]
-
 extern crate grpc;
 extern crate grpc_proto;
 #[macro_use]
@@ -30,4 +27,8 @@ extern crate tokio_timer;
 mod bench;
 mod client;
 mod error;
+mod server;
+mod worker;
 mod util;
+
+pub use worker::Worker;
