@@ -22,7 +22,7 @@ before_script:
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew install autoconf automake libtool shtool; fi
-  - test -f "$GRPC_HEADER" || (git clone -b v1.2.5 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
+  - test -f "$GRPC_HEADER" || (git clone -b v1.4.0 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
   - PROTOC_PKG=protoc-3.3.0-${TRAVIS_OS_NAME}-x86_64.zip
   - which protoc || (wget https://github.com/google/protobuf/releases/download/v3.3.0/${PROTOC_PKG} && unzip -u ${PROTOC_PKG} -d $HOME/.cache)
   - export C_INCLUDE_PATH="$HOME/.cache/include"

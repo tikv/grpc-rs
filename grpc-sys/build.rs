@@ -16,7 +16,7 @@ extern crate gcc;
 extern crate cmake;
 extern crate pkg_config;
 
-const GRPC_VERSION: &'static str = "1.3.0";
+const GRPC_VERSION: &'static str = "1.4.0";
 
 #[cfg(feature = "link-sys")]
 mod imp {
@@ -46,7 +46,7 @@ mod imp {
 
     use super::GRPC_VERSION;
 
-    const ZLIB_VERSION: &'static str = "v1.2.8";
+    const ZLIB_VERSION: &'static str = "v1.2.11";
     const BORINGSSL_COMMIT_HASH: &'static str = "78684e5b222645828ca302e56b40b9daff2b2d27";
     const CARES_TAG: &'static str = "cares-1_12_0";
 
