@@ -35,4 +35,4 @@ script:
   - export RUSTFLAGS=-Dwarnings
   - cargo build
   - cargo test --all --features "$FEATURES"
-  - cargo test --all --features "static-link $FEATURES"
+  - cargo test --all --features "link-sys $FEATURES"

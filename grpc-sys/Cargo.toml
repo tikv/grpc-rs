@@ -9,10 +9,10 @@ clippy = { version = "*", optional = true }
 
 [build-dependencies]
 gcc = "0.3"
-cmake = { version = "0.1", optional = true }
+cmake = "0.1"
 pkg-config = "0.3"
 
 [features]
 default = []
-static-link = ["cmake"]
+link-sys = []
 dev = ["clippy"]

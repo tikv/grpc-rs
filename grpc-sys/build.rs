@@ -12,13 +12,13 @@
 // limitations under the License.
 
 extern crate gcc;
-#[cfg(feature = "static-link")]
+#[cfg(not(feature = "link-sys"))]
 extern crate cmake;
 extern crate pkg_config;
 
 const GRPC_VERSION: &'static str = "1.3.0";
 
-#[cfg(not(feature = "static-link"))]
+#[cfg(feature = "link-sys")]
 mod imp {
     use gcc::Config as GccConfig;
     use pkg_config::Config as PkgConfig;
@@ -36,7 +36,7 @@ mod imp {
     }
 }
 
-#[cfg(feature = "static-link")]
+#[cfg(not(feature = "link-sys"))]
 mod imp {
     use std::env;
     use std::process::Command;

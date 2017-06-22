@@ -19,7 +19,7 @@ $ git clone https://github.com/pingcap/grpc.git
 
 ```
 $ cd grpc-rs
-$ cargo build -p benchmark --release --features static-link
+$ cargo build -p benchmark --release
 ```
 
 4. Run benchmark
