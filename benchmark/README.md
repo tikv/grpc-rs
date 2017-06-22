@@ -12,7 +12,7 @@ $ git clone https://github.com/pingcap/grpc-rs.git
 2. Clone grpc
 
 ```
-$ git clone -b busyjay/enable-rust-bench https://github.com/BusyJay/grpc.git
+$ git clone https://github.com/pingcap/grpc.git
 ```
 
 3. Build benchmark
