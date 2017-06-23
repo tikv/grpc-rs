@@ -21,19 +21,51 @@ Status
 - [ ] auth
 - [ ] load balance
 
+Only linux and macOS are tested.
+
 Prerequisites
 -------------
 
-- Cmake
+- Cmake 3.8.0
 - Gcc (or Clang)
-- Go (to build ssl support)
-- Rust
+- Go (to build ssl support) >=1.7
+- Rust >= 1.18.0
 
 Build
-------------
+-----
 
 ```
 $ cargo build --all
+```
+
+Usage
+-----
+
+To generate the sources from proto files:
+
+1. Install protobuf compiler.
+
+```
+cargo install protobuf
+```
+
+2. Install grpc compiler.
+
+```
+cargo install --git https://github.com/pingcap/grpc-rs.git grpc-compiler
+```
+
+3. Generate sources.
+
+```
+protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plugin` example.proto
+```
+
+To include this project as a dependency:
+
+```
+[dependencies.grpc]
+git = "https://github.com/pingcap/grpc-rs.git"
 ```
 
 Performance
