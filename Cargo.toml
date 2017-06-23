@@ -5,7 +5,7 @@ version = "0.1.0"
 [dependencies]
 grpc-sys = { path = "grpc-sys", version = "0.1" }
 libc = "0.2"
-futures = "0.1"
+futures = "^0.1.14"
 protobuf = { version = "1.2", optional = true }
 clippy = { version = "*", optional = true }
 
