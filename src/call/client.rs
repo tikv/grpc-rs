@@ -376,7 +376,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             let msg_f = self.call.call(|c| c.call.start_recv_message());
             self.msg_f = Some(msg_f);
             if let Some(ref data) = bytes {
-                let msg = try!((self.resp_de)(&data));
+                let msg = try!((self.resp_de)(data));
                 return Ok(Async::Ready(Some(msg)));
             }
         }
