@@ -8,17 +8,17 @@ Status
 ------
 This project is still under developement, not all features are supported.
 
-- [x] basic async unary/steaming call
-- [x] ssl
-- [x] generic call
-- [x] connetion level compression
-- [x] interop test
-- [x] qps benchmark
-- [ ] custom metadata
-- [ ] health check
-- [ ] reflection
-- [ ] auth
-- [ ] load balance
+- [x] Basic asynchronous unary/steaming call
+- [x] SSL
+- [x] Generic call
+- [x] Connetion level compression
+- [x] Interoperability test
+- [x] QPS benchmark
+- [ ] Custom metadata
+- [ ] Health check
+- [ ] Reflection
+- [ ] Authentication
+- [ ] Load balance
 
 Only linux and macOS are tested.
 
@@ -48,7 +48,7 @@ To generate the sources from proto files:
 $ cargo install protobuf
 ```
 
-2. Install grpc compiler.
+2. Install gRPC compiler.
 
 ```
 $ cargo install --git https://github.com/pingcap/grpc-rs.git grpc-compiler
