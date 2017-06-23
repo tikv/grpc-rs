@@ -4,10 +4,9 @@
 
 The Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source, general RPC framework that puts mobile and HTTP/2 first.
 
-This project is still under developement, not all features are supported.
-
 Status
 ------
+This project is still under developement, not all features are supported.
 
 - [x] basic async unary/steaming call
 - [x] ssl
