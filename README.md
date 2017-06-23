@@ -46,19 +46,19 @@ To generate the sources from proto files:
 1. Install protobuf compiler.
 
 ```
-cargo install protobuf
+$ cargo install protobuf
 ```
 
 2. Install grpc compiler.
 
 ```
-cargo install --git https://github.com/pingcap/grpc-rs.git grpc-compiler
+$ cargo install --git https://github.com/pingcap/grpc-rs.git grpc-compiler
 ```
 
 3. Generate sources.
 
 ```
-protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plugin` example.proto
+$ protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plugin` example.proto
 ```
 
 To include this project as a dependency:
