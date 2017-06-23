@@ -31,7 +31,7 @@ unsafe impl Send for CompletionQueueHandle {}
 impl CompletionQueueHandle {
     pub fn new() -> CompletionQueueHandle {
         CompletionQueueHandle {
-            cq: unsafe { grpc_sys::grpc_completion_queue_create(ptr::null_mut()) },
+            cq: unsafe { grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut()) },
         }
     }
 }

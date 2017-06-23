@@ -298,7 +298,7 @@ impl Call {
 
 impl Drop for Call {
     fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_call_destroy(self.call) }
+        unsafe { grpc_sys::grpc_call_unref(self.call) }
     }
 }
 

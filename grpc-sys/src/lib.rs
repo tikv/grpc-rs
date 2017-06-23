@@ -206,7 +206,8 @@ extern "C" {
 
     pub fn gpr_cpu_num_cores() -> c_uint;
 
-    pub fn grpc_completion_queue_create(reserved: *mut c_void) -> *mut GrpcCompletionQueue;
+    pub fn grpc_completion_queue_create_for_next(reserved: *mut c_void)
+                                                 -> *mut GrpcCompletionQueue;
     pub fn grpc_completion_queue_next(cq: *mut GrpcCompletionQueue,
                                       deadline: GprTimespec,
                                       reserved: *mut c_void)
@@ -353,7 +354,7 @@ extern "C" {
                                         status: GrpcStatusCode,
                                         description: *const c_char,
                                         reserved: *mut c_void);
-    pub fn grpc_call_destroy(call: *mut GrpcCall);
+    pub fn grpc_call_unref(call: *mut GrpcCall);
 
     pub fn grpc_server_register_method(server: *mut GrpcServer,
                                        method: *const c_char,
@@ -434,7 +435,7 @@ mod tests {
     fn smoke() {
         unsafe {
             super::grpc_init();
-            let cq = super::grpc_completion_queue_create(ptr::null_mut());
+            let cq = super::grpc_completion_queue_create_for_next(ptr::null_mut());
             super::grpc_completion_queue_destroy(cq);
             super::grpc_shutdown();
         }

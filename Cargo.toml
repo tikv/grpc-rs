@@ -16,7 +16,7 @@ members = ["proto", "benchmark", "compiler", "interop"]
 default = ["protobuf-codec"]
 dev = ["clippy"]
 protobuf-codec = ["protobuf"]
-static-link = ["grpc-sys/static-link"]
+link-sys = ["grpc-sys/link-sys"]
 
 [[example]]
 name = "route_guide_client"

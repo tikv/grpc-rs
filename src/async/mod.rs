@@ -109,9 +109,7 @@ impl<T> Future for CqFuture<T> {
         }
 
         // So the task has not been finished yet, add notification hook.
-        if guard.task.is_none() {
-            guard.task = Some(task::current());
-        } else if !guard.task.as_ref().unwrap().will_notify_current() {
+        if guard.task.is_none() || !guard.task.as_ref().unwrap().will_notify_current() {
             guard.task = Some(task::current());
         }
 

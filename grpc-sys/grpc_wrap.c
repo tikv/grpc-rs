@@ -256,7 +256,7 @@ grpcwrap_request_call_context_destroy(grpcwrap_request_call_context *ctx) {
   }
 
   if (ctx->call) {
-    grpc_call_destroy(ctx->call);
+    grpc_call_unref(ctx->call);
   }
 
   grpc_call_details_destroy(&(ctx->call_details));
