@@ -25,6 +25,7 @@ extern crate futures;
 extern crate libc;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
+extern crate crossbeam;
 
 mod async;
 mod call;

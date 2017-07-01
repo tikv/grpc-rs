@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(dead_code)]
 
 use std::sync::Arc;
 
@@ -20,17 +21,18 @@ use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
 use cq::CompletionQueue;
+use cq::QueueNotify;
 use super::lock::SpinLock;
 use super::CallTag;
 use util;
 
 
-struct Alarm {
+pub struct Alarm {
     alarm: *mut GrpcAlarm,
 }
 
 impl Alarm {
-    fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Alarm {
+    pub fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Alarm {
         let alarm = unsafe {
             let ptr = Box::into_raw(tag);
             let timeout = GprTimespec::inf_future();
@@ -39,7 +41,7 @@ impl Alarm {
         Alarm { alarm: alarm }
     }
 
-    fn alarm(&mut self) {
+    pub fn alarm(&mut self) {
         // hack: because grpc's alarm feels more like a timer,
         // but what we need here is a notification hook. Hence
         // use cancel to implement the alarm behaviour.
@@ -65,7 +67,7 @@ impl SpawnHandle {
     /// Create a SpawnHandle.
     ///
     /// Inner future is expected to be polled in the same thread as cq.
-    pub fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnHandle {
+    fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnHandle {
         SpawnHandle {
             f: Some(s),
             cq: cq,
@@ -78,7 +80,7 @@ impl SpawnHandle {
     ///
     /// It only makes sence to call this function from the thread
     /// that cq is not run on.
-    pub fn notify(&mut self, tag: Box<CallTag>) {
+    fn notify(&mut self, tag: Box<CallTag>) {
         self.alarm.take();
         let mut alarm = Alarm::new(&self.cq, tag);
         alarm.alarm();
@@ -169,11 +171,23 @@ impl<'a> Executor<'a> {
     ///
     /// If you want to trace the future, you may need to create a sender/receiver
     /// pair by yourself.
-    pub fn spawn<F>(&self, f: F)
+    pub fn spawn_alarm<F>(&self, f: F)
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
         let s = executor::spawn(f.boxed());
         let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));
         poll(notify, false)
+    }
+
+    /// Spawn the future into inner poll loop.
+    ///
+    /// If you want to trace the future, you may need to create a sender/receiver
+    /// pair by yourself.
+    pub fn spawn<F>(&self, f: F)
+        where F: Future<Item = (), Error = ()> + Send + 'static
+    {
+        let s = executor::spawn(f.boxed());
+        let notify = QueueNotify::new(self.cq.clone());
+        notify.push_and_notify(s);
     }
 }

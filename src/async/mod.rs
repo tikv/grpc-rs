@@ -25,14 +25,14 @@ use futures::task::{self, Task};
 
 use call::{BatchContext, Call};
 use call::server::RequestContext;
-use cq::CompletionQueue;
+use cq::{CompletionQueue, QueueNotify};
 use error::{Error, Result};
 use self::executor::SpawnNotify;
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::Inner as ServerInner;
 
-pub use self::executor::Executor;
+pub use self::executor::{Executor, Alarm};
 pub use self::promise::BatchType;
 pub use self::lock::SpinLock;
 
@@ -130,6 +130,7 @@ pub enum CallTag {
     Abort(Abort),
     Shutdown(ShutdownPromise),
     Spawn(SpawnNotify),
+    Queue(QueueNotify),
 }
 
 impl CallTag {
@@ -192,6 +193,7 @@ impl CallTag {
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
             CallTag::Spawn(notify) => notify.resolve(success),
+            CallTag::Queue(notify) => notify.resolve(success),
         }
     }
 }
@@ -205,6 +207,7 @@ impl Debug for CallTag {
             CallTag::Abort(_) => write!(f, "CallTag::Abort(..)"),
             CallTag::Shutdown(_) => write!(f, "CallTag::Shutdown"),
             CallTag::Spawn(_) => write!(f, "CallTag::Spawn"),
+            CallTag::Queue(_) => write!(f, "CallTag::Queue"),
         }
     }
 }
