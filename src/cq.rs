@@ -117,6 +117,9 @@ struct ReadyQueue {
     worker_id: usize,
 }
 
+unsafe impl Send for ReadyQueue {}
+unsafe impl Sync for ReadyQueue {}
+
 impl ReadyQueue {
     fn push_and_notify(&self, mut f: Item, cq: CompletionQueue) {
         let notify = QueueNotify::new(cq.clone());
