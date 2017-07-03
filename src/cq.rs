@@ -62,7 +62,6 @@ impl CompletionQueue {
         let fq = ReadyQueue {
             queue: SegQueue::new(),
             pending: AtomicUsize::new(0),
-            alarm: SpinLock::new(None),
             worker_id: id,
         };
         CompletionQueue {
@@ -102,8 +101,8 @@ impl CompletionQueue {
         self.fq.push_and_notify(f, self.clone())
     }
 
-    fn pop_and_poll(&self) {
-        self.fq.pop_and_poll(self.clone());
+    fn pop_and_poll(&self, notify: QueueNotify) {
+        self.fq.pop_and_poll(notify, self.clone());
     }
 }
 
@@ -112,7 +111,6 @@ type Item = Spawn<BoxFuture<(), ()>>;
 struct ReadyQueue {
     queue: SegQueue<Item>,
     pending: AtomicUsize,
-    alarm: SpinLock<Option<Alarm>>,
     worker_id: usize,
 }
 
@@ -130,20 +128,22 @@ impl ReadyQueue {
             self.queue.push(f);
             let pending = self.pending.fetch_add(1, Ordering::SeqCst);
             if 0 == pending {
+                let alarm = notify.alarm.clone();
                 let tag = Box::new(CallTag::Queue(notify));
-                let mut alarm = self.alarm.lock();
+                let mut al = alarm.lock();
                 // We need to keep the alarm until queue is empty.
-                *alarm = Some(Alarm::new(&cq, tag));
-                alarm.as_mut().unwrap().alarm();
+                *al = Some(Alarm::new(&cq, tag));
+                al.as_mut().unwrap().alarm();
             }
         }
     }
 
-    fn pop_and_poll(&self, cq: CompletionQueue) {
-        let mut notify = Arc::new(QueueNotify::new(cq.clone()));
+    fn pop_and_poll(&self, notify: QueueNotify, cq: CompletionQueue) {
+        notify.alarm.lock().take().expect("must have an Alarm");
+        let mut notify = Arc::new(notify);
         let mut done = true;
 
-        while 0 != self.pending.fetch_sub(1, Ordering::SeqCst) {
+        while 0 != self.pending.load(Ordering::SeqCst) {
             notify = if done {
                 // Future has resloved, and the notify is empty, reuse it.
                 notify
@@ -154,10 +154,10 @@ impl ReadyQueue {
             };
 
             if let Some(f) = self.queue.try_pop() {
+                assert_ne!(self.pending.fetch_sub(1, Ordering::SeqCst), 0);
                 done = poll(f, &notify);
             }
         }
-        self.alarm.lock().take().expect("must have an Alarm");
     }
 }
 
@@ -183,6 +183,7 @@ fn poll(f: Item, notify: &Arc<QueueNotify>) -> bool {
 pub struct QueueNotify {
     cq: CompletionQueue,
     f: Arc<SpinLock<Option<Item>>>,
+    alarm: Arc<SpinLock<Option<Alarm>>>,
 }
 
 unsafe impl Send for QueueNotify {}
@@ -193,13 +194,14 @@ impl QueueNotify {
         QueueNotify {
             cq: cq,
             f: Arc::new(SpinLock::new(None)),
+            alarm: Arc::new(SpinLock::new(None)),
         }
     }
 
     pub fn resolve(self, success: bool) {
         // it should always be canceled for now.
         assert!(!success);
-        self.cq.pop_and_poll();
+        self.cq.clone().pop_and_poll(self);
     }
 
     pub fn push_and_notify(&self, f: Item) {
