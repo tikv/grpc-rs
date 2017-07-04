@@ -342,7 +342,10 @@ pub struct Client {
 
 impl Client {
     pub fn new(cfg: &ClientConfig) -> Client {
-        let env = Arc::new(EnvBuilder::new().build());
+        let mut env = EnvBuilder::new();
+        let thd_cnt = cfg.get_async_client_threads() as usize;
+        if thd_cnt != 0 { env = env.cq_count(thd_cnt); }
+        let env = Arc::new(env.build());
         if cfg.get_core_limit() > 0 {
             println!("client config core limit is set but ignored");
         }
