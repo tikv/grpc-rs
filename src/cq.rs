@@ -106,16 +106,15 @@ impl CompletionQueue {
     }
 }
 
+const BATCH_SIZE: usize = 1024;
 type Item = Spawn<BoxFuture<(), ()>>;
 
 struct ReadyQueue {
+    // TODO: use std::sync::mpsc::Receiver instead.
     queue: SegQueue<Item>,
     pending: AtomicUsize,
     worker_id: usize,
 }
-
-unsafe impl Send for ReadyQueue {}
-unsafe impl Sync for ReadyQueue {}
 
 impl ReadyQueue {
     fn push_and_notify(&self, f: Item, cq: CompletionQueue) {
@@ -138,12 +137,42 @@ impl ReadyQueue {
         }
     }
 
-    fn pop_and_poll(&self, notify: QueueNotify, cq: CompletionQueue) {
-        notify.alarm.lock().take().expect("must have an Alarm");
+    fn pop_and_poll(&self, mut notify: QueueNotify, cq: CompletionQueue) {
+        // Drop alarm without locking.
+        notify.alarm = Arc::new(SpinLock::new(None));
         let mut notify = Arc::new(notify);
-        let mut done = true;
 
-        while 0 != self.pending.load(Ordering::SeqCst) {
+        let mut batch = Vec::with_capacity(BATCH_SIZE);
+        let mut pending;
+        loop {
+            pending = self.pending.load(Ordering::SeqCst);
+            if pending == 0 {
+                // TODO: There must be at least one ready future in the queue.
+                // To make sure that at the first loop, pending should be zero.
+                break;
+            }
+
+            // Batch full.
+            if BATCH_SIZE == batch.len() {
+                break;
+            }
+
+            match self.queue.try_pop() {
+                Some(f) => {
+                    assert_ne!(self.pending.fetch_sub(1, Ordering::SeqCst), 0);
+                    batch.push(f);
+                }
+                None => {
+                    if !batch.is_empty() {
+                        // Do not wait for more ready futures.
+                        break;
+                    }
+                }
+            }
+        }
+
+        let mut done = true;
+        for f in batch {
             notify = if done {
                 // Future has resloved, and the notify is empty, reuse it.
                 notify
@@ -153,10 +182,23 @@ impl ReadyQueue {
                 Arc::new(QueueNotify::new(cq.clone()))
             };
 
-            if let Some(f) = self.queue.try_pop() {
-                assert_ne!(self.pending.fetch_sub(1, Ordering::SeqCst), 0);
-                done = poll(f, &notify);
-            }
+            done = poll(f, &notify);
+        }
+
+        if done {
+            notify.alarm.lock().take();
+        }
+
+        // There are still pending ready futures, poll them later.
+        if pending != 0 {
+            let notify = QueueNotify::new(cq.clone());
+            let alarm = notify.alarm.clone();
+            let tag = Box::new(CallTag::Queue(notify));
+
+            let mut al = alarm.lock();
+            // We need to keep the alarm until queue is empty.
+            *al = Some(Alarm::new(&cq, tag));
+            al.as_mut().unwrap().alarm();
         }
     }
 }
