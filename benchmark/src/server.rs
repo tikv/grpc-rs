@@ -31,10 +31,12 @@ pub struct Server {
 
 impl Server {
     pub fn new(cfg: &ServerConfig) -> Result<Server> {
-        let mut env = EnvBuilder::new();
+        let mut builder = EnvBuilder::new();
         let thd_cnt = cfg.get_async_server_threads() as usize;
-        if thd_cnt != 0 { env = env.cq_count(thd_cnt); }
-        let env = Arc::new(env.build());
+        if thd_cnt != 0 {
+            builder = builder.cq_count(thd_cnt);
+        }
+        let env = Arc::new(builder.build());
         if cfg.get_core_limit() > 0 {
             println!("server config core limit is set but ignored");
         }
