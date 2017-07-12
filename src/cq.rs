@@ -20,7 +20,7 @@ use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
 use futures::Async;
 use futures::future::BoxFuture;
 use futures::executor::{Notify, Spawn};
-use crossbeam::sync::SegQueue;
+use mio::util::BoundedQueue;
 
 use async::{SpinLock, Alarm, CallTag};
 use util;
@@ -60,7 +60,7 @@ pub struct CompletionQueue {
 impl CompletionQueue {
     pub fn new(handle: Arc<CompletionQueueHandle>, id: usize) -> CompletionQueue {
         let fq = ReadyQueue {
-            queue: SegQueue::new(),
+            queue: BoundedQueue::with_capacity(BATCH_SIZE * 2),
             pending: AtomicUsize::new(0),
             worker_id: id,
         };
@@ -112,20 +112,26 @@ type Item = Spawn<BoxFuture<(), ()>>;
 
 struct ReadyQueue {
     // TODO: use std::sync::mpsc::Receiver instead.
-    queue: SegQueue<Item>,
+    queue: BoundedQueue<Item>,
     pending: AtomicUsize,
     worker_id: usize,
 }
 
 impl ReadyQueue {
-    fn push_and_notify(&self, f: Item, cq: CompletionQueue) {
+    fn push_and_notify(&self, mut f: Item, cq: CompletionQueue) {
         let notify = QueueNotify::new(cq.clone());
 
         if util::get_worker_id() == self.worker_id {
             let notify = Arc::new(notify);
             poll(f, &notify);
         } else {
-            self.queue.push(f);
+            loop {
+                if let Err(out) = self.queue.push(f) {
+                    f = out;
+                } else {
+                    break;
+                }
+            }
             let pending = self.pending.fetch_add(1, Ordering::SeqCst);
             if 0 == pending {
                 let alarm = notify.alarm.clone();
@@ -158,7 +164,7 @@ impl ReadyQueue {
                 break;
             }
 
-            match self.queue.try_pop() {
+            match self.queue.pop() {
                 Some(f) => {
                     assert_ne!(self.pending.fetch_sub(1, Ordering::SeqCst), 0);
                     batch.push(f);
