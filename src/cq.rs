@@ -102,6 +102,7 @@ impl CompletionQueue {
     }
 
     fn pop_and_poll(&self, notify: QueueNotify) {
+        assert_eq!(util::get_worker_id(), self.id);
         self.fq.pop_and_poll(notify, self.clone());
     }
 }
@@ -196,7 +197,7 @@ impl ReadyQueue {
             let tag = Box::new(CallTag::Queue(notify));
 
             let mut al = alarm.lock();
-            // We need to keep the alarm until queue is empty.
+            // We need to keep the alarm until it arrives in the CQ.
             *al = Some(Alarm::new(&cq, tag));
             al.as_mut().unwrap().alarm();
         }
