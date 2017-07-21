@@ -13,11 +13,10 @@
 
 
 use std::time::{Duration, Instant};
-use std::{f64, mem};
+use std::f64;
 
 use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
-use libc::{self, rusage};
 
 pub struct Sample {
     pub real_time: f64,
@@ -28,7 +27,8 @@ pub struct Sample {
 }
 
 pub struct CpuRecorder {
-    usage_snap: rusage,
+    user_time: f64,
+    sys_time: f64,
     total_cpu: u64,
     idle_cpu: u64,
     last_reset_time: Instant,
@@ -36,37 +36,30 @@ pub struct CpuRecorder {
 
 impl CpuRecorder {
     pub fn new() -> CpuRecorder {
-        let mut usage = unsafe { mem::zeroed() };
-        unsafe { assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut usage), 0) };
-        let (total_cpu, idle_cpu) = get_cpu_usage();
-        CpuRecorder {
-            usage_snap: usage,
-            total_cpu: total_cpu,
-            idle_cpu: idle_cpu,
-            last_reset_time: Instant::now(),
-        }
+        let (total_cpu, idle_cpu) = util::get_cpu_usage();
+        let (sys_time, user_time) = util::get_resource_usage();
+        let last_reset_time = Instant::now();
+
+        CpuRecorder { user_time, sys_time, total_cpu, idle_cpu, last_reset_time }
     }
 
     pub fn cpu_time(&mut self, reset: bool) -> Sample {
         let now = Instant::now();
-        let mut latest = unsafe { mem::zeroed() };
-        unsafe { assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut latest), 0) };
-        let (total_cpu, idle_cpu) = get_cpu_usage();
+        let (total_cpu, idle_cpu) = util::get_cpu_usage();
+        let (sys_time, user_time) = util::get_resource_usage();
 
-        let user_sec = latest.ru_utime.tv_sec - self.usage_snap.ru_utime.tv_sec;
-        let user_usec = latest.ru_utime.tv_usec - self.usage_snap.ru_utime.tv_usec;
-        let sys_sec = latest.ru_stime.tv_sec - self.usage_snap.ru_stime.tv_sec;
-        let sys_usec = latest.ru_stime.tv_usec - self.usage_snap.ru_stime.tv_usec;
-        let user_time = user_sec as f64 + user_usec as f64 / 1_000_000f64;
-        let sys_time = sys_sec as f64 + sys_usec as f64 / 1_000_000f64;
         let total_cpu_diff = total_cpu - self.total_cpu;
         let idle_cpu_diff = idle_cpu - self.idle_cpu;
+
+        let sys_time_diff = sys_time - self.sys_time;
+        let user_time_diff = user_time - self.user_time;
 
         let elapsed = now - self.last_reset_time;
         let real_time = dur_to_secs(elapsed);
 
         if reset {
-            self.usage_snap = latest;
+            self.user_time = user_time;
+            self.sys_time = sys_time;
             self.last_reset_time = now;
             self.total_cpu = total_cpu;
             self.idle_cpu = idle_cpu;
@@ -74,8 +67,8 @@ impl CpuRecorder {
 
         Sample {
             real_time: real_time,
-            user_time: user_time,
-            sys_time: sys_time,
+            user_time: user_time_diff,
+            sys_time: sys_time_diff,
             total_cpu: total_cpu_diff,
             idle_cpu: idle_cpu_diff,
         }
@@ -83,26 +76,49 @@ impl CpuRecorder {
 }
 
 #[cfg(target_os = "linux")]
-fn get_cpu_usage() -> (u64, u64) {
+mod util {
     use std::fs::File;
     use std::io::Read;
+    use std::mem;
 
-    let mut f = File::open("/proc/stat").unwrap();
-    let mut usages = String::default();
-    let (mut total_usage, mut idle_usage) = (0, 0);
-    f.read_to_string(&mut usages).unwrap();
-    for (idx, usage) in usages[5..].split_whitespace().take(10).enumerate() {
-        total_usage += usage.parse().unwrap();
-        if idx == 3 {
-            idle_usage = usage.parse().unwrap();
+    use libc::{self, timeval};
+
+    pub fn get_resource_usage() -> (f64, f64) {
+        fn timeval_to_seconds(tv: &timeval) -> f64 {
+            tv.tv_sec as f64 + tv.tv_usec as f64 * 10e-6
+        }
+
+        unsafe {
+            let mut usage = mem::zeroed();
+            assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut usage), 0);
+            (timeval_to_seconds(&usage.ru_stime), timeval_to_seconds(&usage.ru_utime))
         }
     }
-    (total_usage, idle_usage)
+
+    pub fn get_cpu_usage() -> (u64, u64) {
+        let mut f = File::open("/proc/stat").unwrap();
+        let mut usages = String::default();
+        let (mut total_usage, mut idle_usage) = (0, 0);
+        f.read_to_string(&mut usages).unwrap();
+        for (idx, usage) in usages[5..].split_whitespace().take(10).enumerate() {
+            total_usage += usage.parse().unwrap();
+            if idx == 3 {
+                idle_usage = usage.parse().unwrap();
+            }
+        }
+        (total_usage, idle_usage)
+    }
 }
 
 #[cfg(not(target_os = "linux"))]
-fn get_cpu_usage() -> (u64, u64) {
-    (0, 0)
+mod util {
+    pub fn get_resource_usage() -> (f64, f64) {
+        (0f64, 0f64)
+    }
+
+    pub fn get_cpu_usage() -> (u64, u64) {
+        (0, 0)
+    }
 }
 
 #[inline]
