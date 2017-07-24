@@ -1,6 +1,7 @@
 # gRPC-rs
 
 [![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
+[![Build status](https://ci.appveyor.com/api/projects/status/1cofa3nih5fm2kb0/branch/master?svg=true)](https://ci.appveyor.com/project/busyjay/grpc-rs/branch/master)
 
 The Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source, general RPC framework that puts mobile and HTTP/2 first.
 

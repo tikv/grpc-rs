@@ -14,3 +14,4 @@ clap = "2.23"
 
 [[bin]]
 name = "qps_worker"
+path = "src/main.rs"
