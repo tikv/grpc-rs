@@ -37,6 +37,7 @@ mod imp {
 #[cfg(not(feature = "link-sys"))]
 mod imp {
     use std::path::Path;
+    use std::env;
 
     use cmake::Config as CMakeConfig;
     use gcc::Config as GccConfig;
@@ -64,18 +65,45 @@ mod imp {
             .build_target("grpc")
             .build();
 
+        let mut zlib = "z";
         let build_dir = format!("{}/build", dst.display());
-        println!("cargo:rustc-link-search=native={}", build_dir);
-        println!("cargo:rustc-link-search=native={}/third_party/cares",
-                 build_dir);
-        println!("cargo:rustc-link-search=native={}/third_party/zlib",
-                 build_dir);
-        println!("cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
-                 build_dir);
-        println!("cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
-                 build_dir);
-
-        println!("cargo:rustc-link-lib=static=z");
+        if cfg!(target_os = "windows") {
+            let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
+                "bench" | "release" => {
+                    zlib = "zlibstatic";
+                    "Release"
+                },
+                _ => {
+                    zlib = "zlibstaticd";
+                    "Debug"
+                },
+            };
+            println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
+            println!("cargo:rustc-link-search=native={}/third_party/cares/{}",
+                    build_dir,
+                    profile);
+            println!("cargo:rustc-link-search=native={}/third_party/zlib/{}",
+                    build_dir,
+                    profile);
+            println!("cargo:rustc-link-search=native={}/third_party/boringssl/ssl/{}",
+                    build_dir,
+                    profile);
+            println!("cargo:rustc-link-search=native={}/third_party/boringssl/crypto/{}",
+                    build_dir,
+                    profile);
+        } else {
+            println!("cargo:rustc-link-search=native={}", build_dir);
+            println!("cargo:rustc-link-search=native={}/third_party/cares",
+                    build_dir);
+            println!("cargo:rustc-link-search=native={}/third_party/zlib",
+                    build_dir);
+            println!("cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
+                    build_dir);
+            println!("cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
+                    build_dir);
+        }
+        
+        println!("cargo:rustc-link-lib=static={}", zlib);
         println!("cargo:rustc-link-lib=static=cares");
         println!("cargo:rustc-link-lib=static=gpr");
         println!("cargo:rustc-link-lib=static=grpc");
@@ -91,8 +119,12 @@ fn main() {
 
     imp::build_or_link_grpc(&mut cc);
 
-    cc.file("grpc_wrap.c")
-        .flag("-fPIC")
-        .flag("-O2")
-        .compile("libgrpc_wrap.a");
+    cc.file("grpc_wrap.c").flag("-O2");
+
+    if cfg!(target_os = "windows") {
+        // At lease win7
+        cc.define("_WIN32_WINNT", Some("0x0700"));
+    }
+    
+    cc.compile("libgrpc_wrap.a");
 }
