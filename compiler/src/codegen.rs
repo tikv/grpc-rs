@@ -367,14 +367,14 @@ impl<'a> ServiceGen<'a> {
 
     fn write_client(&self, w: &mut CodeWriter) {
         w.pub_struct(&self.client_name(),
-                     |w| { w.field_decl("client", "::grpc::Client"); });
+                     |w| { w.field_decl("client", "::grpcio::Client"); });
 
         w.write_line("");
 
         w.impl_self_block(&self.client_name(), |w| {
-            w.pub_fn("new(channel: ::grpc::Channel) -> Self", |w| {
+            w.pub_fn("new(channel: ::grpcio::Channel) -> Self", |w| {
                 w.expr_block(&self.client_name(),
-                             |w| { w.field_entry("client", "::grpc::Client::new(channel)"); });
+                             |w| { w.field_entry("client", "::grpcio::Client::new(channel)"); });
             });
 
             for method in &self.methods {
@@ -400,7 +400,7 @@ impl<'a> ServiceGen<'a> {
                         self.service_name(),
                         fq_grpc("Service"));
         w.pub_fn(&s, |w| {
-            w.write_line("let mut builder = ::grpc::ServiceBuilder::new();");
+            w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
             for method in &self.methods {
                 w.write_line("let instance = s.clone();");
                 method.write_bind(w);

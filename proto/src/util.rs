@@ -12,8 +12,8 @@
 // limitations under the License.
 
 
-use grpc::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
-           ServerCredentialsBuilder};
+use grpcio::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+             ServerCredentialsBuilder};
 
 use testing::messages::{Payload, ResponseParameters};
 
