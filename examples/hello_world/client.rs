@@ -13,15 +13,15 @@
 
 
 extern crate futures;
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio;
+extern crate grpcio_proto;
 extern crate protobuf;
 
 use std::sync::Arc;
 
-use grpc::{ChannelBuilder, EnvBuilder};
-use grpc_proto::example::helloworld::HelloRequest;
-use grpc_proto::example::helloworld_grpc::GreeterClient;
+use grpcio::{ChannelBuilder, EnvBuilder};
+use grpcio_proto::example::helloworld::HelloRequest;
+use grpcio_proto::example::helloworld_grpc::GreeterClient;
 
 fn main() {
     let env = Arc::new(EnvBuilder::new().build());

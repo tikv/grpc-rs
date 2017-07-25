@@ -3,9 +3,9 @@ name = "interop"
 version = "0.1.0"
 
 [dependencies]
-grpc = { path = ".." }
-grpc-sys = { path = "../grpc-sys" }
-grpc-proto = { path = "../proto" }
+grpcio = { path = ".." }
+grpcio-sys = { path = "../grpc-sys" }
+grpcio-proto = { path = "../proto" }
 protobuf = "1.2"
 futures = "0.1"
 clap = "2.23"

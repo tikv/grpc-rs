@@ -13,7 +13,7 @@
 
 
 extern crate protobuf;
-extern crate grpc_compiler;
+extern crate grpcio_compiler as grpc_compiler;
 
 use std::fs::{self, File};
 use std::env;

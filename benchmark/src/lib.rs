@@ -15,12 +15,12 @@
 #![cfg_attr(feature = "dev", plugin(clippy))]
 #![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
 
-extern crate grpc;
-extern crate grpc_proto;
 #[macro_use]
 extern crate futures;
+extern crate grpcio as grpc;
+extern crate grpcio_proto as grpc_proto;
+extern crate grpcio_sys as grpc_sys;
 extern crate libc;
-extern crate grpc_sys;
 extern crate rand;
 extern crate tokio_timer;
 

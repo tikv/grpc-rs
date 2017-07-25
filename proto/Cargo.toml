@@ -1,13 +1,13 @@
 [package]
-name = "grpc-proto"
+name = "grpcio-proto"
 version = "0.1.0"
 build = "build.rs"
 
 [dependencies]
 protobuf = "1.2"
 futures = "0.1"
-grpc = { path = ".." }
+grpcio = { path = ".." }
 
 [build-dependencies]
 protobuf = "1.2"
-grpc-compiler = { path = "../compiler" }
+grpcio-compiler = { path = "../compiler" }

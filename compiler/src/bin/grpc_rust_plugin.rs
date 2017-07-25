@@ -32,9 +32,9 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-extern crate grpc_compiler;
+extern crate grpcio_compiler;
 
-use grpc_compiler::codegen;
+use grpcio_compiler::codegen;
 
 fn main() {
     codegen::protoc_gen_grpc_rust_main();

@@ -13,8 +13,8 @@
 
 
 extern crate futures;
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio;
+extern crate grpcio_proto;
 extern crate protobuf;
 extern crate rand;
 extern crate serde;
@@ -29,9 +29,9 @@ use std::time::Duration;
 use std::thread;
 
 use futures::{Future, Sink, Stream, future};
-use grpc::*;
-use grpc_proto::example::route_guide::{Point, Rectangle, RouteNote};
-use grpc_proto::example::route_guide_grpc::RouteGuideClient;
+use grpcio::*;
+use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
+use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
 use rand::Rng;
 
 fn new_point(lat: i32, lon: i32) -> Point {

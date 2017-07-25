@@ -14,8 +14,8 @@
 extern crate benchmark;
 extern crate clap;
 extern crate futures;
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio as grpc;
+extern crate grpcio_proto as grpc_proto;
 
 use std::sync::Arc;
 

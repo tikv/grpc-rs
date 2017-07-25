@@ -13,8 +13,8 @@
 
 
 extern crate futures;
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio;
+extern crate grpcio_proto;
 extern crate protobuf;
 
 use std::io::Read;
@@ -23,10 +23,10 @@ use std::{io, thread};
 
 use futures::Future;
 use futures::sync::oneshot;
-use grpc::{Environment, RpcContext, ServerBuilder, UnarySink};
+use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
 
-use grpc_proto::example::helloworld::{HelloReply, HelloRequest};
-use grpc_proto::example::helloworld_grpc::{self, Greeter};
+use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
+use grpcio_proto::example::helloworld_grpc::{self, Greeter};
 
 #[derive(Clone)]
 struct GreeterService;
