@@ -3,11 +3,11 @@ name = "benchmark"
 version = "0.1.0"
 
 [dependencies]
-grpc = { path = ".." }
-grpc-proto = { path = "../proto" }
+grpcio = { path = ".." }
+grpcio-proto = { path = "../proto" }
 futures = "0.1"
 libc = "0.2"
-grpc-sys = { path = "../grpc-sys" }
+grpcio-sys = { path = "../grpc-sys" }
 rand = "0.3"
 tokio-timer = "0.1"
 clap = "2.23"

@@ -19,7 +19,7 @@
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]
 
-extern crate grpc_sys;
+extern crate grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate futures;
 extern crate libc;

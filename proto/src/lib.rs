@@ -13,7 +13,7 @@
 
 
 extern crate futures;
-extern crate grpc;
+extern crate grpcio;
 extern crate protobuf;
 
 pub mod testing {

@@ -13,8 +13,8 @@
 
 
 extern crate clap;
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio as grpc;
+extern crate grpcio_proto as grpc_proto;
 extern crate interop;
 
 use std::sync::Arc;

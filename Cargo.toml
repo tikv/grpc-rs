@@ -1,9 +1,9 @@
 [package]
-name = "grpc"
+name = "grpcio"
 version = "0.1.0"
 
 [dependencies]
-grpc-sys = { path = "grpc-sys", version = "0.1" }
+grpcio-sys = { path = "grpc-sys", version = "0.1" }
 libc = "0.2"
 futures = "^0.1.14"
 protobuf = { version = "1.2", optional = true }
@@ -16,7 +16,7 @@ members = ["proto", "benchmark", "compiler", "interop"]
 default = ["protobuf-codec"]
 dev = ["clippy"]
 protobuf-codec = ["protobuf"]
-link-sys = ["grpc-sys/link-sys"]
+link-sys = ["grpcio-sys/link-sys"]
 
 [[example]]
 name = "route_guide_client"
@@ -38,7 +38,7 @@ path = "examples/hello_world/server.rs"
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpc-proto = { path = "proto" }
+grpcio-proto = { path = "proto" }
 rand = "0.3"
 
 [profile.release]

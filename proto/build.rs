@@ -13,7 +13,7 @@
 
 
 extern crate protobuf;
-extern crate grpc_compiler;
+extern crate grpcio_compiler;
 
 use std::fs::{self, File};
 use std::env;
@@ -21,7 +21,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use grpc_compiler::codegen as grpc_gen;
+use grpcio_compiler::codegen as grpc_gen;
 use protobuf::codegen as pb_gen;
 use protobuf::compiler_plugin::GenResult;
 use protobuf::descriptor::{FileDescriptorProto, FileDescriptorSet};

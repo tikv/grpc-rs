@@ -12,8 +12,8 @@
 // limitations under the License.
 
 
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio;
+extern crate grpcio_proto;
 extern crate protobuf;
 extern crate futures;
 extern crate serde;
@@ -28,13 +28,13 @@ use std::io::Read;
 use std::time::Instant;
 use std::{io, thread};
 
-use grpc::*;
+use grpcio::*;
 use futures::*;
 use futures::sync::oneshot;
 
 use util::*;
-use grpc_proto::example::route_guide::*;
-use grpc_proto::example::route_guide_grpc::{self, RouteGuide};
+use grpcio_proto::example::route_guide::*;
+use grpcio_proto::example::route_guide_grpc::{self, RouteGuide};
 
 
 #[derive(Clone)]
