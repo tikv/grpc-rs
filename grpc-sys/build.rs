@@ -37,7 +37,7 @@ mod imp {
 #[cfg(not(feature = "link-sys"))]
 mod imp {
     use std::path::Path;
-    use std::env;
+    use std::{env, fs, io};
 
     use cmake::Config as CMakeConfig;
     use gcc::Config as GccConfig;
@@ -51,11 +51,16 @@ mod imp {
         ];
 
         for module in modules {
-            if !Path::new(&format!("{}/.git", module)).exists() {
+            if is_directory_empty(module).unwrap_or(true) {
                 panic!("Can't find module {}. You need to run `git submodule \
                         update --init --recursive` first to build the project.", module);
             }
         }
+    }
+
+    pub fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
+        let mut entries = try!(fs::read_dir(p));
+        Ok(entries.next().is_none())
     }
 
     pub fn build_or_link_grpc(cc: &mut GccConfig) {
