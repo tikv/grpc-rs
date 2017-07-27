@@ -14,17 +14,16 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread::{Builder as ThreadBuilder, JoinHandle};
+use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 
 use grpc_sys;
 
 use async::CallTag;
 use cq::{CompletionQueue, CompletionQueueHandle, EventType};
-use util;
 
 // event loop
-fn poll_queue(cq: Arc<CompletionQueueHandle>, id: usize) {
-    util::set_worker_id(id);
+fn poll_queue(cq: Arc<CompletionQueueHandle>) {
+    let id = thread::current().id();
     let cq = CompletionQueue::new(cq, id);
     loop {
         let e = cq.next();
@@ -78,8 +77,8 @@ impl EnvBuilder {
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
-            let handle = builder.spawn(move || poll_queue(cq_, i + 1)).unwrap();
-            cqs.push(CompletionQueue::new(cq, i + 1));
+            let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
+            cqs.push(CompletionQueue::new(cq, handle.thread().id()));
             handles.push(handle);
         }
 
