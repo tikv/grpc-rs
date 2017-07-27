@@ -1,6 +1,6 @@
 # gRPC-rs
 
-The Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source, general RPC framework that puts mobile and HTTP/2 first.
+`gRPC-rs` is a Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source universal RPC framework that puts mobile and HTTP/2 first.
 
 [![Crates.io](https://img.shields.io/crates/v/grpcio.svg?maxAge=2592000)](https://crates.io/crates/grpcio)
 [![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
@@ -10,9 +10,9 @@ The Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www
 
 Status
 ------
-This project is still under developement, not all features are supported.
+This project is still under developement. The following features with the check marks are supported:
 
-- [x] Basic asynchronous unary/steaming call
+- [x] Basic asynchronous unary/steaming call 
 - [x] SSL
 - [x] Generic call
 - [x] Connetion level compression
@@ -51,19 +51,19 @@ Usage
 
 To generate the sources from proto files:
 
-1. Install protobuf compiler.
+1. Install the protobuf compiler:
 
 ```
 $ cargo install protobuf
 ```
 
-2. Install gRPC compiler.
+2. Install the gRPC compiler:
 
 ```
 $ cargo install grpcio-compiler
 ```
 
-3. Generate sources.
+3. Generate the sources:
 
 ```
 $ protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plugin` example.proto
