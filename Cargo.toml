@@ -9,7 +9,7 @@ readme = "README.md"
 homepage = "https://github.com/pingcap/grpc-rs"
 documentation = "https://docs.rs/grpcio"
 description = "The rust language implementation of gRPC, base on the gRPC c core library."
-categories = ["Asynchronous", "Network programming"]
+categories = ["asynchronous", "network-programming"]
 
 [dependencies]
 grpcio-sys = { path = "grpc-sys", version = "0.1.0" }

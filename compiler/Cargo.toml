@@ -8,7 +8,7 @@ repository = "https://github.com/pingcap/grpc-rs"
 homepage = "https://github.com/pingcap/grpc-rs"
 documentation = "https://docs.rs/grpcio-compiler"
 description = "gRPC compiler for grpcio"
-categories = ["Network programming"]
+categories = ["network-programming"]
 
 [dependencies]
 protobuf = "1.2"
