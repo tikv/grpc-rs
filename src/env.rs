@@ -14,8 +14,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{sync_channel, SyncSender};
-use std::thread::{self, Builder as ThreadBuilder, JoinHandle, ThreadId};
+use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 
 use grpc_sys;
 
@@ -23,10 +22,8 @@ use async::CallTag;
 use cq::{CompletionQueue, CompletionQueueHandle, EventType};
 
 // event loop
-fn poll_queue(cq: Arc<CompletionQueueHandle>, tx: SyncSender<ThreadId>) {
+fn poll_queue(cq: Arc<CompletionQueueHandle>) {
     let id = thread::current().id();
-    tx.send(id).unwrap();
-
     let cq = CompletionQueue::new(cq, id);
     loop {
         let e = cq.next();
@@ -71,19 +68,17 @@ impl EnvBuilder {
         unsafe {
             grpc_sys::grpc_init();
         }
-        let (tx, rx) = sync_channel(1);
         let mut cqs = Vec::with_capacity(self.cq_count);
         let mut handles = Vec::with_capacity(self.cq_count);
         for i in 0..self.cq_count {
             let cq = Arc::new(CompletionQueueHandle::new());
             let cq_ = cq.clone();
-            let tx = tx.clone();
             let mut builder = ThreadBuilder::new();
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
-            let handle = builder.spawn(move || poll_queue(cq_, tx)).unwrap();
-            cqs.push(CompletionQueue::new(cq, rx.recv().unwrap()));
+            let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
+            cqs.push(CompletionQueue::new(cq, handle.thread().id()));
             handles.push(handle);
         }
 
