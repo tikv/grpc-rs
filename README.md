@@ -29,7 +29,7 @@ Prerequisites
 - Cmake 3.8.0
 - Gcc (or Clang)
 - Go (to build ssl support) >=1.7
-- Rust >= 1.18.0
+- Rust >= 1.19.0
 
 Build
 -----
