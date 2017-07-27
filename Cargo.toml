@@ -1,9 +1,18 @@
 [package]
 name = "grpcio"
 version = "0.1.0"
+authors = ["The TiKV Project Developers"]
+license = "Apache-2.0"
+keywords = ["api", "grpc", "protobuf", "rpc", "tls", "http2"]
+repository = "https://github.com/pingcap/grpc-rs"
+readme = "README.md"
+homepage = "https://github.com/pingcap/grpc-rs"
+documentation = "https://docs.rs/grpcio"
+description = "The rust language implementation of gRPC, base on the gRPC c core library."
+categories = ["Asynchronous", "Network programming"]
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.1" }
+grpcio-sys = { path = "grpc-sys", version = "0.1.0" }
 libc = "0.2"
 futures = "^0.1.14"
 protobuf = { version = "1.2", optional = true }
@@ -43,3 +52,7 @@ rand = "0.3"
 
 [profile.release]
 debug = true
+
+[badges]
+travis-ci = { repository = "pingcap/grpc-rs" }
+appveyor = { repository = "busyjay/grpc-rs" }
