@@ -11,8 +11,21 @@ description = "FFI bindings to gRPC c core library"
 categories = ["external-ffi-bindings", "network-programming"]
 build = "build.rs"
 exclude = [
+    "grpc/doc/*",
+    "grpc/etc/*",
+    "grpc/examples/*",
+    "grpc/Makefile",
+    "grpc/templates/*",
+    "grpc/src/node/*",
+    "grpc/src/objective-c/*",
+    "grpc/src/php/*",
+    "grpc/src/python/*",
+    "grpc/src/ruby/*",
     "grpc/vsprojects/*",
+    "grpc/test/core/end2end/*",
     "grpc/third_party/benchmark/*",
+    "grpc/third_party/boringssl/fuzz/*",
+    "grpc/third_party/boringssl/crypto/cipher/test/*",
     "grpc/third_party/boringssl-with-bazel/*",
     "grpc/third_party/gflags/*",
     "grpc/third_party/googletest/*",
