@@ -73,7 +73,7 @@ To include this project as a dependency:
 
 ```
 [dependencies]
-grpcio = "0.1.0"
+grpcio = "0.1"
 ```
 
 Performance
