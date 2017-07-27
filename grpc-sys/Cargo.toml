@@ -1,7 +1,25 @@
 [package]
 name = "grpcio-sys"
 version = "0.1.0"
+authors = ["The TiKV Project Developers"]
+license = "Apache-2.0"
+keywords = ["grpc", "bindings"]
+repository = "https://github.com/pingcap/grpc-rs"
+homepage = "https://github.com/pingcap/grpc-rs"
+documentation = "https://docs.rs/grpcio-sys"
+description = "FFI bindings to gRPC c core library"
+categories = ["External FFI bindings", "Network programming"]
 build = "build.rs"
+exclude = [
+    "grpc/vsprojects/*",
+    "grpc/third_party/benchmark/*",
+    "grpc/third_party/boringssl-with-bazel/*",
+    "grpc/third_party/gflags/*",
+    "grpc/third_party/googletest/*",
+    "grpc/third_party/objective_c/*",
+    "grpc/third_party/protobuf/*",
+    "grpc/third_party/rake-compiler-dock/*",
+]
 
 [dependencies]
 libc = "0.2"
