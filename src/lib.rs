@@ -12,9 +12,7 @@
 // limitations under the License.
 
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
+#![allow(unknown_lints)]
 
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]

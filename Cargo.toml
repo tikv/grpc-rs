@@ -3,7 +3,7 @@ name = "grpcio"
 version = "0.1.0"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
-keywords = ["api", "grpc", "protobuf", "rpc", "tls", "http2"]
+keywords = ["grpc", "protobuf", "rpc", "tls", "http2"]
 repository = "https://github.com/pingcap/grpc-rs"
 readme = "README.md"
 homepage = "https://github.com/pingcap/grpc-rs"
@@ -16,14 +16,12 @@ grpcio-sys = { path = "grpc-sys", version = "0.1.0" }
 libc = "0.2"
 futures = "^0.1.14"
 protobuf = { version = "1.2", optional = true }
-clippy = { version = "*", optional = true }
 
 [workspace]
 members = ["proto", "benchmark", "compiler", "interop"]
 
 [features]
 default = ["protobuf-codec"]
-dev = ["clippy"]
 protobuf-codec = ["protobuf"]
 link-sys = ["grpcio-sys/link-sys"]
 
