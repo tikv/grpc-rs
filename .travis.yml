@@ -31,7 +31,7 @@ before_script:
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 script:
-  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then cargo install -f clippy && cargo clippy --all; fi
+  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then cargo install -f clippy && cargo clippy; fi
   - export RUSTFLAGS=-Dwarnings
   - cargo build
   - cargo test --all
