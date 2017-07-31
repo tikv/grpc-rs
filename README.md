@@ -6,8 +6,6 @@
 [![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
 [![Build status](https://ci.appveyor.com/api/projects/status/1cofa3nih5fm2kb0/branch/master?svg=true)](https://ci.appveyor.com/project/busyjay/grpc-rs/branch/master)
 
-[Documentation](https://docs.rs/grpcio)
-
 Status
 ------
 This project is still under developement. The following features with the check marks are supported:
