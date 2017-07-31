@@ -52,7 +52,7 @@ $ cargo install protobuf
 2. Install gRPC compiler.
 
 ```
-$ cargo install --git https://github.com/pingcap/grpc-rs.git grpc-compiler
+$ cargo install --git https://github.com/pingcap/grpc-rs.git grpcio-compiler
 ```
 
 3. Generate sources.
