@@ -8,12 +8,12 @@
 
 Status
 ------
-This project is still under developement. The following features with the check marks are supported:
+This project is still under development. The following features with the check marks are supported:
 
 - [x] Basic asynchronous unary/steaming call 
 - [x] SSL
 - [x] Generic call
-- [x] Connetion level compression
+- [x] Connection level compression
 - [x] Interoperability test
 - [x] QPS benchmark
 - [ ] Custom metadata
