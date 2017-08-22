@@ -18,7 +18,7 @@ extern crate pkg_config;
 
 #[cfg(feature = "link-sys")]
 mod imp {
-    use gcc::Config as GccConfig;
+    use gcc::Build as GccConfig;
     use pkg_config::Config as PkgConfig;
     
     const GRPC_VERSION: &'static str = "1.4.0";
@@ -40,7 +40,7 @@ mod imp {
     use std::{env, fs, io};
 
     use cmake::Config as CMakeConfig;
-    use gcc::Config as GccConfig;
+    use gcc::Build as GccConfig;
 
     fn prepare_grpc() {
         let modules = vec![
@@ -67,6 +67,8 @@ mod imp {
         prepare_grpc();
 
         let dst = CMakeConfig::new("grpc")
+            .cflag("-w")
+            .cxxflag("-w")
             .build_target("grpc")
             .build();
 
@@ -120,11 +122,11 @@ mod imp {
 }
 
 fn main() {
-    let mut cc = gcc::Config::new();
+    let mut cc = gcc::Build::new();
 
     imp::build_or_link_grpc(&mut cc);
 
-    cc.file("grpc_wrap.c").flag("-O2");
+    cc.file("grpc_wrap.c").warnings(false).opt_level(2);
 
     if cfg!(target_os = "windows") {
         // At lease win7
