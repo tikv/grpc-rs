@@ -12,6 +12,10 @@
 // limitations under the License.
 
 
+#![allow(unknown_lints)]
+
+#![allow(unreadable_literal)]
+
 extern crate grpcio;
 extern crate grpcio_proto;
 extern crate protobuf;
@@ -79,10 +83,11 @@ impl RouteGuide for RouteGuideService {
                   move |(last, mut dis, mut summary), point| {
                 let total_count = summary.get_point_count();
                 summary.set_point_count(total_count + 1);
-                if data.iter()
+                let valid_point = data.iter()
                        .any(|f| {
                                 !f.get_name().is_empty() && same_point(f.get_location(), &point)
-                            }) {
+                            });
+                if valid_point {
                     let feature_count = summary.get_feature_count();
                     summary.set_feature_count(feature_count + 1);
                 }
@@ -143,7 +148,7 @@ fn main() {
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
         println!("Press ENTER to exit...");
-        io::stdin().read(&mut [0]).unwrap();
+        let _ = io::stdin().read(&mut [0]).unwrap();
         tx.send(())
     });
     let _ = rx.wait();

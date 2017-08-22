@@ -55,7 +55,7 @@ fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
     note
 }
 
-fn get_feature(client: &RouteGuideClient, point: Point) {
+fn get_feature(client: &RouteGuideClient, point: &Point) {
     let get_feature = client.get_feature_async(point.clone());
     match get_feature.wait() {
         Err(e) => panic!("RPC failed: {:?}", e),
@@ -65,18 +65,18 @@ fn get_feature(client: &RouteGuideClient, point: Point) {
                 return;
             }
             if f.get_name().is_empty() {
-                println!("Found no feature at {}", util::format_point(&point));
+                println!("Found no feature at {}", util::format_point(point));
                 return;
             }
             println!("Found feature called {} at {}",
                      f.get_name(),
-                     util::format_point(&point));
+                     util::format_point(point));
         }
     }
 }
 
 fn list_features(client: &RouteGuideClient) {
-    let rect = new_rect(400000000, -750000000, 420000000, -730000000);
+    let rect = new_rect(400_000_000, -750_000_000, 420_000_000, -730_000_000);
     println!("Looking for features between 40, -75 and 42, -73");
     let mut list_features = client.list_features(rect);
     loop {
@@ -87,7 +87,7 @@ fn list_features(client: &RouteGuideClient) {
                 let loc = feature.get_location();
                 println!("Found feature {} at {}",
                          feature.get_name(),
-                         util::format_point(&loc));
+                         util::format_point(loc));
             }
             Ok((None, _)) => break,
             Err((e, _)) => panic!("List features failed: {:?}", e),
@@ -160,8 +160,8 @@ fn main() {
     let client = RouteGuideClient::new(channel);
 
     println!("-------------- GetFeature --------------");
-    get_feature(&client, new_point(409146138, -746188906));
-    get_feature(&client, new_point(0, 0));
+    get_feature(&client, &new_point(409_146_138, -746_188_906));
+    get_feature(&client, &new_point(0, 0));
 
     println!("-------------- ListFeatures --------------");
     list_features(&client);
