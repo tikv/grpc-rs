@@ -11,20 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 extern crate gcc;
 #[cfg(not(feature = "link-sys"))]
 extern crate cmake;
 extern crate pkg_config;
 
+use gcc::Build;
+
 #[cfg(feature = "link-sys")]
 mod imp {
-    use gcc::Config as GccConfig;
-    use pkg_config::Config as PkgConfig;
+    use gcc::Build;
+    use pkg_config::Config;
     
     const GRPC_VERSION: &'static str = "1.4.0";
 
-    pub fn build_or_link_grpc(cc: &mut GccConfig) {
-        if let Ok(lib) = PkgConfig::new().atleast_version(GRPC_VERSION).probe("grpc") {
+    pub fn build_or_link_grpc(cc: &mut Build) {
+        if let Ok(lib) = Config::new().atleast_version(GRPC_VERSION).probe("grpc") {
             for inc_path in lib.include_paths {
                 cc.include(inc_path);
             }
@@ -39,8 +42,8 @@ mod imp {
     use std::path::Path;
     use std::{env, fs, io};
 
-    use cmake::Config as CMakeConfig;
-    use gcc::Config as GccConfig;
+    use cmake::Config;
+    use gcc::Build;
 
     fn prepare_grpc() {
         let modules = vec![
@@ -63,10 +66,10 @@ mod imp {
         Ok(entries.next().is_none())
     }
 
-    pub fn build_or_link_grpc(cc: &mut GccConfig) {
+    pub fn build_or_link_grpc(cc: &mut Build) {
         prepare_grpc();
 
-        let dst = CMakeConfig::new("grpc")
+        let dst = Config::new("grpc")
             .build_target("grpc")
             .build();
 
@@ -120,16 +123,19 @@ mod imp {
 }
 
 fn main() {
-    let mut cc = gcc::Config::new();
+    let mut cc = Build::new();
 
     imp::build_or_link_grpc(&mut cc);
 
-    cc.file("grpc_wrap.c").flag("-O2");
+    cc.file("grpc_wrap.c");
 
     if cfg!(target_os = "windows") {
         // At lease win7
-        cc.define("_WIN32_WINNT", Some("0x0700"));
+        cc.define("_WIN32_WINNT", Some("0x0700"))
+          .warnings(false)
+          .flag("/W4");
     }
     
-    cc.compile("libgrpc_wrap.a");
+    cc.warnings_into_errors(true)
+      .compile("libgrpc_wrap.a");
 }

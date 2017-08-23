@@ -317,7 +317,6 @@ extern "C" {
                                       tag: *mut c_void)
                                       -> GrpcCallStatus;
     pub fn grpcwrap_call_send_close_from_client(call: *mut GrpcCall,
-                                                ctx: *mut GrpcBatchContext,
                                                 tag: *mut c_void)
                                                 -> GrpcCallStatus;
     pub fn grpcwrap_call_send_status_from_server(call: *mut GrpcCall,
