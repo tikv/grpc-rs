@@ -207,8 +207,8 @@ impl Call {
 
     /// Finish the rpc call from client.
     pub fn start_send_close_client(&mut self) -> BatchFuture {
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_close_from_client(self.call, ctx, tag)
+        check_run(BatchType::Finish, |_, tag| unsafe {
+            grpc_sys::grpcwrap_call_send_close_from_client(self.call, tag)
         })
     }
 
