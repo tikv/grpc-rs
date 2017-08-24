@@ -12,6 +12,9 @@
 // limitations under the License.
 
 
+#![allow(unknown_lints)]
+#![allow(unreadable_literal)]
+
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
@@ -57,7 +60,7 @@ fn main() {
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
         println!("Press ENTER to exit...");
-        io::stdin().read(&mut [0]).unwrap();
+        let _ = io::stdin().read(&mut [0]).unwrap();
         tx.send(())
     });
     let _ = rx.wait();

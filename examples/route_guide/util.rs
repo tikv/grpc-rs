@@ -15,6 +15,8 @@
 // client and server share different parts of utils.
 #![allow(dead_code)]
 
+use std::f64::consts::PI;
+
 use serde_json;
 
 use grpcio_proto::example::route_guide::*;
@@ -61,7 +63,7 @@ pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
 const COORD_FACTOR: f64 = 10000000.0;
 
 pub fn convert_to_rad(num: f64) -> f64 {
-    num * 3.1415926 / 180.0
+    num * PI / 180.0
 }
 
 pub fn format_point(p: &Point) -> String {
