@@ -28,7 +28,8 @@ use credentials::ChannelCredentials;
 use cq::CompletionQueue;
 use env::Environment;
 
-pub use grpc_sys::{GrpcCompressionLevel as CompressionLevel, GrpcCompressionAlgorithms as CompressionAlgorithms};
+pub use grpc_sys::{GrpcCompressionAlgorithms as CompressionAlgorithms,
+                   GrpcCompressionLevel as CompressionLevel};
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
 const OPT_DEFAULT_AUTHORITY: &'static [u8] = b"grpc.default_authority\0";
@@ -47,8 +48,8 @@ const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_r
 const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
 const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
 const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
-const OPT_DEFALUT_COMPRESSION_ALGORITHM : &'static [u8] = b"grpc.default_compression_algorithm\0";
-const OPT_DEFAULT_COMPRESSION_LEVEL : &'static [u8] = b"grpc.default_compression_level\0";
+const OPT_DEFALUT_COMPRESSION_ALGORITHM: &'static [u8] = b"grpc.default_compression_algorithm\0";
+const OPT_DEFAULT_COMPRESSION_LEVEL: &'static [u8] = b"grpc.default_compression_level\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -118,17 +119,19 @@ impl ChannelBuilder {
 
     /// The maximum time between subsequent connection attempts.
     pub fn max_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
-        self.options
-            .insert(OPT_MAX_RECONNECT_BACKOFF_MS,
-                    Options::Integer(dur_to_ms(backoff)));
+        self.options.insert(
+            OPT_MAX_RECONNECT_BACKOFF_MS,
+            Options::Integer(dur_to_ms(backoff)),
+        );
         self
     }
 
     /// The time between the first and second connection attempts.
     pub fn initial_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
-        self.options
-            .insert(OPT_INITIAL_RECONNECT_BACKOFF_MS,
-                    Options::Integer(dur_to_ms(backoff)));
+        self.options.insert(
+            OPT_INITIAL_RECONNECT_BACKOFF_MS,
+            Options::Integer(dur_to_ms(backoff)),
+        );
         self
     }
 
@@ -142,9 +145,10 @@ impl ChannelBuilder {
     /// Amount to read ahead on individual streams. Defaults to 64kb, larger
     /// values can help throughput on high-latency connections.
     pub fn stream_initial_window_size(mut self, window_size: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_STREAM_INITIAL_WINDOW_SIZE,
-                    Options::Integer(window_size));
+        self.options.insert(
+            OPT_STREAM_INITIAL_WINDOW_SIZE,
+            Options::Integer(window_size),
+        );
         self
     }
 
@@ -221,15 +225,19 @@ impl ChannelBuilder {
 
     // Default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
-        self.options
-            .insert(OPT_DEFALUT_COMPRESSION_ALGORITHM, Options::Integer(algo as usize));
+        self.options.insert(
+            OPT_DEFALUT_COMPRESSION_ALGORITHM,
+            Options::Integer(algo as usize),
+        );
         self
     }
 
     // Default compression level for the channel.
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
-        self.options
-            .insert(OPT_DEFAULT_COMPRESSION_LEVEL, Options::Integer(level as usize));
+        self.options.insert(
+            OPT_DEFAULT_COMPRESSION_LEVEL,
+            Options::Integer(level as usize),
+        );
         self
     }
 
@@ -242,11 +250,9 @@ impl ChannelBuilder {
                 Options::Integer(val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
                 },
-                Options::String(ref val) => {
-                    unsafe {
-                        grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
-                    }
-                }
+                Options::String(ref val) => unsafe {
+                    grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
+                },
             }
         }
         ChannelArgs { args: args }
@@ -269,21 +275,21 @@ impl ChannelBuilder {
                 None => {
                     grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut())
                 }
-                Some(mut creds) => {
-                    grpc_sys::grpc_secure_channel_create(creds.as_mut_ptr(),
-                                                         addr_ptr,
-                                                         args.args,
-                                                         ptr::null_mut())
-                }
+                Some(mut creds) => grpc_sys::grpc_secure_channel_create(
+                    creds.as_mut_ptr(),
+                    addr_ptr,
+                    args.args,
+                    ptr::null_mut(),
+                ),
             }
         };
 
         Channel {
             cq: self.env.pick_cq(),
             inner: Arc::new(ChannelInner {
-                                _env: self.env,
-                                channel: channel,
-                            }),
+                _env: self.env,
+                channel: channel,
+            }),
         }
     }
 
@@ -341,16 +347,18 @@ impl Channel {
             let method_len = method.name.len();
             let timeout = opt.get_timeout()
                 .map_or_else(GprTimespec::inf_future, GprTimespec::from);
-            grpc_sys::grpcwrap_channel_create_call(ch,
-                                                   ptr::null_mut(),
-                                                   0,
-                                                   cq,
-                                                   method_ptr as *const _,
-                                                   method_len,
-                                                   ptr::null(),
-                                                   0,
-                                                   timeout,
-                                                   ptr::null_mut())
+            grpc_sys::grpcwrap_channel_create_call(
+                ch,
+                ptr::null_mut(),
+                0,
+                cq,
+                method_ptr as *const _,
+                method_len,
+                ptr::null(),
+                0,
+                timeout,
+                ptr::null_mut(),
+            )
         };
 
         unsafe { Call::from_raw(raw_call) }

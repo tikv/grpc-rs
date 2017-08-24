@@ -39,32 +39,35 @@ impl Client {
     }
 
     /// Create a asynchronized unary rpc call.
-    pub fn unary_call_async<P, Q>(&self,
-                                  method: &Method<P, Q>,
-                                  req: P,
-                                  opt: CallOption)
-                                  -> ClientUnaryReceiver<Q> {
+    pub fn unary_call_async<P, Q>(
+        &self,
+        method: &Method<P, Q>,
+        req: P,
+        opt: CallOption,
+    ) -> ClientUnaryReceiver<Q> {
         Call::unary_async(&self.channel, method, req, opt)
     }
 
     /// Create a asynchronized client streaming call.
     ///
     /// Client can send a stream of requests and server responds with a single response.
-    pub fn client_streaming<P, Q>(&self,
-                                  method: &Method<P, Q>,
-                                  opt: CallOption)
-                                  -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
+    pub fn client_streaming<P, Q>(
+        &self,
+        method: &Method<P, Q>,
+        opt: CallOption,
+    ) -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
         Call::client_streaming(&self.channel, method, opt)
     }
 
     /// Create a asynchronized server streaming call.
     ///
     /// Client sends on request and server responds with a stream of responses.
-    pub fn server_streaming<P, Q>(&self,
-                                  method: &Method<P, Q>,
-                                  req: P,
-                                  opt: CallOption)
-                                  -> ClientSStreamReceiver<Q> {
+    pub fn server_streaming<P, Q>(
+        &self,
+        method: &Method<P, Q>,
+        req: P,
+        opt: CallOption,
+    ) -> ClientSStreamReceiver<Q> {
         Call::server_streaming(&self.channel, method, req, opt)
     }
 
@@ -73,10 +76,11 @@ impl Client {
     /// Client sends a stream of requests and server responds with a stream of responses.
     /// The response stream is completely independent and both side can be sending messages
     /// at the same time.
-    pub fn duplex_streaming<P, Q>(&self,
-                                  method: &Method<P, Q>,
-                                  opt: CallOption)
-                                  -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
+    pub fn duplex_streaming<P, Q>(
+        &self,
+        method: &Method<P, Q>,
+        opt: CallOption,
+    ) -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
         Call::duplex_streaming(&self.channel, method, opt)
     }
 
@@ -85,7 +89,8 @@ impl Client {
     /// This can reduce a lot of context switching, but please make
     /// sure there is no heavy work in the future.
     pub fn spawn<F>(&self, f: F)
-        where F: Future<Item = (), Error = ()> + Send + 'static
+    where
+        F: Future<Item = (), Error = ()> + Send + 'static,
     {
         Executor::new(self.channel.cq()).spawn(f)
     }

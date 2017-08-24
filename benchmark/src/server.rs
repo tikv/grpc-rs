@@ -47,9 +47,11 @@ impl Server {
         };
         let mut builder = ServerBuilder::new(env).register_service(service);
         builder = if cfg.has_security_params() {
-            builder.bind_secure("[::]",
-                                cfg.get_port() as u16,
-                                proto_util::create_test_server_credentials())
+            builder.bind_secure(
+                "[::]",
+                cfg.get_port() as u16,
+                proto_util::create_test_server_credentials(),
+            )
         } else {
             builder.bind("[::]", cfg.get_port() as u16)
         };
@@ -57,9 +59,9 @@ impl Server {
         let mut s = builder.build().unwrap();
         s.start();
         Ok(Server {
-               server: s,
-               recorder: CpuRecorder::new(),
-           })
+            server: s,
+            recorder: CpuRecorder::new(),
+        })
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {

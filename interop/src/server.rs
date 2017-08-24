@@ -14,7 +14,7 @@
 
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
            RpcStatusCode, ServerStreamingSink, UnarySink, WriteFlags};
-use futures::{Async, Future, Poll, Sink, Stream, future, stream};
+use futures::{future, stream, Async, Future, Poll, Sink, Stream};
 
 use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::testing::empty::Empty;
@@ -45,10 +45,7 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn unary_call(&self,
-                  ctx: RpcContext,
-                  mut req: SimpleRequest,
-                  sink: UnarySink<SimpleResponse>) {
+    fn unary_call(&self, ctx: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
@@ -70,10 +67,12 @@ impl TestService for InteropTestService {
         unimplemented!()
     }
 
-    fn streaming_output_call(&self,
-                             ctx: RpcContext,
-                             req: StreamingOutputCallRequest,
-                             sink: ServerStreamingSink<StreamingOutputCallResponse>) {
+    fn streaming_output_call(
+        &self,
+        ctx: RpcContext,
+        req: StreamingOutputCallRequest,
+        sink: ServerStreamingSink<StreamingOutputCallResponse>,
+    ) {
         let resps: Vec<Result<_, grpc::Error>> = req.get_response_parameters()
             .into_iter()
             .map(|param| {
@@ -88,29 +87,34 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn streaming_input_call(&self,
-                            ctx: RpcContext,
-                            stream: RequestStream<StreamingInputCallRequest>,
-                            sink: ClientStreamingSink<StreamingInputCallResponse>) {
+    fn streaming_input_call(
+        &self,
+        ctx: RpcContext,
+        stream: RequestStream<StreamingInputCallRequest>,
+        sink: ClientStreamingSink<StreamingInputCallResponse>,
+    ) {
         let f = stream
-            .fold(0,
-                  |s, req| Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>)
+            .fold(0, |s, req| {
+                Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>
+            })
             .and_then(|s| {
                 let mut resp = StreamingInputCallResponse::new();
                 resp.set_aggregated_payload_size(s as i32);
                 sink.success(resp)
             })
             .map_err(|e| match e {
-                         grpc::Error::RemoteStopped => {}
-                         e => println!("failed to send streaming inptu: {:?}", e),
-                     });
+                grpc::Error::RemoteStopped => {}
+                e => println!("failed to send streaming inptu: {:?}", e),
+            });
         ctx.spawn(f)
     }
 
-    fn full_duplex_call(&self,
-                        ctx: RpcContext,
-                        stream: RequestStream<StreamingOutputCallRequest>,
-                        sink: DuplexSink<StreamingOutputCallResponse>) {
+    fn full_duplex_call(
+        &self,
+        ctx: RpcContext,
+        stream: RequestStream<StreamingOutputCallRequest>,
+        sink: DuplexSink<StreamingOutputCallResponse>,
+    ) {
         let f = stream
             .map_err(Error::Grpc)
             .fold(sink, |sink, mut req| {
@@ -128,35 +132,42 @@ impl TestService for InteropTestService {
                     }
                     send = Some(sink.send((resp, WriteFlags::default())));
                 }
-                future::poll_fn(move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
-                    if let Some(ref mut send) = send {
-                        let sink = try_ready!(send.poll());
-                        Ok(Async::Ready(sink))
-                    } else {
-                        try_ready!(failure.as_mut().unwrap().poll());
-                        Err(Error::Abort)
-                    }
-                })
+                future::poll_fn(
+                    move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
+                        if let Some(ref mut send) = send {
+                            let sink = try_ready!(send.poll());
+                            Ok(Async::Ready(sink))
+                        } else {
+                            try_ready!(failure.as_mut().unwrap().poll());
+                            Err(Error::Abort)
+                        }
+                    },
+                )
             })
-            .and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
+            .and_then(|mut sink| {
+                future::poll_fn(move || sink.close().map_err(Error::from))
+            })
             .map_err(|e| match e {
-                         Error::Grpc(grpc::Error::RemoteStopped) |
-                         Error::Abort => {}
-                         Error::Grpc(e) => println!("failed to handle duplex call: {:?}", e),
-                     });
+                Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
+                Error::Grpc(e) => println!("failed to handle duplex call: {:?}", e),
+            });
         ctx.spawn(f)
     }
 
-    fn half_duplex_call(&self,
-                        _: RpcContext,
-                        _: RequestStream<StreamingOutputCallRequest>,
-                        _: DuplexSink<StreamingOutputCallResponse>) {
+    fn half_duplex_call(
+        &self,
+        _: RpcContext,
+        _: RequestStream<StreamingOutputCallRequest>,
+        _: DuplexSink<StreamingOutputCallResponse>,
+    ) {
         unimplemented!()
     }
 
     fn unimplemented_call(&self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
         let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| println!("failed to report unimplemented method: {:?}", e));
+            .map_err(|e| {
+                println!("failed to report unimplemented method: {:?}", e)
+            });
         ctx.spawn(f)
     }
 }

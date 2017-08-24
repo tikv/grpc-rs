@@ -12,9 +12,9 @@
 // limitations under the License.
 
 
-extern crate gcc;
 #[cfg(not(feature = "link-sys"))]
 extern crate cmake;
+extern crate gcc;
 extern crate pkg_config;
 
 use gcc::Build;
@@ -23,7 +23,7 @@ use gcc::Build;
 mod imp {
     use gcc::Build;
     use pkg_config::Config;
-    
+
     const GRPC_VERSION: &'static str = "1.4.0";
 
     pub fn build_or_link_grpc(cc: &mut Build) {
@@ -55,8 +55,11 @@ mod imp {
 
         for module in modules {
             if is_directory_empty(module).unwrap_or(true) {
-                panic!("Can't find module {}. You need to run `git submodule \
-                        update --init --recursive` first to build the project.", module);
+                panic!(
+                    "Can't find module {}. You need to run `git submodule \
+                     update --init --recursive` first to build the project.",
+                    module
+                );
             }
         }
     }
@@ -69,9 +72,7 @@ mod imp {
     pub fn build_or_link_grpc(cc: &mut Build) {
         prepare_grpc();
 
-        let dst = Config::new("grpc")
-            .build_target("grpc")
-            .build();
+        let dst = Config::new("grpc").build_target("grpc").build();
 
         let mut zlib = "z";
         let build_dir = format!("{}/build", dst.display());
@@ -80,37 +81,53 @@ mod imp {
                 "bench" | "release" => {
                     zlib = "zlibstatic";
                     "Release"
-                },
+                }
                 _ => {
                     zlib = "zlibstaticd";
                     "Debug"
-                },
+                }
             };
             println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
-            println!("cargo:rustc-link-search=native={}/third_party/cares/{}",
-                    build_dir,
-                    profile);
-            println!("cargo:rustc-link-search=native={}/third_party/zlib/{}",
-                    build_dir,
-                    profile);
-            println!("cargo:rustc-link-search=native={}/third_party/boringssl/ssl/{}",
-                    build_dir,
-                    profile);
-            println!("cargo:rustc-link-search=native={}/third_party/boringssl/crypto/{}",
-                    build_dir,
-                    profile);
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/cares/{}",
+                build_dir,
+                profile
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/zlib/{}",
+                build_dir,
+                profile
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/boringssl/ssl/{}",
+                build_dir,
+                profile
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/boringssl/crypto/{}",
+                build_dir,
+                profile
+            );
         } else {
             println!("cargo:rustc-link-search=native={}", build_dir);
-            println!("cargo:rustc-link-search=native={}/third_party/cares",
-                    build_dir);
-            println!("cargo:rustc-link-search=native={}/third_party/zlib",
-                    build_dir);
-            println!("cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
-                    build_dir);
-            println!("cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
-                    build_dir);
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/cares",
+                build_dir
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/zlib",
+                build_dir
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
+                build_dir
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
+                build_dir
+            );
         }
-        
+
         println!("cargo:rustc-link-lib=static={}", zlib);
         println!("cargo:rustc-link-lib=static=cares");
         println!("cargo:rustc-link-lib=static=gpr");
@@ -132,10 +149,9 @@ fn main() {
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"))
-          .warnings(false)
-          .flag("/W4");
+            .warnings(false)
+            .flag("/W4");
     }
-    
-    cc.warnings_into_errors(true)
-      .compile("libgrpc_wrap.a");
+
+    cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
 }

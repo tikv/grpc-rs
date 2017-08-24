@@ -40,7 +40,13 @@ impl CpuRecorder {
         let (sys_time, user_time) = util::get_resource_usage();
         let last_reset_time = Instant::now();
 
-        CpuRecorder { user_time, sys_time, total_cpu, idle_cpu, last_reset_time }
+        CpuRecorder {
+            user_time,
+            sys_time,
+            total_cpu,
+            idle_cpu,
+            last_reset_time,
+        }
     }
 
     pub fn cpu_time(&mut self, reset: bool) -> Sample {
@@ -91,7 +97,10 @@ mod util {
         unsafe {
             let mut usage = mem::zeroed();
             assert_eq!(libc::getrusage(libc::RUSAGE_SELF, &mut usage), 0);
-            (timeval_to_seconds(&usage.ru_stime), timeval_to_seconds(&usage.ru_utime))
+            (
+                timeval_to_seconds(&usage.ru_stime),
+                timeval_to_seconds(&usage.ru_utime),
+            )
         }
     }
 

@@ -12,8 +12,8 @@
 // limitations under the License.
 
 
-extern crate protobuf;
 extern crate grpcio_compiler;
+extern crate protobuf;
 
 use std::fs::{self, File};
 use std::env;
@@ -35,9 +35,10 @@ fn run_command(cmd: &mut Command) -> Output {
 
 /// Descriptor file to module file.
 fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
-    where P: AsRef<Path>,
-          G: FnMut(&[FileDescriptorProto], &[String]) -> Vec<GenResult>,
-          W: Write
+where
+    P: AsRef<Path>,
+    G: FnMut(&[FileDescriptorProto], &[String]) -> Vec<GenResult>,
+    W: Write,
 {
     let proto_set: FileDescriptorSet = {
         let mut f = File::open(descriptor).unwrap();

@@ -35,19 +35,21 @@ impl ServerCredentialsBuilder {
         }
     }
 
-    pub fn root_cert<S: Into<Vec<u8>>>(mut self,
-                                       cert: S,
-                                       force_client_auth: bool)
-                                       -> ServerCredentialsBuilder {
+    pub fn root_cert<S: Into<Vec<u8>>>(
+        mut self,
+        cert: S,
+        force_client_auth: bool,
+    ) -> ServerCredentialsBuilder {
         self.root = Some(CString::new(cert).unwrap());
         self.force_client_auth = force_client_auth;
         self
     }
 
-    pub fn add_cert<S: Into<Vec<u8>>>(mut self,
-                                      cert: S,
-                                      private_key: S)
-                                      -> ServerCredentialsBuilder {
+    pub fn add_cert<S: Into<Vec<u8>>>(
+        mut self,
+        cert: S,
+        private_key: S,
+    ) -> ServerCredentialsBuilder {
         self.cert_chains
             .push(CString::new(cert).unwrap().into_raw());
         self.private_keys
@@ -64,11 +66,13 @@ impl ServerCredentialsBuilder {
         let force_auth = if self.force_client_auth { 1 } else { 0 };
 
         let credentials = unsafe {
-            grpc_sys::grpcwrap_ssl_server_credentials_create(root_cert,
-                                                             cert_chains as _,
-                                                             private_keys as _,
-                                                             self.cert_chains.len(),
-                                                             force_auth)
+            grpc_sys::grpcwrap_ssl_server_credentials_create(
+                root_cert,
+                cert_chains as _,
+                private_keys as _,
+                self.cert_chains.len(),
+                force_auth,
+            )
         };
 
         if !root_cert.is_null() {
@@ -139,10 +143,10 @@ impl ChannelCredentialsBuilder {
         let root_ptr = self.root
             .take()
             .map_or_else(ptr::null_mut, CString::into_raw);
-        let (cert_ptr, key_ptr) = self.cert_key_pair
-            .take()
-            .map_or_else(|| (ptr::null_mut(), ptr::null_mut()),
-                         |(cert, key)| (cert.into_raw(), key.into_raw()));
+        let (cert_ptr, key_ptr) = self.cert_key_pair.take().map_or_else(
+            || (ptr::null_mut(), ptr::null_mut()),
+            |(cert, key)| (cert.into_raw(), key.into_raw()),
+        );
 
         let creds =
             unsafe { grpc_sys::grpcwrap_ssl_credentials_create(root_ptr, cert_ptr, key_ptr) };

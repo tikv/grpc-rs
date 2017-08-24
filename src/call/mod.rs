@@ -94,7 +94,9 @@ pub struct BatchContext {
 
 impl BatchContext {
     pub fn new() -> BatchContext {
-        BatchContext { ctx: unsafe { grpc_sys::grpcwrap_batch_context_create() } }
+        BatchContext {
+            ctx: unsafe { grpc_sys::grpcwrap_batch_context_create() },
+        }
     }
 
     pub fn as_ptr(&self) -> *mut GrpcBatchContext {
@@ -111,7 +113,9 @@ impl BatchContext {
             unsafe {
                 let mut details_len = 0;
                 let details_ptr = grpc_sys::grpcwrap_batch_context_recv_status_on_client_details(
-                    self.ctx, &mut details_len);
+                    self.ctx,
+                    &mut details_len,
+                );
                 let details_slice = slice::from_raw_parts(details_ptr as *const _, details_len);
                 Some(String::from_utf8_lossy(details_slice).into_owned())
             }
@@ -133,9 +137,11 @@ impl BatchContext {
         }
         let mut buffer = Vec::with_capacity(len);
         unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(self.ctx,
-                                                                    buffer.as_mut_ptr() as *mut _,
-                                                                    len);
+            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(
+                self.ctx,
+                buffer.as_mut_ptr() as *mut _,
+                len,
+            );
             buffer.set_len(len);
         }
         Some(buffer)
@@ -151,12 +157,16 @@ impl Drop for BatchContext {
 #[inline]
 fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
     let tag_box = Box::new(tag);
-    (tag_box.batch_ctx().unwrap().as_ptr(), Box::into_raw(tag_box) as _)
+    (
+        tag_box.batch_ctx().unwrap().as_ptr(),
+        Box::into_raw(tag_box) as _,
+    )
 }
 
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
-    where F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus
+where
+    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
@@ -188,20 +198,23 @@ impl Call {
     }
 
     /// Send a message asynchronously.
-    pub fn start_send_message(&mut self,
-                              msg: &[u8],
-                              write_flags: u32,
-                              initial_meta: bool)
-                              -> BatchFuture {
+    pub fn start_send_message(
+        &mut self,
+        msg: &[u8],
+        write_flags: u32,
+        initial_meta: bool,
+    ) -> BatchFuture {
         let i = if initial_meta { 1 } else { 0 };
         check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(self.call,
-                                                 ctx,
-                                                 msg.as_ptr() as _,
-                                                 msg.len(),
-                                                 write_flags,
-                                                 i,
-                                                 tag)
+            grpc_sys::grpcwrap_call_send_message(
+                self.call,
+                ctx,
+                msg.as_ptr() as _,
+                msg.len(),
+                write_flags,
+                i,
+                tag,
+            )
         })
     }
 
@@ -214,8 +227,9 @@ impl Call {
 
     /// Receive a message asynchronously.
     pub fn start_recv_message(&mut self) -> BatchFuture {
-        check_run(BatchType::Read,
-                  |ctx, tag| unsafe { grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag) })
+        check_run(BatchType::Read, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
+        })
     }
 
     /// Start handling from server side.
@@ -228,12 +242,13 @@ impl Call {
     }
 
     /// Send a status from server.
-    pub fn start_send_status_from_server(&mut self,
-                                         status: &RpcStatus,
-                                         send_empty_metadata: bool,
-                                         payload: Option<Vec<u8>>,
-                                         write_flags: u32)
-                                         -> BatchFuture {
+    pub fn start_send_status_from_server(
+        &mut self,
+        status: &RpcStatus,
+        send_empty_metadata: bool,
+        payload: Option<Vec<u8>>,
+        write_flags: u32,
+    ) -> BatchFuture {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let (payload_ptr, payload_len) = payload
             .as_ref()
@@ -244,17 +259,19 @@ impl Call {
                 .as_ref()
                 .map_or_else(ptr::null, |s| s.as_ptr() as _);
             let details_len = status.details.as_ref().map_or(0, String::len);
-            grpc_sys::grpcwrap_call_send_status_from_server(self.call,
-                                                            ctx,
-                                                            status.status,
-                                                            details_ptr,
-                                                            details_len,
-                                                            ptr::null_mut(),
-                                                            send_empty_metadata,
-                                                            payload_ptr as _,
-                                                            payload_len,
-                                                            write_flags,
-                                                            tag)
+            grpc_sys::grpcwrap_call_send_status_from_server(
+                self.call,
+                ctx,
+                status.status,
+                details_ptr,
+                details_len,
+                ptr::null_mut(),
+                send_empty_metadata,
+                payload_ptr as _,
+                payload_len,
+                write_flags,
+                tag,
+            )
         })
     }
 
@@ -270,17 +287,19 @@ impl Call {
                 .as_ref()
                 .map_or_else(ptr::null, |s| s.as_ptr() as _);
             let details_len = status.details.as_ref().map_or(0, String::len);
-            grpc_sys::grpcwrap_call_send_status_from_server(call_ptr,
-                                                            batch_ptr,
-                                                            status.status,
-                                                            details_ptr,
-                                                            details_len,
-                                                            ptr::null_mut(),
-                                                            1,
-                                                            ptr::null(),
-                                                            0,
-                                                            0,
-                                                            tag_ptr as *mut c_void)
+            grpc_sys::grpcwrap_call_send_status_from_server(
+                call_ptr,
+                batch_ptr,
+                status.status,
+                details_ptr,
+                details_len,
+                ptr::null_mut(),
+                1,
+                ptr::null(),
+                0,
+                0,
+                tag_ptr as *mut c_void,
+            )
         };
         if code != GrpcCallStatus::Ok {
             unsafe {
@@ -390,10 +409,11 @@ impl StreamingBase {
         }
     }
 
-    fn poll<C: ShareCallHolder>(&mut self,
-                                call: &mut C,
-                                skip_finish_check: bool)
-                                -> Poll<Option<Vec<u8>>, Error> {
+    fn poll<C: ShareCallHolder>(
+        &mut self,
+        call: &mut C,
+        skip_finish_check: bool,
+    ) -> Poll<Option<Vec<u8>>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -448,17 +468,21 @@ pub struct WriteFlags {
 impl WriteFlags {
     /// Hint that the write may be buffered and need not go out on the wire immediately.
     pub fn buffer_hint(mut self, need_buffered: bool) -> WriteFlags {
-        client::change_flag(&mut self.flags,
-                            grpc_sys::GRPC_WRITE_BUFFER_HINT,
-                            need_buffered);
+        client::change_flag(
+            &mut self.flags,
+            grpc_sys::GRPC_WRITE_BUFFER_HINT,
+            need_buffered,
+        );
         self
     }
 
     /// Force compression to be disabled.
     pub fn force_no_compress(mut self, no_compress: bool) -> WriteFlags {
-        client::change_flag(&mut self.flags,
-                            grpc_sys::GRPC_WRITE_NO_COMPRESS,
-                            no_compress);
+        client::change_flag(
+            &mut self.flags,
+            grpc_sys::GRPC_WRITE_NO_COMPRESS,
+            no_compress,
+        );
         self
     }
 }
@@ -479,12 +503,13 @@ impl SinkBase {
         }
     }
 
-    fn start_send<T, C: ShareCallHolder>(&mut self,
-                                         call: &mut C,
-                                         t: &T,
-                                         flags: WriteFlags,
-                                         ser: SerializeFn<T>)
-                                         -> Result<bool> {
+    fn start_send<T, C: ShareCallHolder>(
+        &mut self,
+        call: &mut C,
+        t: &T,
+        flags: WriteFlags,
+        ser: SerializeFn<T>,
+    ) -> Result<bool> {
         if self.batch_f.is_some() {
             // try its best not to return false.
             try!(self.poll_complete());
