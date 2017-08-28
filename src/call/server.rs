@@ -35,7 +35,9 @@ impl Deadline {
         let realtime_spec =
             unsafe { grpc_sys::gpr_convert_clock_type(spec, GprClockType::Realtime) };
 
-        Deadline { spec: realtime_spec }
+        Deadline {
+            spec: realtime_spec,
+        }
     }
 
     pub fn exceeded(&self) -> bool {
@@ -65,21 +67,19 @@ impl RequestContext {
     /// Try to accept a client side streaming request.
     ///
     /// Return error if the request is a client side unary request.
-    pub fn handle_stream_req(self,
-                             cq: &CompletionQueue,
-                             inner: &Inner)
-                             -> result::Result<(), Self> {
+    pub fn handle_stream_req(
+        self,
+        cq: &CompletionQueue,
+        inner: &Inner,
+    ) -> result::Result<(), Self> {
         match inner.get_handler(self.method()) {
-            Some(handler) => {
-                match handler.method_type() {
-                    MethodType::Unary |
-                    MethodType::ServerStreaming => Err(self),
-                    _ => {
-                        execute(self, cq, &[], handler.cb());
-                        Ok(())
-                    }
+            Some(handler) => match handler.method_type() {
+                MethodType::Unary | MethodType::ServerStreaming => Err(self),
+                _ => {
+                    execute(self, cq, &[], handler.cb());
+                    Ok(())
                 }
-            }
+            },
             None => {
                 execute_unimplemented(self);
                 Ok(())
@@ -456,7 +456,8 @@ impl<'a> RpcContext<'a> {
     /// This can reduce a lot of context switching, but please make
     /// sure there is no heavy work in the future.
     pub fn spawn<F>(&self, f: F)
-        where F: Future<Item = (), Error = ()> + Send + 'static
+    where
+        F: Future<Item = (), Error = ()> + Send + 'static,
     {
         self.executor.spawn(f)
     }
@@ -465,21 +466,24 @@ impl<'a> RpcContext<'a> {
 // Following four helper functions are used to create a callback closure.
 
 // Helper function to call a unary handler.
-pub fn execute_unary<P, Q, F>(mut ctx: RpcContext,
-                              ser: SerializeFn<Q>,
-                              de: DeserializeFn<P>,
-                              payload: &[u8],
-                              f: &F)
-    where F: Fn(RpcContext, P, UnarySink<Q>)
+pub fn execute_unary<P, Q, F>(
+    mut ctx: RpcContext,
+    ser: SerializeFn<Q>,
+    de: DeserializeFn<P>,
+    payload: &[u8],
+    f: &F,
+) where
+    F: Fn(RpcContext, P, UnarySink<Q>),
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();
     let request = match de(payload) {
         Ok(f) => f,
         Err(e) => {
-            let status =
-                RpcStatus::new(RpcStatusCode::Internal,
-                               Some(format!("Failed to deserialize response message: {:?}", e)));
+            let status = RpcStatus::new(
+                RpcStatusCode::Internal,
+                Some(format!("Failed to deserialize response message: {:?}", e)),
+            );
             call.abort(status);
             return;
         }
@@ -489,11 +493,13 @@ pub fn execute_unary<P, Q, F>(mut ctx: RpcContext,
 }
 
 // Helper function to call client streaming handler.
-pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext,
-                                         ser: SerializeFn<Q>,
-                                         de: DeserializeFn<P>,
-                                         f: &F)
-    where F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>)
+pub fn execute_client_streaming<P, Q, F>(
+    mut ctx: RpcContext,
+    ser: SerializeFn<Q>,
+    de: DeserializeFn<P>,
+    f: &F,
+) where
+    F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();
@@ -505,12 +511,14 @@ pub fn execute_client_streaming<P, Q, F>(mut ctx: RpcContext,
 }
 
 // Helper function to call server streaming handler.
-pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
-                                         ser: SerializeFn<Q>,
-                                         de: DeserializeFn<P>,
-                                         payload: &[u8],
-                                         f: &F)
-    where F: Fn(RpcContext, P, ServerStreamingSink<Q>)
+pub fn execute_server_streaming<P, Q, F>(
+    mut ctx: RpcContext,
+    ser: SerializeFn<Q>,
+    de: DeserializeFn<P>,
+    payload: &[u8],
+    f: &F,
+) where
+    F: Fn(RpcContext, P, ServerStreamingSink<Q>),
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();
@@ -518,9 +526,10 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
     let request = match de(payload) {
         Ok(t) => t,
         Err(e) => {
-            let status =
-                RpcStatus::new(RpcStatusCode::Internal,
-                               Some(format!("Failed to deserialize response message: {:?}", e)));
+            let status = RpcStatus::new(
+                RpcStatusCode::Internal,
+                Some(format!("Failed to deserialize response message: {:?}", e)),
+            );
             call.abort(status);
             return;
         }
@@ -531,11 +540,13 @@ pub fn execute_server_streaming<P, Q, F>(mut ctx: RpcContext,
 }
 
 // Helper function to call duplex streaming handler.
-pub fn execute_duplex_streaming<P, Q, F>(mut ctx: RpcContext,
-                                         ser: SerializeFn<Q>,
-                                         de: DeserializeFn<P>,
-                                         f: &F)
-    where F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>)
+pub fn execute_duplex_streaming<P, Q, F>(
+    mut ctx: RpcContext,
+    ser: SerializeFn<Q>,
+    de: DeserializeFn<P>,
+    f: &F,
+) where
+    F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>),
 {
     let mut call = ctx.ctx.take_call().unwrap();
     let close_f = call.start_server_side();

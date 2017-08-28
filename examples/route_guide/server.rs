@@ -13,17 +13,16 @@
 
 
 #![allow(unknown_lints)]
-
 #![allow(unreadable_literal)]
 
+extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
 extern crate protobuf;
-extern crate futures;
 extern crate serde;
-extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
 
 mod util;
 
@@ -61,41 +60,46 @@ impl RouteGuide for RouteGuideService {
         let data = self.data.clone();
         let features: Vec<Result<_>> = data.iter()
             .filter_map(|f| if fit_in(f.get_location(), &rect) {
-                            Some(Ok((f.to_owned(), WriteFlags::default())))
-                        } else {
-                            None
-                        })
+                Some(Ok((f.to_owned(), WriteFlags::default())))
+            } else {
+                None
+            })
             .collect();
         let f = resp.send_all(stream::iter(features))
             .map(|_| {})
-            .map_err(|e| println!("failed to handle listfeatures request: {:?}", e));
+            .map_err(|e| {
+                println!("failed to handle listfeatures request: {:?}", e)
+            });
         ctx.spawn(f)
     }
 
-    fn record_route(&self,
-                    ctx: RpcContext,
-                    points: RequestStream<Point>,
-                    resp: ClientStreamingSink<RouteSummary>) {
+    fn record_route(
+        &self,
+        ctx: RpcContext,
+        points: RequestStream<Point>,
+        resp: ClientStreamingSink<RouteSummary>,
+    ) {
         let data = self.data.clone();
         let timer = Instant::now();
         let f = points
-            .fold((None, 0f64, RouteSummary::new()),
-                  move |(last, mut dis, mut summary), point| {
-                let total_count = summary.get_point_count();
-                summary.set_point_count(total_count + 1);
-                let valid_point = data.iter()
-                       .any(|f| {
-                                !f.get_name().is_empty() && same_point(f.get_location(), &point)
-                            });
-                if valid_point {
-                    let feature_count = summary.get_feature_count();
-                    summary.set_feature_count(feature_count + 1);
-                }
-                if let Some(last_point) = last {
-                    dis += cal_distance(&last_point, &point);
-                }
-                Ok((Some(point), dis, summary)) as Result<_>
-            })
+            .fold(
+                (None, 0f64, RouteSummary::new()),
+                move |(last, mut dis, mut summary), point| {
+                    let total_count = summary.get_point_count();
+                    summary.set_point_count(total_count + 1);
+                    let valid_point = data.iter().any(|f| {
+                        !f.get_name().is_empty() && same_point(f.get_location(), &point)
+                    });
+                    if valid_point {
+                        let feature_count = summary.get_feature_count();
+                        summary.set_feature_count(feature_count + 1);
+                    }
+                    if let Some(last_point) = last {
+                        dis += cal_distance(&last_point, &point);
+                    }
+                    Ok((Some(point), dis, summary)) as Result<_>
+                },
+            )
             .and_then(move |(_, dis, mut s)| {
                 s.set_distance(dis as i32);
                 let dur = timer.elapsed();
@@ -106,20 +110,22 @@ impl RouteGuide for RouteGuideService {
         ctx.spawn(f)
     }
 
-    fn route_chat(&self,
-                  ctx: RpcContext,
-                  notes: RequestStream<RouteNote>,
-                  resp: DuplexSink<RouteNote>) {
+    fn route_chat(
+        &self,
+        ctx: RpcContext,
+        notes: RequestStream<RouteNote>,
+        resp: DuplexSink<RouteNote>,
+    ) {
         let mut buffer: Vec<RouteNote> = Vec::new();
         let to_send = notes
             .map(move |note| {
                 let to_prints: Vec<Result<_>> = buffer
                     .iter()
                     .filter_map(|n| if same_point(n.get_location(), note.get_location()) {
-                                    Some(Ok((n.to_owned(), WriteFlags::default())))
-                                } else {
-                                    None
-                                })
+                        Some(Ok((n.to_owned(), WriteFlags::default())))
+                    } else {
+                        None
+                    })
                     .collect();
                 buffer.push(note);
                 stream::iter(to_prints)
@@ -134,7 +140,9 @@ impl RouteGuide for RouteGuideService {
 
 fn main() {
     let env = Arc::new(Environment::new(2));
-    let instance = RouteGuideService { data: Arc::new(load_db()) };
+    let instance = RouteGuideService {
+        data: Arc::new(load_db()),
+    };
     let service = route_guide_grpc::create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)

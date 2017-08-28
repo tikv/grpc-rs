@@ -16,7 +16,7 @@ use std::thread;
 use std::time::Duration;
 
 use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
-use futures::{Future, Sink, Stream, future, stream};
+use futures::{future, stream, Future, Sink, Stream};
 
 use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::testing::empty::Empty;

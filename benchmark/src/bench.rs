@@ -32,17 +32,23 @@ pub struct Benchmark;
 impl BenchmarkService for Benchmark {
     fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let resp = gen_resp(req);
-        ctx.spawn(sink.success(resp)
-                      .map_err(|e| println!("failed to handle unary: {:?}", e)))
+        ctx.spawn(
+            sink.success(resp)
+                .map_err(|e| println!("failed to handle unary: {:?}", e)),
+        )
     }
 
-    fn streaming_call(&self,
-                      ctx: RpcContext,
-                      stream: RequestStream<SimpleRequest>,
-                      sink: DuplexSink<SimpleResponse>) {
-        ctx.spawn(sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())))
-                      .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                      .map(|_| {}))
+    fn streaming_call(
+        &self,
+        ctx: RpcContext,
+        stream: RequestStream<SimpleRequest>,
+        sink: DuplexSink<SimpleResponse>,
+    ) {
+        ctx.spawn(
+            sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())))
+                .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                .map(|_| {}),
+        )
     }
 }
 
@@ -50,13 +56,17 @@ impl BenchmarkService for Benchmark {
 pub struct Generic;
 
 impl Generic {
-    pub fn streaming_call(&self,
-                          ctx: RpcContext,
-                          stream: RequestStream<Vec<u8>>,
-                          sink: DuplexSink<Vec<u8>>) {
-        ctx.spawn(sink.send_all(stream.map(|req| (req, WriteFlags::default())))
-                      .map_err(|e| println!("failed to handle streaming: {:?}", e))
-                      .map(|_| {}))
+    pub fn streaming_call(
+        &self,
+        ctx: RpcContext,
+        stream: RequestStream<Vec<u8>>,
+        sink: DuplexSink<Vec<u8>>,
+    ) {
+        ctx.spawn(
+            sink.send_all(stream.map(|req| (req, WriteFlags::default())))
+                .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                .map(|_| {}),
+        )
     }
 }
 
@@ -85,7 +95,9 @@ pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Meth
 
 pub fn create_generic_service(s: Generic) -> ::grpc::Service {
     ServiceBuilder::new()
-        .add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
-                                      move |ctx, req, resp| s.streaming_call(ctx, req, resp))
+        .add_duplex_streaming_handler(
+            &METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
+            move |ctx, req, resp| s.streaming_call(ctx, req, resp),
+        )
         .build()
 }

@@ -24,7 +24,7 @@ use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
-use futures::{Async, BoxFuture, Future, Sink, Stream, future};
+use futures::{future, Async, BoxFuture, Future, Sink, Stream};
 use futures::sync::oneshot::{self, Receiver, Sender};
 use futures::future::Loop;
 use rand::distributions::Exp;
@@ -40,7 +40,9 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
-    req.set_payload(proto_util::new_payload(simple_params.get_req_size() as usize));
+    req.set_payload(proto_util::new_payload(
+        simple_params.get_req_size() as usize,
+    ));
     req.set_response_size(simple_params.get_resp_size());
     req
 }
@@ -98,20 +100,23 @@ struct ExecutorContext<B> {
 }
 
 impl<B: Backoff> ExecutorContext<B> {
-    fn new(histogram: Arc<Mutex<Histogram>>,
-           keep_running: Arc<AtomicBool>,
-           backoff: B,
-           timer: Timer)
-           -> (ExecutorContext<B>, Receiver<()>) {
+    fn new(
+        histogram: Arc<Mutex<Histogram>>,
+        keep_running: Arc<AtomicBool>,
+        backoff: B,
+        timer: Timer,
+    ) -> (ExecutorContext<B>, Receiver<()>) {
         let (tx, rx) = oneshot::channel();
-        (ExecutorContext {
-             keep_running: keep_running,
-             histogram: histogram,
-             backoff: backoff,
-             timer: timer,
-             _trace: tx,
-         },
-         rx)
+        (
+            ExecutorContext {
+                keep_running: keep_running,
+                histogram: histogram,
+                backoff: backoff,
+                timer: timer,
+                _trace: tx,
+            },
+            rx,
+        )
     }
 
     fn observe_latency(&self, latency: Duration) {
@@ -155,15 +160,16 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
 
     fn execute_stream(self) {
         let client = self.client.clone();
-        let (sender, receiver) = self.client
-            .duplex_streaming(&bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
-                              CallOption::default());
-        let f = future::loop_fn((sender, self, receiver),
-                                move |(sender, mut executor, receiver)| {
-            let latency_timer = Instant::now();
-            let send = sender.send((executor.req.clone(), WriteFlags::default()));
-            send.map_err(Error::from)
-                .and_then(move |sender| {
+        let (sender, receiver) = self.client.duplex_streaming(
+            &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
+            CallOption::default(),
+        );
+        let f = future::loop_fn(
+            (sender, self, receiver),
+            move |(sender, mut executor, receiver)| {
+                let latency_timer = Instant::now();
+                let send = sender.send((executor.req.clone(), WriteFlags::default()));
+                send.map_err(Error::from).and_then(move |sender| {
                     receiver
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
@@ -186,13 +192,17 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
                             })
                         })
                 })
+            },
+        ).and_then(|(mut s, e, r)| {
+            future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
         })
-                .and_then(|(mut s, e, r)| {
-                    future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
-                })
-                .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)))
-                .map(|_| ())
-                .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
+            .and_then(|(e, r)| {
+                r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
+            })
+            .map(|_| ())
+            .map_err(|e| {
+                println!("failed to execute streaming ping pong: {:?}", e)
+            });
         client.spawn(f)
     }
 }
@@ -215,15 +225,15 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
 
     fn execute_unary(mut self) {
         thread::spawn(move || loop {
-                          if !self.ctx.keep_running() {
-                              break;
-                          }
-                          let latency_timer = Instant::now();
-                          self.client.unary_call(self.req.clone()).unwrap();
-                          let elapsed = latency_timer.elapsed();
-                          self.ctx.observe_latency(elapsed);
-                          self.ctx.backoff();
-                      });
+            if !self.ctx.keep_running() {
+                break;
+            }
+            let latency_timer = Instant::now();
+            self.client.unary_call(self.req.clone()).unwrap();
+            let elapsed = latency_timer.elapsed();
+            self.ctx.observe_latency(elapsed);
+            self.ctx.backoff();
+        });
     }
 
     fn execute_unary_async(self) {
@@ -232,41 +242,38 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
             let latency_timer = Instant::now();
             let handler = executor.client.unary_call_async(executor.req.clone());
 
-            handler
-                .map_err(Error::from)
-                .and_then(move |_| {
-                    let elapsed = latency_timer.elapsed();
-                    executor.ctx.observe_latency(elapsed);
-                    let mut time = executor.ctx.backoff_async();
-                    let mut res = Some(executor);
-                    future::poll_fn(move || {
-                        if let Some(ref mut t) = time {
-                            try_ready!(t.poll());
-                        }
-                        time.take();
-                        let executor = res.take().unwrap();
-                        let l = if executor.ctx.keep_running() {
-                            Loop::Continue(executor)
-                        } else {
-                            Loop::Break(())
-                        };
-                        Ok(Async::Ready(l))
-                    })
+            handler.map_err(Error::from).and_then(move |_| {
+                let elapsed = latency_timer.elapsed();
+                executor.ctx.observe_latency(elapsed);
+                let mut time = executor.ctx.backoff_async();
+                let mut res = Some(executor);
+                future::poll_fn(move || {
+                    if let Some(ref mut t) = time {
+                        try_ready!(t.poll());
+                    }
+                    time.take();
+                    let executor = res.take().unwrap();
+                    let l = if executor.ctx.keep_running() {
+                        Loop::Continue(executor)
+                    } else {
+                        Loop::Break(())
+                    };
+                    Ok(Async::Ready(l))
                 })
-        })
-                .map_err(|e| println!("failed to execute unary async: {:?}", e));
+            })
+        }).map_err(|e| println!("failed to execute unary async: {:?}", e));
         client.spawn(f);
     }
 
     fn execute_stream_ping_pong(self) {
         let client = self.client.clone();
         let (sender, receiver) = self.client.streaming_call();
-        let f = future::loop_fn((sender, self, receiver),
-                                move |(sender, mut executor, receiver)| {
-            let latency_timer = Instant::now();
-            let send = sender.send((executor.req.clone(), WriteFlags::default()));
-            send.map_err(Error::from)
-                .and_then(move |sender| {
+        let f = future::loop_fn(
+            (sender, self, receiver),
+            move |(sender, mut executor, receiver)| {
+                let latency_timer = Instant::now();
+                let send = sender.send((executor.req.clone(), WriteFlags::default()));
+                send.map_err(Error::from).and_then(move |sender| {
                     receiver
                         .into_future()
                         .map_err(|(e, _)| Error::from(e))
@@ -289,21 +296,27 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                             })
                         })
                 })
+            },
+        ).and_then(|(mut s, e, r)| {
+            future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
         })
-                .and_then(|(mut s, e, r)| {
-                    future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
-                })
-                .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)))
-                .map(|_| ())
-                .map_err(|e| println!("failed to execute streaming ping pong: {:?}", e));
+            .and_then(|(e, r)| {
+                r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
+            })
+            .map(|_| ())
+            .map_err(|e| {
+                println!("failed to execute streaming ping pong: {:?}", e)
+            });
         client.spawn(f)
     }
 }
 
-fn execute<B: Backoff + Send + 'static>(ctx: ExecutorContext<B>,
-                                        ch: Channel,
-                                        client_type: ClientType,
-                                        cfg: &ClientConfig) {
+fn execute<B: Backoff + Send + 'static>(
+    ctx: ExecutorContext<B>,
+    ch: Channel,
+    client_type: ClientType,
+    cfg: &ClientConfig,
+) {
     match client_type {
         ClientType::SYNC_CLIENT => {
             if cfg.get_payload_config().has_bytebuf_params() {
@@ -311,23 +324,19 @@ fn execute<B: Backoff + Send + 'static>(ctx: ExecutorContext<B>,
             }
             RequestExecutor::new(ctx, ch, cfg).execute_unary()
         }
-        ClientType::ASYNC_CLIENT => {
-            match cfg.get_rpc_type() {
-                RpcType::UNARY => {
-                    if cfg.get_payload_config().has_bytebuf_params() {
-                        panic!("only streaming is supported for generic service.");
-                    }
-                    RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
+        ClientType::ASYNC_CLIENT => match cfg.get_rpc_type() {
+            RpcType::UNARY => {
+                if cfg.get_payload_config().has_bytebuf_params() {
+                    panic!("only streaming is supported for generic service.");
                 }
-                RpcType::STREAMING => {
-                    if cfg.get_payload_config().has_bytebuf_params() {
-                        GenericExecutor::new(ctx, ch, cfg).execute_stream()
-                    } else {
-                        RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
-                    }
-                }
+                RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-        }
+            RpcType::STREAMING => if cfg.get_payload_config().has_bytebuf_params() {
+                GenericExecutor::new(ctx, ch, cfg).execute_stream()
+            } else {
+                RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+            },
+        },
         _ => unimplemented!(),
     }
 }
@@ -360,9 +369,8 @@ impl Client {
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
                     if !params.get_server_host_override().is_empty() {
-                        builder =
-                            builder
-                                .override_ssl_target(params.get_server_host_override().to_owned());
+                        builder = builder
+                            .override_ssl_target(params.get_server_host_override().to_owned());
                     }
                     builder.secure_connect(addr, proto_util::create_test_channel_credentials())
                 } else {
@@ -377,8 +385,10 @@ impl Client {
 
         let recorder = CpuRecorder::new();
         let his_param = cfg.get_histogram_params();
-        let his = Arc::new(Mutex::new(Histogram::new(his_param.get_resolution(),
-                                                     his_param.get_max_possible())));
+        let his = Arc::new(Mutex::new(Histogram::new(
+            his_param.get_resolution(),
+            his_param.get_max_possible(),
+        )));
         let timer = Timer::default();
         let keep_running = Arc::new(AtomicBool::new(true));
         let mut running_reqs = Vec::with_capacity(client_channels * outstanding_rpcs_per_channel);
@@ -390,8 +400,8 @@ impl Client {
                 let ch = ch.clone();
                 let rx = if load_params.has_poisson() {
                     let lambda = load_params.get_poisson().get_offered_load() /
-                                 client_channels as f64 /
-                                 outstanding_rpcs_per_channel as f64;
+                        client_channels as f64 /
+                        outstanding_rpcs_per_channel as f64;
                     let poisson = Poisson::new(lambda);
                     let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson, timer);
                     execute(ctx, ch, client_type, cfg);

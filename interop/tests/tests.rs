@@ -12,10 +12,10 @@
 // limitations under the License.
 
 
-extern crate interop;
 extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
+extern crate interop;
 
 macro_rules! mk_test {
     ($case_name:ident, $func:ident, $use_tls:expr) => (

@@ -18,9 +18,9 @@ extern crate grpcio_proto;
 extern crate protobuf;
 extern crate rand;
 extern crate serde;
-extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
 
 mod util;
 
@@ -28,7 +28,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::thread;
 
-use futures::{Future, Sink, Stream, future};
+use futures::{future, Future, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
 use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
@@ -68,9 +68,11 @@ fn get_feature(client: &RouteGuideClient, point: &Point) {
                 println!("Found no feature at {}", util::format_point(point));
                 return;
             }
-            println!("Found feature called {} at {}",
-                     f.get_name(),
-                     util::format_point(point));
+            println!(
+                "Found feature called {} at {}",
+                f.get_name(),
+                util::format_point(point)
+            );
         }
     }
 }
@@ -85,9 +87,11 @@ fn list_features(client: &RouteGuideClient) {
             Ok((Some(feature), s)) => {
                 list_features = s;
                 let loc = feature.get_location();
-                println!("Found feature {} at {}",
-                         feature.get_name(),
-                         util::format_point(loc));
+                println!(
+                    "Found feature {} at {}",
+                    feature.get_name(),
+                    util::format_point(loc)
+                );
             }
             Ok((None, _)) => break,
             Err((e, _)) => panic!("List features failed: {:?}", e),
@@ -140,10 +144,12 @@ fn route_chat(client: &RouteGuideClient) {
         match receiver.into_future().wait() {
             Ok((Some(note), r)) => {
                 let location = note.get_location();
-                println!("Got message {} at {}, {}",
-                         note.get_message(),
-                         location.get_latitude(),
-                         location.get_longitude());
+                println!(
+                    "Got message {} at {}, {}",
+                    note.get_message(),
+                    location.get_latitude(),
+                    location.get_longitude()
+                );
                 receiver = r;
             }
             Ok((None, _)) => break,

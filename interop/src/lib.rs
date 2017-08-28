@@ -14,12 +14,12 @@
 
 #![allow(unknown_lints)]
 
-extern crate protobuf;
 #[macro_use]
 extern crate futures;
 extern crate grpcio as grpc;
-extern crate grpcio_sys as grpc_sys;
 extern crate grpcio_proto as grpc_proto;
+extern crate grpcio_sys as grpc_sys;
+extern crate protobuf;
 
 mod client;
 mod server;

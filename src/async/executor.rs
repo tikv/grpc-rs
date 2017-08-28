@@ -143,8 +143,7 @@ fn poll(notify: Arc<SpawnNotify>, woken: bool) {
         return;
     }
     match handle.f.as_mut().unwrap().poll_future_notify(&notify, 0) {
-        Err(_) |
-        Ok(Async::Ready(_)) => {
+        Err(_) | Ok(Async::Ready(_)) => {
             // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
             handle.f.take();
@@ -170,7 +169,8 @@ impl<'a> Executor<'a> {
     /// If you want to trace the future, you may need to create a sender/receiver
     /// pair by yourself.
     pub fn spawn<F>(&self, f: F)
-        where F: Future<Item = (), Error = ()> + Send + 'static
+    where
+        F: Future<Item = (), Error = ()> + Send + 'static,
     {
         let s = executor::spawn(f.boxed());
         let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));

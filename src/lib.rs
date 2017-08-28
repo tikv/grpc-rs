@@ -13,13 +13,12 @@
 
 
 #![allow(unknown_lints)]
-
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]
 
-extern crate grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate futures;
+extern crate grpcio_sys as grpc_sys;
 extern crate libc;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
@@ -42,7 +41,7 @@ pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
-pub use channel::{Channel, ChannelBuilder, CompressionLevel, CompressionAlgorithms};
+pub use channel::{Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel};
 pub use client::Client;
 pub use codec::Marshaller;
 #[cfg(feature = "protobuf-codec")]
