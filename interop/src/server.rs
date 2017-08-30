@@ -70,18 +70,17 @@ impl TestService for InteropTestService {
     fn streaming_output_call(
         &self,
         ctx: RpcContext,
-        req: StreamingOutputCallRequest,
+        mut req: StreamingOutputCallRequest,
         sink: ServerStreamingSink<StreamingOutputCallResponse>,
     ) {
-        let resps: Vec<Result<_, grpc::Error>> = req.get_response_parameters()
+        let resps = req.take_response_parameters()
             .into_iter()
             .map(|param| {
                 let mut resp = StreamingOutputCallResponse::new();
                 resp.set_payload(util::new_payload(param.get_size() as usize));
-                Ok((resp, WriteFlags::default()))
-            })
-            .collect();
-        let f = sink.send_all(stream::iter(resps))
+                (resp, WriteFlags::default())
+            });
+        let f = sink.send_all(stream::iter_ok::<_, grpc::Error>(resps))
             .map(|_| {})
             .map_err(|e| panic!("failed to send response: {:?}", e));
         ctx.spawn(f)

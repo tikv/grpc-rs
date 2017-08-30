@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::thread::{self, ThreadId};
 
 use futures::executor::{self, Notify, Spawn};
-use futures::future::BoxFuture;
 use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
@@ -24,6 +23,7 @@ use cq::CompletionQueue;
 use super::lock::SpinLock;
 use super::CallTag;
 
+type BoxFuture<T, E> = Box<Future<Item=T, Error=E> + Send>;
 
 struct Alarm {
     alarm: *mut GrpcAlarm,
@@ -172,7 +172,7 @@ impl<'a> Executor<'a> {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        let s = executor::spawn(f.boxed());
+        let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
         let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));
         poll(notify, false)
     }

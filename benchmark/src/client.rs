@@ -24,7 +24,7 @@ use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
-use futures::{future, Async, BoxFuture, Future, Sink, Stream};
+use futures::{future, Async, Future, Sink, Stream};
 use futures::sync::oneshot::{self, Receiver, Sender};
 use futures::future::Loop;
 use rand::distributions::Exp;
@@ -35,6 +35,8 @@ use tokio_timer::{Sleep, Timer};
 use bench;
 use error::Error;
 use util::{self, CpuRecorder, Histogram};
+
+type BoxFuture<T, E> = Box<Future<Item=T, Error=E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new();
