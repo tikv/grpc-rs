@@ -18,8 +18,6 @@
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
-extern crate protobuf;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;

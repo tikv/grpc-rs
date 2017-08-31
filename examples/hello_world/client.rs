@@ -12,10 +12,8 @@
 // limitations under the License.
 
 
-extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
-extern crate protobuf;
 
 use std::sync::Arc;
 

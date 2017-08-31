@@ -15,6 +15,7 @@
 #![allow(unknown_lints)]
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]
+#![allow(cast_lossless)]
 
 #[macro_use]
 extern crate futures;

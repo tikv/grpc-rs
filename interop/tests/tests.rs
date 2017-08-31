@@ -12,7 +12,6 @@
 // limitations under the License.
 
 
-extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 extern crate interop;

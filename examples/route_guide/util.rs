@@ -11,9 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(unknown_lints)]
 
 // client and server share different parts of utils.
 #![allow(dead_code)]
+#![allow(cast_lossless)]
 
 use std::f64::consts::PI;
 
