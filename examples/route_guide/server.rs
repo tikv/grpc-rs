@@ -18,8 +18,6 @@
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
-extern crate protobuf;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
@@ -58,14 +56,14 @@ impl RouteGuide for RouteGuideService {
 
     fn list_features(&self, ctx: RpcContext, rect: Rectangle, resp: ServerStreamingSink<Feature>) {
         let data = self.data.clone();
-        let features: Vec<Result<_>> = data.iter()
-            .filter_map(|f| if fit_in(f.get_location(), &rect) {
-                Some(Ok((f.to_owned(), WriteFlags::default())))
+        let features: Vec<_> = data.iter()
+            .filter_map(move |f| if fit_in(f.get_location(), &rect) {
+                Some((f.to_owned(), WriteFlags::default()))
             } else {
                 None
             })
             .collect();
-        let f = resp.send_all(stream::iter(features))
+        let f = resp.send_all(stream::iter_ok::<_, Error>(features))
             .map(|_| {})
             .map_err(|e| {
                 println!("failed to handle listfeatures request: {:?}", e)
@@ -119,16 +117,16 @@ impl RouteGuide for RouteGuideService {
         let mut buffer: Vec<RouteNote> = Vec::new();
         let to_send = notes
             .map(move |note| {
-                let to_prints: Vec<Result<_>> = buffer
+                let to_prints: Vec<_> = buffer
                     .iter()
                     .filter_map(|n| if same_point(n.get_location(), note.get_location()) {
-                        Some(Ok((n.to_owned(), WriteFlags::default())))
+                        Some((n.to_owned(), WriteFlags::default()))
                     } else {
                         None
                     })
                     .collect();
                 buffer.push(note);
-                stream::iter(to_prints)
+                stream::iter_ok::<_, Error>(to_prints)
             })
             .flatten();
         let f = resp.send_all(to_send)

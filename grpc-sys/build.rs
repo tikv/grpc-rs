@@ -15,6 +15,7 @@
 #[cfg(not(feature = "link-sys"))]
 extern crate cmake;
 extern crate gcc;
+#[cfg(feature = "link-sys")]
 extern crate pkg_config;
 
 use gcc::Build;

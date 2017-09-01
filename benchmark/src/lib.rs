@@ -18,6 +18,7 @@ extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 extern crate grpcio_sys as grpc_sys;
+#[cfg(not(target_os = "macos"))]
 extern crate libc;
 extern crate rand;
 extern crate tokio_timer;

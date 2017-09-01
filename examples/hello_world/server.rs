@@ -18,7 +18,6 @@
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
-extern crate protobuf;
 
 use std::io::Read;
 use std::sync::Arc;
