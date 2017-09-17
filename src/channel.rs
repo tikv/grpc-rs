@@ -50,6 +50,9 @@ const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
 const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
 const OPT_DEFALUT_COMPRESSION_ALGORITHM: &'static [u8] = b"grpc.default_compression_algorithm\0";
 const OPT_DEFAULT_COMPRESSION_LEVEL: &'static [u8] = b"grpc.default_compression_level\0";
+const OPT_KEEPALIVE_TIME_MS: &'static [u8] = b"grpc.keepalive_time_ms\0";
+const OPT_KEEPALIVE_TIMEOUT_MS: &'static [u8] = b"grpc.keepalive_timeout_ms\0";
+const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &'static [u8] = b"grpc.keepalive_permit_without_calls\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -223,7 +226,7 @@ impl ChannelBuilder {
         self
     }
 
-    // Default compression algorithm for the channel.
+    /// Default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
         self.options.insert(
             OPT_DEFALUT_COMPRESSION_ALGORITHM,
@@ -232,12 +235,34 @@ impl ChannelBuilder {
         self
     }
 
-    // Default compression level for the channel.
+    /// Default compression level for the channel.
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options.insert(
             OPT_DEFAULT_COMPRESSION_LEVEL,
             Options::Integer(level as usize),
         );
+        self
+    }
+
+    /// After a duration of this time the client/server pings its peer to see
+    /// if the transport is still alive.
+    pub fn keepalive_time(mut self, timeout: Duration) -> ChannelBuilder {
+        let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
+        self.options.insert(OPT_KEEPALIVE_TIME_MS, Options::Integer(timeout_ms as usize));
+        self
+    }
+
+    /// After waiting for a duration of this time, if the keepalive ping sender does
+    /// not receive the ping ack, it will close the transport.
+    pub fn keepalive_timeout(mut self, timeout: Duration) -> ChannelBuilder {
+        let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
+        self.options.insert(OPT_KEEPALIVE_TIMEOUT_MS, Options::Integer(timeout_ms as usize));
+        self
+    }
+
+    /// Is it permissible to send keepalive pings without any outstanding streams.
+    pub fn keepalive_permit_without_calls(mut self, allow: bool) -> ChannelBuilder {
+        self.options.insert(OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS, Options::Integer(allow as usize));
         self
     }
 
