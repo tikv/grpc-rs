@@ -131,6 +131,21 @@ pub struct GrpcEvent {
     pub tag: *mut c_void,
 }
 
+#[repr(C)]
+pub enum GprLogSeverity {
+    Debug,
+    Info,
+    Error,
+}
+
+#[repr(C)]
+pub struct GprLogFuncArgs {
+    file: *const c_char,
+    line: c_int,
+    severity: GprLogSeverity,
+    message: *const c_char,
+}
+
 pub enum GrpcChannelArgs {}
 
 #[repr(C)]
@@ -203,6 +218,9 @@ extern "C" {
     pub fn gpr_convert_clock_type(t: GprTimespec, clock_type: GprClockType) -> GprTimespec;
 
     pub fn gpr_cpu_num_cores() -> c_uint;
+
+    pub fn gpr_set_log_verbosity(verbosity: GprLogSeverity);
+    pub fn gpr_set_log_function(func: Option<extern "C" fn(*mut GprLogFuncArgs)>);
 
     pub fn grpc_completion_queue_create_for_next(reserved: *mut c_void)
         -> *mut GrpcCompletionQueue;
