@@ -248,7 +248,8 @@ impl ChannelBuilder {
     /// if the transport is still alive.
     pub fn keepalive_time(mut self, timeout: Duration) -> ChannelBuilder {
         let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
-        self.options.insert(OPT_KEEPALIVE_TIME_MS, Options::Integer(timeout_ms as usize));
+        self.options
+            .insert(OPT_KEEPALIVE_TIME_MS, Options::Integer(timeout_ms as usize));
         self
     }
 
@@ -256,13 +257,19 @@ impl ChannelBuilder {
     /// not receive the ping ack, it will close the transport.
     pub fn keepalive_timeout(mut self, timeout: Duration) -> ChannelBuilder {
         let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
-        self.options.insert(OPT_KEEPALIVE_TIMEOUT_MS, Options::Integer(timeout_ms as usize));
+        self.options.insert(
+            OPT_KEEPALIVE_TIMEOUT_MS,
+            Options::Integer(timeout_ms as usize),
+        );
         self
     }
 
     /// Is it permissible to send keepalive pings without any outstanding streams.
     pub fn keepalive_permit_without_calls(mut self, allow: bool) -> ChannelBuilder {
-        self.options.insert(OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS, Options::Integer(allow as usize));
+        self.options.insert(
+            OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS,
+            Options::Integer(allow as usize),
+        );
         self
     }
 
