@@ -14,7 +14,7 @@ categories = ["asynchronous", "network-programming"]
 [dependencies]
 grpcio-sys = { path = "grpc-sys", version = "0.1.0" }
 libc = "0.2"
-futures = "^0.1.14"
+futures = "^0.1.15"
 protobuf = { version = "1.2", optional = true }
 
 [workspace]
