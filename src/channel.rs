@@ -329,6 +329,8 @@ impl ChannelBuilder {
     }
 
     /// Set a raw int configuration.
+    ///
+    /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
     pub fn raw_cfg_int(mut self, key: CString, val: usize) -> ChannelBuilder {
         self.options
@@ -337,6 +339,8 @@ impl ChannelBuilder {
     }
 
     /// Set a raw string configuration.
+    ///
+    /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
     pub fn raw_cfg_string(mut self, key: CString, val: CString) -> ChannelBuilder {
         self.options
