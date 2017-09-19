@@ -50,39 +50,6 @@ impl BenchmarkService for Benchmark {
                 .map(|_| {}),
         )
     }
-
-    fn streaming_from_client(
-        &self,
-        ctx: RpcContext,
-        _: RequestStream<SimpleRequest>,
-        sink: ClientStreamingSink<SimpleResponse>,
-    ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| error!("failed to report unimplemented method: {:?}", e));
-        ctx.spawn(f)
-    }
-
-    fn streaming_from_server(
-        &self,
-        ctx: RpcContext,
-        _: SimpleRequest,
-        sink: ServerStreamingSink<SimpleResponse>,
-    ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| error!("failed to report unimplemented method: {:?}", e));
-        ctx.spawn(f)
-    }
-
-    fn streaming_both_ways(
-        &self,
-        ctx: RpcContext,
-        _: RequestStream<SimpleRequest>,
-        sink: DuplexSink<SimpleResponse>,
-    ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| error!("failed to report unimplemented method: {:?}", e));
-        ctx.spawn(f)
-    }
 }
 
 #[derive(Clone)]
