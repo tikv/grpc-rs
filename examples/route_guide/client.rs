@@ -15,6 +15,8 @@
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
+#[macro_use]
+extern crate log;
 extern crate rand;
 #[macro_use]
 extern crate serde_derive;
@@ -59,14 +61,14 @@ fn get_feature(client: &RouteGuideClient, point: &Point) {
         Err(e) => panic!("RPC failed: {:?}", e),
         Ok(f) => {
             if !f.has_location() {
-                println!("Server returns incomplete feature.");
+                warn!("Server returns incomplete feature.");
                 return;
             }
             if f.get_name().is_empty() {
-                println!("Found no feature at {}", util::format_point(point));
+                warn!("Found no feature at {}", util::format_point(point));
                 return;
             }
-            println!(
+            info!(
                 "Found feature called {} at {}",
                 f.get_name(),
                 util::format_point(point)
@@ -77,7 +79,7 @@ fn get_feature(client: &RouteGuideClient, point: &Point) {
 
 fn list_features(client: &RouteGuideClient) {
     let rect = new_rect(400_000_000, -750_000_000, 420_000_000, -730_000_000);
-    println!("Looking for features between 40, -75 and 42, -73");
+    info!("Looking for features between 40, -75 and 42, -73");
     let mut list_features = client.list_features(rect);
     loop {
         let f = list_features.into_future();
@@ -85,7 +87,7 @@ fn list_features(client: &RouteGuideClient) {
             Ok((Some(feature), s)) => {
                 list_features = s;
                 let loc = feature.get_location();
-                println!(
+                info!(
                     "Found feature {} at {}",
                     feature.get_name(),
                     util::format_point(loc)
@@ -95,7 +97,7 @@ fn list_features(client: &RouteGuideClient) {
             Err((e, _)) => panic!("List features failed: {:?}", e),
         }
     }
-    println!("List feature rpc succeeded.");
+    info!("List feature rpc succeeded.");
 }
 
 fn record_route(client: &RouteGuideClient) {
@@ -105,7 +107,7 @@ fn record_route(client: &RouteGuideClient) {
     for _ in 0..10 {
         let f = rng.choose(&features).unwrap();
         let point = f.get_location();
-        println!("Visiting {}", util::format_point(point));
+        info!("Visiting {}", util::format_point(point));
         sink = sink.send((point.to_owned(), WriteFlags::default()))
             .wait()
             .unwrap();
@@ -114,10 +116,10 @@ fn record_route(client: &RouteGuideClient) {
     // flush
     future::poll_fn(|| sink.close()).wait().unwrap();
     let sumary = receiver.wait().unwrap();
-    println!("Finished trip with {} points", sumary.get_point_count());
-    println!("Passed {} features", sumary.get_feature_count());
-    println!("Travelled {} meters", sumary.get_distance());
-    println!("It took {} seconds", sumary.get_elapsed_time());
+    info!("Finished trip with {} points", sumary.get_point_count());
+    info!("Passed {} features", sumary.get_feature_count());
+    info!("Travelled {} meters", sumary.get_distance());
+    info!("It took {} seconds", sumary.get_elapsed_time());
 }
 
 fn route_chat(client: &RouteGuideClient) {
@@ -132,7 +134,7 @@ fn route_chat(client: &RouteGuideClient) {
 
         for (msg, lat, lon) in notes {
             let note = new_note(lat, lon, msg);
-            println!("Sending message {} at {}, {}", msg, lat, lon);
+            info!("Sending message {} at {}, {}", msg, lat, lon);
             sink = sink.send((note, WriteFlags::default())).wait().unwrap();
         }
         future::poll_fn(|| sink.close()).wait().unwrap();
@@ -142,7 +144,7 @@ fn route_chat(client: &RouteGuideClient) {
         match receiver.into_future().wait() {
             Ok((Some(note), r)) => {
                 let location = note.get_location();
-                println!(
+                info!(
                     "Got message {} at {}, {}",
                     note.get_message(),
                     location.get_latitude(),
@@ -159,20 +161,21 @@ fn route_chat(client: &RouteGuideClient) {
 }
 
 fn main() {
+    let _guard = grpcio_proto::util::init_log();
     let env = Arc::new(Environment::new(2));
     let channel = ChannelBuilder::new(env).connect("127.0.0.1:50051");
     let client = RouteGuideClient::new(channel);
 
-    println!("-------------- GetFeature --------------");
+    info!("-------------- GetFeature --------------");
     get_feature(&client, &new_point(409_146_138, -746_188_906));
     get_feature(&client, &new_point(0, 0));
 
-    println!("-------------- ListFeatures --------------");
+    info!("-------------- ListFeatures --------------");
     list_features(&client);
 
-    println!("-------------- RecordRoute --------------");
+    info!("-------------- RecordRoute --------------");
     record_route(&client);
 
-    println!("-------------- RouteChat --------------");
+    info!("-------------- RouteChat --------------");
     route_chat(&client);
 }

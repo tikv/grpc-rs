@@ -12,6 +12,7 @@ grpcio-sys = { path = "../grpc-sys" }
 rand = "0.3"
 tokio-timer = "0.1"
 clap = "2.23"
+log = "0.3"
 
 [[bin]]
 name = "qps_worker"

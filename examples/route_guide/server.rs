@@ -19,6 +19,8 @@ extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 
@@ -50,7 +52,7 @@ impl RouteGuide for RouteGuideService {
             .find(|f| same_point(f.get_location(), &point))
             .map_or_else(Feature::new, ToOwned::to_owned);
         let f = sink.success(resp)
-            .map_err(|e| println!("failed to handle getfeature request: {:?}", e));
+            .map_err(|e| error!("failed to handle getfeature request: {:?}", e));
         ctx.spawn(f)
     }
 
@@ -65,9 +67,7 @@ impl RouteGuide for RouteGuideService {
             .collect();
         let f = resp.send_all(stream::iter_ok::<_, Error>(features))
             .map(|_| {})
-            .map_err(|e| {
-                println!("failed to handle listfeatures request: {:?}", e)
-            });
+            .map_err(|e| error!("failed to handle listfeatures request: {:?}", e));
         ctx.spawn(f)
     }
 
@@ -104,7 +104,7 @@ impl RouteGuide for RouteGuideService {
                 s.set_elapsed_time(dur.as_secs() as i32);
                 resp.success(s)
             })
-            .map_err(|e| println!("failed to record route: {:?}", e));
+            .map_err(|e| error!("failed to record route: {:?}", e));
         ctx.spawn(f)
     }
 
@@ -131,12 +131,13 @@ impl RouteGuide for RouteGuideService {
             .flatten();
         let f = resp.send_all(to_send)
             .map(|_| {})
-            .map_err(|e| println!("failed to route chat: {:?}", e));
+            .map_err(|e| error!("failed to route chat: {:?}", e));
         ctx.spawn(f)
     }
 }
 
 fn main() {
+    let _guard = grpcio_proto::util::init_log();
     let env = Arc::new(Environment::new(2));
     let instance = RouteGuideService {
         data: Arc::new(load_db()),
@@ -149,11 +150,11 @@ fn main() {
         .unwrap();
     server.start();
     for &(ref host, port) in server.bind_addrs() {
-        println!("listening on {}:{}", host, port);
+        info!("listening on {}:{}", host, port);
     }
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
-        println!("Press ENTER to exit...");
+        info!("Press ENTER to exit...");
         let _ = io::stdin().read(&mut [0]).unwrap();
         tx.send(())
     });

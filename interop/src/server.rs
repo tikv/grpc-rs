@@ -73,13 +73,11 @@ impl TestService for InteropTestService {
         mut req: StreamingOutputCallRequest,
         sink: ServerStreamingSink<StreamingOutputCallResponse>,
     ) {
-        let resps = req.take_response_parameters()
-            .into_iter()
-            .map(|param| {
-                let mut resp = StreamingOutputCallResponse::new();
-                resp.set_payload(util::new_payload(param.get_size() as usize));
-                (resp, WriteFlags::default())
-            });
+        let resps = req.take_response_parameters().into_iter().map(|param| {
+            let mut resp = StreamingOutputCallResponse::new();
+            resp.set_payload(util::new_payload(param.get_size() as usize));
+            (resp, WriteFlags::default())
+        });
         let f = sink.send_all(stream::iter_ok::<_, grpc::Error>(resps))
             .map(|_| {})
             .map_err(|e| panic!("failed to send response: {:?}", e));
@@ -103,7 +101,7 @@ impl TestService for InteropTestService {
             })
             .map_err(|e| match e {
                 grpc::Error::RemoteStopped => {}
-                e => println!("failed to send streaming inptu: {:?}", e),
+                e => error!("failed to send streaming inptu: {:?}", e),
             });
         ctx.spawn(f)
     }
@@ -148,7 +146,7 @@ impl TestService for InteropTestService {
             })
             .map_err(|e| match e {
                 Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
-                Error::Grpc(e) => println!("failed to handle duplex call: {:?}", e),
+                Error::Grpc(e) => error!("failed to handle duplex call: {:?}", e),
             });
         ctx.spawn(f)
     }
@@ -164,9 +162,7 @@ impl TestService for InteropTestService {
 
     fn unimplemented_call(&self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
         let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| {
-                println!("failed to report unimplemented method: {:?}", e)
-            });
+            .map_err(|e| error!("failed to report unimplemented method: {:?}", e));
         ctx.spawn(f)
     }
 }

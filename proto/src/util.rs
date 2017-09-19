@@ -14,6 +14,11 @@
 
 use grpcio::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
              ServerCredentialsBuilder};
+use slog_async;
+use slog::{Drain, Logger};
+use slog_scope::{self, GlobalLoggerGuard};
+use slog_stdlog;
+use slog_term::{FullFormat, TermDecorator};
 
 use testing::messages::{Payload, ResponseParameters};
 
@@ -41,4 +46,15 @@ pub fn create_test_server_credentials() -> ServerCredentials {
 pub fn create_test_channel_credentials() -> ChannelCredentials {
     let ca = include_str!("../data/ca.pem");
     ChannelCredentialsBuilder::new().root_cert(ca).build()
+}
+
+pub fn init_log() -> GlobalLoggerGuard {
+    let decorator = TermDecorator::new().build();
+    let drain = FullFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+    let logger = Logger::root(drain, slog_o!());
+
+    let guard = slog_scope::set_global_logger(logger);
+    slog_stdlog::init().unwrap();
+    guard
 }

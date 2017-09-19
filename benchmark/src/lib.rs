@@ -20,6 +20,8 @@ extern crate grpcio_proto as grpc_proto;
 extern crate grpcio_sys as grpc_sys;
 #[cfg(not(target_os = "macos"))]
 extern crate libc;
+#[macro_use]
+extern crate log;
 extern crate rand;
 extern crate tokio_timer;
 

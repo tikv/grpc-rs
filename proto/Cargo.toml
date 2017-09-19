@@ -8,6 +8,12 @@ publish = false
 protobuf = "1.2"
 futures = "0.1"
 grpcio = { path = ".." }
+log = "0.3"
+slog = "2.0"
+slog-async = "2.1"
+slog-stdlog = "3.0"
+slog-scope = "4.0"
+slog-term = "2.2"
 
 [build-dependencies]
 protobuf = "1.2"

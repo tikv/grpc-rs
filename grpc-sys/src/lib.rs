@@ -164,6 +164,22 @@ pub enum GrpcServerRegisterMethodPayloadHandling {
     ReadInitialByteBuffer,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub enum GprLogSeverity {
+    Debug,
+    Info,
+    Error,
+}
+
+#[repr(C)]
+pub struct GprLogFuncArgs {
+    pub file: *const c_char,
+    pub line: c_int,
+    pub severity: GprLogSeverity,
+    pub message: *const c_char,
+}
+
 pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x00000010;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x00000020;
 pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
@@ -201,6 +217,9 @@ extern "C" {
     pub fn gpr_now(clock_type: GprClockType) -> GprTimespec;
     pub fn gpr_time_cmp(lhs: GprTimespec, rhs: GprTimespec) -> c_int;
     pub fn gpr_convert_clock_type(t: GprTimespec, clock_type: GprClockType) -> GprTimespec;
+
+    pub fn gpr_set_log_verbosity(severity: GprLogSeverity);
+    pub fn gpr_set_log_function(func: Option<extern "C" fn(*mut GprLogFuncArgs)>);
 
     pub fn gpr_cpu_num_cores() -> c_uint;
 

@@ -202,9 +202,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
                 r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
             })
             .map(|_| ())
-            .map_err(|e| {
-                println!("failed to execute streaming ping pong: {:?}", e)
-            });
+            .map_err(|e| error!("failed to execute streaming ping pong: {:?}", e));
         client.spawn(f)
     }
 }
@@ -263,7 +261,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                     Ok(Async::Ready(l))
                 })
             })
-        }).map_err(|e| println!("failed to execute unary async: {:?}", e));
+        }).map_err(|e| error!("failed to execute unary async: {:?}", e));
         client.spawn(f);
     }
 
@@ -306,9 +304,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                 r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
             })
             .map(|_| ())
-            .map_err(|e| {
-                println!("failed to execute streaming ping pong: {:?}", e)
-            });
+            .map_err(|e| error!("failed to execute streaming ping pong: {:?}", e));
         client.spawn(f)
     }
 }
@@ -360,7 +356,7 @@ impl Client {
         }
         let env = Arc::new(builder.build());
         if cfg.get_core_limit() > 0 {
-            println!("client config core limit is set but ignored");
+            error!("client config core limit is set but ignored");
         }
 
         let ch_env = env.clone();
