@@ -15,8 +15,8 @@
 use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
-use grpc::{self, DuplexSink, Method, MethodType, RequestStream, RpcContext, ServiceBuilder,
-           UnarySink, WriteFlags};
+use grpc::{self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
+           RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags};
 use futures::{Future, Sink, Stream};
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
@@ -49,6 +49,45 @@ impl BenchmarkService for Benchmark {
                 .map_err(|e| error!("failed to handle streaming: {:?}", e))
                 .map(|_| {}),
         )
+    }
+
+    fn streaming_from_client(
+        &self,
+        ctx: RpcContext,
+        _: RequestStream<SimpleRequest>,
+        sink: ClientStreamingSink<SimpleResponse>,
+    ) {
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+            .map_err(|e| {
+                println!("failed to report unimplemented method: {:?}", e)
+            });
+        ctx.spawn(f)
+    }
+
+    fn streaming_from_server(
+        &self,
+        ctx: RpcContext,
+        _: SimpleRequest,
+        sink: ServerStreamingSink<SimpleResponse>,
+    ) {
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+            .map_err(|e| {
+                println!("failed to report unimplemented method: {:?}", e)
+            });
+        ctx.spawn(f)
+    }
+
+    fn streaming_both_ways(
+        &self,
+        ctx: RpcContext,
+        _: RequestStream<SimpleRequest>,
+        sink: DuplexSink<SimpleResponse>,
+    ) {
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+            .map_err(|e| {
+                println!("failed to report unimplemented method: {:?}", e)
+            });
+        ctx.spawn(f)
     }
 }
 

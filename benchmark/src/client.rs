@@ -12,6 +12,7 @@
 // limitations under the License.
 
 
+use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -36,7 +37,7 @@ use bench;
 use error::Error;
 use util::{self, CpuRecorder, Histogram};
 
-type BoxFuture<T, E> = Box<Future<Item=T, Error=E> + Send>;
+type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new();
@@ -334,6 +335,7 @@ fn execute<B: Backoff + Send + 'static>(
             } else {
                 RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
             },
+            _ => unimplemented!(),
         },
         _ => unimplemented!(),
     }
@@ -364,6 +366,15 @@ impl Client {
             .zip(cfg.get_server_targets().into_iter().cycle())
             .map(|(_, addr)| {
                 let mut builder = ChannelBuilder::new(ch_env.clone());
+                for arg in cfg.get_channel_args() {
+                    let key = CString::new(arg.get_name()).unwrap();
+                    if arg.has_str_value() {
+                        builder =
+                            builder.raw_cfg_string(key, CString::new(arg.get_str_value()).unwrap());
+                    } else if arg.has_int_value() {
+                        builder = builder.raw_cfg_int(key, arg.get_int_value() as usize);
+                    }
+                }
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
                     if !params.get_server_host_override().is_empty() {
