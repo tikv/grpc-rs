@@ -14,7 +14,6 @@
 
 extern crate futures;
 extern crate grpcio;
-extern crate log;
 extern crate protobuf;
 #[macro_use(slog_o, slog_kv)]
 extern crate slog;
