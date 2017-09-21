@@ -41,7 +41,7 @@ mod server;
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
                        ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
-                       ClientUnaryReceiver};
+                       ClientUnaryReceiver, StreamingCallSink};
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
