@@ -51,7 +51,7 @@ impl WorkerService for Worker {
             .map_err(|(e, _)| Error::from(e))
             .and_then(|(arg, stream)| {
                 let cfg = arg.as_ref().unwrap().get_setup();
-                println!("receive server setup: {:?}", cfg);
+                info!("receive server setup: {:?}", cfg);
                 let server = try!(Server::new(cfg));
                 let status = server.get_status();
                 Ok(
@@ -59,7 +59,7 @@ impl WorkerService for Worker {
                         .and_then(|sink| {
                             stream.fold((sink, server), |(sink, mut server), arg| {
                                 let mark = arg.get_mark();
-                                println!("receive server mark: {:?}", mark);
+                                info!("receive server mark: {:?}", mark);
                                 let stats = server.get_stats(mark.get_reset());
                                 let mut status = server.get_status();
                                 status.set_stats(stats);
@@ -73,8 +73,8 @@ impl WorkerService for Worker {
                 )
             })
             .flatten()
-            .map_err(|e| println!("run server failed: {:?}", e))
-            .map(|_| println!("server shutdown."));
+            .map_err(|e| error!("run server failed: {:?}", e))
+            .map(|_| info!("server shutdown."));
         ctx.spawn(f)
     }
 
@@ -89,13 +89,13 @@ impl WorkerService for Worker {
             .map_err(|(e, _)| Error::from(e))
             .and_then(|(arg, stream)| {
                 let cfg = arg.as_ref().unwrap().get_setup();
-                println!("receive client setup: {:?}", cfg);
+                info!("receive client setup: {:?}", cfg);
                 let client = Client::new(cfg);
                 sink.send((ClientStatus::new(), WriteFlags::default()))
                     .and_then(|sink| {
                         stream.fold((sink, client), |(sink, mut client), arg| {
                             let mark = arg.get_mark();
-                            println!("receive client mark: {:?}", mark);
+                            info!("receive client mark: {:?}", mark);
                             let stats = client.get_stats(mark.get_reset());
                             let mut status = ClientStatus::new();
                             status.set_stats(stats);
@@ -109,8 +109,8 @@ impl WorkerService for Worker {
                         future::poll_fn(move || sink.close().map_err(From::from))
                     })
             })
-            .map_err(|e| println!("run client failed: {:?}", e))
-            .map(|_| println!("client shutdown."));
+            .map_err(|e| error!("run client failed: {:?}", e))
+            .map(|_| info!("client shutdown."));
         ctx.spawn(f)
     }
 
@@ -120,7 +120,7 @@ impl WorkerService for Worker {
         resp.set_cores(cpu_count as i32);
         ctx.spawn(
             sink.success(resp)
-                .map_err(|e| println!("failed to report cpu count: {:?}", e)),
+                .map_err(|e| error!("failed to report cpu count: {:?}", e)),
         )
     }
 
@@ -131,7 +131,7 @@ impl WorkerService for Worker {
         }
         ctx.spawn(
             sink.success(Void::new())
-                .map_err(|e| println!("failed to report quick worker: {:?}", e)),
+                .map_err(|e| error!("failed to report quick worker: {:?}", e)),
         );
     }
 }

@@ -34,7 +34,7 @@ impl BenchmarkService for Benchmark {
         let resp = gen_resp(req);
         ctx.spawn(
             sink.success(resp)
-                .map_err(|e| println!("failed to handle unary: {:?}", e)),
+                .map_err(|e| error!("failed to handle unary: {:?}", e)),
         )
     }
 
@@ -46,7 +46,7 @@ impl BenchmarkService for Benchmark {
     ) {
         ctx.spawn(
             sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())))
-                .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                .map_err(|e| error!("failed to handle streaming: {:?}", e))
                 .map(|_| {}),
         )
     }
@@ -103,7 +103,7 @@ impl Generic {
     ) {
         ctx.spawn(
             sink.send_all(stream.map(|req| (req, WriteFlags::default())))
-                .map_err(|e| println!("failed to handle streaming: {:?}", e))
+                .map_err(|e| error!("failed to handle streaming: {:?}", e))
                 .map(|_| {}),
         )
     }

@@ -18,6 +18,8 @@
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
+#[macro_use]
+extern crate log;
 
 use std::io::Read;
 use std::sync::Arc;
@@ -29,6 +31,7 @@ use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
 use grpcio_proto::example::helloworld_grpc::{self, Greeter};
+use grpcio_proto::util;
 
 #[derive(Clone)]
 struct GreeterService;
@@ -39,12 +42,13 @@ impl Greeter for GreeterService {
         let mut resp = HelloReply::new();
         resp.set_message(msg);
         let f = sink.success(resp)
-            .map_err(move |e| println!("failed to reply {:?}: {:?}", req, e));
+            .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
         ctx.spawn(f)
     }
 }
 
 fn main() {
+    let _guard = util::init_log();
     let env = Arc::new(Environment::new(1));
     let service = helloworld_grpc::create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env)
@@ -54,11 +58,11 @@ fn main() {
         .unwrap();
     server.start();
     for &(ref host, port) in server.bind_addrs() {
-        println!("listening on {}:{}", host, port);
+        info!("listening on {}:{}", host, port);
     }
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
-        println!("Press ENTER to exit...");
+        info!("Press ENTER to exit...");
         let _ = io::stdin().read(&mut [0]).unwrap();
         tx.send(())
     });

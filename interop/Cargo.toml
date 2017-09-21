@@ -9,6 +9,7 @@ grpcio-sys = { path = "../grpc-sys" }
 grpcio-proto = { path = "../proto" }
 protobuf = "1.2"
 futures = "0.1"
+log = "0.3"
 clap = "2.23"
 
 [[bin]]

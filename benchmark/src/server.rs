@@ -39,7 +39,7 @@ impl Server {
         }
         let env = Arc::new(builder.build());
         if cfg.get_core_limit() > 0 {
-            println!("server config core limit is set but ignored");
+            warn!("server config core limit is set but ignored");
         }
         let service = match cfg.get_server_type() {
             ServerType::ASYNC_SERVER => services_grpc::create_benchmark_service(Benchmark),

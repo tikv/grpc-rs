@@ -21,6 +21,8 @@
 extern crate futures;
 extern crate grpcio_sys as grpc_sys;
 extern crate libc;
+#[macro_use]
+extern crate log;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 
@@ -33,6 +35,7 @@ mod client;
 mod credentials;
 mod env;
 mod error;
+mod log_util;
 mod server;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
@@ -51,4 +54,5 @@ pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCrede
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
+pub use log_util::redirect_log;
 pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

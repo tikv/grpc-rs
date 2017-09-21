@@ -57,15 +57,16 @@ impl Client {
 
     pub fn client_streaming(&self) {
         print!("testing client streaming ... ");
-        let reqs = vec![27182, 8, 1828, 45904]
-            .into_iter()
-            .map(|s| {
-                let mut req = StreamingInputCallRequest::new();
-                req.set_payload(util::new_payload(s));
-                (req, WriteFlags::default())
-            });
+        let reqs = vec![27182, 8, 1828, 45904].into_iter().map(|s| {
+            let mut req = StreamingInputCallRequest::new();
+            req.set_payload(util::new_payload(s));
+            (req, WriteFlags::default())
+        });
         let (sender, receiver) = self.client.streaming_input_call();
-        sender.send_all(stream::iter_ok::<_, grpc::Error>(reqs)).wait().unwrap();
+        sender
+            .send_all(stream::iter_ok::<_, grpc::Error>(reqs))
+            .wait()
+            .unwrap();
         let resp = receiver.wait().unwrap();
         assert_eq!(74922, resp.get_aggregated_payload_size());
         println!("pass");

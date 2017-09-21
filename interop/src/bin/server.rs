@@ -17,6 +17,8 @@ extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 extern crate interop;
+#[macro_use]
+extern crate log;
 
 use std::sync::Arc;
 
@@ -74,7 +76,7 @@ fn main() {
 
     let mut server = builder.build().unwrap();
     for &(ref host, port) in server.bind_addrs() {
-        println!("listening on {}:{}", host, port);
+        info!("listening on {}:{}", host, port);
     }
     server.start();
 
