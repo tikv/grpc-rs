@@ -23,7 +23,7 @@ use cq::CompletionQueue;
 use super::lock::SpinLock;
 use super::CallTag;
 
-type BoxFuture<T, E> = Box<Future<Item=T, Error=E> + Send>;
+type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 struct Alarm {
     alarm: *mut GrpcAlarm,
