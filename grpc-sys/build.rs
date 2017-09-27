@@ -55,12 +55,12 @@ fn prepare_grpc() {
     }
 }
 
-pub fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
+fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
     let mut entries = try!(fs::read_dir(p));
     Ok(entries.next().is_none())
 }
 
-pub fn build_grpc(cc: &mut Build) {
+fn build_grpc(cc: &mut Build) {
     prepare_grpc();
 
     let dst = Config::new("grpc").build_target("grpc").build();
