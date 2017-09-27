@@ -35,4 +35,4 @@ script:
   - export RUSTFLAGS=-Dwarnings
   - cargo build
   - cargo test --all
-  - cargo test --all --features link-sys
+  - GRPCIO_SYS_USE_PKG_CONFIG cargo test --all

@@ -12,146 +12,148 @@
 // limitations under the License.
 
 
-#[cfg(not(feature = "link-sys"))]
 extern crate cmake;
-extern crate gcc;
-#[cfg(feature = "link-sys")]
+extern crate cc;
 extern crate pkg_config;
 
-use gcc::Build;
+use std::path::Path;
+use std::{env, fs, io};
+use std::env::VarError;
 
-#[cfg(feature = "link-sys")]
-mod imp {
-    use gcc::Build;
-    use pkg_config::Config;
+use cmake::Config;
+use cc::Build;
+use pkg_config::Config as PkgConfig;
 
-    const GRPC_VERSION: &'static str = "1.4.0";
+const GRPC_VERSION: &'static str = "1.6.1";
 
-    pub fn build_or_link_grpc(cc: &mut Build) {
-        if let Ok(lib) = Config::new().atleast_version(GRPC_VERSION).probe("grpc") {
-            for inc_path in lib.include_paths {
-                cc.include(inc_path);
-            }
-        } else {
-            panic!("can't find a dynamic grpc library");
+fn link_grpc(cc: &mut Build) {
+    if let Ok(lib) = PkgConfig::new().atleast_version(GRPC_VERSION).probe("grpc") {
+        for inc_path in lib.include_paths {
+            cc.include(inc_path);
+        }
+    } else {
+        panic!("can't find a grpc library via pkg-config");
+    }
+}
+
+fn prepare_grpc() {
+    let modules = vec![
+        "grpc",
+        "grpc/third_party/zlib",
+        "grpc/third_party/boringssl",
+        "grpc/third_party/cares/cares",
+    ];
+
+    for module in modules {
+        if is_directory_empty(module).unwrap_or(true) {
+            panic!(
+                "Can't find module {}. You need to run `git submodule \
+                 update --init --recursive` first to build the project.",
+                module
+            );
         }
     }
 }
 
-#[cfg(not(feature = "link-sys"))]
-mod imp {
-    use std::path::Path;
-    use std::{env, fs, io};
+pub fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
+    let mut entries = try!(fs::read_dir(p));
+    Ok(entries.next().is_none())
+}
 
-    use cmake::Config;
-    use gcc::Build;
+pub fn build_grpc(cc: &mut Build) {
+    prepare_grpc();
 
-    fn prepare_grpc() {
-        let modules = vec![
-            "grpc",
-            "grpc/third_party/zlib",
-            "grpc/third_party/boringssl",
-            "grpc/third_party/cares/cares",
-        ];
+    let dst = Config::new("grpc").build_target("grpc").build();
 
-        for module in modules {
-            if is_directory_empty(module).unwrap_or(true) {
-                panic!(
-                    "Can't find module {}. You need to run `git submodule \
-                     update --init --recursive` first to build the project.",
-                    module
-                );
+    let mut zlib = "z";
+    let build_dir = format!("{}/build", dst.display());
+    if cfg!(target_os = "windows") {
+        let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
+            "bench" | "release" => {
+                zlib = "zlibstatic";
+                "Release"
             }
-        }
+            _ => {
+                zlib = "zlibstaticd";
+                "Debug"
+            }
+        };
+        println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/cares/{}",
+            build_dir,
+            profile
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/zlib/{}",
+            build_dir,
+            profile
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/boringssl/ssl/{}",
+            build_dir,
+            profile
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/boringssl/crypto/{}",
+            build_dir,
+            profile
+        );
+    } else {
+        println!("cargo:rustc-link-search=native={}", build_dir);
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/cares",
+            build_dir
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/zlib",
+            build_dir
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
+            build_dir
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
+            build_dir
+        );
     }
 
-    pub fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
-        let mut entries = try!(fs::read_dir(p));
-        Ok(entries.next().is_none())
-    }
+    println!("cargo:rustc-link-lib=static={}", zlib);
+    println!("cargo:rustc-link-lib=static=cares");
+    println!("cargo:rustc-link-lib=static=gpr");
+    println!("cargo:rustc-link-lib=static=grpc");
+    println!("cargo:rustc-link-lib=static=ssl");
+    println!("cargo:rustc-link-lib=static=crypto");
 
-    pub fn build_or_link_grpc(cc: &mut Build) {
-        prepare_grpc();
+    cc.include("grpc/include");
+}
 
-        let dst = Config::new("grpc").build_target("grpc").build();
-
-        let mut zlib = "z";
-        let build_dir = format!("{}/build", dst.display());
-        if cfg!(target_os = "windows") {
-            let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
-                "bench" | "release" => {
-                    zlib = "zlibstatic";
-                    "Release"
-                }
-                _ => {
-                    zlib = "zlibstaticd";
-                    "Debug"
-                }
-            };
-            println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/cares/{}",
-                build_dir,
-                profile
-            );
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/zlib/{}",
-                build_dir,
-                profile
-            );
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/boringssl/ssl/{}",
-                build_dir,
-                profile
-            );
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/boringssl/crypto/{}",
-                build_dir,
-                profile
-            );
-        } else {
-            println!("cargo:rustc-link-search=native={}", build_dir);
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/cares",
-                build_dir
-            );
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/zlib",
-                build_dir
-            );
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
-                build_dir
-            );
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
-                build_dir
-            );
+fn get_env(name: &str) -> Option<String> {
+    println!("cargo:rerun-if-env-changed={}", name);
+    match env::var(name) {
+        Ok(s) => Some(s),
+        Err(VarError::NotPresent) => None,
+        Err(VarError::NotUnicode(s)) => {
+            panic!("unrecognize env var of {}: {:?}", name, s.to_string_lossy());
         }
-
-        println!("cargo:rustc-link-lib=static={}", zlib);
-        println!("cargo:rustc-link-lib=static=cares");
-        println!("cargo:rustc-link-lib=static=gpr");
-        println!("cargo:rustc-link-lib=static=grpc");
-        println!("cargo:rustc-link-lib=static=ssl");
-        println!("cargo:rustc-link-lib=static=crypto");
-
-        cc.include("grpc/include");
     }
 }
 
 fn main() {
     let mut cc = Build::new();
 
-    imp::build_or_link_grpc(&mut cc);
+    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
+        link_grpc(&mut cc);
+    } else {
+        build_grpc(&mut cc);
+    }
 
     cc.file("grpc_wrap.c");
 
     if cfg!(target_os = "windows") {
         // At lease win7
-        cc.define("_WIN32_WINNT", Some("0x0700"))
-            .warnings(false)
-            .flag("/W4");
+        cc.define("_WIN32_WINNT", Some("0x0700")).warnings(false);
     }
 
     cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
