@@ -153,7 +153,7 @@ fn main() {
 
     if cfg!(target_os = "windows") {
         // At lease win7
-        cc.define("_WIN32_WINNT", Some("0x0700")).warnings(false);
+        cc.define("_WIN32_WINNT", Some("0x0700"));
     }
 
     cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
