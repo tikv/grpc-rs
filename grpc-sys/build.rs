@@ -12,17 +12,17 @@
 // limitations under the License.
 
 
+extern crate cc;
 #[cfg(not(feature = "link-sys"))]
 extern crate cmake;
-extern crate gcc;
 #[cfg(feature = "link-sys")]
 extern crate pkg_config;
 
-use gcc::Build;
+use cc::Build;
 
 #[cfg(feature = "link-sys")]
 mod imp {
-    use gcc::Build;
+    use cc::Build;
     use pkg_config::Config;
 
     const GRPC_VERSION: &'static str = "1.4.0";
@@ -43,8 +43,8 @@ mod imp {
     use std::path::Path;
     use std::{env, fs, io};
 
+    use cc::Build;
     use cmake::Config;
-    use gcc::Build;
 
     fn prepare_grpc() {
         let modules = vec![
