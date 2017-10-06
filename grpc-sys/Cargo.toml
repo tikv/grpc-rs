@@ -38,7 +38,7 @@ exclude = [
 libc = "0.2"
 
 [build-dependencies]
-gcc = "0.3.53"
+cc = "1.0"
 cmake = "0.1"
 pkg-config = "0.3"
 
