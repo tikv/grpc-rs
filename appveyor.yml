@@ -22,5 +22,6 @@ install:
 build: false
 
 test_script:
+  - SET RUSTFLAGS=-Dwarnings
   - cargo build
   - cargo test --all

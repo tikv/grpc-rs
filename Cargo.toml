@@ -24,7 +24,6 @@ members = ["proto", "benchmark", "compiler", "interop"]
 [features]
 default = ["protobuf-codec"]
 protobuf-codec = ["protobuf"]
-link-sys = ["grpcio-sys/link-sys"]
 
 [[example]]
 name = "route_guide_client"

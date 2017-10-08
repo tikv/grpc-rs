@@ -18,7 +18,7 @@ extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 extern crate grpcio_sys as grpc_sys;
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 extern crate libc;
 #[macro_use]
 extern crate log;
