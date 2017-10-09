@@ -56,7 +56,7 @@ fn prepare_grpc() {
 }
 
 fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
-    let mut entries = try!(fs::read_dir(p));
+    let mut entries = fs::read_dir(p)?;
     Ok(entries.next().is_none())
 }
 

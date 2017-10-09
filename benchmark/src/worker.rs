@@ -52,7 +52,7 @@ impl WorkerService for Worker {
             .and_then(|(arg, stream)| {
                 let cfg = arg.as_ref().unwrap().get_setup();
                 info!("receive server setup: {:?}", cfg);
-                let server = try!(Server::new(cfg));
+                let server = Server::new(cfg)?;
                 let status = server.get_status();
                 Ok(
                     sink.send((status, WriteFlags::default()))

@@ -217,14 +217,14 @@ impl<T> Stream for RequestStream<T> {
     fn poll(&mut self) -> Poll<Option<T>, Error> {
         {
             let mut call = self.call.lock();
-            try!(call.check_alive());
+            call.check_alive()?;
         }
         let data = try_ready!(self.base.poll(&mut self.call, false));
 
         match data {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let msg = try!((self.de)(&data));
+                let msg = (self.de)(&data)?;
                 Ok(Async::Ready(Some(msg)))
             }
         }

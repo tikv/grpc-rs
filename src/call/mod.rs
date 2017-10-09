@@ -512,7 +512,7 @@ impl SinkBase {
     ) -> Result<bool> {
         if self.batch_f.is_some() {
             // try its best not to return false.
-            try!(self.poll_complete());
+            self.poll_complete()?;
             if self.batch_f.is_some() {
                 return Ok(false);
             }

@@ -233,7 +233,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = try!((self.resp_de)(&data.unwrap()));
+        let t = (self.resp_de)(&data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
@@ -261,7 +261,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             try_ready!(call.poll_finish())
         };
-        let t = try!((self.resp_de)(&data.unwrap()));
+        let t = (self.resp_de)(&data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
@@ -297,7 +297,7 @@ impl<P> Sink for StreamingCallSink<P> {
     fn start_send(&mut self, (msg, flags): Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
         {
             let mut call = self.call.lock();
-            try!(call.check_alive());
+            call.check_alive()?;
         }
         self.sink_base
             .start_send(&mut self.call, &msg, flags, self.req_ser)
@@ -311,7 +311,7 @@ impl<P> Sink for StreamingCallSink<P> {
     fn poll_complete(&mut self) -> Poll<(), Error> {
         {
             let mut call = self.call.lock();
-            try!(call.check_alive());
+            call.check_alive()?;
         }
         self.sink_base.poll_complete()
     }
@@ -325,9 +325,9 @@ impl<P> Sink for StreamingCallSink<P> {
             self.close_f = Some(close_f);
         }
 
-        if let Async::NotReady = try!(self.close_f.as_mut().unwrap().poll()) {
+        if let Async::NotReady = self.close_f.as_mut().unwrap().poll()? {
             // if call is finished, can return early here.
-            try!(call.check_alive());
+            call.check_alive()?;
             return Ok(Async::NotReady);
         }
         Ok(Async::Ready(()))
@@ -360,7 +360,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
         let mut finished = false;
-        try!(self.call.call(|c| {
+        self.call.call(|c| {
             if c.finished {
                 finished = true;
                 return Ok(());
@@ -369,7 +369,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             let res = c.poll_finish().map(|_| ());
             finished = c.finished;
             res
-        }));
+        })?;
 
         let mut bytes = None;
         loop {
@@ -394,7 +394,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             let msg_f = self.call.call(|c| c.call.start_recv_message());
             self.msg_f = Some(msg_f);
             if let Some(ref data) = bytes {
-                let msg = try!((self.resp_de)(data));
+                let msg = (self.resp_de)(data)?;
                 return Ok(Async::Ready(Some(msg)));
             }
         }
