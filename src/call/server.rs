@@ -353,7 +353,7 @@ macro_rules! impl_stream_sink {
             type SinkError = Error;
 
             fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
-                if let Async::Ready(_) = try!(self.call.call(|c| c.poll_finish())) {
+                if let Async::Ready(_) = self.call.call(|c| c.poll_finish())? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base
@@ -401,13 +401,13 @@ macro_rules! impl_stream_sink {
             type Error = Error;
 
             fn poll(&mut self) -> Poll<(), Error> {
-                let readiness = try!(self.call.call(|c| {
+                let readiness = self.call.call(|c| {
                     if c.finished {
                         return Ok(Async::Ready(()));
                     }
 
                     c.poll_finish().map(|r| r.map(|_| ()))
-                }));
+                })?;
 
                 if let Some(ref mut f) = self.fail_f {
                     try_ready!(f.poll());
