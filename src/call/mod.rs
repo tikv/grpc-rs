@@ -485,6 +485,16 @@ impl WriteFlags {
         );
         self
     }
+
+    /// Get if buffer hint is enabled.
+    pub fn get_buffer_hint(&self) -> bool {
+        (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
+    }
+
+    /// Get if compression is disable.
+    pub fn get_force_no_compress(&self) -> bool {
+        (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
+    }
 }
 
 /// A helper struct for constructing Sink object for batch requests.
@@ -507,7 +517,7 @@ impl SinkBase {
         &mut self,
         call: &mut C,
         t: &T,
-        flags: WriteFlags,
+        mut flags: WriteFlags,
         ser: SerializeFn<T>,
     ) -> Result<bool> {
         if self.batch_f.is_some() {
@@ -520,6 +530,10 @@ impl SinkBase {
 
         self.buf.clear();
         ser(t, &mut self.buf);
+        if flags.get_buffer_hint() && self.send_metadata {
+            // temporary fix: buffer hint with send meta will not send out any metadata.
+            flags = flags.buffer_hint(false);
+        }
         let write_f = call.call(|c| {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
