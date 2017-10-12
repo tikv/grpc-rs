@@ -491,7 +491,7 @@ impl WriteFlags {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
-    /// Get if compression is disable.
+    /// Get if compression is disabled.
     pub fn get_force_no_compress(&self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
