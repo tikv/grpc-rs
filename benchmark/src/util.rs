@@ -110,9 +110,9 @@ mod util {
         let (mut total_usage, mut idle_usage) = (0, 0);
         f.read_to_string(&mut usages).unwrap();
         for (idx, usage) in usages[5..].split_whitespace().take(10).enumerate() {
-            total_usage += usage.parse().unwrap();
+            total_usage += usage.parse::<u64>().unwrap();
             if idx == 3 {
-                idle_usage = usage.parse().unwrap();
+                idle_usage = usage.parse::<u64>().unwrap();
             }
         }
         (total_usage, idle_usage)
