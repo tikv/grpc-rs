@@ -25,5 +25,5 @@ build: false
 
 test_script:
   - SET RUSTFLAGS=-Dwarnings
-  - cargo build
-  - cargo test --all
+  - cargo build --target %TARGET%
+  - cargo test --all --target %TARGET%
