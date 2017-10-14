@@ -62,7 +62,7 @@
 
 #ifdef GPR_WINDOWS
 #define GPR_EXPORT __declspec(dllexport)
-#define GPR_CALLTYPE __stdcall
+#define GPR_CALLTYPE __cdecl
 #endif
 
 #ifndef GPR_EXPORT
