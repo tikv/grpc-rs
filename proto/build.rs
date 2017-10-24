@@ -19,24 +19,15 @@ use std::fs::{self, File};
 use std::env;
 use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Output};
 
 use grpcio_compiler::codegen as grpc_gen;
 use protobuf::codegen as pb_gen;
 use protobuf::compiler_plugin::GenResult;
 use protobuf::descriptor::{FileDescriptorProto, FileDescriptorSet};
 
-fn run_command(cmd: &mut Command) -> Output {
-    match cmd.output() {
-        Err(e) => panic!("failed to run [{:?}]: {:?}", cmd, e),
-        Ok(output) => output,
-    }
-}
-
 /// Descriptor file to module file.
-fn desc_to_module<P, G, W>(descriptor: P, output: P, mut gen: G, mut module: W)
+fn desc_to_module<G, W>(descriptor: &Path, output_dir: &Path, mut gen: G, mut module: W)
 where
-    P: AsRef<Path>,
     G: FnMut(&[FileDescriptorProto], &[String]) -> Vec<GenResult>,
     W: Write,
 {
@@ -51,7 +42,6 @@ where
         .collect();
     // All files need to be generated in our case.
     let results = gen(proto_set.get_file(), &files);
-    let output_dir = output.as_ref();
     if !output_dir.exists() {
         fs::create_dir_all(output_dir).unwrap();
     }
@@ -70,70 +60,21 @@ where
 ///
 /// Using `FileDescriptorSet` here so we don't need to compile the binaries like
 /// protoc-gen-rust and grpc_rust_plugin.
-fn compile<P: AsRef<Path>>(include: P, protos: &[String], module: &str) {
+fn compile<P: AsRef<Path>>(desc_path: P, module: &str) {
     let out_dir = env::var("OUT_DIR").unwrap();
     let module_path = Path::new(&out_dir).join(module);
     if !module_path.exists() {
         fs::create_dir_all(&module_path).unwrap();
     }
 
-    let mut protoc = Command::new("protoc");
-    protoc.args(&["-I", &format!("{}", include.as_ref().display())]);
-    let mut desc_path = module_path.to_path_buf();
-    desc_path.set_extension("desc");
-    protoc.args(&["-o", &format!("{}", desc_path.display())]);
-    for proto in protos {
-        protoc.arg(format!("{}", proto));
-    }
-    println!("Running: {:?}", protoc);
-    let status = protoc.status().unwrap();
-    if !status.success() {
-        panic!("failed to run {:?}: {}", protoc, status);
-    }
-
     let mod_rs = module_path.join("mod.rs");
     let mut module = File::create(mod_rs).unwrap();
-    desc_to_module(&desc_path, &module_path, pb_gen::gen, &mut module);
-    desc_to_module(&desc_path, &module_path, grpc_gen::gen, &mut module);
-}
-
-fn compile_all<P: AsRef<Path>>(include: P, proto_path: P, module: &str) {
-    let mut protos = vec![];
-    for entry in fs::read_dir(proto_path).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.extension().unwrap() == "proto" {
-            protos.push(format!("{}", path.display()));
-        }
-    }
-    compile(include, &protos, module)
-}
-
-fn check_protoc() {
-    let output = run_command(Command::new("protoc").arg("--version"));
-    if !output.status.success() {
-        panic!("protoc is required.");
-    }
-    let version = String::from_utf8(output.stdout).unwrap();
-    let mut iter = version.split_whitespace();
-    iter.next().unwrap();
-    let vercode = iter.next().unwrap();
-    let marjor: usize = vercode.split('.').next().unwrap().parse().unwrap();
-    if marjor < 3 {
-        panic!("expect protoc 3.0.0+ is required, find {}", vercode);
-    }
+    desc_to_module(desc_path.as_ref(), &module_path, pb_gen::gen, &mut module);
+    desc_to_module(desc_path.as_ref(), &module_path, grpc_gen::gen, &mut module);
 }
 
 fn main() {
-    check_protoc();
-
-    let proto_src = Path::new("proto");
-
-    // compile testing
-    let testing_src = proto_src.join("grpc").join("testing");
-    compile_all(proto_src, testing_src.as_path(), "testing");
-
-    // compile example
-    let example_src = proto_src.join("example");
-    compile_all(example_src.as_path(), example_src.as_path(), "example");
+    for package in &["testing", "example", "health"] {
+        compile(format!("{}.desc", package), package);
+    }
 }
