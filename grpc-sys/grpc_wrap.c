@@ -62,7 +62,7 @@
 
 #ifdef GPR_WINDOWS
 #define GPR_EXPORT __declspec(dllexport)
-#define GPR_CALLTYPE __stdcall
+#define GPR_CALLTYPE __cdecl
 #endif
 
 #ifndef GPR_EXPORT
@@ -275,7 +275,7 @@ GPR_EXPORT size_t GPR_CALLTYPE
 grpcwrap_batch_context_recv_message_length(const grpcwrap_batch_context *ctx) {
   grpc_byte_buffer_reader reader;
   if (!ctx->recv_message) {
-    return -1;
+    return (size_t)-1;
   }
 
   GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
@@ -383,6 +383,9 @@ GPR_EXPORT grpc_call *GPR_CALLTYPE grpcwrap_channel_create_call(
   if (host != NULL) {
     host_slice = grpc_slice_from_copied_buffer(host, host_len);
     host_slice_ptr = &host_slice;
+  } else {
+    // to silent msvc false warning
+    host_slice = grpc_empty_slice();
   }
   grpc_call *ret =
       grpc_channel_create_call(channel, parent_call, propagation_mask, cq,
@@ -638,7 +641,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_message(
 }
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_close_from_client(
-    grpc_call *call, grpcwrap_batch_context *ctx, void *tag) {
+    grpc_call *call, void *tag) {
   /* TODO: don't use magic number */
   grpc_op ops[1];
   ops[0].op = GRPC_OP_SEND_CLOSE_FROM_CLIENT;

@@ -1,18 +1,43 @@
 [package]
-name = "grpc-sys"
-version = "0.1.0"
+name = "grpcio-sys"
+version = "0.1.2"
+authors = ["The TiKV Project Developers"]
+license = "Apache-2.0"
+keywords = ["grpc", "bindings"]
+repository = "https://github.com/pingcap/grpc-rs"
+homepage = "https://github.com/pingcap/grpc-rs"
+documentation = "https://docs.rs/grpcio-sys"
+description = "FFI bindings to gRPC c core library"
+categories = ["external-ffi-bindings", "network-programming"]
 build = "build.rs"
+exclude = [
+    "grpc/doc/*",
+    "grpc/etc/*",
+    "grpc/examples/*",
+    "grpc/Makefile",
+    "grpc/templates/*",
+    "grpc/src/node/*",
+    "grpc/src/objective-c/*",
+    "grpc/src/php/*",
+    "grpc/src/python/*",
+    "grpc/src/ruby/*",
+    "grpc/vsprojects/*",
+    "grpc/test/core/end2end/*",
+    "grpc/third_party/benchmark/*",
+    "grpc/third_party/boringssl/fuzz/*",
+    "grpc/third_party/boringssl/crypto/cipher/test/*",
+    "grpc/third_party/boringssl-with-bazel/*",
+    "grpc/third_party/gflags/*",
+    "grpc/third_party/googletest/*",
+    "grpc/third_party/objective_c/*",
+    "grpc/third_party/protobuf/*",
+    "grpc/third_party/rake-compiler-dock/*",
+]
 
 [dependencies]
 libc = "0.2"
-clippy = { version = "*", optional = true }
 
 [build-dependencies]
-gcc = "0.3"
+cc = "1.0"
 cmake = "0.1"
 pkg-config = "0.3"
-
-[features]
-default = []
-link-sys = []
-dev = ["clippy"]

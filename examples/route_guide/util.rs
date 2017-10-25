@@ -11,13 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(unknown_lints)]
 
 // client and server share different parts of utils.
 #![allow(dead_code)]
+#![allow(cast_lossless)]
+
+use std::f64::consts::PI;
 
 use serde_json;
 
-use grpc_proto::example::route_guide::*;
+use grpcio_proto::example::route_guide::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PointRef {
@@ -55,19 +59,21 @@ pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
     let hi = rhs.get_hi();
     let lo = rhs.get_lo();
     lhs.get_longitude() <= hi.get_longitude() && lhs.get_longitude() >= lo.get_longitude() &&
-    lhs.get_latitude() <= hi.get_latitude() && lhs.get_latitude() >= lo.get_latitude()
+        lhs.get_latitude() <= hi.get_latitude() && lhs.get_latitude() >= lo.get_latitude()
 }
 
 const COORD_FACTOR: f64 = 10000000.0;
 
 pub fn convert_to_rad(num: f64) -> f64 {
-    num * 3.1415926 / 180.0
+    num * PI / 180.0
 }
 
 pub fn format_point(p: &Point) -> String {
-    format!("{}, {}",
-            p.get_latitude() as f64 / COORD_FACTOR,
-            p.get_longitude() as f64 / COORD_FACTOR)
+    format!(
+        "{}, {}",
+        p.get_latitude() as f64 / COORD_FACTOR,
+        p.get_longitude() as f64 / COORD_FACTOR
+    )
 }
 
 pub fn cal_distance(lhs: &Point, rhs: &Point) -> f64 {
@@ -81,7 +87,7 @@ pub fn cal_distance(lhs: &Point, rhs: &Point) -> f64 {
     let delta_lon_rad = convert_to_rad(lon2 - lon1);
 
     let a = (delta_lat_rad / 2.0).sin().powi(2) +
-            lat_rad_1.cos() * lat_rad_2.cos() * (delta_lon_rad / 2.0).sin().powi(2);
+        lat_rad_1.cos() * lat_rad_2.cos() * (delta_lon_rad / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
     let r = 6371000.0; // metres
 

@@ -15,6 +15,7 @@
 use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread::{ThreadId, self};
 
 use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
 use futures::Async;
@@ -23,7 +24,6 @@ use futures::executor::{Notify, Spawn};
 use mio::util::BoundedQueue;
 
 use async::{SpinLock, Alarm, CallTag};
-use util;
 
 pub use grpc_sys::GrpcCompletionType as EventType;
 pub use grpc_sys::GrpcEvent as Event;
@@ -53,13 +53,13 @@ impl Drop for CompletionQueueHandle {
 #[derive(Clone)]
 pub struct CompletionQueue {
     handle: Arc<CompletionQueueHandle>,
-    id: usize,
+    id: ThreadId,
     fq: Arc<ReadyQueue>,
 }
 
 impl CompletionQueue {
-    pub fn new(handle: Arc<CompletionQueueHandle>, id: usize) -> CompletionQueue {
-        let fq = ReadyQueue {
+    pub fn new(handle: Arc<CompletionQueueHandle>, id: ThreadId) -> CompletionQueue {
+       let fq = ReadyQueue {
             queue: BoundedQueue::with_capacity(BATCH_SIZE * 2),
             pending: AtomicUsize::new(0),
             worker_id: id,
@@ -93,7 +93,7 @@ impl CompletionQueue {
         self.handle.cq
     }
 
-    pub fn worker_id(&self) -> usize {
+    pub fn worker_id(&self) -> ThreadId {
         self.id
     }
 
@@ -102,7 +102,6 @@ impl CompletionQueue {
     }
 
     fn pop_and_poll(&self, notify: QueueNotify) {
-        assert_eq!(util::get_worker_id(), self.id);
         self.fq.pop_and_poll(notify, self.clone());
     }
 }
@@ -114,7 +113,7 @@ struct ReadyQueue {
     // TODO: use std::sync::mpsc::Receiver instead.
     queue: BoundedQueue<Item>,
     pending: AtomicUsize,
-    worker_id: usize,
+    worker_id: ThreadId,
 }
 
 unsafe impl Send for ReadyQueue {}
@@ -124,7 +123,7 @@ impl ReadyQueue {
     fn push_and_notify(&self, mut f: Item, cq: CompletionQueue) {
         let notify = QueueNotify::new(cq.clone());
 
-        if util::get_worker_id() == self.worker_id {
+        if thread::current().id()  == self.worker_id {
             let notify = Arc::new(notify);
             poll(f, &notify);
         } else {

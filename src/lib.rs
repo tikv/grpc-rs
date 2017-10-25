@@ -12,17 +12,18 @@
 // limitations under the License.
 
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
-
+#![allow(unknown_lints)]
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]
+#![allow(cast_lossless)]
+#![allow(deprecated)]
 
-extern crate grpc_sys;
 #[macro_use]
 extern crate futures;
+extern crate grpcio_sys as grpc_sys;
 extern crate libc;
+#[macro_use]
+extern crate log;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 extern crate mio;
@@ -36,17 +37,17 @@ mod client;
 mod credentials;
 mod env;
 mod error;
+mod log_util;
 mod server;
-mod util;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
                        ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
-                       ClientUnaryReceiver};
+                       ClientUnaryReceiver, StreamingCallSink};
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
-pub use channel::{Channel, ChannelBuilder, CompressionLevel, CompressionAlgorithms};
+pub use channel::{Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel};
 pub use client::Client;
 pub use codec::Marshaller;
 #[cfg(feature = "protobuf-codec")]
@@ -55,4 +56,5 @@ pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCrede
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
+pub use log_util::redirect_log;
 pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

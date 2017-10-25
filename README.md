@@ -1,17 +1,19 @@
 # gRPC-rs
 
-[![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
+`gRPC-rs` is a Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source universal RPC framework that puts mobile and HTTP/2 first.
 
-The Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source, general RPC framework that puts mobile and HTTP/2 first.
+[![Crates.io](https://img.shields.io/crates/v/grpcio.svg?maxAge=2592000)](https://crates.io/crates/grpcio)
+[![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
+[![Build status](https://ci.appveyor.com/api/projects/status/1cofa3nih5fm2kb0/branch/master?svg=true)](https://ci.appveyor.com/project/busyjay/grpc-rs/branch/master)
 
 Status
 ------
-This project is still under developement, not all features are supported.
+This project is still under development. The following features with the check marks are supported:
 
-- [x] Basic asynchronous unary/steaming call
+- [x] Basic asynchronous unary/steaming call 
 - [x] SSL
 - [x] Generic call
-- [x] Connetion level compression
+- [x] Connection level compression
 - [x] Interoperability test
 - [x] QPS benchmark
 - [ ] Custom metadata
@@ -20,21 +22,26 @@ This project is still under developement, not all features are supported.
 - [ ] Authentication
 - [ ] Load balance
 
-Only linux and macOS are tested.
-
 Prerequisites
 -------------
 
-- Cmake 3.8.0
-- Gcc (or Clang)
+- CMake >= 3.8.0
 - Go (to build ssl support) >=1.7
-- Rust >= 1.18.0
+- Rust >= 1.19.0
+
+For Linux and MacOS, you also need to install gcc (or clang) too.
+
+For Windows, you also need to install following software:
+
+- Active State Perl 
+- yasm
+- Visual Studio 2015+
 
 Build
 -----
 
 ```
-$ cargo build --all
+$ cargo build
 ```
 
 Usage
@@ -42,19 +49,19 @@ Usage
 
 To generate the sources from proto files:
 
-1. Install protobuf compiler.
+1. Install the protobuf compiler:
 
 ```
 $ cargo install protobuf
 ```
 
-2. Install gRPC compiler.
+2. Install the gRPC compiler:
 
 ```
-$ cargo install --git https://github.com/pingcap/grpc-rs.git grpc-compiler
+$ cargo install grpcio-compiler
 ```
 
-3. Generate sources.
+3. Generate the sources:
 
 ```
 $ protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plugin` example.proto
@@ -63,8 +70,8 @@ $ protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plu
 To include this project as a dependency:
 
 ```
-[dependencies.grpc]
-git = "https://github.com/pingcap/grpc-rs.git"
+[dependencies]
+grpcio = "0.1"
 ```
 
 Performance

@@ -104,8 +104,7 @@ impl<T> Future for CqFuture<T> {
 
         if let Some(res) = guard.result.take() {
             guard.stale = true;
-            let r = try!(res);
-            return Ok(Async::Ready(r));
+            return Ok(Async::Ready(res?));
         }
 
         // So the task has not been finished yet, add notification hook.

@@ -96,7 +96,7 @@ pub fn to_camel_case(name: &str) -> String {
 }
 
 pub fn fq_grpc(item: &str) -> String {
-    format!("::grpc::{}", item)
+    format!("::grpcio::{}", item)
 }
 
 pub enum MethodType {

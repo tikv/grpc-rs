@@ -12,6 +12,7 @@
 // limitations under the License.
 
 
+use std::borrow::Cow;
 use std::{cmp, ptr, usize};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -28,7 +29,8 @@ use credentials::ChannelCredentials;
 use cq::CompletionQueue;
 use env::Environment;
 
-pub use grpc_sys::{GrpcCompressionLevel as CompressionLevel, GrpcCompressionAlgorithms as CompressionAlgorithms};
+pub use grpc_sys::{GrpcCompressionAlgorithms as CompressionAlgorithms,
+                   GrpcCompressionLevel as CompressionLevel};
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
 const OPT_DEFAULT_AUTHORITY: &'static [u8] = b"grpc.default_authority\0";
@@ -47,8 +49,12 @@ const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_r
 const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
 const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
 const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
-const OPT_DEFALUT_COMPRESSION_ALGORITHM : &'static [u8] = b"grpc.default_compression_algorithm\0";
-const OPT_DEFAULT_COMPRESSION_LEVEL : &'static [u8] = b"grpc.default_compression_level\0";
+const OPT_DEFALUT_COMPRESSION_ALGORITHM: &'static [u8] = b"grpc.default_compression_algorithm\0";
+const OPT_DEFAULT_COMPRESSION_LEVEL: &'static [u8] = b"grpc.default_compression_level\0";
+const OPT_KEEPALIVE_TIME_MS: &'static [u8] = b"grpc.keepalive_time_ms\0";
+const OPT_KEEPALIVE_TIMEOUT_MS: &'static [u8] = b"grpc.keepalive_timeout_ms\0";
+const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &'static [u8] = b"grpc.keepalive_permit_without_calls\0";
+const OPT_OPTIMIZATION_TARGET: &'static [u8] = b"grpc.optimization_target\0";
 const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -73,10 +79,20 @@ enum Options {
     String(CString),
 }
 
+/// Optimization target for a channel.
+pub enum OptTarget {
+    /// Minimize latency at the cost of throughput.
+    Latency,
+    /// Balance latency and throughput.
+    Blend,
+    /// Maximize throughput at the expense of latency.
+    Throughput,
+}
+
 /// Channel configuration object.
 pub struct ChannelBuilder {
     env: Arc<Environment>,
-    options: HashMap<&'static [u8], Options>,
+    options: HashMap<Cow<'static, [u8]>, Options>,
 }
 
 impl ChannelBuilder {
@@ -90,69 +106,84 @@ impl ChannelBuilder {
     /// Default authority to pass if none specified on call construction.
     pub fn default_authority<S: Into<Vec<u8>>>(mut self, authority: S) -> ChannelBuilder {
         let authority = CString::new(authority).unwrap();
-        self.options
-            .insert(OPT_DEFAULT_AUTHORITY, Options::String(authority));
+        self.options.insert(
+            Cow::Borrowed(OPT_DEFAULT_AUTHORITY),
+            Options::String(authority),
+        );
         self
     }
 
     /// Maximum number of concurrent incoming streams to allow on a http2 connection.
     pub fn max_concurrent_stream(mut self, num: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_MAX_CONCURRENT_STREAMS, Options::Integer(num));
+        self.options.insert(
+            Cow::Borrowed(OPT_MAX_CONCURRENT_STREAMS),
+            Options::Integer(num),
+        );
         self
     }
 
     /// Maximum message length that the channel can receive. usize::MAX means unlimited.
     pub fn max_receive_message_len(mut self, len: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_MAX_RECEIVE_MESSAGE_LENGTH, Options::Integer(len));
+        self.options.insert(
+            Cow::Borrowed(OPT_MAX_RECEIVE_MESSAGE_LENGTH),
+            Options::Integer(len),
+        );
         self
     }
 
     /// Maximum message length that the channel can send. -1 means unlimited.
     pub fn max_send_message_len(mut self, len: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_MAX_SEND_MESSAGE_LENGTH, Options::Integer(len));
+        self.options.insert(
+            Cow::Borrowed(OPT_MAX_SEND_MESSAGE_LENGTH),
+            Options::Integer(len),
+        );
         self
     }
 
     /// The maximum time between subsequent connection attempts.
     pub fn max_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
-        self.options
-            .insert(OPT_MAX_RECONNECT_BACKOFF_MS,
-                    Options::Integer(dur_to_ms(backoff)));
+        self.options.insert(
+            Cow::Borrowed(OPT_MAX_RECONNECT_BACKOFF_MS),
+            Options::Integer(dur_to_ms(backoff)),
+        );
         self
     }
 
     /// The time between the first and second connection attempts.
     pub fn initial_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
-        self.options
-            .insert(OPT_INITIAL_RECONNECT_BACKOFF_MS,
-                    Options::Integer(dur_to_ms(backoff)));
+        self.options.insert(
+            Cow::Borrowed(OPT_INITIAL_RECONNECT_BACKOFF_MS),
+            Options::Integer(dur_to_ms(backoff)),
+        );
         self
     }
 
     /// Initial sequence number for http2 transports.
     pub fn https_initial_seq_number(mut self, number: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER, Options::Integer(number));
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER),
+            Options::Integer(number),
+        );
         self
     }
 
     /// Amount to read ahead on individual streams. Defaults to 64kb, larger
     /// values can help throughput on high-latency connections.
     pub fn stream_initial_window_size(mut self, window_size: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_STREAM_INITIAL_WINDOW_SIZE,
-                    Options::Integer(window_size));
+        self.options.insert(
+            Cow::Borrowed(OPT_STREAM_INITIAL_WINDOW_SIZE),
+            Options::Integer(window_size),
+        );
         self
     }
 
     /// Primary user agent: goes at the start of the user-agent metadata sent on each request.
     pub fn primary_user_agent(mut self, agent: &str) -> ChannelBuilder {
         let agent_string = format_user_agent_string(agent);
-        self.options
-            .insert(PRIMARY_USER_AGENT_STRING, Options::String(agent_string));
+        self.options.insert(
+            Cow::Borrowed(PRIMARY_USER_AGENT_STRING),
+            Options::String(agent_string),
+        );
         self
     }
 
@@ -160,7 +191,7 @@ impl ChannelBuilder {
     pub fn reuse_port(mut self, reuse: bool) -> ChannelBuilder {
         let opt = if reuse { 1 } else { 0 };
         self.options
-            .insert(OPT_SO_REUSE_PORT, Options::Integer(opt));
+            .insert(Cow::Borrowed(OPT_SO_REUSE_PORT), Options::Integer(opt));
         self
     }
 
@@ -168,37 +199,47 @@ impl ChannelBuilder {
     /// host name checking using this channel argument. This *should* be used for testing only.
     pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
         let target = CString::new(target).unwrap();
-        self.options
-            .insert(OPT_SSL_TARGET_NAME_OVERRIDE, Options::String(target));
+        self.options.insert(
+            Cow::Borrowed(OPT_SSL_TARGET_NAME_OVERRIDE),
+            Options::String(target),
+        );
         self
     }
 
     /// How large a slice to try and read from the wire each time.
     pub fn tcp_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_TCP_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self.options.insert(
+            Cow::Borrowed(OPT_TCP_READ_CHUNK_SIZE),
+            Options::Integer(bytes),
+        );
         self
     }
 
     /// How minimal large a slice to try and read from the wire each time.
     pub fn tcp_min_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_TCP_MIN_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self.options.insert(
+            Cow::Borrowed(OPT_TCP_MIN_READ_CHUNK_SIZE),
+            Options::Integer(bytes),
+        );
         self
     }
 
     /// How maximal large a slice to try and read from the wire each time.
     pub fn tcp_max_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_TCP_MAX_READ_CHUNK_SIZE, Options::Integer(bytes));
+        self.options.insert(
+            Cow::Borrowed(OPT_TCP_MAX_READ_CHUNK_SIZE),
+            Options::Integer(bytes),
+        );
         self
     }
 
     /// How much data are we willing to queue up per stream if
     /// write_buffer_hint is set. This is an upper bound.
     pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_HTTP2_WRITE_BUFFER_SIZE, Options::Integer(size));
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_WRITE_BUFFER_SIZE),
+            Options::Integer(size),
+        );
         self
     }
 
@@ -207,29 +248,103 @@ impl ChannelBuilder {
     /// Larger values give lower CPU usage for large messages, but more head of line
     /// blocking for small messages.
     pub fn http2_max_frame_size(mut self, size: usize) -> ChannelBuilder {
-        self.options
-            .insert(OPT_HTTP2_MAX_FRAME_SIZE, Options::Integer(size));
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_MAX_FRAME_SIZE),
+            Options::Integer(size),
+        );
         self
     }
 
     /// Set BDP probing.
     pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
         let enable_int = Options::Integer(if enable { 1 } else { 0 });
-        self.options.insert(OPT_HTTP2_BDP_PROBE, enable_int);
+        self.options
+            .insert(Cow::Borrowed(OPT_HTTP2_BDP_PROBE), enable_int);
         self
     }
 
-    // Default compression algorithm for the channel.
+    /// Default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
-        self.options
-            .insert(OPT_DEFALUT_COMPRESSION_ALGORITHM, Options::Integer(algo as usize));
+        self.options.insert(
+            Cow::Borrowed(OPT_DEFALUT_COMPRESSION_ALGORITHM),
+            Options::Integer(algo as usize),
+        );
         self
     }
 
-    // Default compression level for the channel.
+    /// Default compression level for the channel.
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(OPT_DEFAULT_COMPRESSION_LEVEL),
+            Options::Integer(level as usize),
+        );
+        self
+    }
+
+    /// After a duration of this time the client/server pings its peer to see
+    /// if the transport is still alive.
+    pub fn keepalive_time(mut self, timeout: Duration) -> ChannelBuilder {
+        let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
+        self.options.insert(
+            Cow::Borrowed(OPT_KEEPALIVE_TIME_MS),
+            Options::Integer(timeout_ms as usize),
+        );
+        self
+    }
+
+    /// After waiting for a duration of this time, if the keepalive ping sender does
+    /// not receive the ping ack, it will close the transport.
+    pub fn keepalive_timeout(mut self, timeout: Duration) -> ChannelBuilder {
+        let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
+        self.options.insert(
+            Cow::Borrowed(OPT_KEEPALIVE_TIMEOUT_MS),
+            Options::Integer(timeout_ms as usize),
+        );
+        self
+    }
+
+    /// Is it permissible to send keepalive pings without any outstanding streams.
+    pub fn keepalive_permit_without_calls(mut self, allow: bool) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS),
+            Options::Integer(allow as usize),
+        );
+        self
+    }
+
+    /// Optimize a channel.
+    ///
+    /// Default is `OptTarget::Blend`.
+    pub fn optimize_for(mut self, target: OptTarget) -> ChannelBuilder {
+        let val = match target {
+            OptTarget::Latency => CString::new("latency"),
+            OptTarget::Blend => CString::new("blend"),
+            OptTarget::Throughput => CString::new("throughput"),
+        };
+        self.options.insert(
+            Cow::Borrowed(OPT_OPTIMIZATION_TARGET),
+            Options::String(val.unwrap()),
+        );
+        self
+    }
+
+    /// Set a raw int configuration.
+    ///
+    /// This method is only for bench usage, users should use the encapsulated API instead.
+    #[doc(hidden)]
+    pub fn raw_cfg_int(mut self, key: CString, val: usize) -> ChannelBuilder {
         self.options
-            .insert(OPT_DEFAULT_COMPRESSION_LEVEL, Options::Integer(level as usize));
+            .insert(Cow::Owned(key.into_bytes()), Options::Integer(val));
+        self
+    }
+
+    /// Set a raw string configuration.
+    ///
+    /// This method is only for bench usage, users should use the encapsulated API instead.
+    #[doc(hidden)]
+    pub fn raw_cfg_string(mut self, key: CString, val: CString) -> ChannelBuilder {
+        self.options
+            .insert(Cow::Owned(key.into_bytes()), Options::String(val));
         self
     }
 
@@ -242,11 +357,9 @@ impl ChannelBuilder {
                 Options::Integer(val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
                 },
-                Options::String(ref val) => {
-                    unsafe {
-                        grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
-                    }
-                }
+                Options::String(ref val) => unsafe {
+                    grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
+                },
             }
         }
         ChannelArgs { args: args }
@@ -259,7 +372,7 @@ impl ChannelBuilder {
 
     fn connect_with_creds(mut self, addr: &str, creds: Option<ChannelCredentials>) -> Channel {
         let addr = CString::new(addr).unwrap();
-        if let Entry::Vacant(e) = self.options.entry(PRIMARY_USER_AGENT_STRING) {
+        if let Entry::Vacant(e) = self.options.entry(Cow::Borrowed(PRIMARY_USER_AGENT_STRING)) {
             e.insert(Options::String(format_user_agent_string("")));
         }
         let args = self.build_args();
@@ -269,21 +382,21 @@ impl ChannelBuilder {
                 None => {
                     grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut())
                 }
-                Some(mut creds) => {
-                    grpc_sys::grpc_secure_channel_create(creds.as_mut_ptr(),
-                                                         addr_ptr,
-                                                         args.args,
-                                                         ptr::null_mut())
-                }
+                Some(mut creds) => grpc_sys::grpc_secure_channel_create(
+                    creds.as_mut_ptr(),
+                    addr_ptr,
+                    args.args,
+                    ptr::null_mut(),
+                ),
             }
         };
 
         Channel {
             cq: self.env.pick_cq(),
             inner: Arc::new(ChannelInner {
-                                _env: self.env,
-                                channel: channel,
-                            }),
+                _env: self.env,
+                channel: channel,
+            }),
         }
     }
 
@@ -341,16 +454,18 @@ impl Channel {
             let method_len = method.name.len();
             let timeout = opt.get_timeout()
                 .map_or_else(GprTimespec::inf_future, GprTimespec::from);
-            grpc_sys::grpcwrap_channel_create_call(ch,
-                                                   ptr::null_mut(),
-                                                   0,
-                                                   cq,
-                                                   method_ptr as *const _,
-                                                   method_len,
-                                                   ptr::null(),
-                                                   0,
-                                                   timeout,
-                                                   ptr::null_mut())
+            grpc_sys::grpcwrap_channel_create_call(
+                ch,
+                ptr::null_mut(),
+                0,
+                cq,
+                method_ptr as *const _,
+                method_len,
+                ptr::null(),
+                0,
+                timeout,
+                ptr::null_mut(),
+            )
         };
 
         unsafe { Call::from_raw(raw_call) }

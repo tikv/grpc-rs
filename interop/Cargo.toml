@@ -1,15 +1,16 @@
 [package]
 name = "interop"
 version = "0.1.0"
+publish = false
 
 [dependencies]
-grpc = { path = ".." }
-grpc-sys = { path = "../grpc-sys" }
-grpc-proto = { path = "../proto" }
+grpcio = { path = ".." }
+grpcio-sys = { path = "../grpc-sys" }
+grpcio-proto = { path = "../proto" }
 protobuf = "1.2"
 futures = "0.1"
+log = "0.3"
 clap = "2.23"
-clippy = { version = "*", optional = true }
 
 [[bin]]
 name = "interop_client"
@@ -19,6 +20,3 @@ path = "src/bin/client.rs"
 name = "interop_server"
 path = "src/bin/server.rs"
 
-[features]
-default = []
-dev = ["clippy"]

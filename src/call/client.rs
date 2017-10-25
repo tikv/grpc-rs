@@ -20,7 +20,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
 use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
-use call::{Call, Method, check_run};
+use call::{check_run, Call, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::Error;
@@ -46,25 +46,31 @@ pub struct CallOption {
 impl CallOption {
     /// Signal that the call is idempotent
     pub fn idempotent(mut self, is_idempotent: bool) -> CallOption {
-        change_flag(&mut self.call_flags,
-                    grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST,
-                    is_idempotent);
+        change_flag(
+            &mut self.call_flags,
+            grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST,
+            is_idempotent,
+        );
         self
     }
 
     /// Signal that the call should not return UNAVAILABLE before it has started
     pub fn wait_for_ready(mut self, wait_for_ready: bool) -> CallOption {
-        change_flag(&mut self.call_flags,
-                    grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY,
-                    wait_for_ready);
+        change_flag(
+            &mut self.call_flags,
+            grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY,
+            wait_for_ready,
+        );
         self
     }
 
     /// Signal that the call is cacheable. GRPC is free to use GET verb
     pub fn cacheable(mut self, cacheable: bool) -> CallOption {
-        change_flag(&mut self.call_flags,
-                    grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST,
-                    cacheable);
+        change_flag(
+            &mut self.call_flags,
+            grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST,
+            cacheable,
+        );
         self
     }
 
@@ -86,38 +92,44 @@ impl CallOption {
 }
 
 impl Call {
-    pub fn unary_async<P, Q>(channel: &Channel,
-                             method: &Method<P, Q>,
-                             req: P,
-                             opt: CallOption)
-                             -> ClientUnaryReceiver<Q> {
+    pub fn unary_async<P, Q>(
+        channel: &Channel,
+        method: &Method<P, Q>,
+        req: &P,
+        opt: CallOption,
+    ) -> ClientUnaryReceiver<Q> {
         let call = channel.create_call(method, &opt);
         let mut payload = vec![];
-        (method.req_ser())(&req, &mut payload);
+        (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_unary(call.call,
-                                                ctx,
-                                                payload.as_ptr() as *const _,
-                                                payload.len(),
-                                                opt.write_flags.flags,
-                                                ptr::null_mut(),
-                                                opt.call_flags,
-                                                tag)
+            grpc_sys::grpcwrap_call_start_unary(
+                call.call,
+                ctx,
+                payload.as_ptr() as *const _,
+                payload.len(),
+                opt.write_flags.flags,
+                ptr::null_mut(),
+                opt.call_flags,
+                tag,
+            )
         });
         ClientUnaryReceiver::new(call, cq_f, method.resp_de())
     }
 
-    pub fn client_streaming<P, Q>(channel: &Channel,
-                                  method: &Method<P, Q>,
-                                  opt: CallOption)
-                                  -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
+    pub fn client_streaming<P, Q>(
+        channel: &Channel,
+        method: &Method<P, Q>,
+        opt: CallOption,
+    ) -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_client_streaming(call.call,
-                                                           ctx,
-                                                           ptr::null_mut(),
-                                                           opt.call_flags,
-                                                           tag)
+            grpc_sys::grpcwrap_call_start_client_streaming(
+                call.call,
+                ctx,
+                ptr::null_mut(),
+                opt.call_flags,
+                tag,
+            )
         });
 
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
@@ -129,23 +141,26 @@ impl Call {
         (sink, recv)
     }
 
-    pub fn server_streaming<P, Q>(channel: &Channel,
-                                  method: &Method<P, Q>,
-                                  req: P,
-                                  opt: CallOption)
-                                  -> ClientSStreamReceiver<Q> {
+    pub fn server_streaming<P, Q>(
+        channel: &Channel,
+        method: &Method<P, Q>,
+        req: &P,
+        opt: CallOption,
+    ) -> ClientSStreamReceiver<Q> {
         let call = channel.create_call(method, &opt);
         let mut payload = vec![];
-        (method.req_ser())(&req, &mut payload);
+        (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_server_streaming(call.call,
-                                                           ctx,
-                                                           payload.as_ptr() as _,
-                                                           payload.len(),
-                                                           opt.write_flags.flags,
-                                                           ptr::null_mut(),
-                                                           opt.call_flags,
-                                                           tag)
+            grpc_sys::grpcwrap_call_start_server_streaming(
+                call.call,
+                ctx,
+                payload.as_ptr() as _,
+                payload.len(),
+                opt.write_flags.flags,
+                ptr::null_mut(),
+                opt.call_flags,
+                tag,
+            )
         });
 
         // TODO: handle header
@@ -156,17 +171,20 @@ impl Call {
         ClientSStreamReceiver::new(call, cq_f, method.resp_de())
     }
 
-    pub fn duplex_streaming<P, Q>(channel: &Channel,
-                                  method: &Method<P, Q>,
-                                  opt: CallOption)
-                                  -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
+    pub fn duplex_streaming<P, Q>(
+        channel: &Channel,
+        method: &Method<P, Q>,
+        opt: CallOption,
+    ) -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
         let call = channel.create_call(method, &opt);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_duplex_streaming(call.call,
-                                                           ctx,
-                                                           ptr::null_mut(),
-                                                           opt.call_flags,
-                                                           tag)
+            grpc_sys::grpcwrap_call_start_duplex_streaming(
+                call.call,
+                ctx,
+                ptr::null_mut(),
+                opt.call_flags,
+                tag,
+            )
         });
 
         // TODO: handle header.
@@ -191,10 +209,11 @@ pub struct ClientUnaryReceiver<T> {
 }
 
 impl<T> ClientUnaryReceiver<T> {
-    fn new(call: Call,
-           resp_f: CqFuture<BatchMessage>,
-           de: DeserializeFn<T>)
-           -> ClientUnaryReceiver<T> {
+    fn new(
+        call: Call,
+        resp_f: CqFuture<BatchMessage>,
+        de: DeserializeFn<T>,
+    ) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
             call: call,
             resp_f: resp_f,
@@ -214,7 +233,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = try!((self.resp_de)(&data.unwrap()));
+        let t = (self.resp_de)(&data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
@@ -242,7 +261,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             try_ready!(call.poll_finish())
         };
-        let t = try!((self.resp_de)(&data.unwrap()));
+        let t = (self.resp_de)(&data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
@@ -278,21 +297,21 @@ impl<P> Sink for StreamingCallSink<P> {
     fn start_send(&mut self, (msg, flags): Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
         {
             let mut call = self.call.lock();
-            try!(call.check_alive());
+            call.check_alive()?;
         }
         self.sink_base
             .start_send(&mut self.call, &msg, flags, self.req_ser)
             .map(|s| if s {
-                     AsyncSink::Ready
-                 } else {
-                     AsyncSink::NotReady((msg, flags))
-                 })
+                AsyncSink::Ready
+            } else {
+                AsyncSink::NotReady((msg, flags))
+            })
     }
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
         {
             let mut call = self.call.lock();
-            try!(call.check_alive());
+            call.check_alive()?;
         }
         self.sink_base.poll_complete()
     }
@@ -306,9 +325,9 @@ impl<P> Sink for StreamingCallSink<P> {
             self.close_f = Some(close_f);
         }
 
-        if let Async::NotReady = try!(self.close_f.as_mut().unwrap().poll()) {
+        if let Async::NotReady = self.close_f.as_mut().unwrap().poll()? {
             // if call is finished, can return early here.
-            try!(call.check_alive());
+            call.check_alive()?;
             return Ok(Async::NotReady);
         }
         Ok(Async::Ready(()))
@@ -341,8 +360,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
         let mut finished = false;
-        try!(self.call
-                 .call(|c| {
+        self.call.call(|c| {
             if c.finished {
                 finished = true;
                 return Ok(());
@@ -351,7 +369,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             let res = c.poll_finish().map(|_| ());
             finished = c.finished;
             res
-        }));
+        })?;
 
         let mut bytes = None;
         loop {
@@ -376,7 +394,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             let msg_f = self.call.call(|c| c.call.start_recv_message());
             self.msg_f = Some(msg_f);
             if let Some(ref data) = bytes {
-                let msg = try!((self.resp_de)(data));
+                let msg = (self.resp_de)(data)?;
                 return Ok(Async::Ready(Some(msg)));
             }
         }
@@ -389,12 +407,15 @@ pub struct ClientSStreamReceiver<Q> {
 }
 
 impl<Q> ClientSStreamReceiver<Q> {
-    fn new(call: Call,
-           finish_f: CqFuture<BatchMessage>,
-           de: DeserializeFn<Q>)
-           -> ClientSStreamReceiver<Q> {
+    fn new(
+        call: Call,
+        finish_f: CqFuture<BatchMessage>,
+        de: DeserializeFn<Q>,
+    ) -> ClientSStreamReceiver<Q> {
         let share_call = ShareCall::new(call, finish_f);
-        ClientSStreamReceiver { imp: ResponseStreamImpl::new(share_call, de) }
+        ClientSStreamReceiver {
+            imp: ResponseStreamImpl::new(share_call, de),
+        }
     }
 
     pub fn cancel(&mut self) {
@@ -418,7 +439,9 @@ pub struct ClientDuplexReceiver<Q> {
 
 impl<Q> ClientDuplexReceiver<Q> {
     fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<Q>) -> ClientDuplexReceiver<Q> {
-        ClientDuplexReceiver { imp: ResponseStreamImpl::new(call, de) }
+        ClientDuplexReceiver {
+            imp: ResponseStreamImpl::new(call, de),
+        }
     }
 
     pub fn cancel(&mut self) {

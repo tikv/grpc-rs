@@ -1,23 +1,30 @@
 [package]
-name = "grpc"
-version = "0.1.0"
+name = "grpcio"
+version = "0.1.2"
+authors = ["The TiKV Project Developers"]
+license = "Apache-2.0"
+keywords = ["grpc", "protobuf", "rpc", "tls", "http2"]
+repository = "https://github.com/pingcap/grpc-rs"
+readme = "README.md"
+homepage = "https://github.com/pingcap/grpc-rs"
+documentation = "https://docs.rs/grpcio"
+description = "The rust language implementation of gRPC, base on the gRPC c core library."
+categories = ["asynchronous", "network-programming"]
 
 [dependencies]
-grpc-sys = { path = "grpc-sys", version = "0.1" }
+grpcio-sys = { path = "grpc-sys", version = "0.1.1" }
 libc = "0.2"
-futures = "^0.1.14"
+futures = "^0.1.15"
 protobuf = { version = "1.2", optional = true }
-clippy = { version = "*", optional = true }
 mio = "0.5"
+log = "0.3"
 
 [workspace]
 members = ["proto", "benchmark", "compiler", "interop"]
 
 [features]
 default = ["protobuf-codec"]
-dev = ["clippy"]
 protobuf-codec = ["protobuf"]
-link-sys = ["grpc-sys/link-sys"]
 
 [[example]]
 name = "route_guide_client"
@@ -39,8 +46,12 @@ path = "examples/hello_world/server.rs"
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpc-proto = { path = "proto" }
+grpcio-proto = { path = "proto" }
 rand = "0.3"
 
 [profile.release]
 debug = true
+
+[badges]
+travis-ci = { repository = "pingcap/grpc-rs" }
+appveyor = { repository = "busyjay/grpc-rs" }

@@ -11,16 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
+#![allow(unknown_lints)]
 
-extern crate grpc;
-extern crate grpc_proto;
 #[macro_use]
 extern crate futures;
+extern crate grpcio as grpc;
+extern crate grpcio_proto as grpc_proto;
+extern crate grpcio_sys as grpc_sys;
+#[cfg(target_os = "linux")]
 extern crate libc;
-extern crate grpc_sys;
+#[macro_use]
+extern crate log;
 extern crate rand;
 extern crate tokio_timer;
 

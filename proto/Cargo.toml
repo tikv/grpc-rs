@@ -1,13 +1,20 @@
 [package]
-name = "grpc-proto"
+name = "grpcio-proto"
 version = "0.1.0"
 build = "build.rs"
+publish = false
 
 [dependencies]
 protobuf = "1.2"
 futures = "0.1"
-grpc = { path = ".." }
+grpcio = { path = ".." }
+log = "0.3"
+slog = "2.0"
+slog-async = "2.1"
+slog-stdlog = "3.0"
+slog-scope = "4.0"
+slog-term = "2.2"
 
 [build-dependencies]
 protobuf = "1.2"
-grpc-compiler = { path = "../compiler" }
+grpcio-compiler = { path = "../compiler" }

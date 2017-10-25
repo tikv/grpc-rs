@@ -14,8 +14,10 @@
 extern crate benchmark;
 extern crate clap;
 extern crate futures;
-extern crate grpc;
-extern crate grpc_proto;
+extern crate grpcio as grpc;
+extern crate grpcio_proto as grpc_proto;
+#[macro_use]
+extern crate log;
 
 use std::sync::Arc;
 
@@ -29,10 +31,14 @@ use futures::Future;
 fn main() {
     let matches = App::new("Benchmark QpsWorker")
         .about("ref http://www.grpc.io/docs/guides/benchmarking.html")
-        .arg(Arg::with_name("port")
-                 .long("driver_port")
-                 .help("The port the worker should listen on. For example, \"8080\"")
-                 .takes_value(true))
+        .arg(
+            Arg::with_name("port")
+                .long("driver_port")
+                .help(
+                    "The port the worker should listen on. For example, \"8080\"",
+                )
+                .takes_value(true),
+        )
         .get_matches();
     let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
 
@@ -47,7 +53,7 @@ fn main() {
         .unwrap();
 
     for &(ref host, port) in server.bind_addrs() {
-        println!("listening on {}:{}", host, port);
+        info!("listening on {}:{}", host, port);
     }
 
     server.start();

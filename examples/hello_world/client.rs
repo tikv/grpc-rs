@@ -12,24 +12,26 @@
 // limitations under the License.
 
 
-extern crate futures;
-extern crate grpc;
-extern crate grpc_proto;
-extern crate protobuf;
+extern crate grpcio;
+extern crate grpcio_proto;
+#[macro_use]
+extern crate log;
 
 use std::sync::Arc;
 
-use grpc::{ChannelBuilder, EnvBuilder};
-use grpc_proto::example::helloworld::HelloRequest;
-use grpc_proto::example::helloworld_grpc::GreeterClient;
+use grpcio::{ChannelBuilder, EnvBuilder};
+use grpcio_proto::example::helloworld::HelloRequest;
+use grpcio_proto::example::helloworld_grpc::GreeterClient;
+use grpcio_proto::util;
 
 fn main() {
+    let _guard = util::init_log();
     let env = Arc::new(EnvBuilder::new().build());
     let ch = ChannelBuilder::new(env).connect("localhost:50051");
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::new();
     req.set_name("world".to_owned());
-    let reply = client.say_hello(req).expect("rpc");
-    println!("Greeter received: {}", reply.get_message());
+    let reply = client.say_hello(&req).expect("rpc");
+    info!("Greeter received: {}", reply.get_message());
 }

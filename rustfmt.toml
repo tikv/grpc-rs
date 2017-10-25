@@ -3,3 +3,4 @@ reorder_imported_names = true
 array_width = 100
 array_layout = "block"
 closure_block_indent_threshold = 2
+use_try_shorthand = true

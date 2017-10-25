@@ -12,10 +12,11 @@
 // limitations under the License.
 
 
+use std::ffi::CString;
 use std::sync::Arc;
 
 use error::Result;
-use grpc::{EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
+use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
@@ -38,18 +39,33 @@ impl Server {
         }
         let env = Arc::new(builder.build());
         if cfg.get_core_limit() > 0 {
-            println!("server config core limit is set but ignored");
+            warn!("server config core limit is set but ignored");
         }
         let service = match cfg.get_server_type() {
             ServerType::ASYNC_SERVER => services_grpc::create_benchmark_service(Benchmark),
             ServerType::ASYNC_GENERIC_SERVER => bench::create_generic_service(Generic),
             _ => unimplemented!(),
         };
-        let mut builder = ServerBuilder::new(env).register_service(service);
+        let mut builder = ServerBuilder::new(env.clone()).register_service(service);
+        if !cfg.get_channel_args().is_empty() {
+            let mut ch_builder = ChannelBuilder::new(env);
+            for arg in cfg.get_channel_args() {
+                let key = CString::new(arg.get_name()).unwrap();
+                if arg.has_str_value() {
+                    ch_builder =
+                        ch_builder.raw_cfg_string(key, CString::new(arg.get_str_value()).unwrap());
+                } else if arg.has_int_value() {
+                    ch_builder = ch_builder.raw_cfg_int(key, arg.get_int_value() as usize);
+                }
+            }
+            builder = builder.channel_args(ch_builder.build_args());
+        }
         builder = if cfg.has_security_params() {
-            builder.bind_secure("[::]",
-                                cfg.get_port() as u16,
-                                proto_util::create_test_server_credentials())
+            builder.bind_secure(
+                "[::]",
+                cfg.get_port() as u16,
+                proto_util::create_test_server_credentials(),
+            )
         } else {
             builder.bind("[::]", cfg.get_port() as u16)
         };
@@ -57,9 +73,9 @@ impl Server {
         let mut s = builder.build().unwrap();
         s.start();
         Ok(Server {
-               server: s,
-               recorder: CpuRecorder::new(),
-           })
+            server: s,
+            recorder: CpuRecorder::new(),
+        })
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {

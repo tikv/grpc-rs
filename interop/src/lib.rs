@@ -12,16 +12,14 @@
 // limitations under the License.
 
 
-#![cfg_attr(feature = "dev", feature(plugin))]
-#![cfg_attr(feature = "dev", plugin(clippy))]
-#![cfg_attr(not(feature = "dev"), allow(unknown_lints))]
+#![allow(unknown_lints)]
 
-extern crate protobuf;
 #[macro_use]
 extern crate futures;
-extern crate grpc;
-extern crate grpc_sys;
-extern crate grpc_proto;
+extern crate grpcio as grpc;
+extern crate grpcio_proto as grpc_proto;
+#[macro_use]
+extern crate log;
 
 mod client;
 mod server;
