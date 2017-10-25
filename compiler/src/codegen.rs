@@ -147,7 +147,7 @@ impl<'a> MethodGen<'a> {
     // Method signatures
     fn unary(&self, method_name: &str) -> String {
         format!(
-            "{}(&self, req: &{}) -> {}<{}>",
+            "{}(&self, req: {}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("Result"),
@@ -157,7 +157,7 @@ impl<'a> MethodGen<'a> {
 
     fn unary_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, req: &{}, opt: {}) -> {}<{}>",
+            "{}_opt(&self, req: {}, opt: {}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
@@ -168,7 +168,7 @@ impl<'a> MethodGen<'a> {
 
     fn unary_async(&self, method_name: &str) -> String {
         format!(
-            "{}_async(&self, req: &{}) -> {}<{}>",
+            "{}_async(&self, req: {}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("ClientUnaryReceiver"),
@@ -178,7 +178,7 @@ impl<'a> MethodGen<'a> {
 
     fn unary_async_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_async_opt(&self, req: &{}, opt: {}) -> {}<{}>",
+            "{}_async_opt(&self, req: {}, opt: {}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
@@ -212,7 +212,7 @@ impl<'a> MethodGen<'a> {
 
     fn server_streaming(&self, method_name: &str) -> String {
         format!(
-            "{}(&self, req: &{}) -> {}<{}>",
+            "{}(&self, req: {}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("ClientSStreamReceiver"),
@@ -222,7 +222,7 @@ impl<'a> MethodGen<'a> {
 
     fn server_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, req: &{}, opt: {}) -> {}<{}>",
+            "{}_opt(&self, req: {}, opt: {}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),

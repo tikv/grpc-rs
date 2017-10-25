@@ -40,7 +40,7 @@ impl Client {
     pub fn empty_unary(&self) {
         print!("testing empty unary ... ");
         let req = Empty::new();
-        let resp = self.client.empty_call(&req).unwrap();
+        let resp = self.client.empty_call(req.clone()).unwrap();
         assert_eq!(req, resp);
         println!("pass");
     }
@@ -50,7 +50,7 @@ impl Client {
         let mut req = SimpleRequest::new();
         req.set_response_size(314159);
         req.set_payload(util::new_payload(271828));
-        let resp = self.client.unary_call(&req).unwrap();
+        let resp = self.client.unary_call(req).unwrap();
         assert_eq!(314159, resp.get_payload().get_body().len());
         println!("pass");
     }
@@ -80,7 +80,7 @@ impl Client {
             req.mut_response_parameters()
                 .push(util::new_parameters(*size));
         }
-        let resp = self.client.streaming_output_call(&req);
+        let resp = self.client.streaming_output_call(req);
         let resp_sizes = resp.map(|r| r.get_payload().get_body().len() as i32)
             .collect()
             .wait()
@@ -189,7 +189,7 @@ impl Client {
         status.set_message(error_msg.to_owned());
         let mut req = SimpleRequest::new();
         req.set_response_status(status.clone());
-        match self.client.unary_call(&req).unwrap_err() {
+        match self.client.unary_call(req).unwrap_err() {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.status, RpcStatusCode::Unknown);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
@@ -213,7 +213,7 @@ impl Client {
 
     pub fn unimplemented_method(&self) {
         print!("testing unimplemented_method ... ");
-        match self.client.unimplemented_call(&Empty::new()).unwrap_err() {
+        match self.client.unimplemented_call(Empty::new()).unwrap_err() {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
             e => panic!("expected rpc failure: {:?}", e),
         }
@@ -223,7 +223,7 @@ impl Client {
     pub fn unimplemented_service(&self) {
         print!("testing unimplemented_service ... ");
         let client = UnimplementedServiceClient::new(self.channel.clone());
-        match client.unimplemented_call(&Empty::new()).unwrap_err() {
+        match client.unimplemented_call(Empty::new()).unwrap_err() {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
             e => panic!("expected rpc failure: {:?}", e),
         }

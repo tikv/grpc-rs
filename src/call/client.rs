@@ -95,12 +95,12 @@ impl Call {
     pub fn unary_async<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        req: &P,
+        req: P,
         opt: CallOption,
     ) -> ClientUnaryReceiver<Q> {
         let call = channel.create_call(method, &opt);
         let mut payload = vec![];
-        (method.req_ser())(req, &mut payload);
+        (method.req_ser())(&req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
@@ -144,12 +144,12 @@ impl Call {
     pub fn server_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        req: &P,
+        req: P,
         opt: CallOption,
     ) -> ClientSStreamReceiver<Q> {
         let call = channel.create_call(method, &opt);
         let mut payload = vec![];
-        (method.req_ser())(req, &mut payload);
+        (method.req_ser())(&req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,

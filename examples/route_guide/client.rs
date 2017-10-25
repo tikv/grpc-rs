@@ -56,7 +56,7 @@ fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
 }
 
 fn get_feature(client: &RouteGuideClient, point: &Point) {
-    let get_feature = client.get_feature_async(point);
+    let get_feature = client.get_feature_async(point.clone());
     match get_feature.wait() {
         Err(e) => panic!("RPC failed: {:?}", e),
         Ok(f) => {
@@ -80,7 +80,7 @@ fn get_feature(client: &RouteGuideClient, point: &Point) {
 fn list_features(client: &RouteGuideClient) {
     let rect = new_rect(400_000_000, -750_000_000, 420_000_000, -730_000_000);
     info!("Looking for features between 40, -75 and 42, -73");
-    let mut list_features = client.list_features(&rect);
+    let mut list_features = client.list_features(rect);
     loop {
         let f = list_features.into_future();
         match f.wait() {

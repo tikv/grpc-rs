@@ -230,7 +230,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                 break;
             }
             let latency_timer = Instant::now();
-            self.client.unary_call(&self.req).unwrap();
+            self.client.unary_call(self.req.clone()).unwrap();
             let elapsed = latency_timer.elapsed();
             self.ctx.observe_latency(elapsed);
             self.ctx.backoff();
@@ -241,7 +241,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let client = self.client.clone();
         let f = future::loop_fn(self, move |mut executor| {
             let latency_timer = Instant::now();
-            let handler = executor.client.unary_call_async(&executor.req);
+            let handler = executor.client.unary_call_async(executor.req.clone());
 
             handler.map_err(Error::from).and_then(move |_| {
                 let elapsed = latency_timer.elapsed();

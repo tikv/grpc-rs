@@ -33,7 +33,7 @@ impl Client {
     }
 
     /// Create a synchronized unary rpc call.
-    pub fn unary_call<P, Q>(&self, method: &Method<P, Q>, req: &P, opt: CallOption) -> Result<Q> {
+    pub fn unary_call<P, Q>(&self, method: &Method<P, Q>, req: P, opt: CallOption) -> Result<Q> {
         let f = self.unary_call_async(method, req, opt);
         f.wait()
     }
@@ -42,7 +42,7 @@ impl Client {
     pub fn unary_call_async<P, Q>(
         &self,
         method: &Method<P, Q>,
-        req: &P,
+        req: P,
         opt: CallOption,
     ) -> ClientUnaryReceiver<Q> {
         Call::unary_async(&self.channel, method, req, opt)
@@ -65,7 +65,7 @@ impl Client {
     pub fn server_streaming<P, Q>(
         &self,
         method: &Method<P, Q>,
-        req: &P,
+        req: P,
         opt: CallOption,
     ) -> ClientSStreamReceiver<Q> {
         Call::server_streaming(&self.channel, method, req, opt)
