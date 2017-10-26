@@ -17,7 +17,6 @@ install:
   - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
   - git submodule -q update --init --recursive
   - choco install yasm
-  - choco install protoc
   - rustc -V
   - cargo -V
     

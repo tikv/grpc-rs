@@ -30,4 +30,10 @@ pub mod example {
     include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
 }
 
+pub mod health {
+    pub mod v1 {
+        include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
+    }
+}
+
 pub mod util;

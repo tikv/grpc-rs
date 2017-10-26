@@ -17,7 +17,7 @@ This project is still under development. The following features with the check m
 - [x] Interoperability test
 - [x] QPS benchmark
 - [ ] Custom metadata
-- [ ] Health check
+- [x] Health check
 - [ ] Reflection
 - [ ] Authentication
 - [ ] Load balance
