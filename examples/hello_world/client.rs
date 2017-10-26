@@ -16,16 +16,24 @@ extern crate grpcio;
 extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
+#[macro_use(slog_o, slog_kv)]
+extern crate slog;
+extern crate slog_async;
+extern crate slog_stdlog;
+extern crate slog_scope;
+extern crate slog_term;
+
+#[path = "../log_util.rs"]
+mod log_util;
 
 use std::sync::Arc;
 
 use grpcio::{ChannelBuilder, EnvBuilder};
 use grpcio_proto::example::helloworld::HelloRequest;
 use grpcio_proto::example::helloworld_grpc::GreeterClient;
-use grpcio_proto::util;
 
 fn main() {
-    let _guard = util::init_log();
+    let _guard = log_util::init_log();
     let env = Arc::new(EnvBuilder::new().build());
     let ch = ChannelBuilder::new(env).connect("localhost:50051");
     let client = GreeterClient::new(ch);

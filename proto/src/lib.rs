@@ -15,12 +15,6 @@
 extern crate futures;
 extern crate grpcio;
 extern crate protobuf;
-#[macro_use(slog_o, slog_kv)]
-extern crate slog;
-extern crate slog_async;
-extern crate slog_stdlog;
-extern crate slog_scope;
-extern crate slog_term;
 
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));

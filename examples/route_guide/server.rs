@@ -23,8 +23,16 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+#[macro_use(slog_o, slog_kv)]
+extern crate slog;
+extern crate slog_async;
+extern crate slog_stdlog;
+extern crate slog_scope;
+extern crate slog_term;
 
 mod util;
+#[path = "../log_util.rs"]
+mod log_util;
 
 use std::sync::Arc;
 use std::io::Read;
@@ -137,7 +145,7 @@ impl RouteGuide for RouteGuideService {
 }
 
 fn main() {
-    let _guard = grpcio_proto::util::init_log();
+    let _guard = log_util::init_log();
     let env = Arc::new(Environment::new(2));
     let instance = RouteGuideService {
         data: Arc::new(load_db()),
