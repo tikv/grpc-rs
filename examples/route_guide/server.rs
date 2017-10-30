@@ -23,12 +23,6 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-#[macro_use(slog_o, slog_kv)]
-extern crate slog;
-extern crate slog_async;
-extern crate slog_stdlog;
-extern crate slog_scope;
-extern crate slog_term;
 
 mod util;
 #[path = "../log_util.rs"]

@@ -20,12 +20,6 @@ extern crate grpcio;
 extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
-#[macro_use(slog_o, slog_kv)]
-extern crate slog;
-extern crate slog_async;
-extern crate slog_stdlog;
-extern crate slog_scope;
-extern crate slog_term;
 
 #[path = "../log_util.rs"]
 mod log_util;
