@@ -23,6 +23,8 @@ extern crate serde_derive;
 extern crate serde_json;
 
 mod util;
+#[path = "../log_util.rs"]
+mod log_util;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -161,7 +163,7 @@ fn route_chat(client: &RouteGuideClient) {
 }
 
 fn main() {
-    let _guard = grpcio_proto::util::init_log();
+    let _guard = log_util::init_log();
     let env = Arc::new(Environment::new(2));
     let channel = ChannelBuilder::new(env).connect("127.0.0.1:50051");
     let client = RouteGuideClient::new(channel);
