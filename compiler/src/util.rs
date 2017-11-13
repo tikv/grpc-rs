@@ -13,7 +13,6 @@
 
 
 use std::str;
-use std::ascii::AsciiExt;
 
 // A struct that divide a name into serveral parts that meets rust's guidelines.
 struct NameSpliter<'a> {
