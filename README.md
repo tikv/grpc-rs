@@ -26,8 +26,8 @@ Prerequisites
 -------------
 
 - CMake >= 3.8.0
-- Go (to build ssl support) >=1.7
 - Rust >= 1.19.0
+- If you want to enable secure feature, Go (>=1.7) is required.
 
 For Linux and MacOS, you also need to install gcc (or clang) too.
 
