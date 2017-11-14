@@ -25,7 +25,6 @@ use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 
 use CallOption;
 use call::{Call, Method};
-use credentials::ChannelCredentials;
 use cq::CompletionQueue;
 use env::Environment;
 
@@ -41,7 +40,6 @@ const OPT_MAX_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.max_reconnect_backoff
 const OPT_INITIAL_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.initial_reconnect_backoff_ms\0";
 const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8] = b"grpc.http2.initial_sequence_number\0";
 const OPT_SO_REUSE_PORT: &'static [u8] = b"grpc.so_reuseport\0";
-const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
 const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_bytes\0";
 const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chunk_size\0";
 const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
@@ -192,17 +190,6 @@ impl ChannelBuilder {
         let opt = if reuse { 1 } else { 0 };
         self.options
             .insert(Cow::Borrowed(OPT_SO_REUSE_PORT), Options::Integer(opt));
-        self
-    }
-
-    /// The caller of the secure_channel_create functions may override the target name used for SSL
-    /// host name checking using this channel argument. This *should* be used for testing only.
-    pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
-        let target = CString::new(target).unwrap();
-        self.options.insert(
-            Cow::Borrowed(OPT_SSL_TARGET_NAME_OVERRIDE),
-            Options::String(target),
-        );
         self
     }
 
@@ -365,43 +352,68 @@ impl ChannelBuilder {
         ChannelArgs { args: args }
     }
 
-    /// Build an insure connection to the address.
-    pub fn connect(self, addr: &str) -> Channel {
-        self.connect_with_creds(addr, None)
-    }
-
-    fn connect_with_creds(mut self, addr: &str, creds: Option<ChannelCredentials>) -> Channel {
-        let addr = CString::new(addr).unwrap();
+    fn prepare_connect_args(&mut self) -> ChannelArgs {
         if let Entry::Vacant(e) = self.options.entry(Cow::Borrowed(PRIMARY_USER_AGENT_STRING)) {
             e.insert(Options::String(format_user_agent_string("")));
         }
-        let args = self.build_args();
+        self.build_args()
+    }
+
+    /// Build an insure connection to the address.
+    pub fn connect(mut self, addr: &str) -> Channel {
+        let args = self.prepare_connect_args();
+        let addr = CString::new(addr).unwrap();
         let addr_ptr = addr.as_ptr();
         let channel = unsafe {
-            match creds {
-                None => {
-                    grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut())
-                }
-                Some(mut creds) => grpc_sys::grpc_secure_channel_create(
+            grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut())
+        };
+
+        Channel::new(self.env.pick_cq(), self.env, channel)
+    }
+}
+
+#[cfg(feature = "secure")]
+mod secure_channel {
+    use std::ptr;
+    use std::ffi::CString;
+    use std::borrow::Cow;
+
+    use grpc_sys;
+
+    use credentials::ChannelCredentials;
+
+    use super::{Channel, ChannelBuilder, Options};
+
+    const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
+
+    impl ChannelBuilder {
+
+        /// The caller of the secure_channel_create functions may override the target name used for SSL
+        /// host name checking using this channel argument. This *should* be used for testing only.
+        pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
+            let target = CString::new(target).unwrap();
+            self.options.insert(
+                Cow::Borrowed(OPT_SSL_TARGET_NAME_OVERRIDE),
+                Options::String(target),
+            );
+            self
+        }
+
+        pub fn secure_connect(mut self, addr: &str, mut creds: ChannelCredentials) -> Channel {
+            let args = self.prepare_connect_args();
+            let addr = CString::new(addr).unwrap();
+            let addr_ptr = addr.as_ptr();
+            let channel = unsafe {
+                grpc_sys::grpc_secure_channel_create(
                     creds.as_mut_ptr(),
                     addr_ptr,
                     args.args,
                     ptr::null_mut(),
-                ),
-            }
-        };
+                )
+            };
 
-        Channel {
-            cq: self.env.pick_cq(),
-            inner: Arc::new(ChannelInner {
-                _env: self.env,
-                channel: channel,
-            }),
+            Channel::new(self.env.pick_cq(), self.env, channel)
         }
-    }
-
-    pub fn secure_connect(self, addr: &str, creds: ChannelCredentials) -> Channel {
-        self.connect_with_creds(addr, Some(creds))
     }
 }
 
@@ -445,6 +457,16 @@ unsafe impl Send for Channel {}
 unsafe impl Sync for Channel {}
 
 impl Channel {
+    fn new(cq: CompletionQueue, env: Arc<Environment>, channel: *mut GrpcChannel) -> Channel {
+        Channel {
+            inner: Arc::new(ChannelInner {
+                _env: env,
+                channel: channel,
+            }),
+            cq: cq,
+        }
+    }
+
     /// Create a call using the method and option.
     pub fn create_call<P, Q>(&self, method: &Method<P, Q>, opt: &CallOption) -> Call {
         let raw_call = unsafe {
