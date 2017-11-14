@@ -73,6 +73,8 @@
 #define GPR_CALLTYPE
 #endif
 
+#define GRPCWRAP_UNUSED(expr) do { (void)(expr); } while (0)
+
 grpc_byte_buffer *string_to_byte_buffer(const char *buffer, size_t len) {
   grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
   grpc_byte_buffer *bb = grpc_raw_byte_buffer_create(&slice, 1);
@@ -817,48 +819,4 @@ grpcwrap_ssl_server_credentials_create(
       NULL);
   gpr_free(key_cert_pairs);
   return creds;
-}
-
-/* Metadata credentials plugin */
-
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_credentials_notify_from_plugin(
-    grpc_credentials_plugin_metadata_cb cb, void *user_data,
-    grpc_metadata_array *metadata, grpc_status_code status,
-    const char *error_details) {
-  if (metadata) {
-    cb(user_data, metadata->metadata, metadata->count, status, error_details);
-  } else {
-    cb(user_data, NULL, 0, status, error_details);
-  }
-}
-
-typedef void(GPR_CALLTYPE *grpcwrap_metadata_interceptor_func)(
-    void *state, const char *service_url, const char *method_name,
-    grpc_credentials_plugin_metadata_cb cb, void *user_data,
-    int32_t is_destroy);
-
-static void grpcwrap_get_metadata_handler(
-    void *state, grpc_auth_metadata_context context,
-    grpc_credentials_plugin_metadata_cb cb, void *user_data) {
-  grpcwrap_metadata_interceptor_func interceptor =
-      (grpcwrap_metadata_interceptor_func)(intptr_t)state;
-  interceptor(state, context.service_url, context.method_name, cb, user_data,
-              0);
-}
-
-static void grpcwrap_metadata_credentials_destroy_handler(void *state) {
-  grpcwrap_metadata_interceptor_func interceptor =
-      (grpcwrap_metadata_interceptor_func)(intptr_t)state;
-  interceptor(state, NULL, NULL, NULL, NULL, 1);
-}
-
-GPR_EXPORT grpc_call_credentials *GPR_CALLTYPE
-grpcwrap_metadata_credentials_create_from_plugin(
-    grpcwrap_metadata_interceptor_func metadata_interceptor) {
-  grpc_metadata_credentials_plugin plugin;
-  plugin.get_metadata = grpcwrap_get_metadata_handler;
-  plugin.destroy = grpcwrap_metadata_credentials_destroy_handler;
-  plugin.state = (void *)(intptr_t)metadata_interceptor;
-  plugin.type = "";
-  return grpc_metadata_credentials_create_from_plugin(plugin, NULL);
 }
