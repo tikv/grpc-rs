@@ -16,11 +16,11 @@ use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, Rpc
            RpcStatusCode, ServerStreamingSink, UnarySink, WriteFlags};
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
 
-use grpc_proto::testing::test_grpc::TestService;
-use grpc_proto::testing::empty::Empty;
-use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse, StreamingInputCallRequest,
-                                    StreamingInputCallResponse, StreamingOutputCallRequest,
-                                    StreamingOutputCallResponse};
+use grpc_proto::grpc::testing::test_grpc::TestService;
+use grpc_proto::grpc::testing::empty::Empty;
+use grpc_proto::grpc::testing::messages::{SimpleRequest, SimpleResponse,
+                                          StreamingInputCallRequest, StreamingInputCallResponse,
+                                          StreamingOutputCallRequest, StreamingOutputCallResponse};
 use grpc_proto::util;
 
 enum Error {

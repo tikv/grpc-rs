@@ -15,7 +15,7 @@
 use std::time::{Duration, Instant};
 use std::f64;
 
-use grpc_proto::testing::stats::HistogramData;
+use grpc_proto::grpc::testing::stats::HistogramData;
 use grpc_sys;
 
 pub struct Sample {

@@ -25,7 +25,7 @@ use std::sync::Arc;
 use clap::{App, Arg};
 use grpc::{Environment, ServerBuilder};
 use interop::InteropTestService;
-use grpc_proto::testing::test_grpc;
+use grpc_proto::grpc::testing::test_grpc;
 use grpc_proto::util;
 use futures::{future, Future};
 

@@ -15,7 +15,7 @@
 use grpcio::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
              ServerCredentialsBuilder};
 
-use testing::messages::{Payload, ResponseParameters};
+use grpc::testing::messages::{Payload, ResponseParameters};
 
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {

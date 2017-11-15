@@ -58,7 +58,7 @@ macro_rules! mk_test {
 
             use grpc::{Environment, ServerBuilder, ChannelBuilder};
             use interop::{InteropTestService, Client};
-            use grpc_proto::testing::test_grpc;
+            use grpc_proto::grpc::testing::test_grpc;
             use grpc_proto::util;
 
             mk_test!(test_insecure, $func, false);

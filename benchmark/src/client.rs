@@ -20,10 +20,10 @@ use std::time::{Duration, Instant};
 
 use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment,
            WriteFlags};
-use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
-use grpc_proto::testing::messages::SimpleRequest;
-use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
-use grpc_proto::testing::stats::ClientStats;
+use grpc_proto::grpc::testing::control::{ClientConfig, ClientType, RpcType};
+use grpc_proto::grpc::testing::messages::SimpleRequest;
+use grpc_proto::grpc::testing::services_grpc::BenchmarkServiceClient;
+use grpc_proto::grpc::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
 use futures::{future, Async, Future, Sink, Stream};
 use futures::sync::oneshot::{self, Receiver, Sender};

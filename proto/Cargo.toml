@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-proto"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "proto"]
@@ -9,13 +9,8 @@ homepage = "https://github.com/pingcap/grpc-rs"
 documentation = "https://docs.rs/grpcio-sys"
 description = "Public proto files for grpcio."
 categories = ["network-programming"]
-build = "build.rs"
 
 [dependencies]
 protobuf = "1.2"
 futures = "0.1"
 grpcio = { path = "..", version = "0.1.2" }
-
-[build-dependencies]
-protobuf = "1.2"
-grpcio-compiler = { path = "../compiler", version = "0.1.0" }

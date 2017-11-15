@@ -12,8 +12,8 @@
 // limitations under the License.
 
 
-use grpc_proto::testing::services_grpc::BenchmarkService;
-use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use grpc_proto::grpc::testing::services_grpc::BenchmarkService;
+use grpc_proto::grpc::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
 use grpc::{self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
            RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags};

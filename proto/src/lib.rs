@@ -11,23 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 extern crate futures;
 extern crate grpcio;
 extern crate protobuf;
 
-pub mod testing {
-    include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
-}
-
-pub mod example {
-    include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
-}
-
-pub mod health {
-    pub mod v1 {
-        include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
-    }
-}
+pub mod example;
+pub mod grpc;
 
 pub mod util;

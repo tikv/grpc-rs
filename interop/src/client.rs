@@ -18,10 +18,10 @@ use std::time::Duration;
 use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{future, stream, Future, Sink, Stream};
 
-use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
-use grpc_proto::testing::empty::Empty;
-use grpc_proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
-                                    StreamingOutputCallRequest};
+use grpc_proto::grpc::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
+use grpc_proto::grpc::testing::empty::Empty;
+use grpc_proto::grpc::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
+                                          StreamingOutputCallRequest};
 use grpc_proto::util;
 
 pub struct Client {

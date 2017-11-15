@@ -18,8 +18,8 @@ extern crate grpcio_proto;
 
 use futures::*;
 use grpcio::*;
-use grpcio_proto::health::v1::health::*;
-use grpcio_proto::health::v1::health_grpc::*;
+use grpcio_proto::grpc::health::v1::health::*;
+use grpcio_proto::grpc::health::v1::health_grpc::*;
 use std::collections::*;
 use std::sync::*;
 

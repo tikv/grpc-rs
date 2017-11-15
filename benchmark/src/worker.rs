@@ -14,9 +14,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use grpc_proto::testing::services_grpc::WorkerService;
-use grpc_proto::testing::control::{ClientArgs, ClientStatus, CoreRequest, CoreResponse,
-                                   ServerArgs, ServerStatus, Void};
+use grpc_proto::grpc::testing::services_grpc::WorkerService;
+use grpc_proto::grpc::testing::control::{ClientArgs, ClientStatus, CoreRequest, CoreResponse,
+                                         ServerArgs, ServerStatus, Void};
 use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 use error::Error;
 use futures::{future, Future, Sink, Stream};
