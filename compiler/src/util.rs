@@ -13,7 +13,6 @@
 
 
 use std::str;
-use std::ascii::AsciiExt;
 
 // A struct that divide a name into serveral parts that meets rust's guidelines.
 struct NameSpliter<'a> {
@@ -23,9 +22,6 @@ struct NameSpliter<'a> {
 
 impl<'a> NameSpliter<'a> {
     fn new(s: &str) -> NameSpliter {
-        // TODO: remove following assert once split pattern is stable.
-        assert!(s.is_ascii());
-
         NameSpliter {
             name: s.as_bytes(),
             pos: 0,

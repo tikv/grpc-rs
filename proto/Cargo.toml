@@ -13,4 +13,8 @@ categories = ["network-programming"]
 [dependencies]
 protobuf = "1.2"
 futures = "0.1"
-grpcio = { path = "..", version = "0.1.2" }
+grpcio = { path = "..", version = "0.1.2", features = ["secure"] }
+
+[build-dependencies]
+protobuf = "1.2"
+grpcio-compiler = { path = "../compiler", version = "0.1.0" }
