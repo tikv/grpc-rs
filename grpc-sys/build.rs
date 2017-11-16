@@ -102,7 +102,7 @@ fn build_grpc(cc: &mut Build) {
     } else {
         println!("cargo:rustc-link-search=native={}", build_dir);
         println!(
-            "cargo:rustc-link-search=native={}/third_party/cares/cares/lib",
+            "cargo:rustc-link-search=native={}/third_party/cares",
             build_dir
         );
         println!(
