@@ -26,23 +26,25 @@ use pkg_config::Config as PkgConfig;
 
 const GRPC_VERSION: &'static str = "1.6.1";
 
-fn link_grpc(cc: &mut Build) {
-    if let Ok(lib) = PkgConfig::new().atleast_version(GRPC_VERSION).probe("grpc") {
-        for inc_path in lib.include_paths {
+fn link_grpc(cc: &mut Build, library: &str) {
+    match PkgConfig::new().atleast_version(GRPC_VERSION).probe(library) {
+        Ok(lib) => for inc_path in lib.include_paths {
             cc.include(inc_path);
         }
-    } else {
-        panic!("can't find a grpc library via pkg-config");
+        Err(e) => panic!("can't find library {} via pkg-config: {:?}", library, e),
     }
 }
 
 fn prepare_grpc() {
-    let modules = vec![
+    let mut modules = vec![
         "grpc",
         "grpc/third_party/zlib",
-        "grpc/third_party/boringssl",
         "grpc/third_party/cares/cares",
     ];
+
+    if cfg!(feature = "secure") {
+        modules.push("grpc/third_party/boringssl");
+    }
 
     for module in modules {
         if is_directory_empty(module).unwrap_or(true) {
@@ -60,10 +62,10 @@ fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
     Ok(entries.next().is_none())
 }
 
-fn build_grpc(cc: &mut Build) {
+fn build_grpc(cc: &mut Build, library: &str) {
     prepare_grpc();
 
-    let dst = Config::new("grpc").build_target("grpc").build();
+    let dst = Config::new("grpc").build_target(library).build();
 
     let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
@@ -107,9 +109,12 @@ fn build_grpc(cc: &mut Build) {
     println!("cargo:rustc-link-lib=static={}", zlib);
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
-    println!("cargo:rustc-link-lib=static=grpc");
-    println!("cargo:rustc-link-lib=static=ssl");
-    println!("cargo:rustc-link-lib=static=crypto");
+    println!("cargo:rustc-link-lib=static={}", library);
+
+    if cfg!(feature = "secure") {
+        println!("cargo:rustc-link-lib=static=ssl");
+        println!("cargo:rustc-link-lib=static=crypto");
+    }
 
     cc.include("grpc/include");
 }
@@ -128,10 +133,16 @@ fn get_env(name: &str) -> Option<String> {
 fn main() {
     let mut cc = Build::new();
 
-    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
-        link_grpc(&mut cc);
+    let library = if cfg!(feature = "secure") {
+        "grpc"
     } else {
-        build_grpc(&mut cc);
+        "grpc_unsecure"
+    };
+
+    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
+        link_grpc(&mut cc, library);
+    } else {
+        build_grpc(&mut cc, library);
     }
 
     cc.file("grpc_wrap.c");
