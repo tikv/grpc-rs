@@ -192,12 +192,10 @@ pub enum GrpcMetadataArray {}
 pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
-pub enum GrpcChannelCredentials {}
 pub enum GrpcCall {}
 pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
-pub enum GrpcServerCredentials {}
 pub enum GrpcRequestCallContext {}
 pub enum GrpcAlarm {}
 
@@ -272,12 +270,6 @@ extern "C" {
     ) -> *mut GrpcCall;
     pub fn grpc_channel_get_target(channel: *mut GrpcChannel) -> *mut c_char;
     pub fn grpc_insecure_channel_create(
-        target: *const c_char,
-        args: *const GrpcChannelArgs,
-        reserved: *mut c_void,
-    ) -> *mut GrpcChannel;
-    pub fn grpc_secure_channel_create(
-        creds: *mut GrpcChannelCredentials,
         target: *const c_char,
         args: *const GrpcChannelArgs,
         reserved: *mut c_void,
@@ -421,11 +413,6 @@ extern "C" {
         server: *mut GrpcServer,
         addr: *const c_char,
     ) -> c_int;
-    pub fn grpc_server_add_secure_http2_port(
-        server: *mut GrpcServer,
-        addr: *const c_char,
-        creds: *mut GrpcServerCredentials,
-    ) -> c_int;
     pub fn grpc_server_start(server: *mut GrpcServer);
     pub fn grpc_server_shutdown_and_notify(
         server: *mut GrpcServer,
@@ -464,22 +451,6 @@ extern "C" {
         tag: *mut c_void,
     ) -> GrpcCallStatus;
 
-    pub fn grpcwrap_override_default_ssl_roots(certs: *const c_char);
-    pub fn grpcwrap_ssl_credentials_create(
-        root_certs: *const c_char,
-        cert_chain: *const c_char,
-        private_key: *const c_char,
-    ) -> *mut GrpcChannelCredentials;
-    pub fn grpc_channel_credentials_release(credentials: *mut GrpcChannelCredentials);
-    pub fn grpcwrap_ssl_server_credentials_create(
-        root_certs: *const c_char,
-        cert_chain_array: *mut *const c_char,
-        private_key_array: *mut *const c_char,
-        num_pairs: size_t,
-        force_client_auth: c_int,
-    ) -> *mut GrpcServerCredentials;
-    pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
-
     pub fn grpc_alarm_create(
         cq: *mut GrpcCompletionQueue,
         deadline: GprTimespec,
@@ -488,6 +459,51 @@ extern "C" {
     pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 }
+
+#[cfg(feature = "secure")]
+mod secure_component {
+    use libc::{c_char, c_int, c_void, size_t};
+
+    use super::{GrpcChannel, GrpcChannelArgs, GrpcServer};
+
+    pub enum GrpcChannelCredentials {}
+    pub enum GrpcServerCredentials {}
+
+    extern "C" {
+        pub fn grpcwrap_ssl_credentials_create(
+            root_certs: *const c_char,
+            cert_chain: *const c_char,
+            private_key: *const c_char,
+        ) -> *mut GrpcChannelCredentials;
+
+        pub fn grpc_secure_channel_create(
+            creds: *mut GrpcChannelCredentials,
+            target: *const c_char,
+            args: *const GrpcChannelArgs,
+            reserved: *mut c_void,
+        ) -> *mut GrpcChannel;
+
+        pub fn grpc_server_add_secure_http2_port(
+            server: *mut GrpcServer,
+            addr: *const c_char,
+            creds: *mut GrpcServerCredentials,
+        ) -> c_int;
+        
+        pub fn grpcwrap_override_default_ssl_roots(certs: *const c_char);
+        pub fn grpc_channel_credentials_release(credentials: *mut GrpcChannelCredentials);
+        pub fn grpcwrap_ssl_server_credentials_create(
+            root_certs: *const c_char,
+            cert_chain_array: *mut *const c_char,
+            private_key_array: *mut *const c_char,
+            num_pairs: size_t,
+            force_client_auth: c_int,
+        ) -> *mut GrpcServerCredentials;
+        pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
+    }
+}
+
+#[cfg(feature = "secure")]
+pub use secure_component::*;
 
 // TODO: more tests.
 #[cfg(test)]

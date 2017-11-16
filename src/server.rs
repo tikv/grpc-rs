@@ -26,7 +26,6 @@ use call::{Method, MethodType};
 use call::server::*;
 use channel::ChannelArgs;
 use cq::CompletionQueue;
-use credentials::ServerCredentials;
 use env::Environment;
 use error::{Error, Result};
 
@@ -56,6 +55,63 @@ impl Handler {
         self.method_type
     }
 }
+
+#[cfg(feature = "secure")]
+mod imp {
+    use grpc_sys::{self, GrpcServer};
+
+    use credentials::ServerCredentials;
+
+    pub struct Binder {
+        pub host: String,
+        pub port: u16,
+        cred: Option<ServerCredentials>,
+    }
+
+    impl Binder {
+        pub fn new(host: String, port: u16) -> Binder {
+            let cred = None;
+            Binder { host, port, cred }
+        }
+
+        pub fn with_cred(host: String, port: u16, cred: ServerCredentials) -> Binder {
+            let cred = Some(cred);
+            Binder { host, port, cred }
+        }
+
+        pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
+            let addr = format!("{}:{}\0", self.host, self.port);
+            let port = match self.cred.take() {
+                None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
+                Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(server, addr.as_ptr() as _, cert.as_mut_ptr())
+            };
+            port as u16
+        }
+    }
+}
+
+#[cfg(not(feature = "secure"))]
+mod imp {
+    use grpc_sys::{self, GrpcServer};
+
+    pub struct Binder {
+        pub host: String,
+        pub port: u16,
+    }
+    
+    impl Binder {
+        pub fn new(host: String, port: u16) -> Binder {
+            Binder { host, port }
+        }
+
+        pub unsafe fn bind(&self, server: *mut GrpcServer) -> u16 {
+            let addr = format!("{}:{}\0", self.host, self.port);
+            grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _) as u16
+        }
+    }
+}
+
+use self::imp::Binder;
 
 /// Service configuration struct.
 ///
@@ -165,7 +221,7 @@ pub struct Service {
 /// Server configuration struct.
 pub struct ServerBuilder {
     env: Arc<Environment>,
-    addrs: Vec<(String, u16, Option<ServerCredentials>)>,
+    binders: Vec<Binder>,
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], Handler>,
@@ -175,7 +231,7 @@ impl ServerBuilder {
     pub fn new(env: Arc<Environment>) -> ServerBuilder {
         ServerBuilder {
             env: env,
-            addrs: Vec::new(),
+            binders: Vec::new(),
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
@@ -186,20 +242,7 @@ impl ServerBuilder {
     ///
     /// This function can be called multiple times.
     pub fn bind<S: Into<String>>(mut self, host: S, port: u16) -> ServerBuilder {
-        self.addrs.push((host.into(), port, None));
-        self
-    }
-
-    /// Bind to an address for secure connection.
-    ///
-    /// This function can be called multiple times.
-    pub fn bind_secure<S: Into<String>>(
-        mut self,
-        host: S,
-        port: u16,
-        c: ServerCredentials,
-    ) -> ServerBuilder {
-        self.addrs.push((host.into(), port, Some(c)));
+        self.binders.push(Binder::new(host.into(), port));
         self
     }
 
@@ -227,25 +270,15 @@ impl ServerBuilder {
             .map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            let mut bind_addrs = Vec::with_capacity(self.addrs.len());
-            for (host, port, certs) in self.addrs.drain(..) {
-                let addr = format!("{}:{}\0", host, port);
-                let addr_ptr = addr.as_ptr();
-                let bind_port = match certs {
-                    None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr_ptr as _),
-                    Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(
-                        server,
-                        addr_ptr as _,
-                        cert.as_mut_ptr(),
-                    ),
-                };
-
+            let mut bind_addrs = Vec::with_capacity(self.binders.len());
+            for mut binder in self.binders.drain(..) {
+                let bind_port = binder.bind(server);
                 if bind_port == 0 {
                     grpc_sys::grpc_server_destroy(server);
-                    return Err(Error::BindFail(host, port));
+                    return Err(Error::BindFail(binder.host, binder.port));
                 }
 
-                bind_addrs.push((host, bind_port as u16));
+                bind_addrs.push((binder.host, bind_port as u16));
             }
 
             for cq in self.env.completion_queues() {
@@ -266,6 +299,28 @@ impl ServerBuilder {
                     handlers: self.handlers,
                 }),
             })
+        }
+    }
+}
+
+#[cfg(feature = "secure")]
+mod secure_server {
+    use credentials::ServerCredentials;
+
+    use super::{Binder, ServerBuilder};
+
+    impl ServerBuilder {
+        /// Bind to an address for secure connection.
+        ///
+        /// This function can be called multiple times.
+        pub fn bind_secure<S: Into<String>>(
+            mut self,
+            host: S,
+            port: u16,
+            c: ServerCredentials,
+        ) -> ServerBuilder {
+            self.binders.push(Binder::with_cred(host.into(), port, c));
+            self
         }
     }
 }

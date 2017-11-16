@@ -32,6 +32,7 @@ mod channel;
 mod codec;
 mod cq;
 mod client;
+#[cfg(feature = "secure")]
 mod credentials;
 mod env;
 mod error;
@@ -50,6 +51,7 @@ pub use client::Client;
 pub use codec::Marshaller;
 #[cfg(feature = "protobuf-codec")]
 pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
+#[cfg(feature = "secure")]
 pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};

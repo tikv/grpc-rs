@@ -27,9 +27,9 @@ macro_rules! mk_test {
 
             builder = if $use_tls {
                 let creds = util::create_test_server_credentials();
-                builder.bind_secure("localhost", 0, creds)
+                builder.bind_secure("127.0.0.1", 0, creds)
             } else {
-                builder.bind("localhost", 0)
+                builder.bind("127.0.0.1", 0)
             };
 
             let mut server = builder.build().unwrap();
