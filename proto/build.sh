@@ -65,13 +65,12 @@ while read include package name; do
 	push $output
 	rm -f mod.rs
 	for file in `ls *.rs`
-    do
+	do
 		base_name=$(basename $file ".rs")
 		echo "pub mod $base_name;" >> mod.rs
 	done
 	pop
 done <<EOF
-. grpc/core core
 . grpc/testing testing
 . grpc/health/v1/ health
 example example example
@@ -86,7 +85,7 @@ do
 	push $gdir
 	rm -f mod.rs
 	for mod in $mods
-    do
+	do
 		base_name=$(basename $mod)
 		echo "pub mod $base_name;" >> mod.rs
 	done
