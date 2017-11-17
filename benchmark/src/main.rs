@@ -22,7 +22,7 @@ extern crate log;
 use std::env;
 use std::sync::Arc;
 
-use benchmark::{Worker, init_log};
+use benchmark::{init_log, Worker};
 use clap::{App, Arg};
 use futures::sync::oneshot;
 use grpc::{Environment, ServerBuilder};
