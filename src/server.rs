@@ -16,6 +16,8 @@ use std::collections::HashMap;
 use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::fmt;
+use std::fmt::{Formatter, Debug};
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
@@ -341,6 +343,12 @@ impl Inner {
     }
 }
 
+impl Debug for Inner {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "Server {:?}", self.bind_addrs)
+    }
+}
+
 impl Drop for Inner {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_server_destroy(self.server) }
@@ -437,5 +445,11 @@ impl Drop for Server {
         let f = self.shutdown();
         self.cancel_all_calls();
         let _ = f.wait();
+    }
+}
+
+impl Debug for Server {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.inner)
     }
 }
