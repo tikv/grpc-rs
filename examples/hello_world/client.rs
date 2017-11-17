@@ -27,7 +27,7 @@ use grpcio_proto::example::helloworld::HelloRequest;
 use grpcio_proto::example::helloworld_grpc::GreeterClient;
 
 fn main() {
-    let _guard = log_util::init_log();
+    let _guard = log_util::init_log(None);
     let env = Arc::new(EnvBuilder::new().build());
     let ch = ChannelBuilder::new(env).connect("localhost:50051");
     let client = GreeterClient::new(ch);

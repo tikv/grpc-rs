@@ -19,14 +19,17 @@ extern crate grpcio_proto as grpc_proto;
 #[macro_use]
 extern crate log;
 
+use std::env;
 use std::sync::Arc;
 
-use benchmark::Worker;
+use benchmark::{Worker, init_log};
 use clap::{App, Arg};
 use futures::sync::oneshot;
 use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::services_grpc;
 use futures::Future;
+
+const LOG_FILE: &'static str = "GRPCIO_BENCHMARK_LOG_FILE";
 
 fn main() {
     let matches = App::new("Benchmark QpsWorker")
@@ -42,6 +45,7 @@ fn main() {
         .get_matches();
     let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
 
+    let _log_guard = init_log(env::var(LOG_FILE).ok());
     let env = Arc::new(Environment::new(2));
     let (tx, rx) = oneshot::channel();
     let worker = Worker::new(tx);
