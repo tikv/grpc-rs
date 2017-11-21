@@ -69,6 +69,12 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
+    let third_party = vec![
+        "cares/cares/lib",
+        "zlib",
+        "boringssl/ssl",
+        "boringssl/crypto",
+    ];
     if cfg!(target_os = "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {
@@ -81,44 +87,23 @@ fn build_grpc(cc: &mut Build, library: &str) {
             }
         };
         println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/cares/{}",
-            build_dir,
-            profile
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/zlib/{}",
-            build_dir,
-            profile
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/boringssl/ssl/{}",
-            build_dir,
-            profile
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/boringssl/crypto/{}",
-            build_dir,
-            profile
-        );
+        for path in third_party {
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/{}/{}",
+                build_dir,
+                path,
+                profile
+            );
+        }
     } else {
         println!("cargo:rustc-link-search=native={}", build_dir);
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/cares",
-            build_dir
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/zlib",
-            build_dir
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/boringssl/ssl",
-            build_dir
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/third_party/boringssl/crypto",
-            build_dir
-        );
+        for path in third_party {
+            println!(
+                "cargo:rustc-link-search=native={}/third_party/{}",
+                build_dir,
+                path,
+            );
+        }
     }
 
     println!("cargo:rustc-link-lib=static={}", zlib);
