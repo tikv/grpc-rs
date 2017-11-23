@@ -67,11 +67,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let dst = {
         let mut config = Config::new("grpc");
-        let target = match env::var("TARGET") {
-            Ok(v) => v,
-            Err(..) => panic!("Could not find TARGET environment variable"),
-        };
-        if target.contains("-darwin") {
+        if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
         }
         config.build_target(library).uses_cxx11().build()
