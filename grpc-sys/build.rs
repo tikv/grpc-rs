@@ -30,7 +30,7 @@ fn link_grpc(cc: &mut Build, library: &str) {
     match PkgConfig::new().atleast_version(GRPC_VERSION).probe(library) {
         Ok(lib) => for inc_path in lib.include_paths {
             cc.include(inc_path);
-        }
+        },
         Err(e) => panic!("can't find library {} via pkg-config: {:?}", library, e),
     }
 }
@@ -65,7 +65,13 @@ fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
 fn build_grpc(cc: &mut Build, library: &str) {
     prepare_grpc();
 
-    let dst = Config::new("grpc").build_target(library).build();
+    let dst = {
+        let mut config = Config::new("grpc");
+        if cfg!(target_os = "macos") {
+            config.cxxflag("-stdlib=libc++");
+        }
+        config.build_target(library).uses_cxx11().build()
+    };
 
     let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
