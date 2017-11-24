@@ -50,7 +50,7 @@ impl Greeter for GreeterService {
 }
 
 fn main() {
-    let _guard = log_util::init_log();
+    let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
     let service = helloworld_grpc::create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env)

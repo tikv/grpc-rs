@@ -18,6 +18,9 @@ use std::f64;
 use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
 
+#[path = "../../examples/log_util.rs"]
+pub mod log_util;
+
 pub struct Sample {
     pub real_time: f64,
     pub user_time: f64,
