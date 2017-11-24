@@ -139,7 +139,7 @@ impl RouteGuide for RouteGuideService {
 }
 
 fn main() {
-    let _guard = log_util::init_log();
+    let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(2));
     let instance = RouteGuideService {
         data: Arc::new(load_db()),

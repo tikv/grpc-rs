@@ -163,7 +163,7 @@ fn route_chat(client: &RouteGuideClient) {
 }
 
 fn main() {
-    let _guard = log_util::init_log();
+    let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(2));
     let channel = ChannelBuilder::new(env).connect("127.0.0.1:50051");
     let client = RouteGuideClient::new(channel);
