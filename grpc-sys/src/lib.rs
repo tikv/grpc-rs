@@ -488,7 +488,7 @@ mod secure_component {
             addr: *const c_char,
             creds: *mut GrpcServerCredentials,
         ) -> c_int;
-        
+
         pub fn grpcwrap_override_default_ssl_roots(certs: *const c_char);
         pub fn grpc_channel_credentials_release(credentials: *mut GrpcChannelCredentials);
         pub fn grpcwrap_ssl_server_credentials_create(

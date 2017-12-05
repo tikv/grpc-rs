@@ -27,7 +27,10 @@ use pkg_config::Config as PkgConfig;
 const GRPC_VERSION: &'static str = "1.6.1";
 
 fn link_grpc(cc: &mut Build, library: &str) {
-    match PkgConfig::new().atleast_version(GRPC_VERSION).probe(library) {
+    match PkgConfig::new()
+        .atleast_version(GRPC_VERSION)
+        .probe(library)
+    {
         Ok(lib) => for inc_path in lib.include_paths {
             cc.include(inc_path);
         },
@@ -36,11 +39,7 @@ fn link_grpc(cc: &mut Build, library: &str) {
 }
 
 fn prepare_grpc() {
-    let mut modules = vec![
-        "grpc",
-        "grpc/third_party/zlib",
-        "grpc/third_party/cares/cares",
-    ];
+    let mut modules = vec!["grpc", "grpc/third_party/zlib", "grpc/third_party/cares/cares"];
 
     if cfg!(feature = "secure") {
         modules.push("grpc/third_party/boringssl");
@@ -75,12 +74,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
-    let third_party = vec![
-        "cares/cares/lib",
-        "zlib",
-        "boringssl/ssl",
-        "boringssl/crypto",
-    ];
+    let third_party = vec!["cares/cares/lib", "zlib", "boringssl/ssl", "boringssl/crypto"];
     if cfg!(target_os = "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {

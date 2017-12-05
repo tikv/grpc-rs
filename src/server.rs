@@ -17,7 +17,7 @@ use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::fmt;
-use std::fmt::{Formatter, Debug};
+use std::fmt::{Debug, Formatter};
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
@@ -85,7 +85,11 @@ mod imp {
             let addr = format!("{}:{}\0", self.host, self.port);
             let port = match self.cred.take() {
                 None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
-                Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(server, addr.as_ptr() as _, cert.as_mut_ptr())
+                Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(
+                    server,
+                    addr.as_ptr() as _,
+                    cert.as_mut_ptr(),
+                ),
             };
             port as u16
         }
@@ -100,7 +104,7 @@ mod imp {
         pub host: String,
         pub port: u16,
     }
-    
+
     impl Binder {
         pub fn new(host: String, port: u16) -> Binder {
             Binder { host, port }
