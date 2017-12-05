@@ -53,12 +53,8 @@ impl ServerCredentialsBuilder {
         self
     }
 
-    pub fn add_cert(
-        mut self,
-        cert: Vec<u8>,
-        mut private_key: Vec<u8>,
-    ) -> ServerCredentialsBuilder {
-         if private_key.capacity() == private_key.len() {
+    pub fn add_cert(mut self, cert: Vec<u8>, mut private_key: Vec<u8>) -> ServerCredentialsBuilder {
+        if private_key.capacity() == private_key.len() {
             let mut nil_key = Vec::with_capacity(private_key.len() + 1);
             nil_key.extend_from_slice(&private_key);
             clear_key_securely(&mut private_key);
@@ -107,9 +103,7 @@ impl Drop for ServerCredentialsBuilder {
             }
         }
         for key in self.private_keys.drain(..) {
-            let s = unsafe {
-                CString::from_raw(key)
-            };
+            let s = unsafe { CString::from_raw(key) };
             clear_key_securely(&mut s.into_bytes_with_nul());
         }
     }
@@ -171,7 +165,7 @@ impl ChannelCredentialsBuilder {
 
         let creds =
             unsafe { grpc_sys::grpcwrap_ssl_credentials_create(root_ptr, cert_ptr, key_ptr) };
-        
+
         if !root_ptr.is_null() {
             unsafe {
                 self.root = Some(CString::from_raw(root_ptr));
