@@ -40,5 +40,7 @@ pub fn create_test_server_credentials() -> ServerCredentials {
 
 pub fn create_test_channel_credentials() -> ChannelCredentials {
     let ca = include_str!("../data/ca.pem");
-    ChannelCredentialsBuilder::new().root_cert(ca.into()).build()
+    ChannelCredentialsBuilder::new()
+        .root_cert(ca.into())
+        .build()
 }

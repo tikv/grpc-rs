@@ -364,9 +364,8 @@ impl ChannelBuilder {
         let args = self.prepare_connect_args();
         let addr = CString::new(addr).unwrap();
         let addr_ptr = addr.as_ptr();
-        let channel = unsafe {
-            grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut())
-        };
+        let channel =
+            unsafe { grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut()) };
 
         Channel::new(self.env.pick_cq(), self.env, channel)
     }
@@ -387,9 +386,9 @@ mod secure_channel {
     const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
 
     impl ChannelBuilder {
-
-        /// The caller of the secure_channel_create functions may override the target name used for SSL
-        /// host name checking using this channel argument. This *should* be used for testing only.
+        /// The caller of the secure_channel_create functions may override the target name used
+        /// for SSL host name checking using this channel argument. This *should* be used for
+        /// testing only.
         pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
             let target = CString::new(target).unwrap();
             self.options.insert(
