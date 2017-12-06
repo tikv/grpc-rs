@@ -14,7 +14,7 @@
 
 use std::ptr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::thread::ThreadId;
 
 use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
@@ -27,7 +27,11 @@ pub use grpc_sys::GrpcEvent as Event;
 /// `CompletionQueueHandle` enable notification of the completion of asynchronous actions.
 pub struct CompletionQueueHandle {
     cq: *mut GrpcCompletionQueue,
-    ref_cnt: AtomicUsize,
+    // When `ref_cnt` < 0, a shutdown is pending, completion queue should not
+    // accept requests anymore; when `ref_cnt` == 0, completion queue should
+    // be shutdown; When `ref_cnt` > 0, completion queue can accept requests
+    // and should not be shutdown.
+    ref_cnt: AtomicIsize,
 }
 
 unsafe impl Sync for CompletionQueueHandle {}
@@ -37,14 +41,14 @@ impl CompletionQueueHandle {
     pub fn new() -> CompletionQueueHandle {
         CompletionQueueHandle {
             cq: unsafe { grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut()) },
-            ref_cnt: AtomicUsize::new(1),
+            ref_cnt: AtomicIsize::new(1),
         }
     }
 
-    pub fn add_ref(&self) -> Result<()> {
+    fn add_ref(&self) -> Result<()> {
         loop {
             let cnt = self.ref_cnt.load(Ordering::SeqCst);
-            if cnt == 0 {
+            if cnt <= 0 {
                 return Err(Error::QueueShutdown);
             }
             let new_cnt = cnt + 1;
@@ -57,13 +61,34 @@ impl CompletionQueueHandle {
         }
     }
 
-    pub fn unref(&self) {
+    fn unref(&self) {
         let shutdown = loop {
             let cnt = self.ref_cnt.load(Ordering::SeqCst);
             if cnt == 0 {
                 return;
             }
-            let new_cnt = cnt - 1;
+            let new_cnt = cnt - cnt.signum();
+            if cnt ==
+                self.ref_cnt
+                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
+            {
+                break new_cnt == 0;
+            }
+        };
+        if shutdown {
+            unsafe {
+                grpc_sys::grpc_completion_queue_shutdown(self.cq);
+            }
+        }
+    }
+
+    fn shutdown(&self) {
+        let shutdown = loop {
+            let cnt = self.ref_cnt.load(Ordering::SeqCst);
+            if cnt <= 0 {
+                return;
+            }
+            let new_cnt = -cnt + 1;
             if cnt ==
                 self.ref_cnt
                     .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
@@ -133,7 +158,7 @@ impl CompletionQueue {
     /// Once all possible events are drained then `next()` will start to produce
     /// `Event::QueueShutdown` events only.
     pub fn shutdown(&self) {
-        self.handle.unref()
+        self.handle.shutdown()
     }
 
     pub fn worker_id(&self) -> ThreadId {
