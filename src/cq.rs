@@ -49,6 +49,7 @@ impl CompletionQueueHandle {
         loop {
             let cnt = self.ref_cnt.load(Ordering::SeqCst);
             if cnt <= 0 {
+                // `shutdown` has been called, reject any requests.
                 return Err(Error::QueueShutdown);
             }
             let new_cnt = cnt + 1;
@@ -64,9 +65,8 @@ impl CompletionQueueHandle {
     fn unref(&self) {
         let shutdown = loop {
             let cnt = self.ref_cnt.load(Ordering::SeqCst);
-            if cnt == 0 {
-                return;
-            }
+            // If `shutdown` is not called, `cnt` > 0, so minus 1 to unref.
+            // If `shutdown` is called, `cnt` < 0, so plus 1 to unref.
             let new_cnt = cnt - cnt.signum();
             if cnt ==
                 self.ref_cnt
@@ -86,8 +86,12 @@ impl CompletionQueueHandle {
         let shutdown = loop {
             let cnt = self.ref_cnt.load(Ordering::SeqCst);
             if cnt <= 0 {
+                // `shutdown` is called, skipped.
                 return;
             }
+            // Make cnt negative to indicate that `shutdown` has been called.
+            // Because `cnt` is initialised to 1, so minus 1 to make it reach
+            // toward 0. That is `new_cnt = -(cnt - 1) = -cnt + 1`.
             let new_cnt = -cnt + 1;
             if cnt ==
                 self.ref_cnt
