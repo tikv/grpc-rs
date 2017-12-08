@@ -16,6 +16,8 @@ use std::collections::HashMap;
 use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::fmt;
+use std::fmt::{Debug, Formatter};
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
@@ -83,7 +85,11 @@ mod imp {
             let addr = format!("{}:{}\0", self.host, self.port);
             let port = match self.cred.take() {
                 None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
-                Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(server, addr.as_ptr() as _, cert.as_mut_ptr())
+                Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(
+                    server,
+                    addr.as_ptr() as _,
+                    cert.as_mut_ptr(),
+                ),
             };
             port as u16
         }
@@ -98,7 +104,7 @@ mod imp {
         pub host: String,
         pub port: u16,
     }
-    
+
     impl Binder {
         pub fn new(host: String, port: u16) -> Binder {
             Binder { host, port }
@@ -282,9 +288,10 @@ impl ServerBuilder {
             }
 
             for cq in self.env.completion_queues() {
+                let cq_ref = cq.borrow()?;
                 grpc_sys::grpc_server_register_completion_queue(
                     server,
-                    cq.as_ptr(),
+                    cq_ref.as_ptr(),
                     ptr::null_mut(),
                 );
             }
@@ -341,6 +348,12 @@ impl Inner {
     }
 }
 
+impl Debug for Inner {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "Server {:?}", self.bind_addrs)
+    }
+}
+
 impl Drop for Inner {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_server_destroy(self.server) }
@@ -352,13 +365,23 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
     if inner.shutdown.load(Ordering::Relaxed) {
         return;
     }
+    let cq_ref = match cq.borrow() {
+        // Shutting down, skip.
+        Err(_) => return,
+        Ok(c) => c,
+    };
     let server_ptr = inner.server;
     let prom = CallTag::request(inner);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);
     let code = unsafe {
-        grpc_sys::grpcwrap_server_request_call(server_ptr, cq.as_ptr(), request_ptr, tag as *mut _)
+        grpc_sys::grpcwrap_server_request_call(
+            server_ptr,
+            cq_ref.as_ptr(),
+            request_ptr,
+            tag as *mut _,
+        )
     };
     if code != GrpcCallStatus::Ok {
         Box::from(tag);
@@ -396,8 +419,13 @@ impl Server {
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
         unsafe {
-            let cq_ptr = self.inner.env.completion_queues()[0].as_ptr();
-            grpc_sys::grpc_server_shutdown_and_notify(self.inner.server, cq_ptr, tag as *mut _)
+            // Since env still exists, no way can cq been shutdown.
+            let cq_ref = self.inner.env.completion_queues()[0].borrow().unwrap();
+            grpc_sys::grpc_server_shutdown_and_notify(
+                self.inner.server,
+                cq_ref.as_ptr(),
+                tag as *mut _,
+            )
         }
         self.inner.shutdown.store(true, Ordering::SeqCst);
         ShutdownFuture { cq_f: cq_f }
@@ -437,5 +465,11 @@ impl Drop for Server {
         let f = self.shutdown();
         self.cancel_all_calls();
         let _ = f.wait();
+    }
+}
+
+impl Debug for Server {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.inner)
     }
 }

@@ -18,6 +18,14 @@ use std::ptr;
 use grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
 use libc::c_char;
 
+fn clear_key_securely(key: &mut [u8]) {
+    unsafe {
+        for b in key {
+            ptr::write_volatile(b, 0)
+        }
+    }
+}
+
 pub struct ServerCredentialsBuilder {
     root: Option<CString>,
     cert_chains: Vec<*mut c_char>,
@@ -45,11 +53,13 @@ impl ServerCredentialsBuilder {
         self
     }
 
-    pub fn add_cert<S: Into<Vec<u8>>>(
-        mut self,
-        cert: S,
-        private_key: S,
-    ) -> ServerCredentialsBuilder {
+    pub fn add_cert(mut self, cert: Vec<u8>, mut private_key: Vec<u8>) -> ServerCredentialsBuilder {
+        if private_key.capacity() == private_key.len() {
+            let mut nil_key = Vec::with_capacity(private_key.len() + 1);
+            nil_key.extend_from_slice(&private_key);
+            clear_key_securely(&mut private_key);
+            private_key = nil_key;
+        }
         self.cert_chains
             .push(CString::new(cert).unwrap().into_raw());
         self.private_keys
@@ -93,9 +103,8 @@ impl Drop for ServerCredentialsBuilder {
             }
         }
         for key in self.private_keys.drain(..) {
-            unsafe {
-                CString::from_raw(key);
-            }
+            let s = unsafe { CString::from_raw(key) };
+            clear_key_securely(&mut s.into_bytes_with_nul());
         }
     }
 }
@@ -129,12 +138,18 @@ impl ChannelCredentialsBuilder {
         }
     }
 
-    pub fn root_cert<S: Into<Vec<u8>>>(mut self, cert: S) -> ChannelCredentialsBuilder {
+    pub fn root_cert(mut self, cert: Vec<u8>) -> ChannelCredentialsBuilder {
         self.root = Some(CString::new(cert).unwrap());
         self
     }
 
-    pub fn cert<S: Into<Vec<u8>>>(mut self, cert: S, key: S) -> ChannelCredentialsBuilder {
+    pub fn cert(mut self, cert: Vec<u8>, mut key: Vec<u8>) -> ChannelCredentialsBuilder {
+        if key.capacity() == key.len() {
+            let mut nil_key = Vec::with_capacity(key.len() + 1);
+            nil_key.extend_from_slice(&key);
+            clear_key_securely(&mut key);
+            key = nil_key;
+        }
         self.cert_key_pair = Some((CString::new(cert).unwrap(), CString::new(key).unwrap()));
         self
     }
@@ -151,15 +166,29 @@ impl ChannelCredentialsBuilder {
         let creds =
             unsafe { grpc_sys::grpcwrap_ssl_credentials_create(root_ptr, cert_ptr, key_ptr) };
 
-        for ptr in &[root_ptr, cert_ptr, key_ptr] {
-            if !ptr.is_null() {
-                unsafe {
-                    CString::from_raw(*ptr);
-                }
+        if !root_ptr.is_null() {
+            unsafe {
+                self.root = Some(CString::from_raw(root_ptr));
+            }
+        }
+
+        if !cert_ptr.is_null() {
+            unsafe {
+                let cert = CString::from_raw(cert_ptr);
+                let key = CString::from_raw(key_ptr);
+                self.cert_key_pair = Some((cert, key));
             }
         }
 
         ChannelCredentials { creds: creds }
+    }
+}
+
+impl Drop for ChannelCredentialsBuilder {
+    fn drop(&mut self) {
+        if let Some((_, key)) = self.cert_key_pair.take() {
+            clear_key_securely(&mut key.into_bytes_with_nul());
+        }
     }
 }
 

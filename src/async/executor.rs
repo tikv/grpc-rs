@@ -20,6 +20,7 @@ use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
 use cq::CompletionQueue;
+use error::{Error, Result};
 use super::lock::SpinLock;
 use super::CallTag;
 
@@ -30,13 +31,14 @@ struct Alarm {
 }
 
 impl Alarm {
-    fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Alarm {
+    fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Result<Alarm> {
         let alarm = unsafe {
             let ptr = Box::into_raw(tag);
             let timeout = GprTimespec::inf_future();
-            grpc_sys::grpc_alarm_create(cq.as_ptr(), timeout, ptr as _)
+            let cq_ref = cq.borrow()?;
+            grpc_sys::grpc_alarm_create(cq_ref.as_ptr(), timeout, ptr as _)
         };
-        Alarm { alarm: alarm }
+        Ok(Alarm { alarm: alarm })
     }
 
     fn alarm(&mut self) {
@@ -80,7 +82,15 @@ impl SpawnHandle {
     /// that cq is not run on.
     pub fn notify(&mut self, tag: Box<CallTag>) {
         self.alarm.take();
-        let mut alarm = Alarm::new(&self.cq, tag);
+        let mut alarm = match Alarm::new(&self.cq, tag) {
+            Ok(a) => a,
+            Err(Error::QueueShutdown) => {
+                // If the queue is shutdown, then the tag will be notified
+                // eventually. So just skip here.
+                return;
+            }
+            Err(e) => panic!("failed to create alarm: {:?}", e),
+        };
         alarm.alarm();
         // We need to keep the alarm until tag is resolved.
         self.alarm = Some(alarm);
@@ -162,6 +172,10 @@ pub struct Executor<'a> {
 impl<'a> Executor<'a> {
     pub fn new(cq: &CompletionQueue) -> Executor {
         Executor { cq: cq }
+    }
+
+    pub(crate) fn cq(&self) -> &CompletionQueue {
+        self.cq
     }
 
     /// Spawn the future into inner poll loop.

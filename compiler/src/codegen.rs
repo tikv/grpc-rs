@@ -168,9 +168,10 @@ impl<'a> MethodGen<'a> {
 
     fn unary_async(&self, method_name: &str) -> String {
         format!(
-            "{}_async(&self, req: &{}) -> {}<{}>",
+            "{}_async(&self, req: &{}) -> {}<{}<{}>>",
             method_name,
             self.input(),
+            fq_grpc("Result"),
             fq_grpc("ClientUnaryReceiver"),
             self.output()
         )
@@ -178,10 +179,11 @@ impl<'a> MethodGen<'a> {
 
     fn unary_async_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_async_opt(&self, req: &{}, opt: {}) -> {}<{}>",
+            "{}_async_opt(&self, req: &{}, opt: {}) -> {}<{}<{}>>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
+            fq_grpc("Result"),
             fq_grpc("ClientUnaryReceiver"),
             self.output()
         )
@@ -189,8 +191,9 @@ impl<'a> MethodGen<'a> {
 
     fn client_streaming(&self, method_name: &str) -> String {
         format!(
-            "{}(&self) -> ({}<{}>, {}<{}>)",
+            "{}(&self) -> {}<({}<{}>, {}<{}>)>",
             method_name,
+            fq_grpc("Result"),
             fq_grpc("ClientCStreamSender"),
             self.input(),
             fq_grpc("ClientCStreamReceiver"),
@@ -200,9 +203,10 @@ impl<'a> MethodGen<'a> {
 
     fn client_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, opt: {}) -> ({}<{}>, {}<{}>)",
+            "{}_opt(&self, opt: {}) -> {}<({}<{}>, {}<{}>)>",
             method_name,
             fq_grpc("CallOption"),
+            fq_grpc("Result"),
             fq_grpc("ClientCStreamSender"),
             self.input(),
             fq_grpc("ClientCStreamReceiver"),
@@ -212,9 +216,10 @@ impl<'a> MethodGen<'a> {
 
     fn server_streaming(&self, method_name: &str) -> String {
         format!(
-            "{}(&self, req: &{}) -> {}<{}>",
+            "{}(&self, req: &{}) -> {}<{}<{}>>",
             method_name,
             self.input(),
+            fq_grpc("Result"),
             fq_grpc("ClientSStreamReceiver"),
             self.output()
         )
@@ -222,10 +227,11 @@ impl<'a> MethodGen<'a> {
 
     fn server_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, req: &{}, opt: {}) -> {}<{}>",
+            "{}_opt(&self, req: &{}, opt: {}) -> {}<{}<{}>>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
+            fq_grpc("Result"),
             fq_grpc("ClientSStreamReceiver"),
             self.output()
         )
@@ -233,8 +239,9 @@ impl<'a> MethodGen<'a> {
 
     fn duplex_streaming(&self, method_name: &str) -> String {
         format!(
-            "{}(&self) -> ({}<{}>, {}<{}>)",
+            "{}(&self) -> {}<({}<{}>, {}<{}>)>",
             method_name,
+            fq_grpc("Result"),
             fq_grpc("ClientDuplexSender"),
             self.input(),
             fq_grpc("ClientDuplexReceiver"),
@@ -244,9 +251,10 @@ impl<'a> MethodGen<'a> {
 
     fn duplex_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, opt: {}) -> ({}<{}>, {}<{}>)",
+            "{}_opt(&self, opt: {}) -> {}<({}<{}>, {}<{}>)>",
             method_name,
             fq_grpc("CallOption"),
+            fq_grpc("Result"),
             fq_grpc("ClientDuplexSender"),
             self.input(),
             fq_grpc("ClientDuplexReceiver"),

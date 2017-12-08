@@ -18,17 +18,27 @@ extern crate slog_stdlog;
 extern crate slog_scope;
 extern crate slog_term;
 
+use std::fs::File;
+
 use self::slog::{Drain, Logger, OwnedKV};
 use self::slog_scope::GlobalLoggerGuard;
-use self::slog_term::{FullFormat, TermDecorator};
+use self::slog_term::{Decorator, FullFormat, PlainSyncDecorator, TermDecorator};
 
-pub fn init_log() -> GlobalLoggerGuard {
-    let decorator = TermDecorator::new().build();
-    let drain = FullFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
-    let logger = Logger::root(drain, OwnedKV(()));
+pub fn init_log(log_file: Option<String>) -> GlobalLoggerGuard {
+    fn setup<D: Decorator + Send + 'static>(decorator: D) -> GlobalLoggerGuard {
+        let drain = FullFormat::new(decorator).build().fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, OwnedKV(()));
+        let guard = slog_scope::set_global_logger(logger);
+        slog_stdlog::init().unwrap();
+        guard
+    }
 
-    let guard = slog_scope::set_global_logger(logger);
-    slog_stdlog::init().unwrap();
-    guard
+    match log_file {
+        Some(path) => {
+            let file = File::create(path).unwrap();
+            setup(PlainSyncDecorator::new(file))
+        }
+        None => setup(TermDecorator::new().build()),
+    }
 }

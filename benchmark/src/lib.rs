@@ -33,3 +33,4 @@ mod worker;
 mod util;
 
 pub use worker::Worker;
+pub use util::log_util::init_log;

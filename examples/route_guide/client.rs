@@ -58,7 +58,7 @@ fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
 }
 
 fn get_feature(client: &RouteGuideClient, point: &Point) {
-    let get_feature = client.get_feature_async(point);
+    let get_feature = client.get_feature_async(point).unwrap();
     match get_feature.wait() {
         Err(e) => panic!("RPC failed: {:?}", e),
         Ok(f) => {
@@ -82,7 +82,7 @@ fn get_feature(client: &RouteGuideClient, point: &Point) {
 fn list_features(client: &RouteGuideClient) {
     let rect = new_rect(400_000_000, -750_000_000, 420_000_000, -730_000_000);
     info!("Looking for features between 40, -75 and 42, -73");
-    let mut list_features = client.list_features(&rect);
+    let mut list_features = client.list_features(&rect).unwrap();
     loop {
         let f = list_features.into_future();
         match f.wait() {
@@ -105,7 +105,7 @@ fn list_features(client: &RouteGuideClient) {
 fn record_route(client: &RouteGuideClient) {
     let features = util::load_db();
     let mut rng = rand::thread_rng();
-    let (mut sink, receiver) = client.record_route();
+    let (mut sink, receiver) = client.record_route().unwrap();
     for _ in 0..10 {
         let f = rng.choose(&features).unwrap();
         let point = f.get_location();
@@ -125,7 +125,7 @@ fn record_route(client: &RouteGuideClient) {
 }
 
 fn route_chat(client: &RouteGuideClient) {
-    let (mut sink, mut receiver) = client.route_chat();
+    let (mut sink, mut receiver) = client.route_chat().unwrap();
     let h = thread::spawn(move || {
         let notes = vec![
             ("First message", 0, 0),
@@ -163,7 +163,7 @@ fn route_chat(client: &RouteGuideClient) {
 }
 
 fn main() {
-    let _guard = log_util::init_log();
+    let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(2));
     let channel = ChannelBuilder::new(env).connect("127.0.0.1:50051");
     let client = RouteGuideClient::new(channel);
