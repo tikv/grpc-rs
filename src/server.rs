@@ -288,9 +288,10 @@ impl ServerBuilder {
             }
 
             for cq in self.env.completion_queues() {
+                let cq_ref = cq.borrow()?;
                 grpc_sys::grpc_server_register_completion_queue(
                     server,
-                    cq.as_ptr(),
+                    cq_ref.as_ptr(),
                     ptr::null_mut(),
                 );
             }
@@ -364,13 +365,23 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
     if inner.shutdown.load(Ordering::Relaxed) {
         return;
     }
+    let cq_ref = match cq.borrow() {
+        // Shutting down, skip.
+        Err(_) => return,
+        Ok(c) => c,
+    };
     let server_ptr = inner.server;
     let prom = CallTag::request(inner);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);
     let code = unsafe {
-        grpc_sys::grpcwrap_server_request_call(server_ptr, cq.as_ptr(), request_ptr, tag as *mut _)
+        grpc_sys::grpcwrap_server_request_call(
+            server_ptr,
+            cq_ref.as_ptr(),
+            request_ptr,
+            tag as *mut _,
+        )
     };
     if code != GrpcCallStatus::Ok {
         Box::from(tag);
@@ -408,8 +419,13 @@ impl Server {
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
         unsafe {
-            let cq_ptr = self.inner.env.completion_queues()[0].as_ptr();
-            grpc_sys::grpc_server_shutdown_and_notify(self.inner.server, cq_ptr, tag as *mut _)
+            // Since env still exists, no way can cq been shutdown.
+            let cq_ref = self.inner.env.completion_queues()[0].borrow().unwrap();
+            grpc_sys::grpc_server_shutdown_and_notify(
+                self.inner.server,
+                cq_ref.as_ptr(),
+                tag as *mut _,
+            )
         }
         self.inner.shutdown.store(true, Ordering::SeqCst);
         ShutdownFuture { cq_f: cq_f }

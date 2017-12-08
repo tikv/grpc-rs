@@ -138,11 +138,19 @@ mod tests {
     fn test_basic_loop() {
         let mut env = Environment::new(2);
 
-        let q1_ptr = env.pick_cq();
-        let q2_ptr = env.pick_cq();
-        let q3_ptr = env.pick_cq();
-        assert_eq!(q1_ptr.as_ptr(), q3_ptr.as_ptr());
-        assert_ne!(q1_ptr.as_ptr(), q2_ptr.as_ptr());
+        let q1 = env.pick_cq();
+        let q2 = env.pick_cq();
+        let q3 = env.pick_cq();
+        let cases = vec![(&q1, &q3, true), (&q1, &q2, false)];
+        for (lq, rq, is_eq) in cases {
+            let lq_ref = lq.borrow().unwrap();
+            let rq_ref = rq.borrow().unwrap();
+            if is_eq {
+                assert_eq!(lq_ref.as_ptr(), rq_ref.as_ptr());
+            } else {
+                assert_ne!(lq_ref.as_ptr(), rq_ref.as_ptr());
+            }
+        }
 
         assert_eq!(env.completion_queues().len(), 2);
         for cq in env.completion_queues() {

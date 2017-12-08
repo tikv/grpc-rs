@@ -163,10 +163,12 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
 
     fn execute_stream(self) {
         let client = self.client.clone();
-        let (sender, receiver) = self.client.duplex_streaming(
-            &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
-            CallOption::default(),
-        );
+        let (sender, receiver) = self.client
+            .duplex_streaming(
+                &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
+                CallOption::default(),
+            )
+            .unwrap();
         let f = future::loop_fn(
             (sender, self, receiver),
             move |(sender, mut executor, receiver)| {
@@ -241,7 +243,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let client = self.client.clone();
         let f = future::loop_fn(self, move |mut executor| {
             let latency_timer = Instant::now();
-            let handler = executor.client.unary_call_async(&executor.req);
+            let handler = executor.client.unary_call_async(&executor.req).unwrap();
 
             handler.map_err(Error::from).and_then(move |_| {
                 let elapsed = latency_timer.elapsed();
@@ -268,7 +270,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
 
     fn execute_stream_ping_pong(self) {
         let client = self.client.clone();
-        let (sender, receiver) = self.client.streaming_call();
+        let (sender, receiver) = self.client.streaming_call().unwrap();
         let f = future::loop_fn(
             (sender, self, receiver),
             move |(sender, mut executor, receiver)| {
