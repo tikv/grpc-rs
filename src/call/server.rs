@@ -81,7 +81,7 @@ impl RequestContext {
                 }
             },
             None => {
-                execute_unimplemented(self);
+                execute_unimplemented(self, cq.clone());
                 Ok(())
             }
         }
@@ -117,14 +117,14 @@ impl RequestContext {
         self.ctx
     }
 
-    fn take_call(&mut self) -> Option<Call> {
+    fn take_call(&mut self, cq: CompletionQueue) -> Option<Call> {
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_take_call(self.ctx);
             if call.is_null() {
                 return None;
             }
 
-            Some(Call::from_raw(call))
+            Some(Call::from_raw(call, cq))
         }
     }
 
@@ -184,7 +184,7 @@ impl UnaryRequestContext {
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
-        self.request.take_call().unwrap().abort(status)
+        self.request.take_call(cq.clone()).unwrap().abort(status)
     }
 }
 
@@ -238,8 +238,8 @@ macro_rules! impl_unary_sink {
     ($t:ident, $rt:ident, $holder:ty) => (
         pub struct $rt {
             call: $holder,
-            cq_f: BatchFuture,
-            flushed: bool,
+            cq_f: Option<BatchFuture>,
+            err: Option<Error>,
         }
 
         impl Future for $rt {
@@ -247,9 +247,12 @@ macro_rules! impl_unary_sink {
             type Error = Error;
 
             fn poll(&mut self) -> Poll<(), Error> {
-                if !self.flushed {
-                    try_ready!(self.cq_f.poll());
-                    self.flushed = true;
+                if self.cq_f.is_some() || self.err.is_some() {
+                    if let Some(e) = self.err.take() {
+                        return Err(e);
+                    }
+                    try_ready!(self.cq_f.as_mut().unwrap().poll());
+                    self.cq_f.take();
                 }
 
                 try_ready!(self.call.call(|c| c.poll_finish()));
@@ -288,14 +291,19 @@ macro_rules! impl_unary_sink {
                 });
 
                 let write_flags = self.write_flags;
-                let cq_f = self.call.call(|c| {
+                let res = self.call.call(|c| {
                     c.call.start_send_status_from_server(&status, true, data, write_flags)
                 });
+
+                let (cq_f, err) = match res {
+                    Ok(f) => (Some(f), None),
+                    Err(e) => (None, Some(e)),
+                };
 
                 $rt {
                     call: self.call,
                     cq_f: cq_f,
-                    flushed: false,
+                    err: err,
                 }
             }
         }
@@ -337,13 +345,19 @@ macro_rules! impl_stream_sink {
             pub fn fail(mut self, status: RpcStatus) -> $ft {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
-                let fail_f = self.call.call(|c| {
+                let res = self.call.call(|c| {
                     c.call.start_send_status_from_server(&status, send_metadata, None, 0)
                 });
 
+                let (fail_f, err) = match res {
+                    Ok(f) => (Some(f), None),
+                    Err(e) => (None, Some(e)),
+                };
+
                 $ft {
                     call: self.call,
-                    fail_f: Some(fail_f),
+                    fail_f: fail_f,
+                    err: err,
                 }
             }
         }
@@ -377,7 +391,7 @@ macro_rules! impl_stream_sink {
                     let status = &self.status;
                     let flush_f = self.call.call(|c| {
                         c.call.start_send_status_from_server(status, send_metadata, None, 0)
-                    });
+                    })?;
                     self.flush_f = Some(flush_f);
                 }
 
@@ -394,6 +408,7 @@ macro_rules! impl_stream_sink {
         pub struct $ft {
             call: $holder,
             fail_f: Option<BatchFuture>,
+            err: Option<Error>,
         }
 
         impl Future for $ft {
@@ -401,6 +416,10 @@ macro_rules! impl_stream_sink {
             type Error = Error;
 
             fn poll(&mut self) -> Poll<(), Error> {
+                if let Some(e) = self.err.take() {
+                    return Err(e);
+                }
+
                 let readiness = self.call.call(|c| {
                     if c.finished {
                         return Ok(Async::Ready(()));
@@ -439,6 +458,10 @@ impl<'a> RpcContext<'a> {
         }
     }
 
+    pub(crate) fn take_call(&mut self) -> Option<Call> {
+        self.ctx.take_call(self.executor.cq().clone())
+    }
+
     pub fn method(&self) -> &[u8] {
         self.ctx.method()
     }
@@ -465,6 +488,16 @@ impl<'a> RpcContext<'a> {
 
 // Following four helper functions are used to create a callback closure.
 
+macro_rules! accept_call {
+    ($call:expr) => {
+        match $call.start_server_side() {
+            Err(Error::QueueShutdown) => return,
+            Err(e) => panic!("unexpected error when trying to accept request: {:?}", e),
+            Ok(f) => f,
+        }
+    }
+}
+
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(
     mut ctx: RpcContext,
@@ -475,8 +508,8 @@ pub fn execute_unary<P, Q, F>(
 ) where
     F: Fn(RpcContext, P, UnarySink<Q>),
 {
-    let mut call = ctx.ctx.take_call().unwrap();
-    let close_f = call.start_server_side();
+    let mut call = ctx.take_call().unwrap();
+    let close_f = accept_call!(call);
     let request = match de(payload) {
         Ok(f) => f,
         Err(e) => {
@@ -501,8 +534,8 @@ pub fn execute_client_streaming<P, Q, F>(
 ) where
     F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
 {
-    let mut call = ctx.ctx.take_call().unwrap();
-    let close_f = call.start_server_side();
+    let mut call = ctx.take_call().unwrap();
+    let close_f = accept_call!(call);
     let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
     let req_s = RequestStream::new(call.clone(), de);
@@ -520,8 +553,8 @@ pub fn execute_server_streaming<P, Q, F>(
 ) where
     F: Fn(RpcContext, P, ServerStreamingSink<Q>),
 {
-    let mut call = ctx.ctx.take_call().unwrap();
-    let close_f = call.start_server_side();
+    let mut call = ctx.take_call().unwrap();
+    let close_f = accept_call!(call);
 
     let request = match de(payload) {
         Ok(t) => t,
@@ -548,8 +581,8 @@ pub fn execute_duplex_streaming<P, Q, F>(
 ) where
     F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>),
 {
-    let mut call = ctx.ctx.take_call().unwrap();
-    let close_f = call.start_server_side();
+    let mut call = ctx.take_call().unwrap();
+    let close_f = accept_call!(call);
     let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
     let req_s = RequestStream::new(call.clone(), de);
@@ -558,9 +591,9 @@ pub fn execute_duplex_streaming<P, Q, F>(
 }
 
 // A helper function used to handle all undefined rpc calls.
-pub fn execute_unimplemented(mut ctx: RequestContext) {
-    let mut call = ctx.take_call().unwrap();
-    call.start_server_side();
+pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
+    let mut call = ctx.take_call(cq).unwrap();
+    accept_call!(call);
     call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
 }
 

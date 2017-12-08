@@ -27,6 +27,7 @@ use CallOption;
 use call::{Call, Method};
 use cq::CompletionQueue;
 use env::Environment;
+use error::Result;
 
 pub use grpc_sys::{GrpcCompressionAlgorithms as CompressionAlgorithms,
                    GrpcCompressionLevel as CompressionLevel};
@@ -467,10 +468,11 @@ impl Channel {
     }
 
     /// Create a call using the method and option.
-    pub fn create_call<P, Q>(&self, method: &Method<P, Q>, opt: &CallOption) -> Call {
+    pub fn create_call<P, Q>(&self, method: &Method<P, Q>, opt: &CallOption) -> Result<Call> {
+        let cq_ref = self.cq.borrow()?;
         let raw_call = unsafe {
             let ch = self.inner.channel;
-            let cq = self.cq.as_ptr();
+            let cq = cq_ref.as_ptr();
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
             let timeout = opt.get_timeout()
@@ -489,7 +491,7 @@ impl Channel {
             )
         };
 
-        unsafe { Call::from_raw(raw_call) }
+        unsafe { Ok(Call::from_raw(raw_call, self.cq.clone())) }
     }
 
     pub fn cq(&self) -> &CompletionQueue {

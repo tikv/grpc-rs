@@ -18,6 +18,7 @@ pub mod server;
 use std::{ptr, slice, usize};
 use std::sync::Arc;
 
+use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
@@ -187,14 +188,15 @@ where
 /// written to it and read from it.
 pub struct Call {
     call: *mut GrpcCall,
+    cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
 
 impl Call {
-    pub unsafe fn from_raw(call: *mut grpc_sys::GrpcCall) -> Call {
+    pub unsafe fn from_raw(call: *mut grpc_sys::GrpcCall, cq: CompletionQueue) -> Call {
         assert!(!call.is_null());
-        Call { call: call }
+        Call { call, cq }
     }
 
     /// Send a message asynchronously.
@@ -203,9 +205,10 @@ impl Call {
         msg: &[u8],
         write_flags: u32,
         initial_meta: bool,
-    ) -> BatchFuture {
+    ) -> Result<BatchFuture> {
+        let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
@@ -215,30 +218,37 @@ impl Call {
                 i,
                 tag,
             )
-        })
+        });
+        Ok(f)
     }
 
     /// Finish the rpc call from client.
-    pub fn start_send_close_client(&mut self) -> BatchFuture {
-        check_run(BatchType::Finish, |_, tag| unsafe {
+    pub fn start_send_close_client(&mut self) -> Result<BatchFuture> {
+        let _cq_ref = self.cq.borrow()?;
+        let f = check_run(BatchType::Finish, |_, tag| unsafe {
             grpc_sys::grpcwrap_call_send_close_from_client(self.call, tag)
-        })
+        });
+        Ok(f)
     }
 
     /// Receive a message asynchronously.
-    pub fn start_recv_message(&mut self) -> BatchFuture {
-        check_run(BatchType::Read, |ctx, tag| unsafe {
+    pub fn start_recv_message(&mut self) -> Result<BatchFuture> {
+        let _cq_ref = self.cq.borrow()?;
+        let f = check_run(BatchType::Read, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
-        })
+        });
+        Ok(f)
     }
 
     /// Start handling from server side.
     ///
     /// Future will finish once close is received by the server.
-    pub fn start_server_side(&mut self) -> BatchFuture {
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+    pub fn start_server_side(&mut self) -> Result<BatchFuture> {
+        let _cq_ref = self.cq.borrow()?;
+        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
-        })
+        });
+        Ok(f)
     }
 
     /// Send a status from server.
@@ -248,12 +258,13 @@ impl Call {
         send_empty_metadata: bool,
         payload: Option<Vec<u8>>,
         write_flags: u32,
-    ) -> BatchFuture {
+    ) -> Result<BatchFuture> {
+        let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let (payload_ptr, payload_len) = payload
             .as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let details_ptr = status
                 .details
                 .as_ref()
@@ -272,11 +283,18 @@ impl Call {
                 write_flags,
                 tag,
             )
-        })
+        });
+        Ok(f)
     }
 
     /// Abort an rpc call before handler is called.
     pub fn abort(self, status: RpcStatus) {
+        match self.cq.borrow() {
+            // Queue is shutdown, ignore.
+            Err(Error::QueueShutdown) => return,
+            Err(e) => panic!("unexpected error when aborting call: {:?}", e),
+            _ => {}
+        }
         let call_ptr = self.call;
         let tag = CallTag::abort(self);
         let (batch_ptr, tag_ptr) = box_batch_tag(tag);
@@ -311,7 +329,15 @@ impl Call {
 
     /// Cancel the rpc call by client.
     fn cancel(&self) {
-        unsafe { grpc_sys::grpc_call_cancel(self.call, ptr::null_mut()) }
+        match self.cq.borrow() {
+            // Queue is shutdown, ignore.
+            Err(Error::QueueShutdown) => return,
+            Err(e) => panic!("unexpected error when canceling call: {:?}", e),
+            _ => {}
+        }
+        unsafe {
+            grpc_sys::grpc_call_cancel(self.call, ptr::null_mut());
+        }
     }
 }
 
@@ -450,7 +476,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.call(|c| c.call.start_recv_message());
+        let msg_f = call.call(|c| c.call.start_recv_message())?;
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -537,7 +563,7 @@ impl SinkBase {
         let write_f = call.call(|c| {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
-        });
+        })?;
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)

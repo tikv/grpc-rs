@@ -33,6 +33,7 @@ pub enum Error {
     RemoteStopped,
     ShutdownFailed,
     BindFail(String, u16),
+    QueueShutdown,
 }
 
 impl Display for Error {
@@ -44,13 +45,14 @@ impl Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::Codec(_) => "Grpc Codec Error",
-            Error::CallFailure(_) => "Grpc Call Error",
-            Error::RpcFailure(_) => "Grpc Request Error",
-            Error::RpcFinished(_) => "Grpc Finish Error",
+            Error::Codec(_) => "gRPC Codec Error",
+            Error::CallFailure(_) => "gRPC Call Error",
+            Error::RpcFailure(_) => "gRPC Request Error",
+            Error::RpcFinished(_) => "gRPC Finish Error",
             Error::RemoteStopped => "Remote is stopped.",
             Error::ShutdownFailed => "Failed to shutdown.",
-            Error::BindFail(_, _) => "Grpc Bind Error",
+            Error::BindFail(_, _) => "gRPC Bind Error",
+            Error::QueueShutdown => "gRPC completion queue shutdown",
         }
     }
 
@@ -84,7 +86,7 @@ mod tests {
     fn test_convert() {
         let error = ProtobufError::WireError(WireError::UnexpectedEof);
         let e: Error = error.into();
-        assert_eq!(e.description(), "Grpc Codec Error");
+        assert_eq!(e.description(), "gRPC Codec Error");
         assert!(e.cause().is_some());
     }
 }

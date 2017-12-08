@@ -23,7 +23,7 @@ use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
 use call::{check_run, Call, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
-use error::Error;
+use error::{Error, Result};
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 
 /// Update the flag bit in res.
@@ -97,8 +97,8 @@ impl Call {
         method: &Method<P, Q>,
         req: &P,
         opt: CallOption,
-    ) -> ClientUnaryReceiver<Q> {
-        let call = channel.create_call(method, &opt);
+    ) -> Result<ClientUnaryReceiver<Q>> {
+        let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
@@ -113,15 +113,15 @@ impl Call {
                 tag,
             )
         });
-        ClientUnaryReceiver::new(call, cq_f, method.resp_de())
+        Ok(ClientUnaryReceiver::new(call, cq_f, method.resp_de()))
     }
 
     pub fn client_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
         opt: CallOption,
-    ) -> (ClientCStreamSender<P>, ClientCStreamReceiver<Q>) {
-        let call = channel.create_call(method, &opt);
+    ) -> Result<(ClientCStreamSender<P>, ClientCStreamReceiver<Q>)> {
+        let call = channel.create_call(method, &opt)?;
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
@@ -138,7 +138,7 @@ impl Call {
             call: share_call,
             resp_de: method.resp_de(),
         };
-        (sink, recv)
+        Ok((sink, recv))
     }
 
     pub fn server_streaming<P, Q>(
@@ -146,8 +146,8 @@ impl Call {
         method: &Method<P, Q>,
         req: &P,
         opt: CallOption,
-    ) -> ClientSStreamReceiver<Q> {
-        let call = channel.create_call(method, &opt);
+    ) -> Result<ClientSStreamReceiver<Q>> {
+        let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
@@ -168,15 +168,15 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        ClientSStreamReceiver::new(call, cq_f, method.resp_de())
+        Ok(ClientSStreamReceiver::new(call, cq_f, method.resp_de()))
     }
 
     pub fn duplex_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
         opt: CallOption,
-    ) -> (ClientDuplexSender<P>, ClientDuplexReceiver<Q>) {
-        let call = channel.create_call(method, &opt);
+    ) -> Result<(ClientDuplexSender<P>, ClientDuplexReceiver<Q>)> {
+        let call = channel.create_call(method, &opt)?;
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
@@ -195,7 +195,7 @@ impl Call {
         let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
         let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
         let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
-        (sink, recv)
+        Ok((sink, recv))
     }
 }
 
@@ -286,7 +286,7 @@ impl<P> StreamingCallSink<P> {
 
     pub fn cancel(&mut self) {
         let call = self.call.lock();
-        call.call.cancel();
+        call.call.cancel()
     }
 }
 
@@ -321,7 +321,7 @@ impl<P> Sink for StreamingCallSink<P> {
         if self.close_f.is_none() {
             try_ready!(self.sink_base.poll_complete());
 
-            let close_f = call.call.start_send_close_client();
+            let close_f = call.call.start_send_close_client()?;
             self.close_f = Some(close_f);
         }
 
@@ -391,7 +391,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
             // so msg_f must be either stale or not initialised yet.
             self.msg_f.take();
-            let msg_f = self.call.call(|c| c.call.start_recv_message());
+            let msg_f = self.call.call(|c| c.call.start_recv_message())?;
             self.msg_f = Some(msg_f);
             if let Some(ref data) = bytes {
                 let msg = (self.resp_de)(data)?;
