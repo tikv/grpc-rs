@@ -12,6 +12,10 @@
 // limitations under the License.
 
 
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
@@ -26,16 +30,28 @@ fn gen_resp(req: SimpleRequest) -> SimpleResponse {
     resp
 }
 
+
+fn spawn<I, E, F>(ctx: RpcContext, keep_running: Arc<AtomicBool>, tag: &'static str, f: F)
+where
+    E: Debug,
+    F: Future<Item = I, Error = E> + Send + 'static,
+{
+    ctx.spawn(f.map(|_| ()).map_err(
+        move |e| if keep_running.load(Ordering::SeqCst) {
+            error!("failed to handle {}: {:?}", tag, e);
+        },
+    ))
+}
+
 #[derive(Clone)]
-pub struct Benchmark;
+pub struct Benchmark {
+    pub keep_running: Arc<AtomicBool>,
+}
 
 impl BenchmarkService for Benchmark {
     fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let resp = gen_resp(req);
-        ctx.spawn(
-            sink.success(resp)
-                .map_err(|e| error!("failed to handle unary: {:?}", e)),
-        )
+        spawn(ctx, self.keep_running.clone(), "unary", sink.success(resp))
     }
 
     fn streaming_call(
@@ -44,11 +60,8 @@ impl BenchmarkService for Benchmark {
         stream: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
     ) {
-        ctx.spawn(
-            sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())))
-                .map_err(|e| error!("failed to handle streaming: {:?}", e))
-                .map(|_| {}),
-        )
+        let f = sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())));
+        spawn(ctx, self.keep_running.clone(), "streaming", f)
     }
 
     fn streaming_from_client(
@@ -57,11 +70,13 @@ impl BenchmarkService for Benchmark {
         _: RequestStream<SimpleRequest>,
         sink: ClientStreamingSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| {
-                println!("failed to report unimplemented method: {:?}", e)
-            });
-        ctx.spawn(f)
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
+        spawn(
+            ctx,
+            self.keep_running.clone(),
+            "reporting unimplemented method",
+            f,
+        )
     }
 
     fn streaming_from_server(
@@ -70,11 +85,13 @@ impl BenchmarkService for Benchmark {
         _: SimpleRequest,
         sink: ServerStreamingSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| {
-                println!("failed to report unimplemented method: {:?}", e)
-            });
-        ctx.spawn(f)
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
+        spawn(
+            ctx,
+            self.keep_running.clone(),
+            "reporting unimplemented method",
+            f,
+        )
     }
 
     fn streaming_both_ways(
@@ -83,16 +100,20 @@ impl BenchmarkService for Benchmark {
         _: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-            .map_err(|e| {
-                println!("failed to report unimplemented method: {:?}", e)
-            });
-        ctx.spawn(f)
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
+        spawn(
+            ctx,
+            self.keep_running.clone(),
+            "reporting unimplemented method",
+            f,
+        )
     }
 }
 
 #[derive(Clone)]
-pub struct Generic;
+pub struct Generic {
+    pub keep_running: Arc<AtomicBool>,
+}
 
 impl Generic {
     pub fn streaming_call(
@@ -101,11 +122,8 @@ impl Generic {
         stream: RequestStream<Vec<u8>>,
         sink: DuplexSink<Vec<u8>>,
     ) {
-        ctx.spawn(
-            sink.send_all(stream.map(|req| (req, WriteFlags::default())))
-                .map_err(|e| error!("failed to handle streaming: {:?}", e))
-                .map(|_| {}),
-        )
+        let f = sink.send_all(stream.map(|req| (req, WriteFlags::default())));
+        spawn(ctx, self.keep_running.clone(), "streaming", f)
     }
 }
 

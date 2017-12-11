@@ -143,6 +143,17 @@ impl<B: Backoff> ExecutorContext<B> {
     }
 }
 
+// Since impl trait is not stable yet, implement this as a function is impossible without box.
+macro_rules! spawn {
+    ($client:ident, $keep_running:expr, $tag: expr, $f:expr) => {
+        $client.spawn($f.map(|_| ()).map_err(move |e| {
+            if $keep_running.load(Ordering::SeqCst) {
+                error!("failed to execute {}: {:?}", $tag, e);
+            }
+        }))
+    };
+}
+
 /// An executor that executes generic requests.
 struct GenericExecutor<B> {
     ctx: ExecutorContext<B>,
@@ -163,6 +174,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
 
     fn execute_stream(self) {
         let client = self.client.clone();
+        let keep_running = self.ctx.keep_running.clone();
         let (sender, receiver) = self.client
             .duplex_streaming(
                 &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
@@ -203,10 +215,8 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         })
             .and_then(|(e, r)| {
                 r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
-            })
-            .map(|_| ())
-            .map_err(|e| error!("failed to execute streaming ping pong: {:?}", e));
-        client.spawn(f)
+            });
+        spawn!(client, keep_running, "streaming ping pong", f)
     }
 }
 
@@ -241,6 +251,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
 
     fn execute_unary_async(self) {
         let client = self.client.clone();
+        let keep_running = self.ctx.keep_running.clone();
         let f = future::loop_fn(self, move |mut executor| {
             let latency_timer = Instant::now();
             let handler = executor.client.unary_call_async(&executor.req).unwrap();
@@ -264,12 +275,13 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                     Ok(Async::Ready(l))
                 })
             })
-        }).map_err(|e| error!("failed to execute unary async: {:?}", e));
-        client.spawn(f);
+        });
+        spawn!(client, keep_running, "unary async", f)
     }
 
     fn execute_stream_ping_pong(self) {
         let client = self.client.clone();
+        let keep_running = self.ctx.keep_running.clone();
         let (sender, receiver) = self.client.streaming_call().unwrap();
         let f = future::loop_fn(
             (sender, self, receiver),
@@ -305,10 +317,8 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         })
             .and_then(|(e, r)| {
                 r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
-            })
-            .map(|_| ())
-            .map_err(|e| error!("failed to execute streaming ping pong: {:?}", e));
-        client.spawn(f)
+            });
+        spawn!(client, keep_running, "streaming ping pong", f);
     }
 }
 
