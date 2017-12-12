@@ -143,17 +143,6 @@ impl<B: Backoff> ExecutorContext<B> {
     }
 }
 
-// Since impl trait is not stable yet, implement this as a function is impossible without box.
-macro_rules! spawn {
-    ($client:ident, $keep_running:expr, $tag: expr, $f:expr) => {
-        $client.spawn($f.map(|_| ()).map_err(move |e| {
-            if $keep_running.load(Ordering::SeqCst) {
-                error!("failed to execute {}: {:?}", $tag, e);
-            }
-        }))
-    };
-}
-
 /// An executor that executes generic requests.
 struct GenericExecutor<B> {
     ctx: ExecutorContext<B>,

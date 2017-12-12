@@ -12,7 +12,6 @@
 // limitations under the License.
 
 
-use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -30,19 +29,6 @@ fn gen_resp(req: SimpleRequest) -> SimpleResponse {
     resp
 }
 
-
-fn spawn<I, E, F>(ctx: RpcContext, keep_running: Arc<AtomicBool>, tag: &'static str, f: F)
-where
-    E: Debug,
-    F: Future<Item = I, Error = E> + Send + 'static,
-{
-    ctx.spawn(f.map(|_| ()).map_err(
-        move |e| if keep_running.load(Ordering::SeqCst) {
-            error!("failed to handle {}: {:?}", tag, e);
-        },
-    ))
-}
-
 #[derive(Clone)]
 pub struct Benchmark {
     pub keep_running: Arc<AtomicBool>,
@@ -50,8 +36,9 @@ pub struct Benchmark {
 
 impl BenchmarkService for Benchmark {
     fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
-        let resp = gen_resp(req);
-        spawn(ctx, self.keep_running.clone(), "unary", sink.success(resp))
+        let f = sink.success(gen_resp(req));
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "unary", f)
     }
 
     fn streaming_call(
@@ -61,7 +48,8 @@ impl BenchmarkService for Benchmark {
         sink: DuplexSink<SimpleResponse>,
     ) {
         let f = sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())));
-        spawn(ctx, self.keep_running.clone(), "streaming", f)
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "streaming", f)
     }
 
     fn streaming_from_client(
@@ -71,12 +59,8 @@ impl BenchmarkService for Benchmark {
         sink: ClientStreamingSink<SimpleResponse>,
     ) {
         let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
-        spawn(
-            ctx,
-            self.keep_running.clone(),
-            "reporting unimplemented method",
-            f,
-        )
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
 
     fn streaming_from_server(
@@ -86,12 +70,8 @@ impl BenchmarkService for Benchmark {
         sink: ServerStreamingSink<SimpleResponse>,
     ) {
         let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
-        spawn(
-            ctx,
-            self.keep_running.clone(),
-            "reporting unimplemented method",
-            f,
-        )
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
 
     fn streaming_both_ways(
@@ -101,12 +81,8 @@ impl BenchmarkService for Benchmark {
         sink: DuplexSink<SimpleResponse>,
     ) {
         let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
-        spawn(
-            ctx,
-            self.keep_running.clone(),
-            "reporting unimplemented method",
-            f,
-        )
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
 }
 
@@ -123,7 +99,8 @@ impl Generic {
         sink: DuplexSink<Vec<u8>>,
     ) {
         let f = sink.send_all(stream.map(|req| (req, WriteFlags::default())));
-        spawn(ctx, self.keep_running.clone(), "streaming", f)
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "streaming", f)
     }
 }
 
