@@ -1,3 +1,10 @@
+# 0.2.0 - 2017-12-14
+
+- update gRPC from 1.6.1 to 1.7.2
+- seperate secure/unsecure features
+- fix compilation error on OS X and Win32
+- publish gRPC built-in protos
+
 # 0.1.2 - 2017-09-22
 
 - use environment variable to control linking
