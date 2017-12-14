@@ -15,15 +15,16 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, slice, usize};
+use std::{ptr, slice, usize, cmp};
+use std::io::{self, Read, BufRead};
 use std::sync::Arc;
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcWrapByteBufferReader};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
+use async::{self, BatchFuture, BatchType, CallTag, CqFuture, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
@@ -88,6 +89,67 @@ impl RpcStatus {
     }
 }
 
+pub struct MessageReader {
+    reader: *mut GrpcWrapByteBufferReader,
+    // Hack: apparently its lifetime depends on reader. However
+    // it's not going to be accessed by others directly, hence it's safe
+    // to mark it static here.
+    bytes: &'static [u8],
+}
+
+unsafe impl Sync for MessageReader {}
+unsafe impl Send for MessageReader {}
+
+impl Read for MessageReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let amt = {
+            let bytes = self.fill_buf()?;
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+            let amt = cmp::min(buf.len(), bytes.len());
+            if amt == 1 {
+                buf[0] = bytes[0];
+            } else {
+                buf[..amt].copy_from_slice(bytes);
+            }
+            amt
+        };
+        self.consume(amt);
+        Ok(amt)
+    }
+}
+
+impl BufRead for MessageReader {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.bytes.is_empty() {
+            let mut len = 0;
+            let ptr = unsafe {
+                grpc_sys::grpcwrap_byte_buffer_reader_next(self.reader, &mut len)
+            };
+            if ptr.is_null() {
+                return Ok(&[]);
+            }
+            self.bytes = unsafe {
+                slice::from_raw_parts(ptr as *const u8, len as usize)
+            };
+        }
+        Ok(self.bytes)
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.bytes = &self.bytes[amt..];
+    }
+}
+
+impl Drop for MessageReader {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpcwrap_byte_buffer_reader_destroy(self.reader);
+        }
+    }
+}
+
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
@@ -130,22 +192,15 @@ impl BatchContext {
 
     /// Fetch the response bytes of the rpc call.
     // TODO: return Read instead.
-    pub fn recv_message(&self) -> Option<Vec<u8>> {
-        // TODO: avoid copy
-        let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };
-        if len == usize::MAX {
+    pub fn recv_message(&self) -> Option<MessageReader> {
+        let reader = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
+        if reader.is_null() {
             return None;
         }
-        let mut buffer = Vec::with_capacity(len);
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(
-                self.ctx,
-                buffer.as_mut_ptr() as *mut _,
-                len,
-            );
-            buffer.set_len(len);
-        }
-        Some(buffer)
+        Some(MessageReader {
+            reader: reader,
+            bytes: &[],
+        })
     }
 }
 
@@ -354,13 +409,13 @@ impl Drop for Call {
 /// once the call is canceled or finished early.
 struct ShareCall {
     call: Call,
-    close_f: CqFuture<BatchMessage>,
+    close_f: CqFuture<Option<MessageReader>>,
     finished: bool,
     status: Option<RpcStatus>,
 }
 
 impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+    fn new(call: Call, close_f: CqFuture<Option<MessageReader>>) -> ShareCall {
         ShareCall {
             call: call,
             close_f: close_f,
@@ -372,16 +427,16 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+    fn poll_finish(&mut self) -> Poll<Option<MessageReader>, Error> {
         let res = match self.close_f.poll() {
             Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
                 Err(Error::RpcFailure(status))
             }
             Ok(Async::NotReady) => return Ok(Async::NotReady),
-            Ok(Async::Ready(msg)) => {
+            Ok(Async::Ready(reader)) => {
                 self.status = Some(RpcStatus::ok());
-                Ok(Async::Ready(msg))
+                Ok(Async::Ready(reader))
             }
             res => res,
         };
@@ -439,7 +494,7 @@ impl StreamingBase {
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<Option<Vec<u8>>, Error> {
+    ) -> Poll<Option<MessageReader>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -457,11 +512,11 @@ impl StreamingBase {
             }
         }
 
-        let mut bytes = None;
+        let mut reader = None;
         if !self.read_done {
             if let Some(ref mut msg_f) = self.msg_f {
-                bytes = try_ready!(msg_f.poll());
-                if bytes.is_none() {
+                reader = try_ready!(msg_f.poll());
+                if reader.is_none() {
                     self.read_done = true;
                 }
             }
@@ -478,10 +533,10 @@ impl StreamingBase {
         self.msg_f.take();
         let msg_f = call.call(|c| c.call.start_recv_message())?;
         self.msg_f = Some(msg_f);
-        if bytes.is_none() {
+        if reader.is_none() {
             self.poll(call, true)
         } else {
-            Ok(Async::Ready(bytes))
+            Ok(Async::Ready(reader))
         }
     }
 }

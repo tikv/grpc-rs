@@ -24,7 +24,7 @@ use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
 use RpcContext;
 use async::{CallTag, CqFuture};
-use call::{Method, MethodType};
+use call::{Method, MethodType, MessageReader};
 use call::server::*;
 use channel::ChannelArgs;
 use cq::CompletionQueue;
@@ -33,7 +33,7 @@ use error::{Error, Result};
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
-pub type CallBack = Box<Fn(RpcContext, Vec<u8>)>;
+pub type CallBack = Box<Fn(RpcContext, Option<MessageReader>)>;
 
 /// Handler is an rpc call holder.
 pub struct Handler {
@@ -141,8 +141,8 @@ impl ServiceBuilder {
         F: Fn(RpcContext, P, UnarySink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: Vec<u8>| {
-            execute_unary(ctx, ser, de, payload, &handler)
+        let h = Box::new(move |ctx: RpcContext, reader: Option<MessageReader>| {
+            execute_unary(ctx, ser, de, reader.unwrap(), &handler)
         });
         self.handlers
             .insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
@@ -161,7 +161,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: Vec<u8>| {
+        let h = Box::new(move |ctx: RpcContext, _: Option<MessageReader>| {
             execute_client_streaming(ctx, ser, de, &handler)
         });
         self.handlers.insert(
@@ -183,8 +183,8 @@ impl ServiceBuilder {
         F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: Vec<u8>| {
-            execute_server_streaming(ctx, ser, de, payload, &handler)
+        let h = Box::new(move |ctx: RpcContext, reader: Option<MessageReader>| {
+            execute_server_streaming(ctx, ser, de, reader.unwrap(), &handler)
         });
         self.handlers.insert(
             method.name.as_bytes(),
@@ -205,7 +205,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: Vec<u8>| {
+        let h = Box::new(move |ctx: RpcContext, _: Option<MessageReader>| {
             execute_duplex_streaming(ctx, ser, de, &handler)
         });
         self.handlers

@@ -271,42 +271,41 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-GPR_EXPORT size_t GPR_CALLTYPE
-grpcwrap_batch_context_recv_message_length(const grpcwrap_batch_context *ctx) {
+typedef struct grpcwrap_byte_buffer_reader {
   grpc_byte_buffer_reader reader;
+  grpc_byte_buffer *buf;
+} grpcwrap_byte_buffer_reader;
+
+GPR_EXPORT grpcwrap_byte_buffer_reader *GPR_CALLTYPE grpcwrap_batch_context_take_recv_message(
+    grpcwrap_batch_context *ctx) {
   if (!ctx->recv_message) {
-    return (size_t)-1;
+    return NULL;
   }
-
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
-  size_t result = grpc_byte_buffer_length(reader.buffer_out);
-  grpc_byte_buffer_reader_destroy(&reader);
-
-  return result;
+  grpcwrap_byte_buffer_reader* reader = gpr_malloc(sizeof(grpcwrap_byte_buffer_reader));
+  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader->reader, ctx->recv_message));
+  reader->buf = ctx->recv_message;
+  ctx->recv_message = NULL;
+  return reader;
 }
 
-/*
- * Copies data from recv_message to a buffer. Fatal error occurs if
- * buffer is too small.
- */
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_recv_message_to_buffer(
-    const grpcwrap_batch_context *ctx, char *buffer, size_t buffer_len) {
-  grpc_byte_buffer_reader reader;
+GPR_EXPORT const char *GPR_CALLTYPE grpcwrap_byte_buffer_reader_next(
+    grpcwrap_byte_buffer_reader* reader, size_t *len) {
   grpc_slice slice;
-  size_t offset = 0;
-
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
-
-  while (grpc_byte_buffer_reader_next(&reader, &slice)) {
-    size_t len = GRPC_SLICE_LENGTH(slice);
-    GPR_ASSERT(offset + len <= buffer_len);
-    memcpy(buffer + offset, GRPC_SLICE_START_PTR(slice),
-           GRPC_SLICE_LENGTH(slice));
-    offset += len;
+  const char *buf = NULL;
+  if (grpc_byte_buffer_reader_next(&reader->reader, &slice)) {
+    *len = GRPC_SLICE_LENGTH(slice);
+    buf = (char *)GRPC_SLICE_START_PTR(slice);
+    // buf will be valid as long as reader is not dropped.
     grpc_slice_unref(slice);
   }
+  return buf;
+}
 
-  grpc_byte_buffer_reader_destroy(&reader);
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_byte_buffer_reader_destroy(
+   grpcwrap_byte_buffer_reader* reader) {
+  grpc_byte_buffer_reader_destroy(&reader->reader);
+  grpc_byte_buffer_destroy(reader->buf);
+  gpr_free(reader);
 }
 
 GPR_EXPORT grpc_status_code GPR_CALLTYPE

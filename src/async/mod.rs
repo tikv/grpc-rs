@@ -23,7 +23,7 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
 
-use call::{BatchContext, Call};
+use call::{BatchContext, Call, MessageReader};
 use call::server::RequestContext;
 use cq::CompletionQueue;
 use error::{Error, Result};
@@ -116,9 +116,8 @@ impl<T> Future for CqFuture<T> {
     }
 }
 
-pub type BatchMessage = Option<Vec<u8>>;
 /// Future object for batch jobs.
-pub type BatchFuture = CqFuture<BatchMessage>;
+pub type BatchFuture = CqFuture<Option<MessageReader>>;
 
 /// A result holder for asynchronous execution.
 // This enum is going to be passed to FFI, so don't use trait or generic here.

@@ -19,8 +19,8 @@ use std::time::Duration;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
-use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
-use call::{check_run, Call, Method};
+use async::{BatchFuture, BatchType, CqFuture, SpinLock};
+use call::{check_run, Call, Method, MessageReader};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
@@ -204,14 +204,14 @@ impl Call {
 /// The future is resolved once response is received.
 pub struct ClientUnaryReceiver<T> {
     call: Call,
-    resp_f: CqFuture<BatchMessage>,
+    resp_f: CqFuture<Option<MessageReader>>,
     resp_de: DeserializeFn<T>,
 }
 
 impl<T> ClientUnaryReceiver<T> {
     fn new(
         call: Call,
-        resp_f: CqFuture<BatchMessage>,
+        resp_f: CqFuture<Option<MessageReader>>,
         de: DeserializeFn<T>,
     ) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
@@ -409,7 +409,7 @@ pub struct ClientSStreamReceiver<Q> {
 impl<Q> ClientSStreamReceiver<Q> {
     fn new(
         call: Call,
-        finish_f: CqFuture<BatchMessage>,
+        finish_f: CqFuture<Option<MessageReader>>,
         de: DeserializeFn<Q>,
     ) -> ClientSStreamReceiver<Q> {
         let share_call = ShareCall::new(call, finish_f);

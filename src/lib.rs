@@ -39,7 +39,7 @@ mod error;
 mod log_util;
 mod server;
 
-pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
+pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags, MessageReader};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
                        ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
                        ClientUnaryReceiver, StreamingCallSink};

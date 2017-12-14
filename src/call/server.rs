@@ -19,7 +19,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
 use async::{BatchFuture, CallTag, Executor, SpinLock};
-use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase, MessageReader};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -76,7 +76,7 @@ impl RequestContext {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, vec![], handler.cb());
+                    execute(self, cq, None, handler.cb());
                     Ok(())
                 }
             },
@@ -177,10 +177,10 @@ impl UnaryRequestContext {
         self.inner.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<Vec<u8>>) {
+    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, reader: Option<MessageReader>) {
         let handler = inner.get_handler(self.request.method()).unwrap();
-        if let Some(data) = data {
-            return execute(self.request, cq, data, handler.cb());
+        if let Some(reader) = reader {
+            return execute(self.request, cq, Some(reader), handler.cb());
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
@@ -503,14 +503,14 @@ pub fn execute_unary<P, Q, F>(
     mut ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    payload: Vec<u8>,
+    reader: MessageReader,
     f: &F,
 ) where
     F: Fn(RpcContext, P, UnarySink<Q>),
 {
     let mut call = ctx.take_call().unwrap();
     let close_f = accept_call!(call);
-    let request = match de(payload) {
+    let request = match de(reader) {
         Ok(f) => f,
         Err(e) => {
             let status = RpcStatus::new(
@@ -548,7 +548,7 @@ pub fn execute_server_streaming<P, Q, F>(
     mut ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    payload: Vec<u8>,
+    reader: MessageReader,
     f: &F,
 ) where
     F: Fn(RpcContext, P, ServerStreamingSink<Q>),
@@ -556,7 +556,7 @@ pub fn execute_server_streaming<P, Q, F>(
     let mut call = ctx.take_call().unwrap();
     let close_f = accept_call!(call);
 
-    let request = match de(payload) {
+    let request = match de(reader) {
         Ok(t) => t,
         Err(e) => {
             let status = RpcStatus::new(
@@ -600,7 +600,7 @@ pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: Vec<u8>, f: &CallBack) {
+fn execute(ctx: RequestContext, cq: &CompletionQueue, reader: Option<MessageReader>, f: &CallBack) {
     let rpc_ctx = RpcContext::new(ctx, cq);
-    f(rpc_ctx, payload)
+    f(rpc_ctx, reader)
 }
