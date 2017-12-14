@@ -233,7 +233,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = (self.resp_de)(&data.unwrap())?;
+        let t = (self.resp_de)(data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
@@ -261,7 +261,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             try_ready!(call.poll_finish())
         };
-        let t = (self.resp_de)(&data.unwrap())?;
+        let t = (self.resp_de)(data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
@@ -393,7 +393,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             self.msg_f.take();
             let msg_f = self.call.call(|c| c.call.start_recv_message())?;
             self.msg_f = Some(msg_f);
-            if let Some(ref data) = bytes {
+            if let Some(data) = bytes {
                 let msg = (self.resp_de)(data)?;
                 return Ok(Async::Ready(Some(msg)));
             }

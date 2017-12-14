@@ -14,7 +14,7 @@
 
 use error::Result;
 
-pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
+pub type DeserializeFn<T> = fn(Vec<u8>) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
 
 /// Marshaller defines how to serialize and deserialize between T and byte slice.
@@ -44,7 +44,7 @@ pub mod pb_codec {
     }
 
     #[inline]
-    pub fn de<T: MessageStatic>(buf: &[u8]) -> Result<T> {
-        protobuf::parse_from_bytes(buf).map_err(From::from)
+    pub fn de<T: MessageStatic>(buf: Vec<u8>) -> Result<T> {
+        protobuf::parse_from_bytes(&buf).map_err(From::from)
     }
 }

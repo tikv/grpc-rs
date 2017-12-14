@@ -76,7 +76,7 @@ impl RequestContext {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, &[], handler.cb());
+                    execute(self, cq, vec![], handler.cb());
                     Ok(())
                 }
             },
@@ -177,7 +177,7 @@ impl UnaryRequestContext {
         self.inner.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<&[u8]>) {
+    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<Vec<u8>>) {
         let handler = inner.get_handler(self.request.method()).unwrap();
         if let Some(data) = data {
             return execute(self.request, cq, data, handler.cb());
@@ -224,7 +224,7 @@ impl<T> Stream for RequestStream<T> {
         match data {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let msg = (self.de)(&data)?;
+                let msg = (self.de)(data)?;
                 Ok(Async::Ready(Some(msg)))
             }
         }
@@ -503,7 +503,7 @@ pub fn execute_unary<P, Q, F>(
     mut ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    payload: &[u8],
+    payload: Vec<u8>,
     f: &F,
 ) where
     F: Fn(RpcContext, P, UnarySink<Q>),
@@ -548,7 +548,7 @@ pub fn execute_server_streaming<P, Q, F>(
     mut ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    payload: &[u8],
+    payload: Vec<u8>,
     f: &F,
 ) where
     F: Fn(RpcContext, P, ServerStreamingSink<Q>),
@@ -600,7 +600,7 @@ pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &CallBack) {
+fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: Vec<u8>, f: &CallBack) {
     let rpc_ctx = RpcContext::new(ctx, cq);
     f(rpc_ctx, payload)
 }

@@ -115,8 +115,8 @@ pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
 }
 
 #[inline]
-pub fn bin_de(buf: &[u8]) -> grpc::Result<Vec<u8>> {
-    Ok(buf.to_vec())
+pub fn bin_de(buf: Vec<u8>) -> grpc::Result<Vec<u8>> {
+    Ok(buf)
 }
 
 pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Method {

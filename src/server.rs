@@ -33,7 +33,7 @@ use error::{Error, Result};
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
-pub type CallBack = Box<Fn(RpcContext, &[u8])>;
+pub type CallBack = Box<Fn(RpcContext, Vec<u8>)>;
 
 /// Handler is an rpc call holder.
 pub struct Handler {
@@ -141,7 +141,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, P, UnarySink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
+        let h = Box::new(move |ctx: RpcContext, payload: Vec<u8>| {
             execute_unary(ctx, ser, de, payload, &handler)
         });
         self.handlers
@@ -161,7 +161,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
+        let h = Box::new(move |ctx: RpcContext, _: Vec<u8>| {
             execute_client_streaming(ctx, ser, de, &handler)
         });
         self.handlers.insert(
@@ -183,7 +183,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
+        let h = Box::new(move |ctx: RpcContext, payload: Vec<u8>| {
             execute_server_streaming(ctx, ser, de, payload, &handler)
         });
         self.handlers.insert(
@@ -205,7 +205,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
+        let h = Box::new(move |ctx: RpcContext, _: Vec<u8>| {
             execute_duplex_streaming(ctx, ser, de, &handler)
         });
         self.handlers
