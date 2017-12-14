@@ -209,6 +209,26 @@ extern "C" {
     pub fn grpc_call_details_init(details: *mut GrpcCallDetails);
     pub fn grpc_call_details_destroy(details: *mut GrpcCallDetails);
 
+    pub fn grpcwrap_metadata_array_create(capacity: size_t) -> *mut GrpcMetadataArray;
+    pub fn grpcwrap_metadata_array_destroy_full(array: *mut GrpcMetadataArray);
+    pub fn grpcwrap_metadata_array_add(
+        array: *mut GrpcMetadataArray,
+        key: *const c_char,
+        value: *const c_char,
+        value_length: size_t
+    );
+    pub fn grpcwrap_metadata_array_count(array: *mut GrpcMetadataArray) -> size_t;
+    pub fn grpcwrap_metadata_array_get_key(
+        array: *mut GrpcMetadataArray,
+        index: size_t,
+        key_length: *mut size_t
+    ) -> *const c_char;
+    pub fn grpcwrap_metadata_array_get_value(
+        array: *mut GrpcMetadataArray,
+        index: size_t,
+        value_length: *mut size_t
+    ) -> *const c_char;
+
     pub fn grpc_register_plugin(init: Option<extern "C" fn()>, destroy: Option<extern "C" fn()>);
 
     pub fn gpr_inf_future(clock_type: GprClockType) -> GprTimespec;
@@ -499,7 +519,7 @@ mod secure_component {
             force_client_auth: c_int,
         ) -> *mut GrpcServerCredentials;
         pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
-    }
+}
 }
 
 #[cfg(feature = "secure")]

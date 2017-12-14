@@ -38,6 +38,7 @@ mod env;
 mod error;
 mod log_util;
 mod server;
+mod metadata;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
@@ -58,3 +59,4 @@ pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
 pub use log_util::redirect_log;
 pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
+pub use metadata::{MetadataArray, MetadataArrayBuilder};
