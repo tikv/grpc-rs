@@ -104,9 +104,10 @@ impl WorkerService for Worker {
                         })
                     })
                     .map_err(Error::from)
-                    .and_then(|(sink, mut client)| client.shutdown().map(|_| sink))
-                    .and_then(|mut sink| {
-                        future::poll_fn(move || sink.close().map_err(From::from))
+                    .and_then(|(mut sink, mut client)| {
+                        client
+                            .shutdown()
+                            .join(future::poll_fn(move || sink.close().map_err(From::from)))
                     })
             })
             .map_err(|e| error!("run client failed: {:?}", e))

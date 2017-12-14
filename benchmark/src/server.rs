@@ -14,6 +14,7 @@
 
 use std::ffi::CString;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use error::Result;
 use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
@@ -28,6 +29,7 @@ use util::{self, CpuRecorder};
 pub struct Server {
     server: GrpcServer,
     recorder: CpuRecorder,
+    keep_running: Arc<AtomicBool>,
 }
 
 impl Server {
@@ -41,9 +43,17 @@ impl Server {
         if cfg.get_core_limit() > 0 {
             warn!("server config core limit is set but ignored");
         }
+        let keep_running = Arc::new(AtomicBool::new(true));
+        let keep_running1 = keep_running.clone();
         let service = match cfg.get_server_type() {
-            ServerType::ASYNC_SERVER => services_grpc::create_benchmark_service(Benchmark),
-            ServerType::ASYNC_GENERIC_SERVER => bench::create_generic_service(Generic),
+            ServerType::ASYNC_SERVER => {
+                let b = Benchmark { keep_running };
+                services_grpc::create_benchmark_service(b)
+            }
+            ServerType::ASYNC_GENERIC_SERVER => {
+                let g = Generic { keep_running };
+                bench::create_generic_service(g)
+            }
             _ => unimplemented!(),
         };
         let mut builder = ServerBuilder::new(env.clone()).register_service(service);
@@ -75,6 +85,7 @@ impl Server {
         Ok(Server {
             server: s,
             recorder: CpuRecorder::new(),
+            keep_running: keep_running1,
         })
     }
 
@@ -91,6 +102,7 @@ impl Server {
     }
 
     pub fn shutdown(&mut self) -> ShutdownFuture {
+        self.keep_running.store(false, Ordering::SeqCst);
         self.server.shutdown()
     }
 
