@@ -1,3 +1,7 @@
+**[ This fork (branch `feature/metadata`) is for developing a proposal implementation of the custom metadata feature ]**
+
+---
+
 # gRPC-rs
 
 `gRPC-rs` is a Rust wrapper of [gRPC Core](https://github.com/grpc/grpc). [gRPC](http://www.grpc.io) is a high performance, open source universal RPC framework that puts mobile and HTTP/2 first.
