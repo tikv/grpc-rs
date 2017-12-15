@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 use std::thread::{self, ThreadId};
+use std::ptr;
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
@@ -36,7 +37,9 @@ impl Alarm {
             let ptr = Box::into_raw(tag);
             let timeout = GprTimespec::inf_future();
             let cq_ref = cq.borrow()?;
-            grpc_sys::grpc_alarm_create(cq_ref.as_ptr(), timeout, ptr as _)
+            let alarm = grpc_sys::grpc_alarm_create(ptr::null_mut());
+            grpc_sys::grpc_alarm_set(alarm, cq_ref.as_ptr(), timeout, ptr as _, ptr::null_mut());
+            alarm
         };
         Ok(Alarm { alarm: alarm })
     }
