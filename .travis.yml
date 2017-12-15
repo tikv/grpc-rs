@@ -24,7 +24,7 @@ before_script:
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew update && brew install autoconf libtool shtool; fi
-  - test -f "$GRPC_HEADER" || (git clone -b v1.4.0 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
+  - test -f "$GRPC_HEADER" || (git clone -b v1.7.2 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
   - export C_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
