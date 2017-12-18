@@ -11,6 +11,9 @@ documentation = "https://docs.rs/grpcio"
 description = "The rust language implementation of gRPC, base on the gRPC c core library."
 categories = ["asynchronous", "network-programming"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 grpcio-sys = { path = "grpc-sys", version = "0.2.0" }
 libc = "0.2"
