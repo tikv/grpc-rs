@@ -1,4 +1,4 @@
-# 0.2.0 - 2017-12-14
+# 0.2.0 - 2017-12-19
 
 - update gRPC from 1.6.1 to 1.7.2
 - seperate secure/unsecure features
