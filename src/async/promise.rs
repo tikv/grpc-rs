@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::fmt::{self, Debug, Formatter};
 
-use call::{BatchContext, RpcStatusCode, MessageReader};
+use call::{BatchContext, MessageReader, RpcStatusCode};
 use error::Error;
 use super::Inner;
 

@@ -20,7 +20,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
 use async::{BatchFuture, BatchType, CqFuture, SpinLock};
-use call::{check_run, Call, Method, MessageReader};
+use call::{check_run, Call, MessageReader, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};

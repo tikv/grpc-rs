@@ -19,7 +19,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
 use async::{BatchFuture, CallTag, Executor, SpinLock};
-use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase, MessageReader};
+use call::{BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -177,7 +177,12 @@ impl UnaryRequestContext {
         self.inner.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, reader: Option<MessageReader>) {
+    pub fn handle(
+        mut self,
+        inner: &Arc<Inner>,
+        cq: &CompletionQueue,
+        reader: Option<MessageReader>,
+    ) {
         let handler = inner.get_handler(self.request.method()).unwrap();
         if let Some(reader) = reader {
             return execute(self.request, cq, Some(reader), handler.cb());

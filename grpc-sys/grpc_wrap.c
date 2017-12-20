@@ -271,41 +271,27 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-typedef struct grpcwrap_byte_buffer_reader {
-  grpc_byte_buffer_reader reader;
-  grpc_byte_buffer *buf;
-} grpcwrap_byte_buffer_reader;
-
-GPR_EXPORT grpcwrap_byte_buffer_reader *GPR_CALLTYPE grpcwrap_batch_context_take_recv_message(
+GPR_EXPORT grpc_byte_buffer* GPR_CALLTYPE grpcwrap_batch_context_take_recv_message(
     grpcwrap_batch_context *ctx) {
-  if (!ctx->recv_message) {
-    return NULL;
+  grpc_byte_buffer *buf = NULL;
+  if (ctx->recv_message) {
+    buf = ctx->recv_message;
+    ctx->recv_message = NULL;
   }
-  grpcwrap_byte_buffer_reader* reader = gpr_malloc(sizeof(grpcwrap_byte_buffer_reader));
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader->reader, ctx->recv_message));
-  reader->buf = ctx->recv_message;
-  ctx->recv_message = NULL;
-  return reader;
+  return buf;
 }
 
 GPR_EXPORT const char *GPR_CALLTYPE grpcwrap_byte_buffer_reader_next(
-    grpcwrap_byte_buffer_reader* reader, size_t *len) {
+    grpc_byte_buffer_reader* reader, size_t *len) {
   grpc_slice slice;
   const char *buf = NULL;
-  if (grpc_byte_buffer_reader_next(&reader->reader, &slice)) {
+  if (grpc_byte_buffer_reader_next(reader, &slice)) {
     *len = GRPC_SLICE_LENGTH(slice);
     buf = (char *)GRPC_SLICE_START_PTR(slice);
     // buf will be valid as long as reader is not dropped.
     grpc_slice_unref(slice);
   }
   return buf;
-}
-
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_byte_buffer_reader_destroy(
-   grpcwrap_byte_buffer_reader* reader) {
-  grpc_byte_buffer_reader_destroy(&reader->reader);
-  grpc_byte_buffer_destroy(reader->buf);
-  gpr_free(reader);
 }
 
 GPR_EXPORT grpc_status_code GPR_CALLTYPE

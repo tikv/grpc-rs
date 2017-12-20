@@ -198,7 +198,18 @@ pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
 pub enum GrpcAlarm {}
-pub enum GrpcWrapByteBufferReader {}
+
+#[repr(C)]
+pub union GrpcByteBufferReaderCurrent {
+    pub index: c_uint,
+}
+
+#[repr(C)]
+pub struct GrpcByteBufferReader {
+    pub buffer_in: *mut GrpcByteBuffer,
+    pub buffer_out: *mut GrpcByteBuffer,
+    pub current: GrpcByteBufferReaderCurrent,
+}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -277,15 +288,25 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
-    pub fn grpcwrap_byte_buffer_reader_next(reader: *mut GrpcWrapByteBufferReader, len: *mut size_t) -> *const c_char;
-    pub fn grpcwrap_byte_buffer_reader_destroy(reader: *mut GrpcWrapByteBufferReader);
+    pub fn grpc_byte_buffer_reader_init(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcByteBuffer,
+    ) -> c_int;
+    pub fn grpcwrap_byte_buffer_reader_next(
+        reader: *mut GrpcByteBufferReader,
+        len: *mut size_t,
+    ) -> *const c_char;
+    pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
     pub fn grpcwrap_batch_context_recv_initial_metadata(
         ctx: *mut GrpcBatchContext,
     ) -> *const GrpcMetadataArray;
-    pub fn grpcwrap_batch_context_take_recv_message(ctx: *mut GrpcBatchContext) -> *mut GrpcWrapByteBufferReader;
+    pub fn grpcwrap_batch_context_take_recv_message(
+        ctx: *mut GrpcBatchContext,
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_batch_context_recv_status_on_client_status(
         ctx: *mut GrpcBatchContext,
     ) -> GrpcStatusCode;

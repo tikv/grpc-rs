@@ -24,7 +24,7 @@ use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
 use RpcContext;
 use async::{CallTag, CqFuture};
-use call::{Method, MethodType, MessageReader};
+use call::{MessageReader, Method, MethodType};
 use call::server::*;
 use channel::ChannelArgs;
 use cq::CompletionQueue;

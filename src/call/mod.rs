@@ -15,13 +15,14 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, slice, usize, cmp};
-use std::io::{self, Read, BufRead};
+use std::{cmp, ptr, slice, usize};
+use std::io::{self, BufRead, Read};
 use std::sync::Arc;
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcWrapByteBufferReader};
+use grpc_sys::{self, GrpcBatchContext, GrpcByteBuffer, GrpcByteBufferReader,
+               GrpcByteBufferReaderCurrent, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchType, CallTag, CqFuture, SpinLock};
@@ -90,7 +91,8 @@ impl RpcStatus {
 }
 
 pub struct MessageReader {
-    reader: *mut GrpcWrapByteBufferReader,
+    buf: *mut GrpcByteBuffer,
+    reader: Option<GrpcByteBufferReader>,
     // Hack: apparently its lifetime depends on reader. However
     // it's not going to be accessed by others directly, hence it's safe
     // to mark it static here.
@@ -123,16 +125,24 @@ impl Read for MessageReader {
 impl BufRead for MessageReader {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         if self.bytes.is_empty() {
+            if self.reader.is_none() {
+                unsafe {
+                    let mut reader = GrpcByteBufferReader {
+                        buffer_in: ptr::null_mut(),
+                        buffer_out: ptr::null_mut(),
+                        current: GrpcByteBufferReaderCurrent { index: 0 },
+                    };
+                    assert!(grpc_sys::grpc_byte_buffer_reader_init(&mut reader, self.buf) == 1);
+                    self.reader = Some(reader);
+                }
+            }
+            let reader = self.reader.as_mut().unwrap();
             let mut len = 0;
-            let ptr = unsafe {
-                grpc_sys::grpcwrap_byte_buffer_reader_next(self.reader, &mut len)
-            };
+            let ptr = unsafe { grpc_sys::grpcwrap_byte_buffer_reader_next(reader, &mut len) };
             if ptr.is_null() {
                 return Ok(&[]);
             }
-            self.bytes = unsafe {
-                slice::from_raw_parts(ptr as *const u8, len as usize)
-            };
+            self.bytes = unsafe { slice::from_raw_parts(ptr as *const u8, len as usize) };
         }
         Ok(self.bytes)
     }
@@ -145,7 +155,10 @@ impl BufRead for MessageReader {
 impl Drop for MessageReader {
     fn drop(&mut self) {
         unsafe {
-            grpc_sys::grpcwrap_byte_buffer_reader_destroy(self.reader);
+            if let Some(ref mut reader) = self.reader {
+                grpc_sys::grpc_byte_buffer_reader_destroy(reader);
+            }
+            grpc_sys::grpc_byte_buffer_destroy(self.buf);
         }
     }
 }
@@ -193,12 +206,13 @@ impl BatchContext {
     /// Fetch the response bytes of the rpc call.
     // TODO: return Read instead.
     pub fn recv_message(&self) -> Option<MessageReader> {
-        let reader = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
-        if reader.is_null() {
+        let buf = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
+        if buf.is_null() {
             return None;
         }
         Some(MessageReader {
-            reader: reader,
+            buf: buf,
+            reader: None,
             bytes: &[],
         })
     }

@@ -19,9 +19,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;
-use grpc::{self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
-           RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
-           MessageReader};
+use grpc::{self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType,
+           RequestStream, RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink,
+           ServiceBuilder, UnarySink, WriteFlags};
 use futures::{Future, Sink, Stream};
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
