@@ -1,6 +1,7 @@
 use grpc_sys::{self, GrpcMetadataArray};
 use std::ffi::CString;
 use libc::c_char;
+use std::ascii::AsciiExt;
 
 pub struct MetadataArrayBuilder {
     entries: Vec<(*mut c_char, *mut c_char, usize)>
@@ -12,10 +13,21 @@ impl MetadataArrayBuilder {
     }
 
     pub fn add(mut self, key: Vec<u8>, value: Vec<u8>) -> MetadataArrayBuilder {
-        // todo: perhaps assert that key is lowercase
+        assert!(key.iter()
+            .all(|b|
+                     ((*b as u32 >= 0x30) && (*b as u32 <= 0x39))        // digits
+                         || ((*b as u32 >= 0x41) && (*b as u32 <= 0x5a)) // uppercase
+                         || ((*b as u32 >= 0x61) && (*b as u32 <= 0x7a)) // lowercase
+                         || (*b as u32 == 0x2e)                          // .
+                         || (*b as u32 == 0x2d)                          // -
+                         || (*b as u32 == 0x5f)                          // _
+            ));
+
+        let key_normalized = key.to_ascii_lowercase();
+
         let value_size = value.len();
         let pair = (
-            CString::new(key).unwrap().into_raw(),
+            CString::new(key_normalized).unwrap().into_raw(),
             CString::new(value).unwrap().into_raw(),
             value_size
         );
