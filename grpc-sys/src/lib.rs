@@ -519,7 +519,7 @@ mod secure_component {
             force_client_auth: c_int,
         ) -> *mut GrpcServerCredentials;
         pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
-}
+    }
 }
 
 #[cfg(feature = "secure")]
