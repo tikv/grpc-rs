@@ -110,7 +110,7 @@ mod imp {
             Binder { host, port }
         }
 
-        pub unsafe fn bind(&self, server: *mut GrpcServer) -> u16 {
+        pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
             let addr = format!("{}:{}\0", self.host, self.port);
             grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _) as u16
         }
