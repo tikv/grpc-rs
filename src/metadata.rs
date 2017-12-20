@@ -3,15 +3,19 @@ use std::ffi::CString;
 use libc::c_char;
 use std::ascii::AsciiExt;
 
+/// Builder used to construct a MetadataArray value.
 pub struct MetadataArrayBuilder {
     entries: Vec<(*mut c_char, *mut c_char, usize)>
 }
 
 impl MetadataArrayBuilder {
+
+    /// Create a new empty builder.
     pub fn new() -> MetadataArrayBuilder {
         MetadataArrayBuilder { entries: vec![] }
     }
 
+    /// Add a new key-value pair to the metadata being built.
     pub fn add(mut self, key: Vec<u8>, value: Vec<u8>) -> MetadataArrayBuilder {
         assert!(key.iter()
             .all(|b|
@@ -35,6 +39,7 @@ impl MetadataArrayBuilder {
         self
     }
 
+    /// Build the metadata array data type that can be used in CallOption
     pub fn build(self) -> MetadataArray {
         let array_size = self.entries.len();
         let array = unsafe { grpc_sys::grpcwrap_metadata_array_create(array_size) };
@@ -47,6 +52,7 @@ impl MetadataArrayBuilder {
     }
 }
 
+/// Metadata data type used in CallOption datatype.
 pub struct MetadataArray {
     array: *mut GrpcMetadataArray,
 }
