@@ -241,8 +241,8 @@ pub union GrpcByteBufferReaderCurrent {
 
 #[repr(C)]
 pub struct GrpcByteBufferReader {
-    buffer_in: *mut GrpcByteBuffer,
-    buffer_out: *mut GrpcByteBuffer,
+    pub buffer_in: *mut GrpcByteBuffer,
+    pub buffer_out: *mut GrpcByteBuffer,
     current: GrpcByteBufferReaderCurrent,
 }
 
