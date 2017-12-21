@@ -360,7 +360,7 @@ GPR_EXPORT gpr_timespec GPR_CALLTYPE grpcwrap_request_call_context_deadline(
 }
 
 GPR_EXPORT const grpc_metadata_array *GPR_CALLTYPE
-grpcwrap_request_call_context_request_metadata(
+grpcwrap_request_call_context_metadata(
     const grpcwrap_request_call_context *ctx) {
   return &(ctx->request_metadata);
 }
