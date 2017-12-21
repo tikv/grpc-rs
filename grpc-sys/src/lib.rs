@@ -217,14 +217,14 @@ extern "C" {
         value: *const c_char,
         value_length: size_t
     );
-    pub fn grpcwrap_metadata_array_count(array: *mut GrpcMetadataArray) -> size_t;
+    pub fn grpcwrap_metadata_array_count(array: *const GrpcMetadataArray) -> size_t;
     pub fn grpcwrap_metadata_array_get_key(
-        array: *mut GrpcMetadataArray,
+        array: *const GrpcMetadataArray,
         index: size_t,
         key_length: *mut size_t
     ) -> *const c_char;
     pub fn grpcwrap_metadata_array_get_value(
-        array: *mut GrpcMetadataArray,
+        array: *const GrpcMetadataArray,
         index: size_t,
         value_length: *mut size_t
     ) -> *const c_char;
