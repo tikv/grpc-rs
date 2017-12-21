@@ -16,7 +16,7 @@ pub mod client;
 pub mod server;
 
 use std::{cmp, mem, ptr, slice, usize};
-use std::io::{self, BufRead, Read};
+use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
 
 use cq::CompletionQueue;
@@ -93,12 +93,18 @@ impl RpcStatus {
 pub struct MessageReader {
     buf: *mut GrpcByteBuffer,
     reader: Option<GrpcByteBufferReader>,
-    // TODO: zero allocation.
     slice: Option<GrpcSlice>,
     // Hack: apparently its lifetime depends on `self.slice`. However
     // it's not going to be accessed by others directly, hence it's safe
     // to mark it static here.
     bytes: &'static [u8],
+    length: usize,
+}
+
+impl MessageReader {
+    pub fn pending_bytes_count(&self) -> usize {
+        self.length
+    }
 }
 
 unsafe impl Sync for MessageReader {}
@@ -121,6 +127,27 @@ impl Read for MessageReader {
         };
         self.consume(amt);
         Ok(amt)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        buf.reserve(self.length);
+        let start = buf.len();
+        let mut len = start;
+        unsafe {
+            buf.set_len(start + self.length);
+        }
+        let ret = loop {
+            match self.read(&mut buf[len..]) {
+                Ok(0) => break Ok(len - start),
+                Ok(n) => len += n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => break Err(e),
+            }
+        };
+        unsafe {
+            buf.set_len(len);
+        }
+        ret
     }
 }
 
@@ -155,6 +182,7 @@ impl BufRead for MessageReader {
     }
 
     fn consume(&mut self, amt: usize) {
+        self.length -= amt;
         self.bytes = &self.bytes[amt..];
     }
 }
@@ -219,11 +247,13 @@ impl BatchContext {
         if buf.is_null() {
             return None;
         }
+        let length = unsafe { grpc_sys::grpc_byte_buffer_length(buf) as usize };
         Some(MessageReader {
             buf: buf,
             reader: None,
             slice: None,
             bytes: &[],
+            length: length,
         })
     }
 }

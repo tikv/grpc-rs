@@ -324,6 +324,7 @@ extern "C" {
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
     pub fn grpc_slice_unref(slice: GrpcSlice);
+    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
     pub fn grpcwrap_slice_raw(slice: *const GrpcSlice, len: *mut size_t) -> *const c_char;
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
