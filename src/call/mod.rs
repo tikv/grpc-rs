@@ -90,6 +90,10 @@ impl RpcStatus {
     }
 }
 
+/// `MessageReader` is a zero-copy reader for the message payload.
+///
+/// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
+/// to operate the reader.
 pub struct MessageReader {
     buf: *mut GrpcByteBuffer,
     reader: GrpcByteBufferReader,
@@ -102,6 +106,7 @@ pub struct MessageReader {
 }
 
 impl MessageReader {
+    /// Get the available bytes count of the reader.
     #[inline]
     pub fn pending_bytes_count(&self) -> usize {
         self.length

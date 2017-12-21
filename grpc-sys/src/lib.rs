@@ -565,6 +565,8 @@ mod secure_component {
     }
 }
 
+/// Make sure the complicated struct written in rust is the same with
+/// its C one.
 pub unsafe fn sanity_check() {
     grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
     grpcwrap_sanity_check_byte_buffer_reader(
