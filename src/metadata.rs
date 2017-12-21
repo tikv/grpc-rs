@@ -1,6 +1,7 @@
 use grpc_sys::{self, GrpcMetadataArray};
 use std::ffi::CString;
 use libc::c_char;
+#[allow(unused)]
 use std::ascii::AsciiExt;
 use std::slice;
 
