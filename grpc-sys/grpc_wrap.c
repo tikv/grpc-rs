@@ -271,25 +271,20 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-GPR_EXPORT grpc_byte_buffer* GPR_CALLTYPE grpcwrap_batch_context_take_recv_message(
-    grpcwrap_batch_context *ctx) {
+GPR_EXPORT const char *GPR_CALLTYPE grpcwrap_slice_raw(const grpc_slice *slice,
+                                                       size_t *len) {
+  *len = slice->refcount ? slice->data.refcounted.length
+                         : slice->data.inlined.length;
+  return (const char *)(slice->refcount ? slice->data.refcounted.bytes
+                                        : slice->data.inlined.bytes);
+}
+
+GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
+grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
   grpc_byte_buffer *buf = NULL;
   if (ctx->recv_message) {
     buf = ctx->recv_message;
     ctx->recv_message = NULL;
-  }
-  return buf;
-}
-
-GPR_EXPORT const char *GPR_CALLTYPE grpcwrap_byte_buffer_reader_next(
-    grpc_byte_buffer_reader* reader, size_t *len) {
-  grpc_slice slice;
-  const char *buf = NULL;
-  if (grpc_byte_buffer_reader_next(reader, &slice)) {
-    *len = GRPC_SLICE_LENGTH(slice);
-    buf = (char *)GRPC_SLICE_START_PTR(slice);
-    // buf will be valid as long as reader is not dropped.
-    grpc_slice_unref(slice);
   }
   return buf;
 }
@@ -625,8 +620,8 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_message(
   return grpc_call_start_batch(call, ops, nops, tag, NULL);
 }
 
-GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_close_from_client(
-    grpc_call *call, void *tag) {
+GPR_EXPORT grpc_call_error GPR_CALLTYPE
+grpcwrap_call_send_close_from_client(grpc_call *call, void *tag) {
   /* TODO: don't use magic number */
   grpc_op ops[1];
   ops[0].op = GRPC_OP_SEND_CLOSE_FROM_CLIENT;
@@ -802,4 +797,20 @@ grpcwrap_ssl_server_credentials_create(
       NULL);
   gpr_free(key_cert_pairs);
   return creds;
+}
+
+/* Sanity check for complicated types */
+
+#define alignof(type)((size_t) & ((struct {char c; type d; } *) 0)->d)
+
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_sanity_check_slice(size_t size,
+                                                         size_t align) {
+  GPR_ASSERT(sizeof(grpc_slice) == size);
+  GPR_ASSERT(alignof(grpc_slice) == align);
+}
+
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_sanity_check_byte_buffer_reader(size_t size, size_t align) {
+  GPR_ASSERT(sizeof(grpc_byte_buffer_reader) == size);
+  GPR_ASSERT(alignof(grpc_byte_buffer_reader) == align);
 }

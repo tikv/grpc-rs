@@ -15,7 +15,8 @@
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t, uint8_t};
+use std::mem;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]
@@ -187,7 +188,6 @@ pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
 pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x00000001;
 pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x00000002;
 
-pub enum GrpcSlice {}
 pub enum GrpcMetadataArray {}
 pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
@@ -200,15 +200,50 @@ pub enum GrpcRequestCallContext {}
 pub enum GrpcAlarm {}
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSliceRefCounted {
+    bytes: *mut uint8_t,
+    length: size_t,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSliceInlined {
+    length: uint8_t,
+    // TODO: use size_of when it becomes a const function.
+    #[cfg(target_pointer_width = "64")]
+    bytes: [uint8_t; 23],
+    #[cfg(target_pointer_width = "32")]
+    bytes: [uint8_t; 11],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union GrpcSliceData {
+    ref_counted: GrpcSliceRefCounted,
+    inlined: GrpcSliceInlined,
+}
+
+pub enum GrpcSliceRefCount {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSlice {
+    ref_count: *mut GrpcSliceRefCount,
+    data: GrpcSliceData,
+}
+
+#[repr(C)]
+#[repr(C)]
 pub union GrpcByteBufferReaderCurrent {
-    pub index: c_uint,
+    index: c_uint,
 }
 
 #[repr(C)]
 pub struct GrpcByteBufferReader {
-    pub buffer_in: *mut GrpcByteBuffer,
-    pub buffer_out: *mut GrpcByteBuffer,
-    pub current: GrpcByteBufferReaderCurrent,
+    buffer_in: *mut GrpcByteBuffer,
+    buffer_out: *mut GrpcByteBuffer,
+    current: GrpcByteBufferReaderCurrent,
 }
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
@@ -288,14 +323,16 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
+    pub fn grpc_slice_unref(slice: GrpcSlice);
+    pub fn grpcwrap_slice_raw(slice: *const GrpcSlice, len: *mut size_t) -> *const c_char;
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
         buf: *mut GrpcByteBuffer,
     ) -> c_int;
-    pub fn grpcwrap_byte_buffer_reader_next(
+    pub fn grpc_byte_buffer_reader_next(
         reader: *mut GrpcByteBufferReader,
-        len: *mut size_t,
-    ) -> *const c_char;
+        buf: *mut GrpcSlice,
+    ) -> c_int;
     pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
     pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
 
@@ -481,6 +518,8 @@ extern "C" {
     ) -> *mut GrpcAlarm;
     pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
+    pub fn grpcwrap_sanity_check_slice(size: size_t, align: size_t);
+    pub fn grpcwrap_sanity_check_byte_buffer_reader(size: size_t, align: size_t);
 }
 
 #[cfg(feature = "secure")]
@@ -525,6 +564,14 @@ mod secure_component {
     }
 }
 
+pub unsafe fn sanity_check() {
+    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
+    grpcwrap_sanity_check_byte_buffer_reader(
+        mem::size_of::<GrpcByteBufferReader>(),
+        mem::align_of::<GrpcByteBufferReader>(),
+    );
+}
+
 #[cfg(feature = "secure")]
 pub use secure_component::*;
 
@@ -537,6 +584,7 @@ mod tests {
     fn smoke() {
         unsafe {
             super::grpc_init();
+            super::sanity_check();
             let cq = super::grpc_completion_queue_create_for_next(ptr::null_mut());
             super::grpc_completion_queue_destroy(cq);
             super::grpc_shutdown();

@@ -169,6 +169,10 @@ impl UnaryRequestContext {
         &self.batch
     }
 
+    pub fn batch_ctx_mut(&mut self) -> &mut BatchContext {
+        &mut self.batch
+    }
+
     pub fn request_ctx(&self) -> &RequestContext {
         &self.request
     }

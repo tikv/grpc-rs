@@ -66,6 +66,7 @@ impl EnvBuilder {
 
     pub fn build(self) -> Environment {
         unsafe {
+            grpc_sys::sanity_check();
             grpc_sys::grpc_init();
         }
         let mut cqs = Vec::with_capacity(self.cq_count);
