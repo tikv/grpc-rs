@@ -2,6 +2,7 @@ use grpc_sys::{self, GrpcMetadataArray};
 use std::ffi::CString;
 use libc::c_char;
 use std::ascii::AsciiExt;
+use std::slice;
 
 /// Builder used to construct a MetadataArray value.
 pub struct MetadataArrayBuilder {
@@ -52,7 +53,7 @@ impl MetadataArrayBuilder {
     }
 }
 
-/// Metadata data type used in CallOption datatype.
+/// Metadata data type used in CallOption data type.
 pub struct MetadataArray {
     array: *mut GrpcMetadataArray,
 }
@@ -66,5 +67,42 @@ impl MetadataArray {
 impl Drop for MetadataArray {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpcwrap_metadata_array_destroy_full(self.array) }
+    }
+}
+
+/// Immutable handle to the core MetadataArray data type with accessor methods.
+pub struct MetadataArrayView {
+    array: *const GrpcMetadataArray,
+}
+
+impl MetadataArrayView {
+    /// Create a new value for the underlying MetadataArray.
+    pub fn new(array: *const GrpcMetadataArray) -> MetadataArrayView {
+        MetadataArrayView { array }
+    }
+
+    /// Number of elements in the MetadataArray.
+    pub fn count(&self) -> usize {
+        unsafe {
+            grpc_sys::grpcwrap_metadata_array_count(self.array)
+        }
+    }
+
+    /// Return a reference to a slice for the key of the indexed metadata element.
+    pub fn key(&self, index: usize) -> &[u8] {
+        let mut key_size = 0;
+        unsafe {
+            let key = grpc_sys::grpcwrap_metadata_array_get_key(self.array, index, &mut key_size);
+            slice::from_raw_parts(key as *const u8, key_size)
+        }
+    }
+
+    /// Return a reference to a slice for the value of the indexed metadata element.
+    pub fn value(&self, index: usize) -> &[u8] {
+        let mut value_size: usize = 0;
+        unsafe {
+            let value = grpc_sys::grpcwrap_metadata_array_get_value(self.array, index, &mut value_size);
+            slice::from_raw_parts(value as *const u8, value_size)
+        }
     }
 }
