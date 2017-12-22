@@ -748,6 +748,9 @@ grpcwrap_server_request_call(grpc_server *server, grpc_completion_queue *cq,
                                   &(ctx->request_metadata), cq, cq, tag);
 }
 
+
+#ifdef GRPC_SYS_SECURE
+
 /* Security */
 
 static char *default_pem_root_certs = NULL;
@@ -818,3 +821,5 @@ grpcwrap_ssl_server_credentials_create(
   gpr_free(key_cert_pairs);
   return creds;
 }
+
+#endif
