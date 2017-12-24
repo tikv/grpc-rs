@@ -1,13 +1,15 @@
 use grpc_sys::{self, GrpcMetadataArray};
 use std::ffi::CString;
-use libc::c_char;
 #[allow(unused)]
 use std::ascii::AsciiExt;
 use std::slice;
 
 /// Builder used to construct a MetadataArray value.
+///   Internally entries are represented as CString, Vec<u8> tuple.
+///   CString because key is expected to be a null terminated c-style string,
+///   while value is just opaque memory buffer.
 pub struct MetadataArrayBuilder {
-    entries: Vec<(*mut c_char, *mut c_char, usize)>
+    entries: Vec<(CString, Vec<u8>)>
 }
 
 impl MetadataArrayBuilder {
@@ -30,13 +32,7 @@ impl MetadataArrayBuilder {
             ));
 
         let key_normalized = key.to_ascii_lowercase();
-
-        let value_size = value.len();
-        let pair = (
-            CString::new(key_normalized).unwrap().into_raw(),
-            CString::new(value).unwrap().into_raw(),
-            value_size
-        );
+        let pair = (CString::new(key_normalized).unwrap(), value);
         self.entries.push(pair);
         self
     }
@@ -46,8 +42,16 @@ impl MetadataArrayBuilder {
         let array_size = self.entries.len();
         let array = unsafe { grpc_sys::grpcwrap_metadata_array_create(array_size) };
 
-        for (key, value, value_size) in self.entries {
-            unsafe { grpc_sys::grpcwrap_metadata_array_add(array, key, value, value_size) };
+        for (key, value) in self.entries {
+            let value_len = value.len();
+            unsafe {
+                grpc_sys::grpcwrap_metadata_array_add(
+                    array,
+                    key.into_raw(),
+                    value.as_ptr() as *const _,
+                    value_len
+                )
+            };
         }
 
         MetadataArray { array }
