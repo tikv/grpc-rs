@@ -50,7 +50,7 @@ name = "greeter_metadata_client"
 path = "examples/hello_world_metadata/client.rs"
 
 [[example]]
-name = "greeter_metdata_server"
+name = "greeter_metadata_server"
 path = "examples/hello_world_metadata/server.rs"
 
 [dev-dependencies]
