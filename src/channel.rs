@@ -48,6 +48,10 @@ const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_r
 const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
 const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
 const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
+const OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &'static [u8] = b"grpc.http2.min_time_between_pings_ms\0";
+const OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &'static [u8] = b"grpc.http2.min_ping_interval_without_data_ms\0";
+const OPT_HTTP2_MAX_PINGS_WITHOUT_DATA: &'static [u8] = b"grpc.http2.max_pings_without_data\0";
+const OPT_HTTP2_MAX_PING_STRIKES: &'static [u8] = b"grpc.http2.max_ping_strikes\0";
 const OPT_DEFALUT_COMPRESSION_ALGORITHM: &'static [u8] = b"grpc.default_compression_algorithm\0";
 const OPT_DEFAULT_COMPRESSION_LEVEL: &'static [u8] = b"grpc.default_compression_level\0";
 const OPT_KEEPALIVE_TIME_MS: &'static [u8] = b"grpc.keepalive_time_ms\0";
@@ -248,6 +252,48 @@ impl ChannelBuilder {
         let enable_int = Options::Integer(if enable { 1 } else { 0 });
         self.options
             .insert(Cow::Borrowed(OPT_HTTP2_BDP_PROBE), enable_int);
+        self
+    }
+
+    /// Minimum time between sending successive ping frames without receiving any
+    /// data frame.
+    pub fn http2_min_sent_ping_interval_without_data(mut self, interval: Duration) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS),
+            Options::Integer(dur_to_ms(interval)),
+        );
+        self
+    }
+
+    /// Minimum allowed time between receiving successive ping frames without
+    /// sending any data frame.
+    pub fn http2_min_recv_ping_interval_without_data(mut self, interval: Duration) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS),
+            Options::Integer(dur_to_ms(interval)),
+        );
+        self
+    }
+
+    /// How many pings can we send before needing to send a data frame or header
+    /// frame? (0 indicates that an infinite number of pings can be sent without
+    /// sending a data frame or header frame)
+    pub fn http2_max_pings_without_data(mut self, num: usize) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_MAX_PINGS_WITHOUT_DATA),
+            Options::Integer(num),
+        );
+        self
+    }
+
+    /// How many misbehaving pings the server can bear before sending goaway and
+    /// closing the transport? (0 indicates that the server can bear an infinite
+    /// number of misbehaving pings)
+    pub fn http2_max_ping_strikes(mut self, num: usize) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_MAX_PING_STRIKES),
+            Options::Integer(num),
+        );
         self
     }
 
