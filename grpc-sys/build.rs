@@ -152,5 +152,8 @@ fn main() {
         cc.define("_WIN32_WINNT", Some("0x0700"));
     }
 
-    cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
+    cc.cpp(true)
+        .flag("-std=c++11")
+        .warnings_into_errors(true)
+        .compile("libgrpc_wrap.a");
 }

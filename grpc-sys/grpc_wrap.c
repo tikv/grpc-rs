@@ -66,7 +66,7 @@
 #endif
 
 #ifndef GPR_EXPORT
-#define GPR_EXPORT
+#define GPR_EXPORT extern "C"
 #endif
 
 #ifndef GPR_CALLTYPE
@@ -101,7 +101,7 @@ typedef struct grpcwrap_batch_context {
 
 GPR_EXPORT grpcwrap_batch_context *GPR_CALLTYPE
 grpcwrap_batch_context_create() {
-  grpcwrap_batch_context *ctx = gpr_malloc(sizeof(grpcwrap_batch_context));
+  grpcwrap_batch_context *ctx = (grpcwrap_batch_context*) gpr_malloc(sizeof(grpcwrap_batch_context));
   memset(ctx, 0, sizeof(grpcwrap_batch_context));
   return ctx;
 }
@@ -115,7 +115,7 @@ typedef struct {
 GPR_EXPORT grpcwrap_request_call_context *GPR_CALLTYPE
 grpcwrap_request_call_context_create() {
   grpcwrap_request_call_context *ctx =
-      gpr_malloc(sizeof(grpcwrap_request_call_context));
+      (grpcwrap_request_call_context*) gpr_malloc(sizeof(grpcwrap_request_call_context));
   memset(ctx, 0, sizeof(grpcwrap_request_call_context));
   return ctx;
 }
@@ -798,7 +798,7 @@ grpcwrap_ssl_server_credentials_create(
   size_t i;
   grpc_server_credentials *creds;
   grpc_ssl_pem_key_cert_pair *key_cert_pairs =
-      gpr_malloc(sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
+      (grpc_ssl_pem_key_cert_pair*) gpr_malloc(sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
   memset(key_cert_pairs, 0,
          sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
 
