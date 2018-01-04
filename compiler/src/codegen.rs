@@ -157,7 +157,7 @@ impl<'a> MethodGen<'a> {
 
     fn unary_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, req: &{}, opt: {}) -> {}<{}>",
+            "{}_opt(&self, req: &{}, opt: &{}) -> {}<{}>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
@@ -179,7 +179,7 @@ impl<'a> MethodGen<'a> {
 
     fn unary_async_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_async_opt(&self, req: &{}, opt: {}) -> {}<{}<{}>>",
+            "{}_async_opt(&self, req: &{}, opt: &{}) -> {}<{}<{}>>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
@@ -203,7 +203,7 @@ impl<'a> MethodGen<'a> {
 
     fn client_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, opt: {}) -> {}<({}<{}>, {}<{}>)>",
+            "{}_opt(&self, opt: &{}) -> {}<({}<{}>, {}<{}>)>",
             method_name,
             fq_grpc("CallOption"),
             fq_grpc("Result"),
@@ -227,7 +227,7 @@ impl<'a> MethodGen<'a> {
 
     fn server_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, req: &{}, opt: {}) -> {}<{}<{}>>",
+            "{}_opt(&self, req: &{}, opt: &{}) -> {}<{}<{}>>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
@@ -251,7 +251,7 @@ impl<'a> MethodGen<'a> {
 
     fn duplex_streaming_opt(&self, method_name: &str) -> String {
         format!(
-            "{}_opt(&self, opt: {}) -> {}<({}<{}>, {}<{}>)>",
+            "{}_opt(&self, opt: &{}) -> {}<({}<{}>, {}<{}>)>",
             method_name,
             fq_grpc("CallOption"),
             fq_grpc("Result"),
@@ -277,7 +277,7 @@ impl<'a> MethodGen<'a> {
 
                 w.pub_fn(&self.unary(&method_name), |w| {
                     w.write_line(&format!(
-                        "self.{}_opt(req, {})",
+                        "self.{}_opt(req, &{})",
                         method_name,
                         fq_grpc("CallOption::default()")
                     ));
@@ -294,7 +294,7 @@ impl<'a> MethodGen<'a> {
 
                 w.pub_fn(&self.unary_async(&method_name), |w| {
                     w.write_line(&format!(
-                        "self.{}_async_opt(req, {})",
+                        "self.{}_async_opt(req, &{})",
                         method_name,
                         fq_grpc("CallOption::default()")
                     ));
@@ -313,7 +313,7 @@ impl<'a> MethodGen<'a> {
 
                 w.pub_fn(&self.client_streaming(&method_name), |w| {
                     w.write_line(&format!(
-                        "self.{}_opt({})",
+                        "self.{}_opt(&{})",
                         method_name,
                         fq_grpc("CallOption::default()")
                     ));
@@ -332,7 +332,7 @@ impl<'a> MethodGen<'a> {
 
                 w.pub_fn(&self.server_streaming(&method_name), |w| {
                     w.write_line(&format!(
-                        "self.{}_opt(req, {})",
+                        "self.{}_opt(req, &{})",
                         method_name,
                         fq_grpc("CallOption::default()")
                     ));
@@ -351,7 +351,7 @@ impl<'a> MethodGen<'a> {
 
                 w.pub_fn(&self.duplex_streaming(&method_name), |w| {
                     w.write_line(&format!(
-                        "self.{}_opt({})",
+                        "self.{}_opt(&{})",
                         method_name,
                         fq_grpc("CallOption::default()")
                     ));

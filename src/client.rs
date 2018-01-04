@@ -33,7 +33,7 @@ impl Client {
     }
 
     /// Create a synchronized unary rpc call.
-    pub fn unary_call<P, Q>(&self, method: &Method<P, Q>, req: &P, opt: CallOption) -> Result<Q> {
+    pub fn unary_call<P, Q>(&self, method: &Method<P, Q>, req: &P, opt: &CallOption) -> Result<Q> {
         let f = self.unary_call_async(method, req, opt)?;
         f.wait()
     }
@@ -43,7 +43,7 @@ impl Client {
         &self,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<ClientUnaryReceiver<Q>> {
         Call::unary_async(&self.channel, method, req, opt)
     }
@@ -54,7 +54,7 @@ impl Client {
     pub fn client_streaming<P, Q>(
         &self,
         method: &Method<P, Q>,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<(ClientCStreamSender<P>, ClientCStreamReceiver<Q>)> {
         Call::client_streaming(&self.channel, method, opt)
     }
@@ -66,7 +66,7 @@ impl Client {
         &self,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<ClientSStreamReceiver<Q>> {
         Call::server_streaming(&self.channel, method, req, opt)
     }
@@ -79,7 +79,7 @@ impl Client {
     pub fn duplex_streaming<P, Q>(
         &self,
         method: &Method<P, Q>,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<(ClientDuplexSender<P>, ClientDuplexReceiver<Q>)> {
         Call::duplex_streaming(&self.channel, method, opt)
     }

@@ -96,9 +96,9 @@ impl Call {
         channel: &Channel,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<ClientUnaryReceiver<Q>> {
-        let call = channel.create_call(method, &opt)?;
+        let call = channel.create_call(method, opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
@@ -119,9 +119,9 @@ impl Call {
     pub fn client_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<(ClientCStreamSender<P>, ClientCStreamReceiver<Q>)> {
-        let call = channel.create_call(method, &opt)?;
+        let call = channel.create_call(method, opt)?;
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
@@ -145,9 +145,9 @@ impl Call {
         channel: &Channel,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<ClientSStreamReceiver<Q>> {
-        let call = channel.create_call(method, &opt)?;
+        let call = channel.create_call(method, opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
@@ -174,9 +174,9 @@ impl Call {
     pub fn duplex_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        opt: CallOption,
+        opt: &CallOption,
     ) -> Result<(ClientDuplexSender<P>, ClientDuplexReceiver<Q>)> {
-        let call = channel.create_call(method, &opt)?;
+        let call = channel.create_call(method, opt)?;
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
