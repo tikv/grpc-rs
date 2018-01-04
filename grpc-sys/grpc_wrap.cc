@@ -61,7 +61,7 @@
 #include <string.h>
 
 #ifdef GPR_WINDOWS
-#define GPR_EXPORT __declspec(dllexport)
+#define GPR_EXPORT extern "C" __declspec(dllexport)
 #define GPR_CALLTYPE __cdecl
 #endif
 
