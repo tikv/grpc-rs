@@ -167,7 +167,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         let (sender, receiver) = self.client
             .duplex_streaming(
                 &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
-                CallOption::default(),
+                &CallOption::default(),
             )
             .unwrap();
         let f = future::loop_fn(
