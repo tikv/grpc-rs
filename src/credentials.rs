@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::ffi::CString;
 use std::ptr;
 
@@ -199,6 +198,23 @@ pub struct ChannelCredentials {
 impl ChannelCredentials {
     pub fn as_mut_ptr(&mut self) -> *mut GrpcChannelCredentials {
         self.creds
+    }
+
+    /// Attempts to construct a `ChannelCredentials` that is authenticated with
+    /// Google OAuth credentials.
+    pub fn google_default_credentials() -> Result<ChannelCredentials, String> {
+        // Initialize the runtime here. Because this is an associated method
+        // that can be called before construction of an `Environment`, we
+        // need to call this here too.
+        unsafe {
+            grpc_sys::grpc_init();
+        }
+        let creds = unsafe { grpc_sys::grpc_google_default_credentials_create() };
+        if creds.is_null() {
+            Err(String::from("Could not create google default credentials."))
+        } else {
+            Ok(ChannelCredentials { creds: creds })
+        }
     }
 }
 
