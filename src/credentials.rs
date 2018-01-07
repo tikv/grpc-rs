@@ -15,6 +15,7 @@ use std::ffi::CString;
 use std::ptr;
 
 use grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
+use error::{Error, Result};
 use libc::c_char;
 
 fn clear_key_securely(key: &mut [u8]) {
@@ -202,7 +203,7 @@ impl ChannelCredentials {
 
     /// Attempts to construct a `ChannelCredentials` that is authenticated with
     /// Google OAuth credentials.
-    pub fn google_default_credentials() -> Result<ChannelCredentials, String> {
+    pub fn google_default_credentials() -> Result<ChannelCredentials> {
         // Initialize the runtime here. Because this is an associated method
         // that can be called before construction of an `Environment`, we
         // need to call this here too.
@@ -211,7 +212,7 @@ impl ChannelCredentials {
         }
         let creds = unsafe { grpc_sys::grpc_google_default_credentials_create() };
         if creds.is_null() {
-            Err(String::from("Could not create google default credentials."))
+            Err(Error::GoogleAuthenticationFailed)
         } else {
             Ok(ChannelCredentials { creds: creds })
         }
