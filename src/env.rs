@@ -40,17 +40,20 @@ fn poll_queue(cq: Arc<CompletionQueueHandle>) {
     }
 }
 
+#[derive(Default)]
 pub struct EnvBuilder {
     cq_count: usize,
     name_prefix: Option<String>,
+
+    #[cfg(target_os = "linux")]
+    event_engine: Option<Engine>,
 }
 
 impl EnvBuilder {
     pub fn new() -> EnvBuilder {
-        EnvBuilder {
-            cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
-            name_prefix: None,
-        }
+        let mut builder = EnvBuilder::default();
+        builder.cq_count = unsafe { grpc_sys::gpr_cpu_num_cores() } as usize;
+        builder
     }
 
     pub fn cq_count(mut self, count: usize) -> EnvBuilder {
@@ -64,10 +67,14 @@ impl EnvBuilder {
         self
     }
 
+    #[cfg(target_os = "linux")]
+    pub fn event_engine(mut self, engine: Engine) -> EnvBuilder {
+        self.event_engine = Some(engine);
+        self
+    }
+
     pub fn build(self) -> Environment {
-        unsafe {
-            grpc_sys::grpc_init();
-        }
+        init_grpc(&self);
         let mut cqs = Vec::with_capacity(self.cq_count);
         let mut handles = Vec::with_capacity(self.cq_count);
         for i in 0..self.cq_count {
@@ -130,8 +137,86 @@ impl Drop for Environment {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
+fn init_grpc(_: &EnvBuilder) {
+    unsafe {
+        grpc_sys::grpc_init();
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub use self::event_engine::*;
+
+// TODO: change to cfg(unix).
+#[cfg(target_os = "linux")]
+mod event_engine {
+    use std::env;
+    use std::string::ToString;
+    use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT};
+
+    use super::*;
+
+    #[derive(Copy, Clone)]
+    pub enum Engine {
+        EpollSig,
+        EpollEx,
+        Epoll1,
+        // TODO: add more engines.
+    }
+
+    impl ToString for Engine {
+        fn to_string(&self) -> String {
+            match *self {
+                Engine::EpollSig => "epollsig",
+                Engine::EpollEx => "epollex",
+                Engine::Epoll1 => "epoll1",
+            }.to_string()
+        }
+    }
+
+    // A magic environment variable for manipulating gRPC event engine.
+    // See more: https://github.com/grpc/grpc/blob/\
+    //           486761d04e03a9183d8013eddd86c3134d52d459/\
+    //           src/core/lib/iomgr/ev_posix.cc#L149
+    pub(super) const GRPC_POLL_STRATEGY: &str = "GRPC_POLL_STRATEGY";
+
+    pub(super) fn init_grpc(buidler: &EnvBuilder) {
+        static LOCK: AtomicBool = ATOMIC_BOOL_INIT;
+
+        // LOCK
+        while LOCK.swap(true, Ordering::SeqCst) {}
+
+        if let Some(ref engine) = buidler.event_engine {
+            let mut engines = engine.to_string();
+            let env_egs = env::var(GRPC_POLL_STRATEGY).ok();
+            if let Some(ref egs) = env_egs {
+                engines.push(',');
+                engines.push_str(egs);
+            }
+            env::set_var(GRPC_POLL_STRATEGY, engines);
+            unsafe {
+                grpc_sys::grpc_init();
+            }
+            if let Some(egs) = env_egs {
+                env::set_var(GRPC_POLL_STRATEGY, egs);
+            } else {
+                env::remove_var(GRPC_POLL_STRATEGY);
+            }
+        } else {
+            unsafe {
+                grpc_sys::grpc_init();
+            }
+        }
+
+        // Unlock
+        LOCK.swap(false, Ordering::SeqCst);
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use super::*;
 
     #[test]
@@ -159,6 +244,26 @@ mod tests {
 
         for handle in env._handles.drain(..) {
             handle.join().unwrap();
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_engines() {
+        let engines = vec![Engine::Epoll1, Engine::EpollSig, Engine::EpollEx];
+        for engine in &engines {
+            let mut builder = EnvBuilder::default();
+            builder.event_engine = Some(*engine);
+            init_grpc(&builder);
+            env::var(GRPC_POLL_STRATEGY).unwrap_err();
+        }
+
+        env::set_var(GRPC_POLL_STRATEGY, "epoll1");
+        for engine in engines {
+            let mut builder = EnvBuilder::default();
+            builder.event_engine = Some(engine);
+            init_grpc(&builder);
+            assert_eq!(env::var(GRPC_POLL_STRATEGY).unwrap(), "epoll1");
         }
     }
 }
