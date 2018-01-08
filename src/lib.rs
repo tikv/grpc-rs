@@ -55,6 +55,8 @@ pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
 pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
                       ServerCredentialsBuilder};
 pub use env::{EnvBuilder, Environment};
+#[cfg(target_os = "linux")]
+pub use env::Engine;
 pub use error::{Error, Result};
 pub use log_util::redirect_log;
 pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
