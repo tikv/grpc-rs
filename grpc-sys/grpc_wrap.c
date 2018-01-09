@@ -50,13 +50,16 @@
 
 #include <grpc/byte_buffer_reader.h>
 #include <grpc/grpc.h>
-#include <grpc/grpc_security.h>
 #include <grpc/slice.h>
 #include <grpc/support/alloc.h>
 #include <grpc/support/log.h>
 #include <grpc/support/port_platform.h>
 #include <grpc/support/string_util.h>
 #include <grpc/support/thd.h>
+
+#ifdef GRPC_SYS_SECURE
+#include <grpc/grpc_security.h>
+#endif
 
 #include <string.h>
 
