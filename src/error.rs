@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::{error, result};
 use std::fmt::{self, Display, Formatter};
 
@@ -34,6 +33,8 @@ pub enum Error {
     ShutdownFailed,
     BindFail(String, u16),
     QueueShutdown,
+    // Return when Google Default Credentials failed.
+    GoogleAuthenticationFailed,
 }
 
 impl Display for Error {
@@ -53,6 +54,7 @@ impl error::Error for Error {
             Error::ShutdownFailed => "Failed to shutdown.",
             Error::BindFail(_, _) => "gRPC Bind Error",
             Error::QueueShutdown => "gRPC completion queue shutdown",
+            Error::GoogleAuthenticationFailed => "Could not create google default credentials.",
         }
     }
 
