@@ -38,7 +38,7 @@ pub fn change_flag(res: &mut u32, flag: u32, set: bool) {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct CallOption {
     metadata: Option<MetadataArray>,
     timeout: Option<Duration>,

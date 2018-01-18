@@ -50,13 +50,16 @@
 
 #include <grpc/byte_buffer_reader.h>
 #include <grpc/grpc.h>
-#include <grpc/grpc_security.h>
 #include <grpc/slice.h>
 #include <grpc/support/alloc.h>
 #include <grpc/support/log.h>
 #include <grpc/support/port_platform.h>
 #include <grpc/support/string_util.h>
 #include <grpc/support/thd.h>
+
+#ifdef GRPC_SYS_SECURE
+#include <grpc/grpc_security.h>
+#endif
 
 #include <string.h>
 
@@ -748,6 +751,9 @@ grpcwrap_server_request_call(grpc_server *server, grpc_completion_queue *cq,
                                   &(ctx->request_metadata), cq, cq, tag);
 }
 
+
+#ifdef GRPC_SYS_SECURE
+
 /* Security */
 
 static char *default_pem_root_certs = NULL;
@@ -818,3 +824,5 @@ grpcwrap_ssl_server_credentials_create(
   gpr_free(key_cert_pairs);
   return creds;
 }
+
+#endif

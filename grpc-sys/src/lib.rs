@@ -506,6 +506,7 @@ mod secure_component {
             reserved: *mut c_void,
         ) -> *mut GrpcChannel;
 
+        pub fn grpc_google_default_credentials_create() -> *mut GrpcChannelCredentials;
         pub fn grpc_server_add_secure_http2_port(
             server: *mut GrpcServer,
             addr: *const c_char,
