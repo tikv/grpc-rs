@@ -19,6 +19,19 @@ impl MetadataArrayBuilder {
         MetadataArrayBuilder { entries: vec![] }
     }
 
+    /// Create a new builder with entries copied from the supplied MetadataArray.
+    pub fn from_metadata_array(array: &MetadataArray) -> MetadataArrayBuilder {
+        let mut builder = MetadataArrayBuilder::new();
+        let view = MetadataArrayView::new(array.array);
+
+        for index in 0..view.count() {
+            let key = view.key(index);
+            let value = view.value(index);
+            builder = builder.add(key.to_vec(), value.to_vec());
+        }
+        builder
+    }
+
     /// Add a new key-value pair to the metadata being built.
     pub fn add(mut self, key: Vec<u8>, value: Vec<u8>) -> MetadataArrayBuilder {
         assert!(key.iter()
@@ -72,6 +85,13 @@ impl MetadataArray {
 impl Drop for MetadataArray {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpcwrap_metadata_array_destroy_full(self.array) }
+    }
+}
+
+impl Clone for MetadataArray {
+    fn clone(&self) -> Self {
+        // Note: For performance reasons this could be re-implemented without using the builder.
+        MetadataArrayBuilder::from_metadata_array(&self).build()
     }
 }
 
