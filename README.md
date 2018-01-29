@@ -83,26 +83,8 @@ Option 2 - Programmatic Generation
 Programmatic generation can be used to generate Rust modules from proto files
 via your `build.rs` by using [protoc-grpcio](https://crates.io/crates/protoc-grpcio).
 
-Include this in your `Cargo.toml`:
-
-```toml
-[build.dependencies]
-protoc-grpcio = "0.1"
-```
-
-and then use in your `build.rs` like:
-
-```rust
-extern crate protoc_grpcio;
-
-// Generates `protobuf.rs` and `protobuf_grpc.rs` in a directory named
-// `output`.
-protoc_grpcio::compile_grpc_protos(
-    &["example/protobuf.proto"],
-    &["example"],
-    "output"
-).expect("failed to compile gRPC definitions");
-```
+For more information and examples see the
+[README](https://github.com/mtp401/protoc-grpcio/blob/master/README.md).
 
 Performance
 -----------
