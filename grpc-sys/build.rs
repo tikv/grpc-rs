@@ -24,7 +24,7 @@ use cmake::Config;
 use cc::Build;
 use pkg_config::Config as PkgConfig;
 
-const GRPC_VERSION: &'static str = "1.8.2";
+const GRPC_VERSION: &'static str = "1.8.6";
 
 fn link_grpc(cc: &mut Build, library: &str) {
     match PkgConfig::new()
