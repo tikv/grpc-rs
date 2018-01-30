@@ -134,6 +134,7 @@ fn main() {
     let mut cc = Build::new();
 
     let library = if cfg!(feature = "secure") {
+        cc.define("GRPC_SYS_SECURE", None);
         "grpc"
     } else {
         "grpc_unsecure"
