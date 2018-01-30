@@ -33,6 +33,7 @@ before_script:
 script:
   - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then cargo install -f clippy && cargo clippy; fi
   - export RUSTFLAGS=-Dwarnings
+  - export RUST_BACKTRACE=1
   - cargo build
   - cargo test --all
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
