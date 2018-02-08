@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::sync::{Arc, Mutex};
 
 use grpc_proto::testing::services_grpc::WorkerService;
@@ -54,23 +53,21 @@ impl WorkerService for Worker {
                 info!("receive server setup: {:?}", cfg);
                 let server = Server::new(cfg)?;
                 let status = server.get_status();
-                Ok(
-                    sink.send((status, WriteFlags::default()))
-                        .and_then(|sink| {
-                            stream.fold((sink, server), |(sink, mut server), arg| {
-                                let mark = arg.get_mark();
-                                info!("receive server mark: {:?}", mark);
-                                let stats = server.get_stats(mark.get_reset());
-                                let mut status = server.get_status();
-                                status.set_stats(stats);
-                                sink.send((status, WriteFlags::default()))
-                                    .map(|sink| (sink, server))
-                            })
+                Ok(sink.send((status, WriteFlags::default()))
+                    .and_then(|sink| {
+                        stream.fold((sink, server), |(sink, mut server), arg| {
+                            let mark = arg.get_mark();
+                            info!("receive server mark: {:?}", mark);
+                            let stats = server.get_stats(mark.get_reset());
+                            let mut status = server.get_status();
+                            status.set_stats(stats);
+                            sink.send((status, WriteFlags::default()))
+                                .map(|sink| (sink, server))
                         })
-                        .and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
-                        .and_then(|mut sink| future::poll_fn(move || sink.close()))
-                        .map_err(Error::from),
-                )
+                    })
+                    .and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
+                    .and_then(|mut sink| future::poll_fn(move || sink.close()))
+                    .map_err(Error::from))
             })
             .flatten()
             .map_err(|e| error!("run server failed: {:?}", e))

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -43,9 +42,8 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
-    req.set_payload(proto_util::new_payload(
-        simple_params.get_req_size() as usize,
-    ));
+    req.set_payload(proto_util::new_payload(simple_params.get_req_size()
+        as usize));
     req.set_response_size(simple_params.get_resp_size());
     req
 }
@@ -202,9 +200,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         ).and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
         })
-            .and_then(|(e, r)| {
-                r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
-            });
+            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f)
     }
 }
@@ -304,9 +300,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         ).and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
         })
-            .and_then(|(e, r)| {
-                r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e))
-            });
+            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f);
     }
 }
@@ -409,9 +403,9 @@ impl Client {
                 let timer = timer.clone();
                 let ch = ch.clone();
                 let rx = if load_params.has_poisson() {
-                    let lambda = load_params.get_poisson().get_offered_load() /
-                        client_channels as f64 /
-                        outstanding_rpcs_per_channel as f64;
+                    let lambda = load_params.get_poisson().get_offered_load()
+                        / client_channels as f64
+                        / outstanding_rpcs_per_channel as f64;
                     let poisson = Poisson::new(lambda);
                     let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson, timer);
                     execute(ctx, ch, client_type, cfg);

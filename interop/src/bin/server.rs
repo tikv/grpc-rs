@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 extern crate clap;
 extern crate futures;
 extern crate grpcio as grpc;
@@ -31,15 +30,11 @@ use futures::{future, Future};
 
 fn main() {
     let matches = App::new("Interoperability Test Server")
-        .about(
-            "ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md",
-        )
+        .about("ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md")
         .arg(
             Arg::with_name("host")
                 .long("host")
-                .help(
-                    "The server host to listen to. For example, \"localhost\" or \"127.0.0.1\"",
-                )
+                .help("The server host to listen to. For example, \"localhost\" or \"127.0.0.1\"")
                 .takes_value(true),
         )
         .arg(
