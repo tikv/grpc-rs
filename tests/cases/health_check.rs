@@ -12,10 +12,6 @@
 // limitations under the License.
 
 
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
-
 use futures::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;

@@ -24,6 +24,7 @@ use call::{check_run, Call, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
+use metadata::Metadata;
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 
 /// Update the flag bit in res.
@@ -41,6 +42,7 @@ pub struct CallOption {
     timeout: Option<Duration>,
     write_flags: WriteFlags,
     call_flags: u32,
+    metadata: Option<Metadata>,
 }
 
 impl CallOption {
@@ -89,6 +91,17 @@ impl CallOption {
     pub fn get_timeout(&self) -> Option<Duration> {
         self.timeout
     }
+
+    /// Set metadata array.
+    pub fn metadata(mut self, meta: Metadata) -> CallOption {
+        self.metadata = Some(meta);
+        self
+    }
+
+    /// Get the metadata array.
+    pub fn get_metadata(&self) -> Option<&Metadata> {
+        self.metadata.as_ref()
+    }
 }
 
 impl Call {
@@ -96,7 +109,7 @@ impl Call {
         channel: &Channel,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Q>> {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
@@ -108,7 +121,7 @@ impl Call {
                 payload.as_ptr() as *const _,
                 payload.len(),
                 opt.write_flags.flags,
-                ptr::null_mut(),
+                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -119,14 +132,14 @@ impl Call {
     pub fn client_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<(ClientCStreamSender<P>, ClientCStreamReceiver<Q>)> {
         let call = channel.create_call(method, &opt)?;
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
-                ptr::null_mut(),
+                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -145,7 +158,7 @@ impl Call {
         channel: &Channel,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Q>> {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
@@ -157,7 +170,7 @@ impl Call {
                 payload.as_ptr() as _,
                 payload.len(),
                 opt.write_flags.flags,
-                ptr::null_mut(),
+                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -174,14 +187,14 @@ impl Call {
     pub fn duplex_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<(ClientDuplexSender<P>, ClientDuplexReceiver<Q>)> {
         let call = channel.create_call(method, &opt)?;
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
-                ptr::null_mut(),
+                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
