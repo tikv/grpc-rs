@@ -133,6 +133,9 @@ fn get_env(name: &str) -> Option<String> {
 fn main() {
     let mut cc = Build::new();
 
+    println!("cargo:rerun-if-changed=grpc_wrap.c");
+    println!("cargo:rerun-if-changed=grpc");
+
     let library = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
         "grpc"
