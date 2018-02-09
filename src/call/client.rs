@@ -41,7 +41,7 @@ pub struct CallOption {
     timeout: Option<Duration>,
     write_flags: WriteFlags,
     call_flags: u32,
-    metadata: Option<Metadata>,
+    headers: Option<Metadata>,
 }
 
 impl CallOption {
@@ -93,13 +93,13 @@ impl CallOption {
 
     /// Set the headers to be sent with the call.
     pub fn headers(mut self, meta: Metadata) -> CallOption {
-        self.metadata = Some(meta);
+        self.headers = Some(meta);
         self
     }
 
     /// Get the headers.
     pub fn get_headers(&self) -> Option<&Metadata> {
-        self.metadata.as_ref()
+        self.headers.as_ref()
     }
 }
 
@@ -120,7 +120,7 @@ impl Call {
                 payload.as_ptr() as *const _,
                 payload.len(),
                 opt.write_flags.flags,
-                opt.metadata
+                opt.headers
                     .as_mut()
                     .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
@@ -140,7 +140,7 @@ impl Call {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
-                opt.metadata
+                opt.headers
                     .as_mut()
                     .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
@@ -173,7 +173,7 @@ impl Call {
                 payload.as_ptr() as _,
                 payload.len(),
                 opt.write_flags.flags,
-                opt.metadata
+                opt.headers
                     .as_mut()
                     .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
@@ -199,7 +199,7 @@ impl Call {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
-                opt.metadata
+                opt.headers
                     .as_mut()
                     .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
