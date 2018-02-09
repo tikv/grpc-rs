@@ -470,10 +470,23 @@ extern "C" {
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
-    pub fn grpcwrap_metadata_array_add(array: *mut GrpcMetadataArray, key: *const c_char, key_len: size_t,
-    val: *const c_char, val_len: size_t);
-    pub fn grpcwrap_metadata_array_get_key(array: *const GrpcMetadataArray, index: size_t, key_len: *mut size_t) -> *const c_char;
-    pub fn grpcwrap_metadata_array_get_value(array: *const GrpcMetadataArray, index: size_t, val_len: *mut size_t) -> *const c_char;
+    pub fn grpcwrap_metadata_array_add(
+        array: *mut GrpcMetadataArray,
+        key: *const c_char,
+        key_len: size_t,
+        val: *const c_char,
+        val_len: size_t,
+    );
+    pub fn grpcwrap_metadata_array_get_key(
+        array: *const GrpcMetadataArray,
+        index: size_t,
+        key_len: *mut size_t,
+    ) -> *const c_char;
+    pub fn grpcwrap_metadata_array_get_value(
+        array: *const GrpcMetadataArray,
+        index: size_t,
+        val_len: *mut size_t,
+    ) -> *const c_char;
     pub fn grpcwrap_metadata_array_freeze(array: *mut GrpcMetadataArray);
     pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
 }

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 extern crate clap;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
@@ -27,23 +26,17 @@ use interop::Client;
 
 fn main() {
     let matches = App::new("Interoperability Test Client")
-        .about(
-            "ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md",
-        )
+        .about("ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md")
         .arg(
             Arg::with_name("host")
                 .long("server_host")
-                .help(
-                    "The server host to connect to. For example, \"localhost\" or \"127.0.0.1\"",
-                )
+                .help("The server host to connect to. For example, \"localhost\" or \"127.0.0.1\"")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("host_override")
                 .long("server_host_override")
-                .help(
-                    "The server host to connect to. For example, \"localhost\" or \"127.0.0.1\"",
-                )
+                .help("The server host to connect to. For example, \"localhost\" or \"127.0.0.1\"")
                 .takes_value(true),
         )
         .arg(
@@ -55,9 +48,7 @@ fn main() {
         .arg(
             Arg::with_name("case")
                 .long("test_case")
-                .help(
-                    "The name of the test case to execute. For example, \"empty_unary\"",
-                )
+                .help("The name of the test case to execute. For example, \"empty_unary\"")
                 .takes_value(true),
         )
         .arg(
@@ -69,9 +60,7 @@ fn main() {
         .arg(
             Arg::with_name("use_test_ca")
                 .long("use_test_ca")
-                .help(
-                    "Whether to replace platform root CAs with ca.pem as the CA root",
-                )
+                .help("Whether to replace platform root CAs with ca.pem as the CA root")
                 .takes_value(true),
         )
         .get_matches();

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::ptr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -121,7 +120,9 @@ impl Call {
                 payload.as_ptr() as *const _,
                 payload.len(),
                 opt.write_flags.flags,
-                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.metadata
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -139,7 +140,9 @@ impl Call {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
-                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.metadata
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -170,7 +173,9 @@ impl Call {
                 payload.as_ptr() as _,
                 payload.len(),
                 opt.write_flags.flags,
-                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.metadata
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -194,7 +199,9 @@ impl Call {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
-                opt.metadata.as_mut().map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.metadata
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
                 opt.call_flags,
                 tag,
             )
@@ -314,10 +321,12 @@ impl<P> Sink for StreamingCallSink<P> {
         }
         self.sink_base
             .start_send(&mut self.call, &msg, flags, self.req_ser)
-            .map(|s| if s {
-                AsyncSink::Ready
-            } else {
-                AsyncSink::NotReady((msg, flags))
+            .map(|s| {
+                if s {
+                    AsyncSink::Ready
+                } else {
+                    AsyncSink::NotReady((msg, flags))
+                }
             })
     }
 

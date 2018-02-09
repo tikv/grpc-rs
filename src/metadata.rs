@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use grpc_sys::{self, GrpcMetadataArray};
-use std::{ptr, str, slice};
+use std::{ptr, slice, str};
 use std::borrow::Cow;
 
 use libc;
@@ -22,7 +21,9 @@ use error::{Error, Result};
 
 fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
     if key.is_empty() {
-        return Err(Error::InvalidMetadata("metadata key should not be empty".to_owned()));
+        return Err(Error::InvalidMetadata(
+            "metadata key should not be empty".to_owned(),
+        ));
     }
     let mut is_upper_case = false;
     for b in key.as_bytes() {
@@ -42,10 +43,14 @@ fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
     };
     if binary {
         if !key.as_bytes().ends_with(b"-bin") {
-            return Err(Error::InvalidMetadata("binary key should end with '-bin'".to_owned()));
+            return Err(Error::InvalidMetadata(
+                "binary key should end with '-bin'".to_owned(),
+            ));
         }
     } else if key.as_bytes().ends_with(b"-bin") {
-        return Err(Error::InvalidMetadata("non-binary key should not end with '-bin'".to_owned()));
+        return Err(Error::InvalidMetadata(
+            "non-binary key should not end with '-bin'".to_owned(),
+        ));
     }
     Ok(key)
 }
@@ -67,11 +72,15 @@ impl MetadataBuilder {
 
     pub fn add_str(&mut self, key: &str, value: &str) -> Result<&mut MetadataBuilder> {
         if !value.is_ascii() {
-            return Err(Error::InvalidMetadata("only ascii value is accepted.".to_owned()));
+            return Err(Error::InvalidMetadata(
+                "only ascii value is accepted.".to_owned(),
+            ));
         }
         for b in value.bytes() {
             if 0 == unsafe { libc::isprint(b as i32) } {
-                return Err(Error::InvalidMetadata("Only printable chars are accepted.".to_owned()));
+                return Err(Error::InvalidMetadata(
+                    "Only printable chars are accepted.".to_owned(),
+                ));
             }
         }
         let key = normalize_key(key, false)?;
@@ -80,7 +89,13 @@ impl MetadataBuilder {
 
     fn add_metadata(&mut self, key: &str, value: &[u8]) -> Result<&mut MetadataBuilder> {
         unsafe {
-            grpc_sys::grpcwrap_metadata_array_add(&mut self.arr.0, key.as_ptr() as _, key.len(), value.as_ptr() as _, value.len())
+            grpc_sys::grpcwrap_metadata_array_add(
+                &mut self.arr.0,
+                key.as_ptr() as _,
+                key.len(),
+                value.as_ptr() as _,
+                value.len(),
+            )
         }
         Ok(self)
     }

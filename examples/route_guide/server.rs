@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #![allow(unknown_lints)]
 #![allow(unreadable_literal)]
 
@@ -41,7 +40,6 @@ use util::*;
 use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::{self, RouteGuide};
 
-
 #[derive(Clone)]
 struct RouteGuideService {
     data: Arc<Vec<Feature>>,
@@ -61,10 +59,12 @@ impl RouteGuide for RouteGuideService {
     fn list_features(&self, ctx: RpcContext, rect: Rectangle, resp: ServerStreamingSink<Feature>) {
         let data = self.data.clone();
         let features: Vec<_> = data.iter()
-            .filter_map(move |f| if fit_in(f.get_location(), &rect) {
-                Some((f.to_owned(), WriteFlags::default()))
-            } else {
-                None
+            .filter_map(move |f| {
+                if fit_in(f.get_location(), &rect) {
+                    Some((f.to_owned(), WriteFlags::default()))
+                } else {
+                    None
+                }
             })
             .collect();
         let f = resp.send_all(stream::iter_ok::<_, Error>(features))
@@ -87,9 +87,8 @@ impl RouteGuide for RouteGuideService {
                 move |(last, mut dis, mut summary), point| {
                     let total_count = summary.get_point_count();
                     summary.set_point_count(total_count + 1);
-                    let valid_point = data.iter().any(|f| {
-                        !f.get_name().is_empty() && same_point(f.get_location(), &point)
-                    });
+                    let valid_point = data.iter()
+                        .any(|f| !f.get_name().is_empty() && same_point(f.get_location(), &point));
                     if valid_point {
                         let feature_count = summary.get_feature_count();
                         summary.set_feature_count(feature_count + 1);
@@ -121,10 +120,12 @@ impl RouteGuide for RouteGuideService {
             .map(move |note| {
                 let to_prints: Vec<_> = buffer
                     .iter()
-                    .filter_map(|n| if same_point(n.get_location(), note.get_location()) {
-                        Some((n.to_owned(), WriteFlags::default()))
-                    } else {
-                        None
+                    .filter_map(|n| {
+                        if same_point(n.get_location(), note.get_location()) {
+                            Some((n.to_owned(), WriteFlags::default()))
+                        } else {
+                            None
+                        }
                     })
                     .collect();
                 buffer.push(note);

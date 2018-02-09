@@ -32,7 +32,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 use std::collections::HashMap;
 
 use protobuf;
@@ -394,7 +393,9 @@ impl<'a> MethodGen<'a> {
                 self.const_method_name()
             ),
             "});",
-            |w| { w.write_line(&format!("instance.{}(ctx, req, resp)", self.name())); },
+            |w| {
+                w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
+            },
         );
     }
 }
@@ -464,14 +465,18 @@ impl<'a> ServiceGen<'a> {
             w.pub_fn(
                 "spawn<F>(&self, f: F) where F: ::futures::Future<Item = (), \
                  Error = ()> + Send + 'static",
-                |w| { w.write_line("self.client.spawn(f)"); },
+                |w| {
+                    w.write_line("self.client.spawn(f)");
+                },
             )
         });
     }
 
     fn write_server(&self, w: &mut CodeWriter) {
-        w.pub_trait(&self.service_name(), |w| for method in &self.methods {
-            method.write_service(w);
+        w.pub_trait(&self.service_name(), |w| {
+            for method in &self.methods {
+                method.write_service(w);
+            }
         });
 
         w.write_line("");

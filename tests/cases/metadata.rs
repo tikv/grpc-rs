@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use futures::*;
 use std::sync::mpsc::{self, Sender};
 use grpcio::*;
@@ -33,10 +32,12 @@ impl Greeter for GreeterService {
 
         let mut resp = HelloReply::new();
         resp.set_message(format!("hello {}", req.take_name()));
-        ctx.spawn(sink.success(resp).map_err(|e| panic!("failed to reply {:?}", e)));
+        ctx.spawn(
+            sink.success(resp)
+                .map_err(|e| panic!("failed to reply {:?}", e)),
+        );
     }
 }
-
 
 // TODO: test it in interop tests once trailer is supported.
 #[test]
@@ -55,13 +56,21 @@ fn test_metadata() {
     let client = GreeterClient::new(ch);
 
     let mut builder = MetadataBuilder::with_capacity(3);
-    builder.add_str("k1", "v1").unwrap().add_bytes("k1-bin", &[0x00, 0x01, 0x02]).unwrap();
+    builder
+        .add_str("k1", "v1")
+        .unwrap()
+        .add_bytes("k1-bin", &[0x00, 0x01, 0x02])
+        .unwrap();
     let metadata = builder.build();
     let call_opt = CallOption::default().metadata(metadata);
 
     let mut req = HelloRequest::new();
     req.set_name("world".to_owned());
-    let resp = client.say_hello_async_opt(&req, call_opt).unwrap().wait().unwrap();
+    let resp = client
+        .say_hello_async_opt(&req, call_opt)
+        .unwrap()
+        .wait()
+        .unwrap();
 
     assert_eq!(resp.get_message(), "hello world");
     let metadata = rx.recv_timeout(Duration::from_secs(1)).unwrap();
@@ -69,4 +78,3 @@ fn test_metadata() {
     let metadata = rx.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(metadata, ("k1-bin".to_owned(), vec![0x00, 0x01, 0x02]));
 }
-
