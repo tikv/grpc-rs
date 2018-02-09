@@ -39,9 +39,7 @@ fn main() {
         .arg(
             Arg::with_name("port")
                 .long("driver_port")
-                .help(
-                    "The port the worker should listen on. For example, \"8080\"",
-                )
+                .help("The port the worker should listen on. For example, \"8080\"")
                 .takes_value(true),
         )
         .get_matches();

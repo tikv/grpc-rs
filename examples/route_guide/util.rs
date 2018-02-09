@@ -58,8 +58,8 @@ pub fn same_point(lhs: &Point, rhs: &Point) -> bool {
 pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
     let hi = rhs.get_hi();
     let lo = rhs.get_lo();
-    lhs.get_longitude() <= hi.get_longitude() && lhs.get_longitude() >= lo.get_longitude() &&
-        lhs.get_latitude() <= hi.get_latitude() && lhs.get_latitude() >= lo.get_latitude()
+    lhs.get_longitude() <= hi.get_longitude() && lhs.get_longitude() >= lo.get_longitude()
+        && lhs.get_latitude() <= hi.get_latitude() && lhs.get_latitude() >= lo.get_latitude()
 }
 
 const COORD_FACTOR: f64 = 10000000.0;
@@ -86,8 +86,8 @@ pub fn cal_distance(lhs: &Point, rhs: &Point) -> f64 {
     let delta_lat_rad = convert_to_rad(lat2 - lat1);
     let delta_lon_rad = convert_to_rad(lon2 - lon1);
 
-    let a = (delta_lat_rad / 2.0).sin().powi(2) +
-        lat_rad_1.cos() * lat_rad_2.cos() * (delta_lon_rad / 2.0).sin().powi(2);
+    let a = (delta_lat_rad / 2.0).sin().powi(2)
+        + lat_rad_1.cos() * lat_rad_2.cos() * (delta_lon_rad / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
     let r = 6371000.0; // metres
 

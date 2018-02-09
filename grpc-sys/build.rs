@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-extern crate cmake;
 extern crate cc;
+extern crate cmake;
 extern crate pkg_config;
 
 use std::path::Path;
@@ -39,7 +38,11 @@ fn link_grpc(cc: &mut Build, library: &str) {
 }
 
 fn prepare_grpc() {
-    let mut modules = vec!["grpc", "grpc/third_party/zlib", "grpc/third_party/cares/cares"];
+    let mut modules = vec![
+        "grpc",
+        "grpc/third_party/zlib",
+        "grpc/third_party/cares/cares",
+    ];
 
     if cfg!(feature = "secure") {
         modules.push("grpc/third_party/boringssl");
@@ -74,7 +77,12 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
-    let third_party = vec!["cares/cares/lib", "zlib", "boringssl/ssl", "boringssl/crypto"];
+    let third_party = vec![
+        "cares/cares/lib",
+        "zlib",
+        "boringssl/ssl",
+        "boringssl/crypto",
+    ];
     if cfg!(target_os = "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {
@@ -90,9 +98,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
         for path in third_party {
             println!(
                 "cargo:rustc-link-search=native={}/third_party/{}/{}",
-                build_dir,
-                path,
-                profile
+                build_dir, path, profile
             );
         }
     } else {
@@ -100,8 +106,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
         for path in third_party {
             println!(
                 "cargo:rustc-link-search=native={}/third_party/{}",
-                build_dir,
-                path,
+                build_dir, path,
             );
         }
     }

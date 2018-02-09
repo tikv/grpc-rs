@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 extern crate interop;

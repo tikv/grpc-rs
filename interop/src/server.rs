@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use grpc::{self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
            RpcStatusCode, ServerStreamingSink, UnarySink, WriteFlags};
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
@@ -141,9 +140,7 @@ impl TestService for InteropTestService {
                     },
                 )
             })
-            .and_then(|mut sink| {
-                future::poll_fn(move || sink.close().map_err(Error::from))
-            })
+            .and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
             .map_err(|e| match e {
                 Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
                 Error::Grpc(e) => error!("failed to handle duplex call: {:?}", e),
