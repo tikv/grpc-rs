@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::{result, slice};
 use std::sync::Arc;
 
@@ -311,7 +310,11 @@ macro_rules! impl_unary_sink {
 }
 
 impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
-impl_unary_sink!(ClientStreamingSink, ClientStreamingSinkResult, Arc<SpinLock<ShareCall>>);
+impl_unary_sink!(
+    ClientStreamingSink,
+    ClientStreamingSinkResult,
+    Arc<SpinLock<ShareCall>>
+);
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {

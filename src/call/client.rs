@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::ptr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -301,10 +300,12 @@ impl<P> Sink for StreamingCallSink<P> {
         }
         self.sink_base
             .start_send(&mut self.call, &msg, flags, self.req_ser)
-            .map(|s| if s {
-                AsyncSink::Ready
-            } else {
-                AsyncSink::NotReady((msg, flags))
+            .map(|s| {
+                if s {
+                    AsyncSink::Ready
+                } else {
+                    AsyncSink::NotReady((msg, flags))
+                }
             })
     }
 

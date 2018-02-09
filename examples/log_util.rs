@@ -11,11 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 extern crate slog;
 extern crate slog_async;
-extern crate slog_stdlog;
 extern crate slog_scope;
+extern crate slog_stdlog;
 extern crate slog_term;
 
 use std::fs::File;

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -53,8 +52,8 @@ impl CompletionQueueHandle {
                 return Err(Error::QueueShutdown);
             }
             let new_cnt = cnt + 1;
-            if cnt ==
-                self.ref_cnt
+            if cnt
+                == self.ref_cnt
                     .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
             {
                 return Ok(());
@@ -68,8 +67,8 @@ impl CompletionQueueHandle {
             // If `shutdown` is not called, `cnt` > 0, so minus 1 to unref.
             // If `shutdown` is called, `cnt` < 0, so plus 1 to unref.
             let new_cnt = cnt - cnt.signum();
-            if cnt ==
-                self.ref_cnt
+            if cnt
+                == self.ref_cnt
                     .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
             {
                 break new_cnt == 0;
@@ -93,8 +92,8 @@ impl CompletionQueueHandle {
             // Because `cnt` is initialised to 1, so minus 1 to make it reach
             // toward 0. That is `new_cnt = -(cnt - 1) = -cnt + 1`.
             let new_cnt = -cnt + 1;
-            if cnt ==
-                self.ref_cnt
+            if cnt
+                == self.ref_cnt
                     .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
             {
                 break new_cnt == 0;

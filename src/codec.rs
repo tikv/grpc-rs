@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use error::Result;
 
 pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
