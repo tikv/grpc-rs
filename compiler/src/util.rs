@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::str;
 
 // A struct that divide a name into serveral parts that meets rust's guidelines.
