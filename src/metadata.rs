@@ -55,21 +55,27 @@ fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
     Ok(key)
 }
 
+/// Builder for immutable Metadata.
 pub struct MetadataBuilder {
     arr: Metadata,
 }
 
 impl MetadataBuilder {
+    /// Create a builder with empty initial capacity.
     pub fn new() -> MetadataBuilder {
         MetadataBuilder::with_capacity(0)
     }
 
+    /// Create a builder with the given value.
     pub fn with_capacity(cap: usize) -> MetadataBuilder {
         MetadataBuilder {
             arr: Metadata::with_capacity(cap),
         }
     }
 
+    /// Add a metadata holding an ASCII value.
+    ///
+    /// `key` must not use suffix (-bin) indicating a binary valued metadata entry.
     pub fn add_str(&mut self, key: &str, value: &str) -> Result<&mut MetadataBuilder> {
         if !value.is_ascii() {
             return Err(Error::InvalidMetadata(
@@ -100,13 +106,16 @@ impl MetadataBuilder {
         Ok(self)
     }
 
+    /// Add a metadata holding a binary value.
+    ///
+    /// `key` needs to have suffix (-bin) indicating a binary valued metadata entry.
     pub fn add_bytes(&mut self, key: &str, value: &[u8]) -> Result<&mut MetadataBuilder> {
         let key = normalize_key(key, true)?;
         self.add_metadata(&key, value)
     }
 
+    /// Create `Metadata` with configured entries.
     pub fn build(mut self) -> Metadata {
-        // Should we trim the capacity?
         unsafe {
             grpc_sys::grpcwrap_metadata_array_freeze(&mut self.arr.0);
         }
@@ -114,6 +123,27 @@ impl MetadataBuilder {
     }
 }
 
+/// A collection of metadata entries that can be exchanged during a call.
+///
+/// gRPC supports these types of metadata:
+///
+/// - Request headers
+///
+///     They are sent by the client at the beginning of a remote call before
+///     any request messages are sent.
+///
+/// - Response headers
+///
+///     They are sent by the server at the beginning of a remote call handler
+///     before any response messages are sent.
+///
+/// - Response trailers
+///
+///     They are sent by the server at the end of a remote call along with
+///     resulting call status.
+///
+/// Metadata value can be ascii string or bytes. They are distinguish by the
+/// key suffix, key of bytes value should have suffix '-bin'.
 #[repr(C)]
 pub struct Metadata(GrpcMetadataArray);
 
@@ -130,16 +160,21 @@ impl Metadata {
         Metadata(arr)
     }
 
+    /// Returns the count of metadata entries.
     #[inline]
     pub fn len(&self) -> usize {
         self.0.count
     }
 
+    /// Returns true if there is no metadata entries.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.count == 0
     }
 
+    /// Returns the metadata entry at the `index`.
+    ///
+    /// `None` is returned if out of bound.
     pub fn get(&self, index: usize) -> Option<(&str, &[u8])> {
         if self.0.count <= index {
             return None;
@@ -154,6 +189,7 @@ impl Metadata {
         }
     }
 
+    /// Returns an iterator over the metadata entries.
     pub fn iter(&self) -> MetadataIter {
         MetadataIter {
             data: self,
@@ -181,6 +217,9 @@ impl Drop for Metadata {
     }
 }
 
+/// Immutable metadata iterator
+///
+/// This struct is created by the iter method on `Metadata`.
 pub struct MetadataIter<'a> {
     data: &'a Metadata,
     index: usize,

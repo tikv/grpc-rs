@@ -26,7 +26,7 @@ struct GreeterService {
 
 impl Greeter for GreeterService {
     fn say_hello(&self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
-        for (key, value) in ctx.metadata() {
+        for (key, value) in ctx.request_headers() {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
         }
 
@@ -62,7 +62,7 @@ fn test_metadata() {
         .add_bytes("k1-bin", &[0x00, 0x01, 0x02])
         .unwrap();
     let metadata = builder.build();
-    let call_opt = CallOption::default().metadata(metadata);
+    let call_opt = CallOption::default().headers(metadata);
 
     let mut req = HelloRequest::new();
     req.set_name("world".to_owned());

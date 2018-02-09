@@ -91,14 +91,14 @@ impl CallOption {
         self.timeout
     }
 
-    /// Set metadata array.
-    pub fn metadata(mut self, meta: Metadata) -> CallOption {
+    /// Set the headers to be sent with the call.
+    pub fn headers(mut self, meta: Metadata) -> CallOption {
         self.metadata = Some(meta);
         self
     }
 
-    /// Get the metadata array.
-    pub fn get_metadata(&self) -> Option<&Metadata> {
+    /// Get the headers.
+    pub fn get_headers(&self) -> Option<&Metadata> {
         self.metadata.as_ref()
     }
 }

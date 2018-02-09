@@ -486,7 +486,8 @@ impl<'a> RpcContext<'a> {
         &self.deadline
     }
 
-    pub fn metadata(&self) -> &Metadata {
+    /// Get the initial metadata sent by client.
+    pub fn request_headers(&self) -> &Metadata {
         self.ctx.metadata()
     }
 
