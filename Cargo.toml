@@ -45,6 +45,14 @@ path = "examples/hello_world/client.rs"
 name = "greeter_server"
 path = "examples/hello_world/server.rs"
 
+[[example]]
+name = "greeter_metadata_client"
+path = "examples/hello_world_metadata/client.rs"
+
+[[example]]
+name = "greeter_metadata_server"
+path = "examples/hello_world_metadata/server.rs"
+
 [dev-dependencies]
 serde_json = "1.0"
 serde = "1.0"

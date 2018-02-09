@@ -24,6 +24,8 @@ use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
+use metadata::MetadataArray;
+
 
 /// Update the flag bit in res.
 #[inline]
@@ -37,6 +39,7 @@ pub fn change_flag(res: &mut u32, flag: u32, set: bool) {
 
 #[derive(Clone, Default)]
 pub struct CallOption {
+    metadata: Option<MetadataArray>,
     timeout: Option<Duration>,
     write_flags: WriteFlags,
     call_flags: u32,
@@ -88,6 +91,27 @@ impl CallOption {
     pub fn get_timeout(&self) -> Option<Duration> {
         self.timeout
     }
+
+    /// Set metadata.
+    pub fn metadata(mut self, metadata: MetadataArray) -> CallOption
+    {
+        self.metadata = Some(metadata);
+        self
+    }
+
+    /// Get metadata.
+    pub fn get_metadata(&mut self) -> Option<&mut MetadataArray> {
+        self.metadata.as_mut()
+    }
+}
+
+#[inline]
+fn opt_metadata_ptr(opt: &mut CallOption) -> *mut grpc_sys::GrpcMetadataArray {
+    opt.get_metadata()
+        .map_or(
+            ptr::null_mut(),
+            |meta_arr| meta_arr.as_mut_ptr()
+        )
 }
 
 impl Call {
@@ -95,11 +119,13 @@ impl Call {
         channel: &Channel,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Q>> {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
+        let meta_arr = opt_metadata_ptr(&mut opt);
+
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
@@ -107,7 +133,7 @@ impl Call {
                 payload.as_ptr() as *const _,
                 payload.len(),
                 opt.write_flags.flags,
-                ptr::null_mut(),
+                meta_arr,
                 opt.call_flags,
                 tag,
             )
@@ -118,14 +144,15 @@ impl Call {
     pub fn client_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<(ClientCStreamSender<P>, ClientCStreamReceiver<Q>)> {
         let call = channel.create_call(method, &opt)?;
+        let meta_arr = opt_metadata_ptr(&mut opt);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
-                ptr::null_mut(),
+                meta_arr,
                 opt.call_flags,
                 tag,
             )
@@ -144,9 +171,10 @@ impl Call {
         channel: &Channel,
         method: &Method<P, Q>,
         req: &P,
-        opt: CallOption,
+        mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Q>> {
         let call = channel.create_call(method, &opt)?;
+        let meta_arr = opt_metadata_ptr(&mut opt);
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
@@ -156,7 +184,7 @@ impl Call {
                 payload.as_ptr() as _,
                 payload.len(),
                 opt.write_flags.flags,
-                ptr::null_mut(),
+                meta_arr,
                 opt.call_flags,
                 tag,
             )
@@ -173,14 +201,16 @@ impl Call {
     pub fn duplex_streaming<P, Q>(
         channel: &Channel,
         method: &Method<P, Q>,
+        mut
         opt: CallOption,
     ) -> Result<(ClientDuplexSender<P>, ClientDuplexReceiver<Q>)> {
         let call = channel.create_call(method, &opt)?;
+        let meta_arr = opt_metadata_ptr(&mut opt);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
-                ptr::null_mut(),
+                meta_arr,
                 opt.call_flags,
                 tag,
             )

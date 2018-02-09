@@ -24,6 +24,7 @@ use cq::CompletionQueue;
 use error::Error;
 use server::{CallBack, Inner};
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
+use MetadataArrayView;
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -145,6 +146,12 @@ impl RequestContext {
         let t = unsafe { grpc_sys::grpcwrap_request_call_context_deadline(self.ctx) };
 
         Deadline::new(t)
+    }
+
+    fn metadata(&self) -> MetadataArrayView {
+        let m = unsafe { grpc_sys::grpcwrap_request_call_context_metadata(self.ctx) };
+
+        MetadataArrayView::new(m)
     }
 }
 
@@ -450,11 +457,13 @@ pub struct RpcContext<'a> {
     ctx: RequestContext,
     executor: Executor<'a>,
     deadline: Deadline,
+    metadata: MetadataArrayView,
 }
 
 impl<'a> RpcContext<'a> {
     fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext {
         RpcContext {
+            metadata: ctx.metadata(),
             deadline: ctx.deadline(),
             ctx: ctx,
             executor: Executor::new(cq),
@@ -475,6 +484,10 @@ impl<'a> RpcContext<'a> {
 
     pub fn deadline(&self) -> &Deadline {
         &self.deadline
+    }
+
+    pub fn metadata(&self) -> &MetadataArrayView {
+        &self.metadata
     }
 
     /// Spawn the future into current grpc poll thread.
