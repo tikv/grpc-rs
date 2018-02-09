@@ -165,20 +165,23 @@ grpcwrap_metadata_array_destroy_full(grpc_metadata_array *array) {
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_metadata_array_init(grpc_metadata_array *array, size_t capacity) {
   if (capacity) {
-    grpc_metadata *arr = (grpc_metadata *)gpr_malloc(sizeof(grpc_metadata) * capacity);
+    grpc_metadata *arr =
+        (grpc_metadata *)gpr_malloc(sizeof(grpc_metadata) * capacity);
     memset(arr, 0, sizeof(grpc_metadata) * capacity);
     array->metadata = arr;
   }
 }
 
-GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_metadata_array_add(grpc_metadata_array *array, const char *key,
-                            size_t key_length, const char *value, size_t value_length) {
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_array_add(
+    grpc_metadata_array *array, const char *key, size_t key_length,
+    const char *value, size_t value_length) {
   size_t i = array->count;
   if (i == array->capacity) {
     array->capacity = array->capacity ? array->capacity * 2 : 4;
-    array->metadata = gpr_realloc(array->metadata, array->capacity * sizeof(grpc_metadata));
-    memset(array->metadata + i, 0, sizeof(grpc_metadata) * (array->capacity - i));
+    array->metadata =
+        gpr_realloc(array->metadata, array->capacity * sizeof(grpc_metadata));
+    memset(array->metadata + i, 0,
+           sizeof(grpc_metadata) * (array->capacity - i));
   }
   array->metadata[i].key = grpc_slice_from_copied_buffer(key, key_length);
   array->metadata[i].value = grpc_slice_from_copied_buffer(value, value_length);
@@ -199,18 +202,19 @@ GPR_EXPORT const char *GPR_CALLTYPE grpcwrap_metadata_array_get_value(
   return (char *)GRPC_SLICE_START_PTR(array->metadata[index].value);
 }
 
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_array_cleanup(
-    grpc_metadata_array *array) {
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_metadata_array_cleanup(grpc_metadata_array *array) {
   grpcwrap_metadata_array_destroy_metadata_including_entries(array);
 }
 
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_array_freeze(
-    grpc_metadata_array *array) {
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_metadata_array_freeze(grpc_metadata_array *array) {
   if (array->count == array->capacity) {
     return;
   }
   if (array->count) {
-    array->metadata = gpr_realloc(array->metadata, array->count * sizeof(grpc_metadata));
+    array->metadata =
+        gpr_realloc(array->metadata, array->count * sizeof(grpc_metadata));
     array->capacity = array->count;
   } else {
     grpcwrap_metadata_array_cleanup(array);
@@ -653,8 +657,8 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_message(
   return grpc_call_start_batch(call, ops, nops, tag, NULL);
 }
 
-GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_close_from_client(
-    grpc_call *call, void *tag) {
+GPR_EXPORT grpc_call_error GPR_CALLTYPE
+grpcwrap_call_send_close_from_client(grpc_call *call, void *tag) {
   /* TODO: don't use magic number */
   grpc_op ops[1];
   ops[0].op = GRPC_OP_SEND_CLOSE_FROM_CLIENT;
@@ -760,7 +764,6 @@ grpcwrap_server_request_call(grpc_server *server, grpc_completion_queue *cq,
   return grpc_server_request_call(server, &(ctx->call), &(ctx->call_details),
                                   &(ctx->request_metadata), cq, cq, tag);
 }
-
 
 #ifdef GRPC_SYS_SECURE
 
