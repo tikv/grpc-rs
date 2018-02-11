@@ -164,12 +164,17 @@ grpcwrap_metadata_array_destroy_full(grpc_metadata_array *array) {
  */
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_metadata_array_init(grpc_metadata_array *array, size_t capacity) {
-  if (capacity) {
-    grpc_metadata *arr =
-        (grpc_metadata *)gpr_malloc(sizeof(grpc_metadata) * capacity);
-    memset(arr, 0, sizeof(grpc_metadata) * capacity);
-    array->metadata = arr;
+  array->count = 0;
+  array->capacity = capacity;
+  if (!capacity) {
+    array->metadata = NULL;
+    return;
   }
+
+  grpc_metadata *arr =
+      (grpc_metadata *)gpr_malloc(sizeof(grpc_metadata) * capacity);
+  memset(arr, 0, sizeof(grpc_metadata) * capacity);
+  array->metadata = arr;
 }
 
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_array_add(
@@ -208,7 +213,7 @@ grpcwrap_metadata_array_cleanup(grpc_metadata_array *array) {
 }
 
 GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_metadata_array_freeze(grpc_metadata_array *array) {
+grpcwrap_metadata_array_shrink_to_fit(grpc_metadata_array *array) {
   if (array->count == array->capacity) {
     return;
   }

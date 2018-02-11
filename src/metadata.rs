@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use grpc_sys::{self, GrpcMetadataArray};
-use std::{ptr, slice, str};
+use std::{mem, slice, str};
 use std::borrow::Cow;
 
 use libc;
@@ -117,7 +117,7 @@ impl MetadataBuilder {
     /// Create `Metadata` with configured entries.
     pub fn build(mut self) -> Metadata {
         unsafe {
-            grpc_sys::grpcwrap_metadata_array_freeze(&mut self.arr.0);
+            grpc_sys::grpcwrap_metadata_array_shrink_to_fit(&mut self.arr.0);
         }
         self.arr
     }
@@ -149,15 +149,11 @@ pub struct Metadata(GrpcMetadataArray);
 
 impl Metadata {
     fn with_capacity(cap: usize) -> Metadata {
-        let mut arr = GrpcMetadataArray {
-            count: 0,
-            capacity: cap,
-            metadata: ptr::null_mut(),
-        };
         unsafe {
+            let mut arr = mem::uninitialized();
             grpc_sys::grpcwrap_metadata_array_init(&mut arr, cap);
+            Metadata(arr)
         }
-        Metadata(arr)
     }
 
     /// Returns the count of metadata entries.

@@ -487,7 +487,7 @@ extern "C" {
         index: size_t,
         val_len: *mut size_t,
     ) -> *const c_char;
-    pub fn grpcwrap_metadata_array_freeze(array: *mut GrpcMetadataArray);
+    pub fn grpcwrap_metadata_array_shrink_to_fit(array: *mut GrpcMetadataArray);
     pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
 }
 
