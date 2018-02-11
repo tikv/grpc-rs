@@ -13,3 +13,4 @@
 
 mod alarm;
 mod health_check;
+mod metadata;
