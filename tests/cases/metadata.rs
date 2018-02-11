@@ -66,11 +66,7 @@ fn test_metadata() {
 
     let mut req = HelloRequest::new();
     req.set_name("world".to_owned());
-    let resp = client
-        .say_hello_async_opt(&req, call_opt)
-        .unwrap()
-        .wait()
-        .unwrap();
+    let resp = client.say_hello_opt(&req, call_opt).unwrap();
 
     assert_eq!(resp.get_message(), "hello world");
     let metadata = rx.recv_timeout(Duration::from_secs(1)).unwrap();
