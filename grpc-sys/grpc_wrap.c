@@ -180,6 +180,7 @@ grpcwrap_metadata_array_init(grpc_metadata_array *array, size_t capacity) {
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_array_add(
     grpc_metadata_array *array, const char *key, size_t key_length,
     const char *value, size_t value_length) {
+  GPR_ASSERT(array->count <= array->capacity);
   size_t i = array->count;
   if (i == array->capacity) {
     array->capacity = array->capacity ? array->capacity * 2 : 4;
@@ -214,6 +215,7 @@ grpcwrap_metadata_array_cleanup(grpc_metadata_array *array) {
 
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_metadata_array_shrink_to_fit(grpc_metadata_array *array) {
+  GPR_ASSERT(array->count <= array->capacity);
   if (array->count == array->capacity) {
     return;
   }
