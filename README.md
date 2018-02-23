@@ -74,7 +74,7 @@ To include this project as a dependency:
 
 ```
 [dependencies]
-grpcio = "0.1"
+grpcio = "0.2"
 ```
 
 Option 2 - Programmatic Generation

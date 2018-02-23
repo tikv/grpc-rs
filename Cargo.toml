@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "protobuf", "rpc", "tls", "http2"]
@@ -15,7 +15,7 @@ categories = ["asynchronous", "network-programming"]
 all-features = true
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.2.0" }
+grpcio-sys = { path = "grpc-sys", version = "0.2.1" }
 libc = "0.2"
 futures = "^0.1.15"
 protobuf = { version = "1.2", optional = true }
