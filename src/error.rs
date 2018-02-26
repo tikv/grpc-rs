@@ -35,6 +35,7 @@ pub enum Error {
     QueueShutdown,
     // Return when Google Default Credentials failed.
     GoogleAuthenticationFailed,
+    InvalidMetadata(String),
 }
 
 impl Display for Error {
@@ -55,6 +56,7 @@ impl error::Error for Error {
             Error::BindFail(_, _) => "gRPC Bind Error",
             Error::QueueShutdown => "gRPC completion queue shutdown",
             Error::GoogleAuthenticationFailed => "Could not create google default credentials.",
+            Error::InvalidMetadata(_) => "invalid format of metadata",
         }
     }
 

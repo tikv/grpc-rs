@@ -180,6 +180,13 @@ pub struct GprLogFuncArgs {
     pub message: *const c_char,
 }
 
+#[repr(C)]
+pub struct GrpcMetadataArray {
+    pub count: size_t,
+    pub capacity: size_t,
+    pub metadata: *mut GrpcMetadata,
+}
+
 pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x00000010;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x00000020;
 pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
@@ -187,8 +194,8 @@ pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
 pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x00000001;
 pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x00000002;
 
+pub enum GrpcMetadata {}
 pub enum GrpcSlice {}
-pub enum GrpcMetadataArray {}
 pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
@@ -441,7 +448,7 @@ extern "C" {
     pub fn grpcwrap_request_call_context_deadline(
         ctx: *const GrpcRequestCallContext,
     ) -> GprTimespec;
-    pub fn grpcwrap_request_call_context_metadata(
+    pub fn grpcwrap_request_call_context_metadata_array(
         ctx: *const GrpcRequestCallContext,
     ) -> *const GrpcMetadataArray;
     pub fn grpcwrap_server_request_call(
@@ -461,6 +468,27 @@ extern "C" {
     ) -> *mut GrpcAlarm;
     pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
+
+    pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
+    pub fn grpcwrap_metadata_array_add(
+        array: *mut GrpcMetadataArray,
+        key: *const c_char,
+        key_len: size_t,
+        val: *const c_char,
+        val_len: size_t,
+    );
+    pub fn grpcwrap_metadata_array_get_key(
+        array: *const GrpcMetadataArray,
+        index: size_t,
+        key_len: *mut size_t,
+    ) -> *const c_char;
+    pub fn grpcwrap_metadata_array_get_value(
+        array: *const GrpcMetadataArray,
+        index: size_t,
+        val_len: *mut size_t,
+    ) -> *const c_char;
+    pub fn grpcwrap_metadata_array_shrink_to_fit(array: *mut GrpcMetadataArray);
+    pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
 }
 
 #[cfg(feature = "secure")]

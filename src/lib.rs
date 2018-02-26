@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #![allow(unknown_lints)]
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]
@@ -37,6 +36,7 @@ mod credentials;
 mod env;
 mod error;
 mod log_util;
+mod metadata;
 mod server;
 
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
@@ -57,4 +57,5 @@ pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCrede
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
 pub use log_util::redirect_log;
+pub use metadata::{Metadata, MetadataBuilder, MetadataIter};
 pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

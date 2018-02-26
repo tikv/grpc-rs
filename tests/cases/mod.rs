@@ -1,4 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
+// Copyright 2018 PingCAP, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,17 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(unknown_lints)]
-
-#[macro_use]
-extern crate futures;
-extern crate grpcio as grpc;
-extern crate grpcio_proto as grpc_proto;
-#[macro_use]
-extern crate log;
-
-mod client;
-mod server;
-
-pub use self::client::Client;
-pub use self::server::InteropTestService;
+mod alarm;
+mod health_check;
+mod metadata;

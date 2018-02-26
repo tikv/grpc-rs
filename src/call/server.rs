@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::{result, slice};
 use std::sync::Arc;
 
@@ -23,6 +22,7 @@ use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBas
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
+use metadata::Metadata;
 use server::{CallBack, Inner};
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 
@@ -146,6 +146,14 @@ impl RequestContext {
         let t = unsafe { grpc_sys::grpcwrap_request_call_context_deadline(self.ctx) };
 
         Deadline::new(t)
+    }
+
+    fn metadata(&self) -> &Metadata {
+        unsafe {
+            let ptr = grpc_sys::grpcwrap_request_call_context_metadata_array(self.ctx);
+            let arr_ptr: *const Metadata = ptr as _;
+            &*arr_ptr
+        }
     }
 }
 
@@ -311,7 +319,11 @@ macro_rules! impl_unary_sink {
 }
 
 impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
-impl_unary_sink!(ClientStreamingSink, ClientStreamingSinkResult, Arc<SpinLock<ShareCall>>);
+impl_unary_sink!(
+    ClientStreamingSink,
+    ClientStreamingSinkResult,
+    Arc<SpinLock<ShareCall>>
+);
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {
@@ -472,6 +484,11 @@ impl<'a> RpcContext<'a> {
 
     pub fn deadline(&self) -> &Deadline {
         &self.deadline
+    }
+
+    /// Get the initial metadata sent by client.
+    pub fn request_headers(&self) -> &Metadata {
+        self.ctx.metadata()
     }
 
     /// Spawn the future into current grpc poll thread.

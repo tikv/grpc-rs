@@ -11,11 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
-
 use futures::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;
@@ -46,9 +41,7 @@ impl Health for HealthService {
                 sink.success(resp)
             }
         };
-        ctx.spawn(res.map_err(
-            |e| println!("failed to report result: {:?}", e),
-        ));
+        ctx.spawn(res.map_err(|e| println!("failed to report result: {:?}", e)));
     }
 }
 

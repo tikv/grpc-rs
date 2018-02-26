@@ -1,3 +1,11 @@
+# 0.2.1 - 2018-02-23
+
+- support ping configuration
+- make `CallOptions` clonable
+- support google default credentials
+- fix link error on Windows
+- support request header
+
 # 0.2.0 - 2017-12-19
 
 - update gRPC from 1.6.1 to 1.7.2
