@@ -259,6 +259,12 @@ impl<T> Future for ClientUnaryReceiver<T> {
 }
 
 /// A receiver for client streaming call.
+///
+/// If the corresponding sink has dropped or cancelled, this will poll a
+/// [`RpcFailure`] error with the [`Cancelled`] status.
+///
+/// [`RpcFailure`]: ./enum.Error.html#variant.RpcFailure
+/// [`Cancelled`]: ./enum.RpcStatusCode.html#variant.Cancelled
 pub struct ClientCStreamReceiver<T> {
     call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
@@ -307,6 +313,13 @@ impl<P> StreamingCallSink<P> {
     pub fn cancel(&mut self) {
         let call = self.call.lock();
         call.call.cancel()
+    }
+}
+
+impl<P> Drop for StreamingCallSink<P> {
+    /// The corresponding RPC will be canceled when the value is dropped.
+    fn drop(&mut self) {
+        self.cancel();
     }
 }
 
@@ -455,6 +468,12 @@ impl<Q> Stream for ClientSStreamReceiver<Q> {
 }
 
 /// A response receiver for duplex call.
+///
+/// If the corresponding sink has dropped or cancelled, this will poll a
+/// [`RpcFailure`] error with the [`Cancelled`] status.
+///
+/// [`RpcFailure`]: ./enum.Error.html#variant.RpcFailure
+/// [`Cancelled`]: ./enum.RpcStatusCode.html#variant.Cancelled
 pub struct ClientDuplexReceiver<Q> {
     imp: ResponseStreamImpl<Arc<SpinLock<ShareCall>>, Q>,
 }

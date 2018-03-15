@@ -269,7 +269,7 @@ macro_rules! impl_unary_sink {
         }
 
         pub struct $t<T> {
-            call: $holder,
+            call: Option<$holder>,
             write_flags: u32,
             ser: SerializeFn<T>,
         }
@@ -277,7 +277,7 @@ macro_rules! impl_unary_sink {
         impl<T> $t<T> {
             fn new(call: $holder, ser: SerializeFn<T>) -> $t<T> {
                 $t {
-                    call: call,
+                    call: Some(call),
                     write_flags: 0,
                     ser: ser,
                 }
@@ -299,7 +299,7 @@ macro_rules! impl_unary_sink {
                 });
 
                 let write_flags = self.write_flags;
-                let res = self.call.call(|c| {
+                let res = self.call.as_mut().unwrap().call(|c| {
                     c.call.start_send_status_from_server(&status, true, data, write_flags)
                 });
 
@@ -309,10 +309,18 @@ macro_rules! impl_unary_sink {
                 };
 
                 $rt {
-                    call: self.call,
+                    call: self.call.take().unwrap(),
                     cq_f: cq_f,
                     err: err,
                 }
+            }
+        }
+
+        impl<T> Drop for $t<T> {
+            /// The corresponding RPC will be canceled if the sink did not
+            /// send a response before dropping.
+            fn drop(&mut self) {
+                self.call.as_mut().map(|call| call.call(|c| c.call.cancel()));
             }
         }
     );
@@ -329,7 +337,7 @@ impl_unary_sink!(
 macro_rules! impl_stream_sink {
     ($t:ident, $ft:ident, $holder:ty) => (
         pub struct $t<T> {
-            call: $holder,
+            call: Option<$holder>,
             base: SinkBase,
             flush_f: Option<BatchFuture>,
             status: RpcStatus,
@@ -340,7 +348,7 @@ macro_rules! impl_stream_sink {
         impl<T> $t<T> {
             fn new(call: $holder, ser: SerializeFn<T>) -> $t<T> {
                 $t {
-                    call: call,
+                    call: Some(call),
                     base: SinkBase::new(true),
                     flush_f: None,
                     status: RpcStatus::ok(),
@@ -357,7 +365,7 @@ macro_rules! impl_stream_sink {
             pub fn fail(mut self, status: RpcStatus) -> $ft {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
-                let res = self.call.call(|c| {
+                let res = self.call.as_mut().unwrap().call(|c| {
                     c.call.start_send_status_from_server(&status, send_metadata, None, 0)
                 });
 
@@ -367,9 +375,23 @@ macro_rules! impl_stream_sink {
                 };
 
                 $ft {
-                    call: self.call,
+                    call: self.call.take().unwrap(),
                     fail_f: fail_f,
                     err: err,
+                }
+            }
+        }
+
+        impl<T> Drop for $t<T> {
+            /// The corresponding RPC will be canceled if the sink did not call
+            /// [`close`] or [`fail`] before dropping.
+            ///
+            /// [`close`]: #method.close
+            /// [`fail`]: #method.fail
+            fn drop(&mut self) {
+                // We did not close it explicitly and it was not dropped in the `fail`.
+                if self.flush_f.is_none() && self.call.is_some() {
+                    self.call.as_mut().map(|call| call.call(|c| c.call.cancel()));
                 }
             }
         }
@@ -379,11 +401,11 @@ macro_rules! impl_stream_sink {
             type SinkError = Error;
 
             fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
-                if let Async::Ready(_) = self.call.call(|c| c.poll_finish())? {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish())? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base
-                    .start_send(&mut self.call, &item.0, item.1, self.ser)
+                    .start_send(self.call.as_mut().unwrap(), &item.0, item.1, self.ser)
                     .map(|s| if s {
                             AsyncSink::Ready
                         } else {
@@ -401,7 +423,7 @@ macro_rules! impl_stream_sink {
 
                     let send_metadata = self.base.send_metadata;
                     let status = &self.status;
-                    let flush_f = self.call.call(|c| {
+                    let flush_f = self.call.as_mut().unwrap().call(|c| {
                         c.call.start_send_status_from_server(status, send_metadata, None, 0)
                     })?;
                     self.flush_f = Some(flush_f);
@@ -412,7 +434,7 @@ macro_rules! impl_stream_sink {
                     self.flushed = true;
                 }
 
-                try_ready!(self.call.call(|c| c.poll_finish()));
+                try_ready!(self.call.as_mut().unwrap().call(|c| c.poll_finish()));
                 Ok(Async::Ready(()))
             }
         }
