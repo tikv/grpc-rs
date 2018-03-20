@@ -317,9 +317,14 @@ impl<P> StreamingCallSink<P> {
 }
 
 impl<P> Drop for StreamingCallSink<P> {
-    /// The corresponding RPC will be canceled when the value is dropped.
+    /// The corresponding RPC will be canceled if the sink did not call
+    /// [`close`] before dropping.
+    ///
+    /// [`close`]: #method.close
     fn drop(&mut self) {
-        self.cancel();
+        if self.close_f.is_none() {
+            self.cancel();
+        }
     }
 }
 
