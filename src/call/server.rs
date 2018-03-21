@@ -239,6 +239,14 @@ impl<T> Stream for RequestStream<T> {
     }
 }
 
+impl<T> Drop for RequestStream<T> {
+    /// The corresponding RPC will be canceled if the stream did not
+    /// finish before dropping.
+    fn drop(&mut self) {
+        self.base.on_drop(&mut self.call);
+    }
+}
+
 // A helper macro used to implement server side unary sink.
 // Not using generic here because we don't need to expose
 // `CallHolder` or `Call` to caller.
@@ -391,7 +399,8 @@ macro_rules! impl_stream_sink {
             fn drop(&mut self) {
                 // We did not close it explicitly and it was not dropped in the `fail`.
                 if self.flush_f.is_none() && self.call.is_some() {
-                    self.call.as_mut().map(|call| call.call(|c| c.call.cancel()));
+                    let mut call = self.call.take().unwrap();
+                    call.call(|c| c.call.cancel());
                 }
             }
         }

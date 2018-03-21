@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
-use futures::*;
+use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::*;
@@ -82,12 +81,13 @@ impl RouteGuide for CancelService {
 fn check_cancel<S, T>(rx: S)
 where
     S: Stream<Item = T, Error = Error>,
-    T: Debug,
 {
     match rx.into_future().wait() {
-        Err((Error::RpcFailure(s), _)) => assert_eq!(s.status, RpcStatusCode::Cancelled),
+        Err((Error::RpcFailure(s), _)) | Err((Error::RpcFinished(Some(s)), _)) => {
+            assert_eq!(s.status, RpcStatusCode::Cancelled)
+        }
         Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
-        Ok((r, _)) => panic!("expected error, but got: {:?}", r),
+        Ok(_) => panic!("expected error, but got: Ok(_)"),
     }
 }
 
@@ -122,9 +122,16 @@ fn test_client_cancel_on_dropping() {
             Box::new(f)
         }));
     }
-    let (tx, rx) = client.record_route().unwrap();
-    drop(tx);
-    check_cancel(rx.into_stream());
+    {
+        let (tx, rx) = client.record_route().unwrap();
+        drop(tx);
+        check_cancel(rx.into_stream());
+    }
+    {
+        let (tx, rx) = client.record_route().unwrap();
+        drop(rx);
+        check_cancel(tx.send(Default::default()).into_stream());
+    }
 
     // Duplex streaming.
     {
@@ -138,9 +145,16 @@ fn test_client_cancel_on_dropping() {
             Box::new(f)
         }));
     }
-    let (tx, rx) = client.route_chat().unwrap();
-    drop(tx);
-    check_cancel(rx);
+    {
+        let (tx, rx) = client.route_chat().unwrap();
+        drop(tx);
+        check_cancel(rx);
+    }
+    {
+        let (tx, rx) = client.route_chat().unwrap();
+        drop(rx);
+        check_cancel(tx.send(Default::default()).into_stream());
+    }
 }
 
 #[test]
@@ -151,42 +165,75 @@ fn test_server_cancel_on_dropping() {
     let rx = client.get_feature_async(&Default::default()).unwrap();
     check_cancel(rx.into_stream());
 
-    // Client streaming
-    {
-        // let timer = service.timer.clone();
-        let mut record_route_handler = service.record_route_handler.lock().unwrap();
-        *record_route_handler = Some(Box::new(|stream, sink| {
-            // let sleep = timer.sleep(Duration::from_millis(500));
-            // Start the call, keep the stream and drop the sink.
-            let f = stream
-                .for_each(|_| Ok(()))
-                .join(future::result(Ok(())).map(move |_| {
-                    drop(sink);
-                }))
-                .then(|_| Ok(()));
-            Box::new(f)
-        }));
-    }
-    let (_tx, rx) = client.record_route().unwrap();
-    check_cancel(rx.into_stream());
-
     // Server streaming
     let rx = client.list_features(&Default::default()).unwrap();
     check_cancel(rx);
 
-    // Duplex streaming
-    {
-        let mut route_chat_handler = service.route_chat_handler.lock().unwrap();
-        *route_chat_handler = Some(Box::new(|stream, sink| {
-            // Start the call, keep the stream and drop the sink.
-            let f = stream
+    // Start the call, keep the stream and drop the sink.
+    macro_rules! drop_sink {
+        ($stream:expr, $sink:expr) => {{
+            let f = $stream
                 .for_each(|_| Ok(()))
                 .join(future::result(Ok(())).map(move |_| {
-                    drop(sink);
+                    drop($sink);
                 }))
                 .then(|_| Ok(()));
             Box::new(f)
-        }));
+        }}
+    }
+
+    // Start the call, drop the stream and keep the sink.
+    macro_rules! drop_stream {
+        ($stream:expr, $sink:expr) => {{
+            let mut stream = Some($stream);
+            let f = streams::poll_fn(move || -> Poll<Option<()>, ()> {
+                if stream.is_some() {
+                    let s = stream.as_mut().unwrap();
+                    // start the call.
+                    let _ = s.poll();
+                }
+                // drop the stream.
+                stream.take();
+                Ok(Async::NotReady)
+            })
+            // It never resolves.
+            .for_each(|_| Ok(()))
+                .then(move |_| {
+                    let _sink = $sink;
+                    Ok(())
+                });
+            Box::new(f)
+        }};
+    }
+
+    // Client streaming, drop sink.
+    {
+        let mut record_route_handler = service.record_route_handler.lock().unwrap();
+        *record_route_handler = Some(Box::new(|stream, sink| drop_sink!(stream, sink)));
+    }
+    let (_tx, rx) = client.record_route().unwrap();
+    check_cancel(rx.into_stream());
+
+    // Client streaming, drop stream.
+    {
+        let mut record_route_handler = service.record_route_handler.lock().unwrap();
+        *record_route_handler = Some(Box::new(|stream, sink| drop_stream!(stream, sink)));
+    }
+    let (_tx, rx) = client.record_route().unwrap();
+    check_cancel(rx.into_stream());
+
+    // Duplex streaming, drop sink.
+    {
+        let mut route_chat_handler = service.route_chat_handler.lock().unwrap();
+        *route_chat_handler = Some(Box::new(|stream, sink| drop_sink!(stream, sink)));
+    }
+    let (_tx, rx) = client.route_chat().unwrap();
+    check_cancel(rx);
+
+    // Duplex streaming, drop stream.
+    {
+        let mut route_chat_handler = service.route_chat_handler.lock().unwrap();
+        *route_chat_handler = Some(Box::new(|stream, sink| drop_stream!(stream, sink)));
     }
     let (_tx, rx) = client.route_chat().unwrap();
     check_cancel(rx);

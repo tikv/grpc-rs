@@ -153,6 +153,7 @@ impl Call {
         let recv = ClientCStreamReceiver {
             call: share_call,
             resp_de: method.resp_de(),
+            finished: false,
         };
         Ok((sink, recv))
     }
@@ -268,6 +269,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 pub struct ClientCStreamReceiver<T> {
     call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
+    finished: bool,
 }
 
 impl<T> ClientCStreamReceiver<T> {
@@ -275,6 +277,16 @@ impl<T> ClientCStreamReceiver<T> {
     pub fn cancel(&mut self) {
         let lock = self.call.lock();
         lock.call.cancel()
+    }
+}
+
+impl<T> Drop for ClientCStreamReceiver<T> {
+    /// The corresponding RPC will be canceled if the receiver did not
+    /// finish before dropping.
+    fn drop(&mut self) {
+        if !self.finished {
+            self.cancel();
+        }
     }
 }
 
@@ -288,6 +300,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             try_ready!(call.poll_finish())
         };
         let t = (self.resp_de)(&data.unwrap())?;
+        self.finished = true;
         Ok(Async::Ready(t))
     }
 }
@@ -381,6 +394,7 @@ struct ResponseStreamImpl<H, T> {
     call: H,
     msg_f: Option<BatchFuture>,
     read_done: bool,
+    finished: bool,
     resp_de: DeserializeFn<T>,
 }
 
@@ -390,6 +404,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             call: call,
             msg_f: None,
             read_done: false,
+            finished: false,
             resp_de: resp_de,
         }
     }
@@ -399,17 +414,19 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     }
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
-        let mut finished = false;
-        self.call.call(|c| {
-            if c.finished {
-                finished = true;
-                return Ok(());
-            }
+        {
+            let finished = &mut self.finished;
+            self.call.call(|c| {
+                if c.finished {
+                    *finished = true;
+                    return Ok(());
+                }
 
-            let res = c.poll_finish().map(|_| ());
-            finished = c.finished;
-            res
-        })?;
+                let res = c.poll_finish().map(|_| ());
+                *finished = c.finished;
+                res
+            })?;
+        }
 
         let mut bytes = None;
         loop {
@@ -423,7 +440,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             }
 
             if self.read_done {
-                if finished {
+                if self.finished {
                     return Ok(Async::Ready(None));
                 }
                 return Ok(Async::NotReady);
@@ -437,6 +454,14 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
                 let msg = (self.resp_de)(data)?;
                 return Ok(Async::Ready(Some(msg)));
             }
+        }
+    }
+
+    // Cancel the call if we still have some messages or did not
+    // receive status code.
+    fn on_drop(&mut self) {
+        if !self.read_done || !self.finished {
+            self.cancel();
         }
     }
 }
@@ -492,6 +517,14 @@ impl<Q> ClientDuplexReceiver<Q> {
 
     pub fn cancel(&mut self) {
         self.imp.cancel()
+    }
+}
+
+impl<Q> Drop for ClientDuplexReceiver<Q> {
+    /// The corresponding RPC will be canceled if the receiver did not
+    /// finish before dropping.
+    fn drop(&mut self) {
+        self.imp.on_drop()
     }
 }
 
