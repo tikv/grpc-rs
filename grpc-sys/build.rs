@@ -69,7 +69,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let dst = {
         let mut config = Config::new("grpc");
-        if cfg!(target_os = "macos") {
+        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
         }
         config.build_target(library).uses_cxx11().build()
@@ -83,7 +83,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
         "boringssl/ssl",
         "boringssl/crypto",
     ];
-    if cfg!(target_os = "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {
                 zlib = "zlibstatic";
@@ -156,7 +156,7 @@ fn main() {
 
     cc.file("grpc_wrap.c");
 
-    if cfg!(target_os = "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
     }
