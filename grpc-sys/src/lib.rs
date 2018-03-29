@@ -462,11 +462,10 @@ extern "C" {
     pub fn grpc_alarm_set(
         alarm: *mut GrpcAlarm,
         cq: *mut GrpcCompletionQueue,
-        deadline: GprTimespec,
         tag: *mut c_void,
         reserved: *mut c_void,
     ) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
+    pub fn grpc_alarm_notify(alarm: *mut GrpcAlarm);
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
