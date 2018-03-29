@@ -165,7 +165,7 @@ impl Client {
 
     pub fn timeout_on_sleeping_server(&self) {
         print!("testing timeout_of_sleeping_server ... ");
-        let opt = CallOption::default().timeout(Duration::new(0, 10_000));
+        let opt = CallOption::default().timeout(Duration::from_millis(1));
         let (sender, receiver) = self.client.full_duplex_call_opt(opt).unwrap();
         let mut req = StreamingOutputCallRequest::new();
         req.set_payload(util::new_payload(27182));

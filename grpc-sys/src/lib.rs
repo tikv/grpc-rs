@@ -46,7 +46,7 @@ impl From<Duration> for GprTimespec {
         GprTimespec {
             tv_sec: dur.as_secs() as int64_t,
             tv_nsec: dur.subsec_nanos() as int32_t,
-            clock_type: GprClockType::Timespan,
+            clock_type: GprClockType::Realtime,
         }
     }
 }
