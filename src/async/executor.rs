@@ -58,31 +58,21 @@ impl Drop for Alarm {
 }
 
 /// A handle to a `Spawn`.
-pub struct SpawnHandle {
-    f: Option<Spawn<BoxFuture<(), ()>>>,
+/// Inner future is expected to be polled in the same thread as cq.
+type SpawnHandle = Option<Spawn<BoxFuture<(), ()>>>;
+
+struct NotifyContext {
     cq: CompletionQueue,
-    alarm: Option<Alarm>,
     alarmed: bool,
+    alarm: Option<Alarm>,
 }
 
-impl SpawnHandle {
-    /// Create a SpawnHandle.
-    ///
-    /// Inner future is expected to be polled in the same thread as cq.
-    pub fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnHandle {
-        SpawnHandle {
-            f: Some(s),
-            cq: cq,
-            alarm: None,
-            alarmed: false,
-        }
-    }
-
+impl NotifyContext {
     /// Notify the alarm.
     ///
     /// It only makes sence to call this function from the thread
     /// that cq is not run on.
-    pub fn notify(&mut self, tag: Box<CallTag>) {
+    fn notify(&mut self, tag: Box<CallTag>) {
         self.alarm.take();
         let mut alarm = match Alarm::new(&self.cq, tag) {
             Ok(a) => a,
@@ -105,6 +95,7 @@ impl SpawnHandle {
 /// same thread as inner cq.
 #[derive(Clone)]
 pub struct SpawnNotify {
+    ctx: Arc<SpinLock<NotifyContext>>,
     handle: Arc<SpinLock<SpawnHandle>>,
     worker_id: ThreadId,
 }
@@ -113,7 +104,12 @@ impl SpawnNotify {
     fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnNotify {
         SpawnNotify {
             worker_id: cq.worker_id(),
-            handle: Arc::new(SpinLock::new(SpawnHandle::new(s, cq))),
+            handle: Arc::new(SpinLock::new(Some(s))),
+            ctx: Arc::new(SpinLock::new(NotifyContext {
+                cq: cq,
+                alarmed: false,
+                alarm: None,
+            })),
         }
     }
 
@@ -132,12 +128,12 @@ impl Notify for SpawnNotify {
         if thread::current().id() == self.worker_id {
             poll(Arc::new(self.clone()), false)
         } else {
-            let mut handle = self.handle.lock();
-            if handle.alarmed {
+            let mut ctx = self.ctx.lock();
+            if ctx.alarmed {
                 return;
             }
-            handle.notify(Box::new(CallTag::Spawn(self.clone())));
-            handle.alarmed = true;
+            ctx.notify(Box::new(CallTag::Spawn(self.clone())));
+            ctx.alarmed = true;
         }
     }
 }
@@ -148,17 +144,17 @@ impl Notify for SpawnNotify {
 fn poll(notify: Arc<SpawnNotify>, woken: bool) {
     let mut handle = notify.handle.lock();
     if woken {
-        handle.alarmed = false;
+        notify.ctx.lock().alarmed = false;
     }
-    if handle.f.is_none() {
+    if handle.is_none() {
         // it's resolved, no need to poll again.
         return;
     }
-    match handle.f.as_mut().unwrap().poll_future_notify(&notify, 0) {
+    match handle.as_mut().unwrap().poll_future_notify(&notify, 0) {
         Err(_) | Ok(Async::Ready(_)) => {
             // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
-            handle.f.take();
+            handle.take();
             return;
         }
         _ => {}
