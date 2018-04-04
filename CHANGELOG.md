@@ -1,3 +1,7 @@
+# 0.2.2 - 2018-04-04
+
+- use a different lock for notify to avoid deadlock
+
 # 0.2.1 - 2018-02-23
 
 - support ping configuration
