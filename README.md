@@ -89,3 +89,7 @@ For more information and examples see the
 Performance
 -----------
 See [benchmark](https://github.com/pingcap/grpc-rs/tree/master/benchmark) to find out how to run a benchmark by yourself.
+
+Cross Compile
+-------------
+See [cross_compile](cross_compile.md)
