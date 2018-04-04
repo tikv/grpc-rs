@@ -350,6 +350,7 @@ macro_rules! impl_stream_sink {
             flush_f: Option<BatchFuture>,
             status: RpcStatus,
             flushed: bool,
+            closed: bool,
             ser: SerializeFn<T>,
         }
 
@@ -361,6 +362,7 @@ macro_rules! impl_stream_sink {
                     flush_f: None,
                     status: RpcStatus::ok(),
                     flushed: false,
+                    closed: false,
                     ser: ser,
                 }
             }
@@ -398,7 +400,7 @@ macro_rules! impl_stream_sink {
             /// [`fail`]: #method.fail
             fn drop(&mut self) {
                 // We did not close it explicitly and it was not dropped in the `fail`.
-                if self.flush_f.is_none() && self.call.is_some() {
+                if !self.closed && self.call.is_some() {
                     let mut call = self.call.take().unwrap();
                     call.call(|c| c.call.cancel());
                 }
@@ -444,6 +446,7 @@ macro_rules! impl_stream_sink {
                 }
 
                 try_ready!(self.call.as_mut().unwrap().call(|c| c.poll_finish()));
+                self.closed = true;
                 Ok(Async::Ready(()))
             }
         }
