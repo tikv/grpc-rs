@@ -13,29 +13,12 @@
 
 extern crate cc;
 extern crate cmake;
-extern crate pkg_config;
 
 use std::path::Path;
 use std::{env, fs, io};
-use std::env::VarError;
 
 use cmake::Config;
 use cc::Build;
-use pkg_config::Config as PkgConfig;
-
-const GRPC_VERSION: &'static str = "1.6.1";
-
-fn link_grpc(cc: &mut Build, library: &str) {
-    match PkgConfig::new()
-        .atleast_version(GRPC_VERSION)
-        .probe(library)
-    {
-        Ok(lib) => for inc_path in lib.include_paths {
-            cc.include(inc_path);
-        },
-        Err(e) => panic!("can't find library {} via pkg-config: {:?}", library, e),
-    }
-}
 
 fn prepare_grpc() {
     let mut modules = vec![
@@ -124,17 +107,6 @@ fn build_grpc(cc: &mut Build, library: &str) {
     cc.include("grpc/include");
 }
 
-fn get_env(name: &str) -> Option<String> {
-    println!("cargo:rerun-if-env-changed={}", name);
-    match env::var(name) {
-        Ok(s) => Some(s),
-        Err(VarError::NotPresent) => None,
-        Err(VarError::NotUnicode(s)) => {
-            panic!("unrecognize env var of {}: {:?}", name, s.to_string_lossy());
-        }
-    }
-}
-
 fn main() {
     let mut cc = Build::new();
 
@@ -148,17 +120,15 @@ fn main() {
         "grpc_unsecure"
     };
 
-    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
-        link_grpc(&mut cc, library);
-    } else {
-        build_grpc(&mut cc, library);
-    }
-
-    cc.file("grpc_wrap.c");
+    build_grpc(&mut cc, library);
+    cc.cpp(true).file("grpc_wrap.cc");
 
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
+    }
+    if !cfg!(target_env = "msvc") {
+        cc.flag("-std=c++11");
     }
 
     cc.warnings_into_errors(true).compile("libgrpc_wrap.a");

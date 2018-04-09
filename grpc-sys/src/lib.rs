@@ -16,7 +16,7 @@
 extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -42,11 +42,14 @@ impl GprTimespec {
 }
 
 impl From<Duration> for GprTimespec {
-    fn from(dur: Duration) -> GprTimespec {
+    fn from(mut dur: Duration) -> GprTimespec {
+        dur += SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("earlier than UNIX_EPOCH");
         GprTimespec {
             tv_sec: dur.as_secs() as int64_t,
             tv_nsec: dur.subsec_nanos() as int32_t,
-            clock_type: GprClockType::Timespan,
+            clock_type: GprClockType::Realtime,
         }
     }
 }
@@ -462,11 +465,10 @@ extern "C" {
     pub fn grpc_alarm_set(
         alarm: *mut GrpcAlarm,
         cq: *mut GrpcCompletionQueue,
-        deadline: GprTimespec,
         tag: *mut c_void,
         reserved: *mut c_void,
     ) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
+    pub fn grpc_alarm_notify(alarm: *mut GrpcAlarm);
     pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);

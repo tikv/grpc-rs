@@ -8,6 +8,7 @@ cache:
     - $TRAVIS_BUILD_DIR/target
 before_cache:
   - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
+  - cargo clean -p grpcio-sys
 os:
   - linux
 rust:
@@ -20,19 +21,9 @@ matrix:
   include:
   - os: osx
     rust: stable
-before_script:
-  - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-  - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-  - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew update && brew install autoconf libtool shtool; fi
-  - test -f "$GRPC_HEADER" || (git clone -b v1.7.2 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
-  - export C_INCLUDE_PATH="$HOME/.cache/include"
-  - export LD_LIBRARY_PATH="$HOME/.cache/lib"
-  - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-  - export LIBRARY_PATH="$HOME/.cache/lib"
-  - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 script:
   - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then cargo install -f clippy && cargo clippy; fi
   - export RUSTFLAGS=-Dwarnings
+  - export RUST_BACKTRACE=1
   - cargo build
   - cargo test --all
-  - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all

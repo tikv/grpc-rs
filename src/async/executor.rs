@@ -17,7 +17,7 @@ use std::ptr;
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
-use grpc_sys::{self, GprTimespec, GrpcAlarm};
+use grpc_sys::{self, GrpcAlarm};
 
 use cq::CompletionQueue;
 use error::{Error, Result};
@@ -34,20 +34,17 @@ impl Alarm {
     fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Result<Alarm> {
         let alarm = unsafe {
             let ptr = Box::into_raw(tag);
-            let timeout = GprTimespec::inf_future();
             let cq_ref = cq.borrow()?;
             let alarm = grpc_sys::grpc_alarm_create(ptr::null_mut());
-            grpc_sys::grpc_alarm_set(alarm, cq_ref.as_ptr(), timeout, ptr as _, ptr::null_mut());
+            grpc_sys::grpc_alarm_set(alarm, cq_ref.as_ptr(), ptr as _, ptr::null_mut());
             alarm
         };
         Ok(Alarm { alarm: alarm })
     }
 
-    fn alarm(&mut self) {
-        // hack: because grpc's alarm feels more like a timer,
-        // but what we need here is a notification hook. Hence
-        // use cancel to implement the alarm behaviour.
-        unsafe { grpc_sys::grpc_alarm_cancel(self.alarm) }
+    fn notify(&mut self) {
+        // Notify the completion queue.
+        unsafe { grpc_sys::grpc_alarm_notify(self.alarm) }
     }
 }
 
@@ -83,7 +80,7 @@ impl NotifyContext {
             }
             Err(e) => panic!("failed to create alarm: {:?}", e),
         };
-        alarm.alarm();
+        alarm.notify();
         // We need to keep the alarm until tag is resolved.
         self.alarm = Some(alarm);
     }
@@ -114,8 +111,7 @@ impl SpawnNotify {
     }
 
     pub fn resolve(self, success: bool) {
-        // it should always be canceled for now.
-        assert!(!success);
+        assert!(success);
         poll(Arc::new(self.clone()), true);
     }
 }
