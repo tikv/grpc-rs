@@ -1,16 +1,16 @@
-# cross compile grpc-rs to windows under *nix
+# Cross Compile gRPC-rs(0.2.1) to Windows under *nix
 
-### Fisrt you need to install mingw
+## Fisrt you need to install mingw
 
 ```bash
-# MacOS
+# macOS
 brew install mingw-w64
 
 # CentOS
 yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-static
 ```
 
-### fix cmake
+## Fix CMake
 
 ```
 # modify grpc-rs/grpc-sys/build.rs
@@ -20,7 +20,7 @@ yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-stati
 "CMAKE_CROSSCOMPILING", "true"
 ```
 
-#### all diff in fn build_grpc
+### All diff in `fn build_grpc`
 
 ```rust
     let dst = {
@@ -38,7 +38,7 @@ yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-stati
     };
 ```
 
-#### fix find zlib
+### Fix find zlib
 
 ```rust
     // try these values
@@ -47,7 +47,7 @@ yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-stati
     let mut zlib = "zlibstaticd";
 ```
 
-### fix try_run
+### Fix try_run
 
 ```
 # grpc-rs/grpc-sys/grpc/third_party/benchmark/cmake/CXXFeatureCheck.cmake
@@ -61,7 +61,7 @@ SET( RUN_HAVE_STEADY_CLOCK
      CACHE STRING "Result from TRY_RUN" FORCE)
 ```
 
-### fix WIN32 API
+### Fix WIN32 API
 
 ```
 # grpc-rs/grpc-sys/grpc/CMakeLists.txt
@@ -71,7 +71,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32_WINNT=0x600")
 set(C_CXX_FLAGS "${C_CXX_FLAGS} -D_WIN32_WINNT=0x600")
 ```
 
-### fix boringssl
+### Fix boringssl
 
 Just update third_party/boringssl
 
