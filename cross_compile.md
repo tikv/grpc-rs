@@ -47,7 +47,7 @@ yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-stati
     let mut zlib = "zlibstaticd";
 ```
 
-### Fix try_run
+## Fix try_run
 
 ```
 # grpc-rs/grpc-sys/grpc/third_party/benchmark/cmake/CXXFeatureCheck.cmake
@@ -61,7 +61,7 @@ SET( RUN_HAVE_STEADY_CLOCK
      CACHE STRING "Result from TRY_RUN" FORCE)
 ```
 
-### Fix WIN32 API
+## Fix WIN32 API
 
 ```
 # grpc-rs/grpc-sys/grpc/CMakeLists.txt
@@ -71,7 +71,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32_WINNT=0x600")
 set(C_CXX_FLAGS "${C_CXX_FLAGS} -D_WIN32_WINNT=0x600")
 ```
 
-### Fix boringssl
+## Fix boringssl
 
 Just update third_party/boringssl
 
