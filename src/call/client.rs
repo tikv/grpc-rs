@@ -223,6 +223,7 @@ impl Call {
 /// A receiver for unary request.
 ///
 /// The future is resolved once response is received.
+#[must_use]
 pub struct ClientUnaryReceiver<T> {
     call: Call,
     resp_f: CqFuture<BatchMessage>,
@@ -266,6 +267,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 ///
 /// [`RpcFailure`]: ./enum.Error.html#variant.RpcFailure
 /// [`Cancelled`]: ./enum.RpcStatusCode.html#variant.Cancelled
+#[must_use]
 pub struct ClientCStreamReceiver<T> {
     call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
@@ -306,6 +308,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
 }
 
 /// A sink for client streaming call and duplex streaming call.
+#[must_use]
 pub struct StreamingCallSink<P> {
     call: Arc<SpinLock<ShareCall>>,
     sink_base: SinkBase,
@@ -467,6 +470,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 }
 
 /// A receiver for server streaming call.
+#[must_use]
 pub struct ClientSStreamReceiver<Q> {
     imp: ResponseStreamImpl<ShareCall, Q>,
 }
@@ -504,6 +508,7 @@ impl<Q> Stream for ClientSStreamReceiver<Q> {
 ///
 /// [`RpcFailure`]: ./enum.Error.html#variant.RpcFailure
 /// [`Cancelled`]: ./enum.RpcStatusCode.html#variant.Cancelled
+#[must_use]
 pub struct ClientDuplexReceiver<Q> {
     imp: ResponseStreamImpl<Arc<SpinLock<ShareCall>>, Q>,
 }

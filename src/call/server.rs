@@ -252,6 +252,7 @@ impl<T> Drop for RequestStream<T> {
 // `CallHolder` or `Call` to caller.
 macro_rules! impl_unary_sink {
     ($t:ident, $rt:ident, $holder:ty) => (
+        #[must_use]
         pub struct $rt {
             call: $holder,
             cq_f: Option<BatchFuture>,
@@ -451,6 +452,7 @@ macro_rules! impl_stream_sink {
             }
         }
 
+        #[must_use]
         pub struct $ft {
             call: $holder,
             fail_f: Option<BatchFuture>,
