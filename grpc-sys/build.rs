@@ -23,7 +23,7 @@ use cmake::Config;
 use cc::Build;
 use pkg_config::Config as PkgConfig;
 
-const GRPC_VERSION: &'static str = "1.6.1";
+const GRPC_VERSION: &'static str = "1.8.6";
 
 fn link_grpc(cc: &mut Build, library: &str) {
     match PkgConfig::new()
@@ -154,11 +154,14 @@ fn main() {
         build_grpc(&mut cc, library);
     }
 
-    cc.file("grpc_wrap.c");
+    cc.cpp(true).file("grpc_wrap.cc");
 
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
+    }
+    if !cfg!(target_env = "msvc") {
+        cc.flag("-std=c++11");
     }
 
     cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
