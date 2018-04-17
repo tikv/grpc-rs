@@ -1,6 +1,6 @@
 # Cross Compile gRPC-rs(0.2.1) to Windows under *nix
 
-## Fisrt you need to install mingw
+## First you need to install mingw
 
 ```bash
 # macOS
