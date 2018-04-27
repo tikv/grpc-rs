@@ -434,7 +434,7 @@ extern "C" {
     pub fn grpcwrap_request_call_context_get_call(
         ctx: *const GrpcRequestCallContext,
     ) -> *mut GrpcCall;
-    pub fn grpcwrap_request_call_context_take_call(
+    pub fn grpcwrap_request_call_context_ref_call(
         ctx: *const GrpcRequestCallContext,
     ) -> *mut GrpcCall;
     pub fn grpcwrap_request_call_context_method(
@@ -489,6 +489,8 @@ extern "C" {
     ) -> *const c_char;
     pub fn grpcwrap_metadata_array_shrink_to_fit(array: *mut GrpcMetadataArray);
     pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
+
+    pub fn gpr_free(p: *mut c_void);
 }
 
 #[cfg(feature = "secure")]

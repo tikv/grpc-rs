@@ -13,6 +13,7 @@
 
 use std::{result, slice};
 use std::sync::Arc;
+use std::ffi::CStr;
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
@@ -117,14 +118,11 @@ impl RequestContext {
         self.ctx
     }
 
-    fn take_call(&mut self, cq: CompletionQueue) -> Option<Call> {
+    fn call(&mut self, cq: CompletionQueue) -> Call {
         unsafe {
-            let call = grpc_sys::grpcwrap_request_call_context_take_call(self.ctx);
-            if call.is_null() {
-                return None;
-            }
-
-            Some(Call::from_raw(call, cq))
+            let call = grpc_sys::grpcwrap_request_call_context_ref_call(self.ctx);
+            assert!(!call.is_null());
+            Call::from_raw(call, cq)
         }
     }
 
@@ -154,6 +152,23 @@ impl RequestContext {
             let arr_ptr: *const Metadata = ptr as _;
             &*arr_ptr
         }
+    }
+
+    fn peer(&self) -> String {
+        unsafe {
+            // RequestContext always holds a reference of the call.
+            let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
+            let p = grpc_sys::grpc_call_get_peer(call);
+            let peer = CStr::from_ptr(p).to_str().expect("valid UTF-8 data").to_owned();
+            grpc_sys::gpr_free(p as _);
+            peer
+        }
+    }
+}
+
+impl Drop for RequestContext {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpcwrap_request_call_context_destroy(self.ctx) }
     }
 }
 
@@ -192,13 +207,7 @@ impl UnaryRequestContext {
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
-        self.request.take_call(cq.clone()).unwrap().abort(status)
-    }
-}
-
-impl Drop for RequestContext {
-    fn drop(&mut self) {
-        unsafe { grpc_sys::grpcwrap_request_call_context_destroy(self.ctx) }
+        self.request.call(cq.clone()).abort(status)
     }
 }
 
@@ -470,8 +479,8 @@ impl<'a> RpcContext<'a> {
         }
     }
 
-    pub(crate) fn take_call(&mut self) -> Option<Call> {
-        self.ctx.take_call(self.executor.cq().clone())
+    pub(crate) fn call(&mut self) -> Call {
+        self.ctx.call(self.executor.cq().clone())
     }
 
     pub fn method(&self) -> &[u8] {
@@ -489,6 +498,10 @@ impl<'a> RpcContext<'a> {
     /// Get the initial metadata sent by client.
     pub fn request_headers(&self) -> &Metadata {
         self.ctx.metadata()
+    }
+
+    pub fn peer(&self) -> String {
+        self.ctx.peer()
     }
 
     /// Spawn the future into current grpc poll thread.
@@ -525,7 +538,7 @@ pub fn execute_unary<P, Q, F>(
 ) where
     F: Fn(RpcContext, P, UnarySink<Q>),
 {
-    let mut call = ctx.take_call().unwrap();
+    let mut call = ctx.call();
     let close_f = accept_call!(call);
     let request = match de(payload) {
         Ok(f) => f,
@@ -551,7 +564,7 @@ pub fn execute_client_streaming<P, Q, F>(
 ) where
     F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
 {
-    let mut call = ctx.take_call().unwrap();
+    let mut call = ctx.call();
     let close_f = accept_call!(call);
     let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
@@ -570,7 +583,7 @@ pub fn execute_server_streaming<P, Q, F>(
 ) where
     F: Fn(RpcContext, P, ServerStreamingSink<Q>),
 {
-    let mut call = ctx.take_call().unwrap();
+    let mut call = ctx.call();
     let close_f = accept_call!(call);
 
     let request = match de(payload) {
@@ -598,7 +611,7 @@ pub fn execute_duplex_streaming<P, Q, F>(
 ) where
     F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>),
 {
-    let mut call = ctx.take_call().unwrap();
+    let mut call = ctx.call();
     let close_f = accept_call!(call);
     let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
@@ -609,7 +622,7 @@ pub fn execute_duplex_streaming<P, Q, F>(
 
 // A helper function used to handle all undefined rpc calls.
 pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
-    let mut call = ctx.take_call(cq).unwrap();
+    let mut call = ctx.call(cq);
     accept_call!(call);
     call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
 }
