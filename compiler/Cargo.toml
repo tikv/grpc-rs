@@ -11,7 +11,8 @@ description = "gRPC compiler for grpcio"
 categories = ["network-programming"]
 
 [dependencies]
-protobuf = "1.2"
+protobuf = "1.6"
+protobuf-codegen = "1.6"
 
 [[bin]]
 name = "grpc_rust_plugin"
