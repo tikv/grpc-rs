@@ -12,6 +12,7 @@
 // limitations under the License.
 
 extern crate protobuf;
+extern crate protobuf_codegen;
 
 pub mod codegen;
 mod util;
