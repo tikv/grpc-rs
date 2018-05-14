@@ -12,14 +12,14 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::{cmp, ptr, usize};
+use std::{cmp, ptr, i32};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::sync::Arc;
 use std::time::Duration;
 
-use libc::{c_char, c_int};
+use libc::{self, c_char, c_int};
 use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 
 use CallOption;
@@ -73,13 +73,13 @@ fn format_user_agent_string(agent: &str) -> CString {
     CString::new(val).unwrap()
 }
 
-fn dur_to_ms(dur: Duration) -> usize {
+fn dur_to_ms(dur: Duration) -> i32 {
     let millis = dur.as_secs() * 1000 + dur.subsec_nanos() as u64 / 1_000_000;
-    cmp::min(usize::MAX as u64, millis) as usize
+    cmp::min(i32::MAX as u64, millis) as i32
 }
 
 enum Options {
-    Integer(usize),
+    Integer(i32),
     String(CString),
 }
 
@@ -118,7 +118,7 @@ impl ChannelBuilder {
     }
 
     /// Maximum number of concurrent incoming streams to allow on a http2 connection.
-    pub fn max_concurrent_stream(mut self, num: usize) -> ChannelBuilder {
+    pub fn max_concurrent_stream(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_CONCURRENT_STREAMS),
             Options::Integer(num),
@@ -127,7 +127,7 @@ impl ChannelBuilder {
     }
 
     /// Maximum message length that the channel can receive. usize::MAX means unlimited.
-    pub fn max_receive_message_len(mut self, len: usize) -> ChannelBuilder {
+    pub fn max_receive_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_RECEIVE_MESSAGE_LENGTH),
             Options::Integer(len),
@@ -136,7 +136,7 @@ impl ChannelBuilder {
     }
 
     /// Maximum message length that the channel can send. -1 means unlimited.
-    pub fn max_send_message_len(mut self, len: usize) -> ChannelBuilder {
+    pub fn max_send_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_SEND_MESSAGE_LENGTH),
             Options::Integer(len),
@@ -163,7 +163,7 @@ impl ChannelBuilder {
     }
 
     /// Initial sequence number for http2 transports.
-    pub fn https_initial_seq_number(mut self, number: usize) -> ChannelBuilder {
+    pub fn https_initial_seq_number(mut self, number: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER),
             Options::Integer(number),
@@ -173,7 +173,7 @@ impl ChannelBuilder {
 
     /// Amount to read ahead on individual streams. Defaults to 64kb, larger
     /// values can help throughput on high-latency connections.
-    pub fn stream_initial_window_size(mut self, window_size: usize) -> ChannelBuilder {
+    pub fn stream_initial_window_size(mut self, window_size: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_STREAM_INITIAL_WINDOW_SIZE),
             Options::Integer(window_size),
@@ -200,7 +200,7 @@ impl ChannelBuilder {
     }
 
     /// How large a slice to try and read from the wire each time.
-    pub fn tcp_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
+    pub fn tcp_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_TCP_READ_CHUNK_SIZE),
             Options::Integer(bytes),
@@ -209,7 +209,7 @@ impl ChannelBuilder {
     }
 
     /// How minimal large a slice to try and read from the wire each time.
-    pub fn tcp_min_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
+    pub fn tcp_min_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_TCP_MIN_READ_CHUNK_SIZE),
             Options::Integer(bytes),
@@ -218,7 +218,7 @@ impl ChannelBuilder {
     }
 
     /// How maximal large a slice to try and read from the wire each time.
-    pub fn tcp_max_read_chunk_size(mut self, bytes: usize) -> ChannelBuilder {
+    pub fn tcp_max_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_TCP_MAX_READ_CHUNK_SIZE),
             Options::Integer(bytes),
@@ -228,7 +228,7 @@ impl ChannelBuilder {
 
     /// How much data are we willing to queue up per stream if
     /// write_buffer_hint is set. This is an upper bound.
-    pub fn http2_write_buffer_size(mut self, size: usize) -> ChannelBuilder {
+    pub fn http2_write_buffer_size(mut self, size: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_WRITE_BUFFER_SIZE),
             Options::Integer(size),
@@ -240,7 +240,7 @@ impl ChannelBuilder {
     /// Min 16384, max 16777215.
     /// Larger values give lower CPU usage for large messages, but more head of line
     /// blocking for small messages.
-    pub fn http2_max_frame_size(mut self, size: usize) -> ChannelBuilder {
+    pub fn http2_max_frame_size(mut self, size: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_MAX_FRAME_SIZE),
             Options::Integer(size),
@@ -250,9 +250,10 @@ impl ChannelBuilder {
 
     /// Set BDP probing.
     pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
-        let enable_int = Options::Integer(if enable { 1 } else { 0 });
-        self.options
-            .insert(Cow::Borrowed(OPT_HTTP2_BDP_PROBE), enable_int);
+        self.options.insert(
+            Cow::Borrowed(OPT_HTTP2_BDP_PROBE),
+            Options::Integer(enable as i32),
+        );
         self
     }
 
@@ -285,7 +286,7 @@ impl ChannelBuilder {
     /// How many pings can we send before needing to send a data frame or header
     /// frame? (0 indicates that an infinite number of pings can be sent without
     /// sending a data frame or header frame)
-    pub fn http2_max_pings_without_data(mut self, num: usize) -> ChannelBuilder {
+    pub fn http2_max_pings_without_data(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_MAX_PINGS_WITHOUT_DATA),
             Options::Integer(num),
@@ -296,7 +297,7 @@ impl ChannelBuilder {
     /// How many misbehaving pings the server can bear before sending goaway and
     /// closing the transport? (0 indicates that the server can bear an infinite
     /// number of misbehaving pings)
-    pub fn http2_max_ping_strikes(mut self, num: usize) -> ChannelBuilder {
+    pub fn http2_max_ping_strikes(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_MAX_PING_STRIKES),
             Options::Integer(num),
@@ -308,7 +309,7 @@ impl ChannelBuilder {
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_DEFALUT_COMPRESSION_ALGORITHM),
-            Options::Integer(algo as usize),
+            Options::Integer(algo as i32),
         );
         self
     }
@@ -317,7 +318,7 @@ impl ChannelBuilder {
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_DEFAULT_COMPRESSION_LEVEL),
-            Options::Integer(level as usize),
+            Options::Integer(level as i32),
         );
         self
     }
@@ -325,10 +326,9 @@ impl ChannelBuilder {
     /// After a duration of this time the client/server pings its peer to see
     /// if the transport is still alive.
     pub fn keepalive_time(mut self, timeout: Duration) -> ChannelBuilder {
-        let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
         self.options.insert(
             Cow::Borrowed(OPT_KEEPALIVE_TIME_MS),
-            Options::Integer(timeout_ms as usize),
+            Options::Integer(dur_to_ms(timeout)),
         );
         self
     }
@@ -336,10 +336,9 @@ impl ChannelBuilder {
     /// After waiting for a duration of this time, if the keepalive ping sender does
     /// not receive the ping ack, it will close the transport.
     pub fn keepalive_timeout(mut self, timeout: Duration) -> ChannelBuilder {
-        let timeout_ms = timeout.as_secs() * 1000 + timeout.subsec_nanos() as u64 / 1_000_000;
         self.options.insert(
             Cow::Borrowed(OPT_KEEPALIVE_TIMEOUT_MS),
-            Options::Integer(timeout_ms as usize),
+            Options::Integer(dur_to_ms(timeout)),
         );
         self
     }
@@ -348,7 +347,7 @@ impl ChannelBuilder {
     pub fn keepalive_permit_without_calls(mut self, allow: bool) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS),
-            Options::Integer(allow as usize),
+            Options::Integer(allow as i32),
         );
         self
     }
@@ -373,9 +372,9 @@ impl ChannelBuilder {
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
-    pub fn raw_cfg_int(mut self, key: CString, val: usize) -> ChannelBuilder {
+    pub fn raw_cfg_int(mut self, key: CString, val: i32) -> ChannelBuilder {
         self.options
-            .insert(Cow::Owned(key.into_bytes()), Options::Integer(val));
+            .insert(Cow::Owned(key.into_bytes_with_nul()), Options::Integer(val));
         self
     }
 
@@ -385,7 +384,7 @@ impl ChannelBuilder {
     #[doc(hidden)]
     pub fn raw_cfg_string(mut self, key: CString, val: CString) -> ChannelBuilder {
         self.options
-            .insert(Cow::Owned(key.into_bytes()), Options::String(val));
+            .insert(Cow::Owned(key.into_bytes_with_nul()), Options::String(val));
         self
     }
 
@@ -396,6 +395,14 @@ impl ChannelBuilder {
             let key = k.as_ptr() as *const c_char;
             match *v {
                 Options::Integer(val) => unsafe {
+                    // On most morden compiler and architect, c_int is the same as i32,
+                    // panic directly to simplify signature.
+                    assert!(
+                        val <= i32::from(libc::INT_MAX) && val >= i32::from(libc::INT_MIN),
+                        "{} is out of range for {:?}",
+                        val,
+                        CStr::from_bytes_with_nul(k).unwrap()
+                    );
                     grpc_sys::grpcwrap_channel_args_set_integer(args, i, key, val as c_int)
                 },
                 Options::String(ref val) => unsafe {
