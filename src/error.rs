@@ -16,7 +16,6 @@ use std::fmt::{self, Display, Formatter};
 
 use grpc_sys::GrpcCallStatus;
 #[cfg(feature = "protobuf-codec")]
-#[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
 
 use call::RpcStatus;
