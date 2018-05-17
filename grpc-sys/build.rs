@@ -90,6 +90,9 @@ fn build_grpc(cc: &mut Build, library: &str) {
         config.define("gRPC_BUILD_CSHARP_EXT", "false");
         // We don't need to build codegen target.
         config.define("gRPC_BUILD_CODEGEN", "false");
+        if cfg!(feature = "openssl") {
+            config.define("gRPC_SSL_PROVIDER", "package");
+        }
         config.build_target(library).uses_cxx11().build()
     };
 
