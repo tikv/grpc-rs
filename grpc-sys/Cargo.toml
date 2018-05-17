@@ -36,6 +36,7 @@ exclude = [
 
 [dependencies]
 libc = "0.2"
+openssl = { version = "0.10", optional = true }
 
 [features]
 default = []

@@ -15,6 +15,9 @@
 
 extern crate libc;
 
+#[cfg(feature = "openssl")]
+extern crate openssl;
+
 use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
 use std::time::Duration;
 

@@ -72,6 +72,9 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
         }
+        if cfg!(feature = "openssl") {
+            config.define("gRPC_SSL_PROVIDER", "package");
+        }
         config.build_target(library).uses_cxx11().build()
     };
 
@@ -116,7 +119,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static={}", library);
 
-    if cfg!(feature = "secure") {
+    if cfg!(feature = "secure") && !cfg!(feature = "openssl") {
         println!("cargo:rustc-link-lib=static=ssl");
         println!("cargo:rustc-link-lib=static=crypto");
     }
