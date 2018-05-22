@@ -28,7 +28,7 @@ members = ["proto", "benchmark", "compiler", "interop"]
 default = ["protobuf-codec"]
 protobuf-codec = ["protobuf"]
 secure = ["grpcio-sys/secure"]
-openssl = ["grpcio-sys/openssl"]
+openssl = ["grpcio-sys/openssl", "secure"]
 
 [[example]]
 name = "route_guide_client"
