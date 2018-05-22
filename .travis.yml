@@ -1,5 +1,5 @@
 dist: trusty
-sudo: false
+sudo: true
 language: rust
 cache:
   directories:
@@ -36,5 +36,6 @@ script:
   - cargo build
   - cargo test --all
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
-  - apt-get update && apt-get -y install libssl-dev
+  - sudo apt-get -qq update
+  - sudo apt-get -y install libssl-dev
   - cargo test --features "openssl" --all
