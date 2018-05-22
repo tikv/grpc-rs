@@ -36,4 +36,5 @@ script:
   - cargo build
   - cargo test --all
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
-  - cargo test --features "secure openssl" --all
+  - apt-get update && apt-get -y install libssl-dev
+  - cargo test --features "openssl" --all
