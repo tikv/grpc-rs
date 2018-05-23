@@ -159,7 +159,10 @@ impl RequestContext {
             // RequestContext always holds a reference of the call.
             let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
             let p = grpc_sys::grpc_call_get_peer(call);
-            let peer = CStr::from_ptr(p).to_str().expect("valid UTF-8 data").to_owned();
+            let peer = CStr::from_ptr(p)
+                .to_str()
+                .expect("valid UTF-8 data")
+                .to_owned();
             grpc_sys::gpr_free(p as _);
             peer
         }
