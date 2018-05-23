@@ -395,7 +395,7 @@ impl ChannelBuilder {
             let key = k.as_ptr() as *const c_char;
             match *v {
                 Options::Integer(val) => unsafe {
-                    // On most morden compiler and architect, c_int is the same as i32,
+                    // On most modern compiler and architect, c_int is the same as i32,
                     // panic directly to simplify signature.
                     assert!(
                         val <= i32::from(libc::INT_MAX) && val >= i32::from(libc::INT_MIN),
