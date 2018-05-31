@@ -73,9 +73,8 @@ $ protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plu
 Programmatic generation can be used to generate Rust modules from proto files
 via your `build.rs` by using [protoc-grpcio](https://crates.io/crates/protoc-grpcio).
 
-For more information and examples see the
+For more information and examples see
 [README](https://github.com/mtp401/protoc-grpcio/blob/master/README.md).
-
 
 To include this project as a dependency:
 
@@ -86,7 +85,7 @@ grpcio = "0.2"
 
 ### Feature `secure`
 
-`secure` feature enables support for TLS encryption and some authentication machenism. In case you don't need it like working in intranet, you can also disable it:
+`secure` feature enables support for TLS encryption and some authentication mechanism. When you do not need it, for example when working in intranet, you can disable it using the following configuration:
 ```
 [dependencies]
 grpcio = { version = "0.2", default-features = false, features = ["protobuf-codec"] }
