@@ -85,7 +85,9 @@ grpcio = "0.2"
 
 ### Feature `secure`
 
-`secure` feature enables support for TLS encryption and some authentication mechanism. When you do not need it, for example when working in intranet, you can disable it using the following configuration:
+`secure` feature enables support for TLS encryption and some authentication
+mechanism. When you do not need it, for example when working in intranet,
+you can disable it by using the following configuration:
 ```
 [dependencies]
 grpcio = { version = "0.2", default-features = false, features = ["protobuf-codec"] }
