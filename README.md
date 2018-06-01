@@ -80,7 +80,7 @@ To include this project as a dependency:
 
 ```
 [dependencies]
-grpcio = "0.2"
+grpcio = "0.3"
 ```
 
 ### Feature `secure`
@@ -90,7 +90,7 @@ mechanism. When you do not need it, for example when working in intranet,
 you can disable it by using the following configuration:
 ```
 [dependencies]
-grpcio = { version = "0.2", default-features = false, features = ["protobuf-codec"] }
+grpcio = { version = "0.3", default-features = false, features = ["protobuf-codec"] }
 ```
 
 ## Performance
