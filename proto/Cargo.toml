@@ -14,7 +14,7 @@ build = "build.rs"
 [dependencies]
 protobuf = "~2.0"
 futures = "0.1"
-grpcio = { path = "..", version = "0.2.2", features = ["secure"] }
+grpcio = { path = "..", version = "0.2.2" }
 
 [build-dependencies]
 protobuf = "~2.0"
