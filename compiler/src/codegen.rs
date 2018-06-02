@@ -36,7 +36,7 @@ use std::collections::HashMap;
 
 use protobuf;
 use protobuf::compiler_plugin;
-use protobuf::code_writer::CodeWriter;
+use protobuf_codegen::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
 

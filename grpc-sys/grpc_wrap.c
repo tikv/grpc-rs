@@ -355,9 +355,9 @@ grpcwrap_batch_context_recv_status_on_client_trailing_metadata(
 }
 
 GPR_EXPORT grpc_call *GPR_CALLTYPE
-grpcwrap_request_call_context_take_call(grpcwrap_request_call_context *ctx) {
+grpcwrap_request_call_context_ref_call(grpcwrap_request_call_context *ctx) {
   grpc_call *call = ctx->call;
-  ctx->call = NULL;
+  grpc_call_ref(call);
   return call;
 }
 

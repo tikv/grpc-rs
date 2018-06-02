@@ -7,8 +7,8 @@
 [![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
 [![Build status](https://ci.appveyor.com/api/projects/status/1cofa3nih5fm2kb0/branch/master?svg=true)](https://ci.appveyor.com/project/busyjay/grpc-rs/branch/master)
 
-Status
-------
+## Status
+
 This project is still under development. The following features with the check marks are supported:
 
 - [x] Basic asynchronous unary/steaming call 
@@ -23,12 +23,11 @@ This project is still under development. The following features with the check m
 - [ ] Authentication
 - [ ] Load balance
 
-Prerequisites
--------------
+## Prerequisites
 
 - CMake >= 3.8.0
 - Rust >= 1.19.0
-- If you want to enable secure feature, Go (>=1.7) is required.
+- If you want to enable [secure feature](#feature-secure), Go (>=1.7) is required.
 
 For Linux and MacOS, you also need to install gcc (or clang) too.
 
@@ -38,25 +37,22 @@ For Windows, you also need to install following software:
 - yasm
 - Visual Studio 2015+
 
-Build
------
+## Build
 
 ```
 $ cargo build
 ```
 
-Usage
------
+## Usage
 
 To generate the sources from proto files:
 
-Option 1 - Manual Generation
-----------------------------
+### Option 1 - Manual Generation
 
 1. Install the protobuf compiler:
 
 ```
-$ cargo install protobuf
+$ cargo install protobuf-codegen
 ```
 
 2. Install the gRPC compiler:
@@ -71,22 +67,32 @@ $ cargo install grpcio-compiler
 $ protoc --rust_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_rust_plugin` example.proto
 ```
 
-To include this project as a dependency:
 
-```
-[dependencies]
-grpcio = "0.2"
-```
-
-Option 2 - Programmatic Generation
-----------------------------------
+### Option 2 - Programmatic Generation
 
 Programmatic generation can be used to generate Rust modules from proto files
 via your `build.rs` by using [protoc-grpcio](https://crates.io/crates/protoc-grpcio).
 
-For more information and examples see the
+For more information and examples see
 [README](https://github.com/mtp401/protoc-grpcio/blob/master/README.md).
 
-Performance
------------
+To include this project as a dependency:
+
+```
+[dependencies]
+grpcio = "0.3"
+```
+
+### Feature `secure`
+
+`secure` feature enables support for TLS encryption and some authentication
+mechanism. When you do not need it, for example when working in intranet,
+you can disable it by using the following configuration:
+```
+[dependencies]
+grpcio = { version = "0.3", default-features = false, features = ["protobuf-codec"] }
+```
+
+## Performance
+
 See [benchmark](https://github.com/pingcap/grpc-rs/tree/master/benchmark) to find out how to run a benchmark by yourself.

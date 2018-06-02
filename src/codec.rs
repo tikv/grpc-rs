@@ -33,7 +33,7 @@ pub struct Marshaller<T> {
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
-    use protobuf::{self, Message, MessageStatic};
+    use protobuf::{self, Message};
 
     use error::Result;
 
@@ -43,7 +43,7 @@ pub mod pb_codec {
     }
 
     #[inline]
-    pub fn de<T: MessageStatic>(buf: &[u8]) -> Result<T> {
+    pub fn de<T: Message>(buf: &[u8]) -> Result<T> {
         protobuf::parse_from_bytes(buf).map_err(From::from)
     }
 }
