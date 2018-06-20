@@ -75,6 +75,9 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if cfg!(feature = "openssl") {
             config.define("gRPC_SSL_PROVIDER", "package");
         }
+        if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
+            config.define("CMAKE_CXX_COMPILER", "g++");
+        }
         config.build_target(library).uses_cxx11().build()
     };
 
