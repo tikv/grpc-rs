@@ -507,6 +507,8 @@ impl Drop for ChannelInner {
 }
 
 /// The Channel struct allows creation of Call objects.
+///
+/// Typically created by a [`ChannelBuilder`](struct.ChannelBuilder.html).
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
