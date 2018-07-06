@@ -26,15 +26,15 @@ use pkg_config::Config as PkgConfig;
 const GRPC_VERSION: &'static str = "1.10.0";
 
 fn link_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
-    for lib in &[library, library_cpp] {
+    for l in &[library, library_cpp] {
         match PkgConfig::new()
             .atleast_version(GRPC_VERSION)
-            .probe(lib)
+            .probe(l)
         {
             Ok(lib) => for inc_path in lib.include_paths {
                 cc.include(inc_path);
             },
-            Err(e) => panic!("can't find library {} via pkg-config: {:?}", lib, e),
+            Err(e) => panic!("can't find library {} via pkg-config: {:?}", l, e),
         }
     }
 }
@@ -168,13 +168,13 @@ fn main() {
     }
 
     cc.cpp(true).file("grpc_wrap.cc");
+    if !cfg!(target_env = "msvc") {
+        cc.flag("-std=c++11");
+    }
 
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
-    }
-    if !cfg!(target_env = "msvc") {
-        cc.flag("-std=c++11");
     }
 
     cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
