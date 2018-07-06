@@ -69,6 +69,12 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let dst = {
         let mut config = Config::new("grpc");
+        if !cfg!(feature = "secure") {
+            // boringssl's configuration is still included, but targets
+            // will never be built, hence specify a fake go to get rid of
+            // the unnecessary dependency.
+            config.define("GO_EXECUTABLE", "fake-go-nonexist");
+        }
         if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
         }
