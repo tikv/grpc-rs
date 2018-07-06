@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::thread::ThreadId;
 
-use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
+use grpc_sys::{self, GprClockType, GrpcCompletionQueue, GrpcCompletionQueueShadow};
 
 use error::{Error, Result};
 
@@ -26,6 +26,8 @@ pub use grpc_sys::GrpcEvent as Event;
 /// `CompletionQueueHandle` enable notification of the completion of asynchronous actions.
 pub struct CompletionQueueHandle {
     cq: *mut GrpcCompletionQueue,
+    // A shadow copy of `GrpcCompletionQueue`.
+    cq_shadow: *mut GrpcCompletionQueueShadow,
     // When `ref_cnt` < 0, a shutdown is pending, completion queue should not
     // accept requests anymore; when `ref_cnt` == 0, completion queue should
     // be shutdown; When `ref_cnt` > 0, completion queue can accept requests
@@ -38,9 +40,14 @@ unsafe impl Send for CompletionQueueHandle {}
 
 impl CompletionQueueHandle {
     pub fn new() -> CompletionQueueHandle {
-        CompletionQueueHandle {
-            cq: unsafe { grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut()) },
-            ref_cnt: AtomicIsize::new(1),
+        unsafe {
+            let cq = grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut());
+            let cq_shadow = grpc_sys::grpcwrap_completion_queue_shadow(cq);
+            CompletionQueueHandle {
+                cq,
+                cq_shadow,
+                ref_cnt: AtomicIsize::new(1),
+            }
         }
     }
 
@@ -110,6 +117,7 @@ impl CompletionQueueHandle {
 impl Drop for CompletionQueueHandle {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_completion_queue_destroy(self.cq) }
+        // TOOD: free cq_shadow.
     }
 }
 
@@ -120,6 +128,10 @@ pub struct CompletionQueueRef<'a> {
 impl<'a> CompletionQueueRef<'a> {
     pub fn as_ptr(&self) -> *mut GrpcCompletionQueue {
         self.queue.handle.cq
+    }
+
+    pub fn as_shadow_ptr(&self) -> *mut GrpcCompletionQueueShadow {
+        self.queue.handle.cq_shadow
     }
 }
 

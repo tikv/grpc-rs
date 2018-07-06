@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcwrapTag};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
@@ -155,11 +155,11 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
-    let tag_box = Box::new(tag);
+fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut GrpcwrapTag) {
+    let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
     (
-        tag_box.batch_ctx().unwrap().as_ptr(),
-        Box::into_raw(tag_box) as _,
+        batch_ctx,
+        tag.into_raw()
     )
 }
 

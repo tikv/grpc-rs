@@ -372,8 +372,7 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
     let server_ptr = inner.server;
     let prom = CallTag::request(inner);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
-    let prom_box = Box::new(prom);
-    let tag = Box::into_raw(prom_box);
+    let tag = prom.into_raw();
     let code = unsafe {
         grpc_sys::grpcwrap_server_request_call(
             server_ptr,
@@ -415,8 +414,7 @@ impl Server {
     /// Shutdown the server asynchronously.
     pub fn shutdown(&mut self) -> ShutdownFuture {
         let (cq_f, prom) = CallTag::shutdown_pair();
-        let prom_box = Box::new(prom);
-        let tag = Box::into_raw(prom_box);
+        let tag = prom.into_raw();
         unsafe {
             // Since env still exists, no way can cq been shutdown.
             let cq_ref = self.inner.env.completion_queues()[0].borrow().unwrap();

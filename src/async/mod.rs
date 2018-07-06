@@ -31,6 +31,8 @@ use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryReq
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::Inner as ServerInner;
 
+use grpc_sys::{self, GrpcwrapTag};
+
 pub use self::executor::Executor;
 pub use self::promise::BatchType;
 pub use self::lock::SpinLock;
@@ -191,6 +193,32 @@ impl CallTag {
             CallTag::Shutdown(prom) => prom.resolve(success),
             CallTag::Spawn(notify) => notify.resolve(success),
         }
+    }
+
+    /// Consumes the `CallTag`, returning the wrapped raw pointer.
+    pub fn into_raw(self) -> *mut GrpcwrapTag {
+        if let CallTag::Spawn(_) = self {
+            panic!("CallTag::Spawn can not into raw pointer")
+        }
+        let tag_box = Box::new(self);
+        let tag_ptr = Box::into_raw(tag_box);
+        unsafe {
+            grpc_sys::grpcwrap_tag_wrap(tag_ptr as _)
+        }
+    }
+
+    /// Constructs a `CallTag` from a raw pointer.
+    pub unsafe fn from_raw(tag_ptr: *mut GrpcwrapTag) -> Box<CallTag> {
+        let ptr = grpc_sys::grpcwrap_tag_unwrap(tag_ptr as _);
+        let tag_box = Box::from_raw(ptr as _);
+        match *tag_box {
+            // Spawn is notified from Alarm, Alarm manages the `tag_ptr` lifetime.
+            CallTag::Spawn(_) => (),
+            _ => {
+                grpc_sys::grpcwrap_tag_destroy(tag_ptr as _);
+            }
+        }
+        tag_box
     }
 }
 

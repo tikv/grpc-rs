@@ -205,6 +205,8 @@ pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
 pub enum GrpcAlarm {}
+pub enum GrpcCompletionQueueShadow {}
+pub enum GrpcwrapTag {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -458,16 +460,22 @@ extern "C" {
         tag: *mut c_void,
     ) -> GrpcCallStatus;
 
-    pub fn grpc_alarm_create(reserved: *mut c_void) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_set(
-        alarm: *mut GrpcAlarm,
+    pub fn grpcwrap_completion_queue_shadow(
         cq: *mut GrpcCompletionQueue,
-        deadline: GprTimespec,
+    ) -> *mut GrpcCompletionQueueShadow;
+
+    pub fn grpcwrap_alarm_create() -> *mut GrpcAlarm;
+    pub fn grpcwrap_alarm_set(
+        alarm: *mut GrpcAlarm,
+        cq: *mut GrpcCompletionQueueShadow,
         tag: *mut c_void,
-        reserved: *mut c_void,
     ) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
-    pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
+    pub fn grpcwrap_alarm_cancel(alarm: *mut GrpcAlarm);
+    pub fn grpcwrap_alarm_destroy(alarm: *mut GrpcAlarm);
+
+    pub fn grpcwrap_tag_wrap(tag: *mut c_void) -> *mut GrpcwrapTag;
+    pub fn grpcwrap_tag_unwrap(tag_wrappper: *mut c_void) -> *mut c_void;
+    pub fn grpcwrap_tag_destroy(tag_wrappper: *mut GrpcwrapTag);
 
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
     pub fn grpcwrap_metadata_array_add(

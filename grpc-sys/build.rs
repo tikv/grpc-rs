@@ -23,17 +23,19 @@ use cmake::Config;
 use cc::Build;
 use pkg_config::Config as PkgConfig;
 
-const GRPC_VERSION: &'static str = "1.6.1";
+const GRPC_VERSION: &'static str = "1.10.0";
 
-fn link_grpc(cc: &mut Build, library: &str) {
-    match PkgConfig::new()
-        .atleast_version(GRPC_VERSION)
-        .probe(library)
-    {
-        Ok(lib) => for inc_path in lib.include_paths {
-            cc.include(inc_path);
-        },
-        Err(e) => panic!("can't find library {} via pkg-config: {:?}", library, e),
+fn link_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
+    for lib in &[library, library_cpp] {
+        match PkgConfig::new()
+            .atleast_version(GRPC_VERSION)
+            .probe(lib)
+        {
+            Ok(lib) => for inc_path in lib.include_paths {
+                cc.include(inc_path);
+            },
+            Err(e) => panic!("can't find library {} via pkg-config: {:?}", lib, e),
+        }
     }
 }
 
@@ -64,7 +66,7 @@ fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
     Ok(entries.next().is_none())
 }
 
-fn build_grpc(cc: &mut Build, library: &str) {
+fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
     prepare_grpc();
 
     let dst = {
@@ -81,7 +83,8 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
-        config.build_target(library).uses_cxx11().build()
+        // Target grpc++ also builds grpc.
+        config.build_target(library_cpp).uses_cxx11().build()
     };
 
     let mut zlib = "z";
@@ -124,6 +127,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static={}", library);
+    println!("cargo:rustc-link-lib=static={}", library_cpp);
 
     if cfg!(feature = "secure") {
         println!("cargo:rustc-link-lib=static=ssl");
@@ -150,24 +154,27 @@ fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.c");
     println!("cargo:rerun-if-changed=grpc");
 
-    let library = if cfg!(feature = "secure") {
+    let (library_c, library_cpp) = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
-        "grpc"
+        ("grpc", "grpc++")
     } else {
-        "grpc_unsecure"
+        ("grpc_unsecure", "grpc++_unsecure")
     };
 
     if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
-        link_grpc(&mut cc, library);
+        link_grpc(&mut cc, library_c, library_cpp);
     } else {
-        build_grpc(&mut cc, library);
+        build_grpc(&mut cc, library_c, library_cpp);
     }
 
-    cc.file("grpc_wrap.c");
+    cc.cpp(true).file("grpc_wrap.cc");
 
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
+    }
+    if !cfg!(target_env = "msvc") {
+        cc.flag("-std=c++11");
     }
 
     cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
