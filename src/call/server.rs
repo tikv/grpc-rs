@@ -251,9 +251,10 @@ impl<T> Stream for RequestStream<T> {
     }
 }
 
-// A helper macro used to implement server side unary sink.
-// Not using generic here because we don't need to expose
-// `CallHolder` or `Call` to caller.
+/// A helper macro used to implement server side unary sink.
+/// Not using generic here because we don't need to expose
+/// `CallHolder` or `Call` to caller.
+// TODO: Use type alias to be friendly for documentations.
 macro_rules! impl_unary_sink {
     ($t:ident, $rt:ident, $holder:ty) => (
         pub struct $rt {
@@ -507,7 +508,7 @@ impl<'a> RpcContext<'a> {
         self.ctx.peer()
     }
 
-    /// Spawn the future into current grpc poll thread.
+    /// Spawn the future into current gRPC poll thread.
     ///
     /// This can reduce a lot of context switching, but please make
     /// sure there is no heavy work in the future.

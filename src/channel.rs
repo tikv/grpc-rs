@@ -83,7 +83,7 @@ enum Options {
     String(CString),
 }
 
-/// Optimization target for a channel.
+/// The optimization target for a [`Channel`].
 pub enum OptTarget {
     /// Minimize latency at the cost of throughput.
     Latency,
@@ -93,13 +93,14 @@ pub enum OptTarget {
     Throughput,
 }
 
-/// Channel configuration object.
+/// [`Channel`] factory in order to configure the properties.
 pub struct ChannelBuilder {
     env: Arc<Environment>,
     options: HashMap<Cow<'static, [u8]>, Options>,
 }
 
 impl ChannelBuilder {
+    /// Initialize a new [`ChannelBuilder`].
     pub fn new(env: Arc<Environment>) -> ChannelBuilder {
         ChannelBuilder {
             env: env,
@@ -107,7 +108,7 @@ impl ChannelBuilder {
         }
     }
 
-    /// Default authority to pass if none specified on call construction.
+    /// Set default authority to pass if none specified on call construction.
     pub fn default_authority<S: Into<Vec<u8>>>(mut self, authority: S) -> ChannelBuilder {
         let authority = CString::new(authority).unwrap();
         self.options.insert(
@@ -117,7 +118,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Maximum number of concurrent incoming streams to allow on a http2 connection.
+    /// Set maximum number of concurrent incoming streams to allow on a HTTP/2 connection.
     pub fn max_concurrent_stream(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_CONCURRENT_STREAMS),
@@ -126,7 +127,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Maximum message length that the channel can receive. usize::MAX means unlimited.
+    /// Set maximum message length that the channel can receive. `usize::MAX` means unlimited.
     pub fn max_receive_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_RECEIVE_MESSAGE_LENGTH),
@@ -135,7 +136,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Maximum message length that the channel can send. -1 means unlimited.
+    /// Set maximum message length that the channel can send. `-1` means unlimited.
     pub fn max_send_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_SEND_MESSAGE_LENGTH),
@@ -144,7 +145,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// The maximum time between subsequent connection attempts.
+    /// Set maximum time between subsequent connection attempts.
     pub fn max_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_MAX_RECONNECT_BACKOFF_MS),
@@ -153,7 +154,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// The time between the first and second connection attempts.
+    /// Set time between the first and second connection attempts.
     pub fn initial_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_INITIAL_RECONNECT_BACKOFF_MS),
@@ -162,7 +163,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Initial sequence number for http2 transports.
+    /// Set initial sequence number for HTTP/2 transports.
     pub fn https_initial_seq_number(mut self, number: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER),
@@ -171,8 +172,8 @@ impl ChannelBuilder {
         self
     }
 
-    /// Amount to read ahead on individual streams. Defaults to 64kb, larger
-    /// values can help throughput on high-latency connections.
+    /// Set amount to read ahead on individual streams. Defaults to 64KB. Larger
+    /// values help throughput on high-latency connections.
     pub fn stream_initial_window_size(mut self, window_size: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_STREAM_INITIAL_WINDOW_SIZE),
@@ -181,7 +182,8 @@ impl ChannelBuilder {
         self
     }
 
-    /// Primary user agent: goes at the start of the user-agent metadata sent on each request.
+    /// Set primary user agent, which goes at the start of the user-agent metadata sent on
+    /// each request.
     pub fn primary_user_agent(mut self, agent: &str) -> ChannelBuilder {
         let agent_string = format_user_agent_string(agent);
         self.options.insert(
@@ -191,7 +193,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// If enable, allow the use of SO_REUSEPORT if it's available (default true).
+    /// Set whether to allow the use of `SO_REUSEPORT` if available. Defaults to `true`.
     pub fn reuse_port(mut self, reuse: bool) -> ChannelBuilder {
         let opt = if reuse { 1 } else { 0 };
         self.options
@@ -199,7 +201,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// How large a slice to try and read from the wire each time.
+    /// Set the size of slice to try and read from the wire each time.
     pub fn tcp_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_TCP_READ_CHUNK_SIZE),
@@ -208,7 +210,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// How minimal large a slice to try and read from the wire each time.
+    /// Set the minimum size of slice to try and read from the wire each time.
     pub fn tcp_min_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_TCP_MIN_READ_CHUNK_SIZE),
@@ -217,7 +219,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// How maximal large a slice to try and read from the wire each time.
+    /// Set the maximum size of slice to try and read from the wire each time.
     pub fn tcp_max_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_TCP_MAX_READ_CHUNK_SIZE),
@@ -236,7 +238,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// How big a frame are we willing to receive via HTTP2.
+    /// How big a frame are we willing to receive via HTTP/2.
     /// Min 16384, max 16777215.
     /// Larger values give lower CPU usage for large messages, but more head of line
     /// blocking for small messages.
@@ -248,7 +250,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set BDP probing.
+    /// Set whether to enable BDP probing.
     pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_HTTP2_BDP_PROBE),
@@ -305,7 +307,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Default compression algorithm for the channel.
+    /// Set default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_DEFALUT_COMPRESSION_ALGORITHM),
@@ -314,7 +316,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Default compression level for the channel.
+    /// Set default compression level for the channel.
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_DEFAULT_COMPRESSION_LEVEL),
@@ -352,9 +354,8 @@ impl ChannelBuilder {
         self
     }
 
-    /// Optimize a channel.
-    ///
-    /// Default is `OptTarget::Blend`.
+    /// Set optimization target for the channel. See [`OptTarget`] for all available
+    /// optimization targets. Defaults to `OptTarget::Blend`.
     pub fn optimize_for(mut self, target: OptTarget) -> ChannelBuilder {
         let val = match target {
             OptTarget::Latency => CString::new("latency"),
@@ -368,7 +369,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set a raw int configuration.
+    /// Set a raw Int configuration.
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
@@ -378,7 +379,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set a raw string configuration.
+    /// Set a raw String configuration.
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
@@ -388,7 +389,10 @@ impl ChannelBuilder {
         self
     }
 
-    /// Build a channel args from the current configuration.
+    /// Build `ChannelArgs` from the current configuration.
+    ///
+    /// This method is only for bench usage, users should use the encapsulated API instead.
+    #[doc(hidden)]
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
@@ -420,7 +424,7 @@ impl ChannelBuilder {
         self.build_args()
     }
 
-    /// Build an insure connection to the address.
+    /// Build a unsecure [`Channel`] that connects to a specific address.
     pub fn connect(mut self, addr: &str) -> Channel {
         let args = self.prepare_connect_args();
         let addr = CString::new(addr).unwrap();
@@ -448,8 +452,10 @@ mod secure_channel {
 
     impl ChannelBuilder {
         /// The caller of the secure_channel_create functions may override the target name used
-        /// for SSL host name checking using this channel argument. This *should* be used for
-        /// testing only.
+        /// for SSL host name checking using this channel argument.
+        ///
+        /// This *should* be used for testing only.
+        #[doc(hidden)]
         pub fn override_ssl_target<S: Into<Vec<u8>>>(mut self, target: S) -> ChannelBuilder {
             let target = CString::new(target).unwrap();
             self.options.insert(
@@ -459,6 +465,7 @@ mod secure_channel {
             self
         }
 
+        /// Build a secure [`Channel`] that connects to a specific address.
         pub fn secure_connect(mut self, addr: &str, mut creds: ChannelCredentials) -> Channel {
             let args = self.prepare_connect_args();
             let addr = CString::new(addr).unwrap();
@@ -506,9 +513,12 @@ impl Drop for ChannelInner {
     }
 }
 
-/// The Channel struct allows creation of Call objects.
+/// A gRPC channel.
 ///
-/// Typically created by a [`ChannelBuilder`](struct.ChannelBuilder.html).
+/// Channels are an abstraction of long-lived connections to remote servers. More client objects
+/// can reuse the same channel.
+///
+/// Use [`ChannelBuilder`] to build a [`Channel`].
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
@@ -530,7 +540,7 @@ impl Channel {
     }
 
     /// Create a call using the method and option.
-    pub fn create_call<P, Q>(&self, method: &Method<P, Q>, opt: &CallOption) -> Result<Call> {
+    pub(crate) fn create_call<Req, Resp>(&self, method: &Method<Req, Resp>, opt: &CallOption) -> Result<Call> {
         let cq_ref = self.cq.borrow()?;
         let raw_call = unsafe {
             let ch = self.inner.channel;
@@ -556,7 +566,7 @@ impl Channel {
         unsafe { Ok(Call::from_raw(raw_call, self.cq.clone())) }
     }
 
-    pub fn cq(&self) -> &CompletionQueue {
+    pub(crate) fn cq(&self) -> &CompletionQueue {
         &self.cq
     }
 }

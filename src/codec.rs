@@ -16,18 +16,22 @@ use error::Result;
 pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
 
-/// Marshaller defines how to serialize and deserialize between T and byte slice.
+/// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
     // Use function pointer here to simplify the signature.
     // Compiler will probably inline the function so performance
     // impact can be omitted.
     //
-    // Use trait will require trait object or Generic which will
+    // Use trait will require trait object or generic which will
     // either have performance impact or make signature complicated.
     //
     // const function is not stable yet (rust-lang/rust#24111), hence
     // make all fields public.
+
+    /// The serialize function.
     pub ser: SerializeFn<T>,
+
+    /// The deserialize function.
     pub de: DeserializeFn<T>,
 }
 

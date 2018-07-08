@@ -26,6 +26,7 @@ fn clear_key_securely(key: &mut [u8]) {
     }
 }
 
+/// [`ServerCredentials`] factory in order to configure the properties.
 pub struct ServerCredentialsBuilder {
     root: Option<CString>,
     cert_chains: Vec<*mut c_char>,
@@ -34,6 +35,7 @@ pub struct ServerCredentialsBuilder {
 }
 
 impl ServerCredentialsBuilder {
+    /// Initialize a new [`ServerCredentialsBuilder`].
     pub fn new() -> ServerCredentialsBuilder {
         ServerCredentialsBuilder {
             root: None,
@@ -43,6 +45,8 @@ impl ServerCredentialsBuilder {
         }
     }
 
+    /// Set the PEM encoded client root certificate to verify client's identity. If
+    /// `force_client_auth` is set to `true`, the authenticity of client check will be enforced.
     pub fn root_cert<S: Into<Vec<u8>>>(
         mut self,
         cert: S,
@@ -53,6 +57,7 @@ impl ServerCredentialsBuilder {
         self
     }
 
+    /// Add a PEM encoded server side certificate and key.
     pub fn add_cert(mut self, cert: Vec<u8>, mut private_key: Vec<u8>) -> ServerCredentialsBuilder {
         if private_key.capacity() == private_key.len() {
             let mut nil_key = Vec::with_capacity(private_key.len() + 1);
@@ -67,6 +72,7 @@ impl ServerCredentialsBuilder {
         self
     }
 
+    /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
     pub fn build(mut self) -> ServerCredentials {
         let root_cert = self.root
             .take()
@@ -109,6 +115,9 @@ impl Drop for ServerCredentialsBuilder {
     }
 }
 
+/// Server-side SSL credentials.
+///
+/// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
 pub struct ServerCredentials {
     creds: *mut GrpcServerCredentials,
 }
@@ -125,12 +134,14 @@ impl Drop for ServerCredentials {
     }
 }
 
+/// [`ChannelCredentials`] factory in order to configure the properties.
 pub struct ChannelCredentialsBuilder {
     root: Option<CString>,
     cert_key_pair: Option<(CString, CString)>,
 }
 
 impl ChannelCredentialsBuilder {
+    /// Initialize a new [`ChannelCredentialsBuilder`].
     pub fn new() -> ChannelCredentialsBuilder {
         ChannelCredentialsBuilder {
             root: None,
@@ -138,22 +149,25 @@ impl ChannelCredentialsBuilder {
         }
     }
 
+    /// Set the PEM encoded server root certificate to verify server's identity.
     pub fn root_cert(mut self, cert: Vec<u8>) -> ChannelCredentialsBuilder {
         self.root = Some(CString::new(cert).unwrap());
         self
     }
 
-    pub fn cert(mut self, cert: Vec<u8>, mut key: Vec<u8>) -> ChannelCredentialsBuilder {
-        if key.capacity() == key.len() {
-            let mut nil_key = Vec::with_capacity(key.len() + 1);
-            nil_key.extend_from_slice(&key);
-            clear_key_securely(&mut key);
-            key = nil_key;
+    /// Set the PEM encoded client side certificate and key.
+    pub fn cert(mut self, cert: Vec<u8>, mut private_key: Vec<u8>) -> ChannelCredentialsBuilder {
+        if private_key.capacity() == private_key.len() {
+            let mut nil_key = Vec::with_capacity(private_key.len() + 1);
+            nil_key.extend_from_slice(&private_key);
+            clear_key_securely(&mut private_key);
+            private_key = nil_key;
         }
-        self.cert_key_pair = Some((CString::new(cert).unwrap(), CString::new(key).unwrap()));
+        self.cert_key_pair = Some((CString::new(cert).unwrap(), CString::new(private_key).unwrap()));
         self
     }
 
+    /// Finalize the [`ChannelCredentialsBuilder`] and build the [`ChannelCredentials`].
     pub fn build(mut self) -> ChannelCredentials {
         let root_ptr = self.root
             .take()
@@ -192,6 +206,10 @@ impl Drop for ChannelCredentialsBuilder {
     }
 }
 
+/// Client-side SSL credentials.
+///
+/// Use [`ChannelCredentialsBuilder`] or [`ChannelCredentials::google_default_credentials`] to
+/// build a [`ChannelCredentials`].
 pub struct ChannelCredentials {
     creds: *mut GrpcChannelCredentials,
 }
@@ -201,8 +219,7 @@ impl ChannelCredentials {
         self.creds
     }
 
-    /// Attempts to construct a `ChannelCredentials` that is authenticated with
-    /// Google OAuth credentials.
+    /// Try to build a [`ChannelCredentials`] to authenticate with Google OAuth credentials.
     pub fn google_default_credentials() -> Result<ChannelCredentials> {
         // Initialize the runtime here. Because this is an associated method
         // that can be called before construction of an `Environment`, we

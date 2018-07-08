@@ -11,6 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*!
+
+[grpcio] is a Rust implementation of [gRPC], which is a high performance, open source universal RPC
+framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and [futures-rs].
+
+[grpcio]: https://github.com/pingcap/grpc-rs/
+[gRPC]: https://grpc.io/
+[gRPC Core]: https://github.com/grpc/grpc
+[futures-rs]: https://github.com/rust-lang-nursery/futures-rs
+
+## Optional features
+
+- **`secure`** *(enabled by default)* - Enables support for TLS encryption and some authentication
+  mechanism.
+
+*/
+
 #![allow(unknown_lints)]
 #![allow(new_without_default_derive)]
 #![allow(new_without_default)]
@@ -46,7 +63,7 @@ pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
 pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
                        DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
                        ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
-pub use channel::{Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel};
+pub use channel::{OptTarget, Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel};
 pub use client::Client;
 pub use codec::Marshaller;
 #[cfg(feature = "protobuf-codec")]
