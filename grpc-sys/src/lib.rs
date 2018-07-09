@@ -473,9 +473,10 @@ extern "C" {
     pub fn grpcwrap_alarm_cancel(alarm: *mut GrpcAlarm);
     pub fn grpcwrap_alarm_destroy(alarm: *mut GrpcAlarm);
 
-    pub fn grpcwrap_tag_wrap(tag: *mut c_void) -> *mut GrpcwrapTag;
-    pub fn grpcwrap_tag_unwrap(tag_wrappper: *mut c_void) -> *mut c_void;
+    pub fn grpcwrap_tag_create(tag: *mut c_void) -> *mut GrpcwrapTag;
     pub fn grpcwrap_tag_destroy(tag_wrappper: *mut GrpcwrapTag);
+
+    pub fn grpcwrap_unwrap_tag(tag_wrappper: *mut c_void) -> *mut c_void;
 
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
     pub fn grpcwrap_metadata_array_add(

@@ -873,23 +873,14 @@ grpcwrap_completion_queue_shadow(grpc_completion_queue *cq) {
 
 using grpc::Alarm;
 
-/** Wrapper of grpc::Alarm.
- */
-typedef struct grpcwrap_alarm {
-  Alarm* alarm;
-} grpcwrap_alarm;
+typedef Alarm grpcwrap_alarm;
 
 /** Create a completion queue alarm instance */
 GPR_EXPORT grpcwrap_alarm *GPR_CALLTYPE
 grpcwrap_alarm_create(void) {
   void *ptr = gpr_malloc(sizeof(Alarm));
-  Alarm *alarm = new(ptr) Alarm();
-
-  grpcwrap_alarm *alarm_wrapper = (grpcwrap_alarm *)
-    gpr_malloc(sizeof(grpcwrap_alarm));
-  alarm_wrapper->alarm = alarm;
-
-  return alarm_wrapper;
+  auto alarm = new(ptr) Alarm();
+  return alarm;
 }
 
 /** Set a completion queue alarm instance associated to a cq.
@@ -901,7 +892,7 @@ GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_alarm_set(grpcwrap_alarm* alarm, grpcwrap_completion_queue* cq,
                    void *tag) {
   gpr_timespec inf = gpr_inf_future(GPR_CLOCK_REALTIME);
-  alarm->alarm->Set(cq->cq, inf, tag);
+  alarm->Set(cq->cq, inf, tag);
   return;
 }
 
@@ -909,15 +900,14 @@ grpcwrap_alarm_set(grpcwrap_alarm* alarm, grpcwrap_completion_queue* cq,
  * has already fired has no effect. */
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_alarm_cancel(grpcwrap_alarm* alarm) {
-  alarm->alarm->Cancel();
+  alarm->Cancel();
   return;
 }
 
 /** Destroy the given completion queue alarm, cancelling it in the process. */
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_alarm_destroy(grpcwrap_alarm* alarm) {
-  alarm->alarm->~Alarm();
-  gpr_free(alarm->alarm);
+  alarm->~Alarm();
   gpr_free(alarm);
   return;
 }
@@ -927,8 +917,7 @@ using grpc::internal::CompletionQueueTag;
 /** A helper class that implements `CompletionQueueTag`.
  *
  * TODO: Remove it. The `grpc::Alarm` submit itself as a tag to a
- * `CompletionQueue`, so we needs it to distinguish a normal tag from the
- * `grpc::Alarm`.
+ * `CompletionQueue`, so we needs it to unify extraction of tags`.
  */
 class GrpcwrapTag : public CompletionQueueTag {
  public:
@@ -950,21 +939,10 @@ typedef GrpcwrapTag grpcwrap_tag;
 
 /** Wraps a tag into a `grpcwrap_tag`, which implements `CompletionQueueTag`.
  */
-GPR_EXPORT grpcwrap_tag *GPR_CALLTYPE grpcwrap_tag_wrap(void* tag) {
-  grpcwrap_tag *ptr =
-    (grpcwrap_tag *) gpr_malloc(sizeof(grpcwrap_tag));
+GPR_EXPORT grpcwrap_tag *GPR_CALLTYPE grpcwrap_tag_create(void* tag) {
+  void *ptr = gpr_malloc(sizeof(grpcwrap_tag));
   auto tag_wrapper = new(ptr) GrpcwrapTag(tag);
   return tag_wrapper;
-}
-
-/** Unwraps a `CompletionQueueTag`.
- */
-GPR_EXPORT void *GPR_CALLTYPE grpcwrap_tag_unwrap(void* tag_wrappper) {
-  bool status = true;
-  void* tag;
-  auto cq_tag = static_cast<CompletionQueueTag*>(tag_wrappper);
-  cq_tag->FinalizeResult(&tag, &status);
-  return tag;
 }
 
 /** Destories a `grpcwrap_tag`.
@@ -974,6 +952,19 @@ GPR_EXPORT void *GPR_CALLTYPE grpcwrap_tag_unwrap(void* tag_wrappper) {
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_tag_destroy(grpcwrap_tag* tag_wrappper) {
   gpr_free(tag_wrappper);
   return;
+}
+
+/** Unwraps a `CompletionQueueTag`.
+ *
+ * Note: It can unwrap `grpc::Alarm` too, because `grpc::Alarm` implements
+ *`CompletionQueueTag`.
+ */
+GPR_EXPORT void *GPR_CALLTYPE grpcwrap_unwrap_tag(void* tag_wrappper) {
+  bool status = true;
+  void* tag;
+  auto cq_tag = static_cast<CompletionQueueTag*>(tag_wrappper);
+  cq_tag->FinalizeResult(&tag, &status);
+  return tag;
 }
 
 #endif

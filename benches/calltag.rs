@@ -25,13 +25,13 @@ impl MockTag {
         let tag_box = Box::new(self);
         let tag_ptr = Box::into_raw(tag_box);
         unsafe {
-            grpc_sys::grpcwrap_tag_wrap(tag_ptr as _)
+            grpc_sys::grpcwrap_tag_create(tag_ptr as _)
         }
     }
 
     /// Constructs a `MockTag` from a raw pointer.
     pub unsafe fn from_raw(tag_ptr: *mut GrpcwrapTag) -> Box<MockTag> {
-        let ptr = grpc_sys::grpcwrap_tag_unwrap(tag_ptr as _);
+        let ptr = grpc_sys::grpcwrap_unwrap_tag(tag_ptr as _);
         let tag_box = Box::from_raw(ptr as _);
         match *tag_box {
             // Spawn is notified from Alarm, Alarm manages the `tag_ptr` lifetime.
