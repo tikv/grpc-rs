@@ -23,7 +23,7 @@ use cmake::Config;
 use cc::Build;
 use pkg_config::Config as PkgConfig;
 
-const GRPC_VERSION: &'static str = "1.10.0";
+const GRPC_VERSION: &'static str = "1.13.0";
 
 fn link_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
     for l in &[library, library_cpp] {
@@ -44,6 +44,7 @@ fn prepare_grpc() {
         "grpc",
         "grpc/third_party/zlib",
         "grpc/third_party/cares/cares",
+        "grpc/third_party/address_sorting",
     ];
 
     if cfg!(feature = "secure") {
@@ -79,10 +80,14 @@ fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
         }
         if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
+            // As cmake CMP0042 suggests.
+            config.define("CMAKE_MACOSX_RPATH", "ON");
         }
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
+        // We dont need generate install targets.
+        config.define("gRPC_INSTALL", "false");
         // Target grpc++ also builds grpc.
         config.build_target(library_cpp).uses_cxx11().build()
     };
@@ -126,6 +131,7 @@ fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
     println!("cargo:rustc-link-lib=static={}", zlib);
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
+    println!("cargo:rustc-link-lib=static=address_sorting");
     println!("cargo:rustc-link-lib=static={}", library);
     println!("cargo:rustc-link-lib=static={}", library_cpp);
 
