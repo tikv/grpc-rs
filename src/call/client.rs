@@ -230,12 +230,12 @@ pub struct ClientUnaryReceiver<T> {
 
 impl<T> ClientUnaryReceiver<T> {
     fn new(
-        new_call: Call,
+        call: Call,
         resp_f: CqFuture<BatchMessage>,
         de: DeserializeFn<T>,
     ) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
-            call: new_call,
+            call,
             resp_f,
             resp_de: de,
         }
@@ -295,9 +295,9 @@ pub struct StreamingCallSink<P> {
 }
 
 impl<P> StreamingCallSink<P> {
-    fn new(new_call: Arc<SpinLock<ShareCall>>, ser: SerializeFn<P>) -> StreamingCallSink<P> {
+    fn new(call: Arc<SpinLock<ShareCall>>, ser: SerializeFn<P>) -> StreamingCallSink<P> {
         StreamingCallSink {
-            call: new_call,
+            call,
             sink_base: SinkBase::new(false),
             close_f: None,
             req_ser: ser,

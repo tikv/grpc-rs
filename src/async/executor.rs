@@ -33,7 +33,7 @@ struct Alarm {
 
 impl Alarm {
     fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Result<Alarm> {
-        let new_alarm = unsafe {
+        let alarm = unsafe {
             let ptr = Box::into_raw(tag);
             let timeout = GprTimespec::inf_future();
             let cq_ref = cq.borrow()?;
@@ -41,7 +41,7 @@ impl Alarm {
             grpc_sys::grpc_alarm_set(alarm, cq_ref.as_ptr(), timeout, ptr as _, ptr::null_mut());
             alarm
         };
-        Ok(Alarm { alarm: new_alarm })
+        Ok(Alarm { alarm })
     }
 
     fn alarm(&mut self) {
@@ -102,12 +102,12 @@ pub struct SpawnNotify {
 }
 
 impl SpawnNotify {
-    fn new(s: Spawn<BoxFuture<(), ()>>, new_cq: CompletionQueue) -> SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnNotify {
         SpawnNotify {
-            worker_id: new_cq.worker_id(),
+            worker_id: cq.worker_id(),
             handle: Arc::new(SpinLock::new(Some(s))),
             ctx: Arc::new(SpinLock::new(NotifyContext {
-                cq: new_cq,
+                cq,
                 alarmed: false,
                 alarm: None,
             })),
@@ -169,8 +169,8 @@ pub struct Executor<'a> {
 }
 
 impl<'a> Executor<'a> {
-    pub fn new(new_cq: &CompletionQueue) -> Executor {
-        Executor { cq: new_cq }
+    pub fn new(cq: &CompletionQueue) -> Executor {
+        Executor { cq }
     }
 
     pub(crate) fn cq(&self) -> &CompletionQueue {
