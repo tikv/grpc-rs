@@ -138,8 +138,8 @@ pub struct CompletionQueue {
 impl CompletionQueue {
     pub fn new(handle: Arc<CompletionQueueHandle>, id: ThreadId) -> CompletionQueue {
         CompletionQueue {
-            handle: handle,
-            id: id,
+            handle,
+            id,
         }
     }
 

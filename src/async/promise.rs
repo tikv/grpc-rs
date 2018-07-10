@@ -37,11 +37,11 @@ pub struct Batch {
 }
 
 impl Batch {
-    pub fn new(ty: BatchType, inner: Arc<Inner<BatchMessage>>) -> Batch {
+    pub fn new(new_ty: BatchType, new_inner: Arc<Inner<BatchMessage>>) -> Batch {
         Batch {
-            ty: ty,
+            ty: new_ty,
             ctx: BatchContext::new(),
-            inner: inner,
+            inner: new_inner,
         }
     }
 
@@ -60,7 +60,7 @@ impl Batch {
                 guard.set_result(Ok(None))
             }
         };
-        task.map(|t| t.notify());
+        if let Some(t) = task { t.notify() };
     }
 
     fn finish_response(&mut self, succeed: bool) {
@@ -77,7 +77,7 @@ impl Batch {
                 guard.set_result(Err(Error::RemoteStopped))
             }
         };
-        task.map(|t| t.notify());
+        if let Some(t) = task { t.notify() };
     }
 
     fn handle_unary_response(&mut self) {
@@ -90,7 +90,7 @@ impl Batch {
                 guard.set_result(Err(Error::RpcFailure(status)))
             }
         };
-        task.map(|t| t.notify());
+        if let Some(t) = task { t.notify() };
     }
 
     pub fn resolve(mut self, success: bool) {
@@ -121,8 +121,8 @@ pub struct Shutdown {
 }
 
 impl Shutdown {
-    pub fn new(inner: Arc<Inner<()>>) -> Shutdown {
-        Shutdown { inner: inner }
+    pub fn new(new_inner: Arc<Inner<()>>) -> Shutdown {
+        Shutdown { inner: new_inner }
     }
 
     pub fn resolve(self, success: bool) {
@@ -134,6 +134,6 @@ impl Shutdown {
                 guard.set_result(Err(Error::ShutdownFailed))
             }
         };
-        task.map(|t| t.notify());
+        if let Some(t) = task { t.notify() };
     }
 }

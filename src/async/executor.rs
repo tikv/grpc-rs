@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 use std::sync::Arc;
 use std::thread::{self, ThreadId};
 use std::ptr;
@@ -32,7 +33,7 @@ struct Alarm {
 
 impl Alarm {
     fn new(cq: &CompletionQueue, tag: Box<CallTag>) -> Result<Alarm> {
-        let alarm = unsafe {
+        let new_alarm = unsafe {
             let ptr = Box::into_raw(tag);
             let timeout = GprTimespec::inf_future();
             let cq_ref = cq.borrow()?;
@@ -40,7 +41,7 @@ impl Alarm {
             grpc_sys::grpc_alarm_set(alarm, cq_ref.as_ptr(), timeout, ptr as _, ptr::null_mut());
             alarm
         };
-        Ok(Alarm { alarm: alarm })
+        Ok(Alarm { alarm: new_alarm })
     }
 
     fn alarm(&mut self) {
@@ -101,12 +102,12 @@ pub struct SpawnNotify {
 }
 
 impl SpawnNotify {
-    fn new(s: Spawn<BoxFuture<(), ()>>, cq: CompletionQueue) -> SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, new_cq: CompletionQueue) -> SpawnNotify {
         SpawnNotify {
-            worker_id: cq.worker_id(),
+            worker_id: new_cq.worker_id(),
             handle: Arc::new(SpinLock::new(Some(s))),
             ctx: Arc::new(SpinLock::new(NotifyContext {
-                cq: cq,
+                cq: new_cq,
                 alarmed: false,
                 alarm: None,
             })),
@@ -116,7 +117,7 @@ impl SpawnNotify {
     pub fn resolve(self, success: bool) {
         // it should always be canceled for now.
         assert!(!success);
-        poll(Arc::new(self.clone()), true);
+        poll(&Arc::new(self.clone()), true);
     }
 }
 
@@ -126,7 +127,7 @@ unsafe impl Sync for SpawnNotify {}
 impl Notify for SpawnNotify {
     fn notify(&self, _: usize) {
         if thread::current().id() == self.worker_id {
-            poll(Arc::new(self.clone()), false)
+            poll(&Arc::new(self.clone()), false)
         } else {
             let mut ctx = self.ctx.lock();
             if ctx.alarmed {
@@ -141,7 +142,7 @@ impl Notify for SpawnNotify {
 /// Poll the future.
 ///
 /// `woken` indicates that if the alarm is woken by a cancel action.
-fn poll(notify: Arc<SpawnNotify>, woken: bool) {
+fn poll(notify: &Arc<SpawnNotify>, woken: bool) {
     let mut handle = notify.handle.lock();
     if woken {
         notify.ctx.lock().alarmed = false;
@@ -150,7 +151,7 @@ fn poll(notify: Arc<SpawnNotify>, woken: bool) {
         // it's resolved, no need to poll again.
         return;
     }
-    match handle.as_mut().unwrap().poll_future_notify(&notify, 0) {
+    match handle.as_mut().unwrap().poll_future_notify(notify, 0) {
         Err(_) | Ok(Async::Ready(_)) => {
             // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
@@ -168,8 +169,8 @@ pub struct Executor<'a> {
 }
 
 impl<'a> Executor<'a> {
-    pub fn new(cq: &CompletionQueue) -> Executor {
-        Executor { cq: cq }
+    pub fn new(new_cq: &CompletionQueue) -> Executor {
+        Executor { cq: new_cq }
     }
 
     pub(crate) fn cq(&self) -> &CompletionQueue {
@@ -182,10 +183,10 @@ impl<'a> Executor<'a> {
     /// pair by yourself.
     pub fn spawn<F>(&self, f: F)
     where
-        F: Future<Item = (), Error = ()> + Send + 'static,
+    F: Future<Item = (), Error = ()> + Send + 'static,
     {
         let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
         let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));
-        poll(notify, false)
+        poll(&notify, false)
     }
 }

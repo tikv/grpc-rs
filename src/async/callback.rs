@@ -24,8 +24,8 @@ pub struct Request {
 
 impl Request {
     pub fn new(inner: Arc<ServerInner>) -> Request {
-        let ctx = RequestContext::new(inner);
-        Request { ctx: ctx }
+        let new_ctx = RequestContext::new(inner);
+        Request { ctx: new_ctx }
     }
 
     pub fn context(&self) -> &RequestContext {
@@ -52,8 +52,8 @@ pub struct UnaryRequest {
 
 impl UnaryRequest {
     pub fn new(ctx: RequestContext, inner: Arc<ServerInner>) -> UnaryRequest {
-        let ctx = UnaryRequestContext::new(ctx, inner);
-        UnaryRequest { ctx: ctx }
+        let new_ctx = UnaryRequestContext::new(ctx, inner);
+        UnaryRequest { ctx: new_ctx }
     }
 
     pub fn batch_ctx(&self) -> &BatchContext {

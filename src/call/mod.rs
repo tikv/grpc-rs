@@ -76,8 +76,8 @@ pub struct RpcStatus {
 impl RpcStatus {
     pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
         RpcStatus {
-            status: status,
-            details: details,
+            status,
+            details,
         }
     }
 
@@ -122,8 +122,8 @@ impl BatchContext {
         };
 
         RpcStatus {
-            status: status,
-            details: details,
+            status,
+            details,
         }
     }
 
@@ -255,7 +255,7 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: Option<Vec<u8>>,
+        payload: &Option<Vec<u8>>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
@@ -287,7 +287,7 @@ impl Call {
     }
 
     /// Abort an rpc call before handler is called.
-    pub fn abort(self, status: RpcStatus) {
+    pub fn abort(self, status: &RpcStatus) {
         match self.cq.borrow() {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
@@ -361,8 +361,8 @@ struct ShareCall {
 impl ShareCall {
     fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
         ShareCall {
-            call: call,
-            close_f: close_f,
+            call,
+            close_f,
             finished: false,
             status: None,
         }
@@ -428,7 +428,7 @@ struct StreamingBase {
 impl StreamingBase {
     fn new(close_f: Option<BatchFuture>) -> StreamingBase {
         StreamingBase {
-            close_f: close_f,
+            close_f,
             msg_f: None,
             read_done: false,
         }
@@ -512,12 +512,12 @@ impl WriteFlags {
     }
 
     /// Get if buffer hint is enabled.
-    pub fn get_buffer_hint(&self) -> bool {
+    pub fn get_buffer_hint(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
     /// Get if compression is disabled.
-    pub fn get_force_no_compress(&self) -> bool {
+    pub fn get_force_no_compress(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }
@@ -534,7 +534,7 @@ impl SinkBase {
         SinkBase {
             batch_f: None,
             buf: Vec::new(),
-            send_metadata: send_metadata,
+            send_metadata,
         }
     }
 
