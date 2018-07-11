@@ -40,6 +40,7 @@ For Windows, you also need to install following software:
 ## Build
 
 ```
+$ git submodule update --init --recursive # if you just cloned the repository
 $ cargo build
 ```
 
