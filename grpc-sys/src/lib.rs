@@ -24,7 +24,7 @@ use std::time::Duration;
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub enum GprClockType {
-    /// Monotonic clock. Epoch undefined. Always moves forwards.
+    /// Monotonic clock. Epoch undefined. Always moves forward.
     Monotonic = 0,
 
     /// Realtime clock. May jump forwards or backwards. Settable by the system administrator.
@@ -32,14 +32,14 @@ pub enum GprClockType {
     Realtime,
 
     /// CPU cycle time obtained by rdtsc instruction on x86 platforms. Epoch undefined. Degrades
-    /// to GPR_CLOCK_REALTIME on other platforms.
+    /// to [`GprClockType::Realtime`] on other platforms.
     Precise,
 
     /// Unmeasurable clock type: no base, created by taking the difference between two times.
     Timespan,
 }
 
-/// Analogous to struct timespec. On some machines, absolute times may be in local time.
+/// Analogous to struct `timespec`. On some machines, absolute times may be in local time.
 ///
 /// Based on `gpr_timespec`.
 #[derive(Clone, Copy)]
@@ -48,8 +48,8 @@ pub struct GprTimespec {
     pub tv_sec: int64_t,
     pub tv_nsec: int32_t,
 
-    /// Against which clock was this time measured? (or GPR_TIMESPAN if this is a relative time
-    /// meaure)
+    /// Against which clock was this time measured? (or [`GprClockType::Timespan`] if this is a
+    /// relative time measure)
     pub clock_type: GprClockType,
 }
 
@@ -87,8 +87,8 @@ pub enum GrpcStatusCode {
     /// converted to this error.
     Unknown = 2,
 
-    /// Client specified an invalid argument. Note that this differs from FAILED_PRECONDITION.
-    /// INVALID_ARGUMENT indicates arguments that are problematic regardless of the state of the
+    /// Client specified an invalid argument. Note that this differs from `FailedPrecondition`.
+    /// `InvalidArgument` indicates arguments that are problematic regardless of the state of the
     /// system (e.g., a malformed file name).
     InvalidArgument = 3,
 
@@ -104,10 +104,11 @@ pub enum GrpcStatusCode {
     /// Some entity that we attempted to create (e.g., file or directory) already exists.
     AlreadyExists = 6,
 
-    /// The caller does not have permission to execute the specified operation. PERMISSION_DENIED
-    /// must not be used for rejections caused by exhausting some resource (use RESOURCE_EXHAUSTED
-    /// instead for those errors). PERMISSION_DENIED must not be used if the caller can not be
-    /// identified (use UNAUTHENTICATED instead for those errors).
+    /// The caller does not have permission to execute the specified operation.
+    /// `PermissionDenied` must not be used for rejections caused by exhausting
+    /// some resource (use `ResourceExhausted` instead for those errors).
+    /// `PermissionDenied` must not be used if the caller can not be
+    /// identified (use `Unauthenticated` instead for those errors).
     PermissionDenied = 7,
 
     /// The request does not have valid authentication credentials for the operation.

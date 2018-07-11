@@ -24,7 +24,7 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 ## Optional features
 
 - **`secure`** *(enabled by default)* - Enables support for TLS encryption and some authentication
-  mechanism.
+  mechanisms.
 
 */
 

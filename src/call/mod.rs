@@ -87,7 +87,7 @@ impl<Req, Resp> Method<Req, Resp> {
     }
 }
 
-/// Represents RPC result return from server.
+/// RPC result returned from the server.
 #[derive(Debug, Clone)]
 pub struct RpcStatus {
     /// gRPC status code. `Ok` indicates success, all other values indicate an error.
