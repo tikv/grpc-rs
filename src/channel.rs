@@ -355,7 +355,7 @@ impl ChannelBuilder {
     /// Optimize a channel.
     ///
     /// Default is `OptTarget::Blend`.
-    pub fn optimize_for(mut self, target: &OptTarget) -> ChannelBuilder {
+    pub fn optimize_for(mut self, target: OptTarget) -> ChannelBuilder {
         let val = match target {
             OptTarget::Latency => CString::new("latency"),
             OptTarget::Blend => CString::new("blend"),

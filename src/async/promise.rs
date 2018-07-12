@@ -60,7 +60,7 @@ impl Batch {
                 guard.set_result(Ok(None))
             }
         };
-        if let Some(t) = task { t.notify() };
+        task.map(|t| t.notify());
     }
 
     fn finish_response(&mut self, succeed: bool) {
