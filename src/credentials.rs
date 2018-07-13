@@ -180,7 +180,7 @@ impl ChannelCredentialsBuilder {
             }
         }
 
-        ChannelCredentials { creds: creds }
+        ChannelCredentials { creds }
     }
 }
 
@@ -214,7 +214,7 @@ impl ChannelCredentials {
         if creds.is_null() {
             Err(Error::GoogleAuthenticationFailed)
         } else {
-            Ok(ChannelCredentials { creds: creds })
+            Ok(ChannelCredentials { creds })
         }
     }
 }
