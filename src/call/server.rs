@@ -60,7 +60,7 @@ impl RequestContext {
         let ctx = unsafe { grpc_sys::grpcwrap_request_call_context_create() };
 
         RequestContext {
-            ctx: ctx,
+            ctx,
             inner: Some(inner),
         }
     }
@@ -223,9 +223,9 @@ pub struct RequestStream<T> {
 impl<T> RequestStream<T> {
     fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<T>) -> RequestStream<T> {
         RequestStream {
-            call: call,
+            call,
             base: StreamingBase::new(None),
-            de: de,
+            de,
         }
     }
 }
@@ -477,7 +477,7 @@ impl<'a> RpcContext<'a> {
     fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext {
         RpcContext {
             deadline: ctx.deadline(),
-            ctx: ctx,
+            ctx,
             executor: Executor::new(cq),
         }
     }
