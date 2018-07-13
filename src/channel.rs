@@ -369,7 +369,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set a raw Int configuration.
+    /// Set a raw integer configuration.
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
@@ -379,7 +379,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set a raw String configuration.
+    /// Set a raw string configuration.
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
@@ -424,7 +424,7 @@ impl ChannelBuilder {
         self.build_args()
     }
 
-    /// Build a unsecure [`Channel`] that connects to a specific address.
+    /// Build an insecure [`Channel`] that connects to a specific address.
     pub fn connect(mut self, addr: &str) -> Channel {
         let args = self.prepare_connect_args();
         let addr = CString::new(addr).unwrap();

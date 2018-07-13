@@ -254,7 +254,7 @@ impl<T> Stream for RequestStream<T> {
 /// A helper macro used to implement server side unary sink.
 /// Not using generic here because we don't need to expose
 /// `CallHolder` or `Call` to caller.
-// TODO: Use type alias to be friendly for documentations.
+// TODO: Use type alias to be friendly for documentation.
 macro_rules! impl_unary_sink {
     ($t:ident, $rt:ident, $holder:ty) => (
         pub struct $rt {

@@ -18,7 +18,7 @@ extern crate libc;
 use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
 use std::time::Duration;
 
-/// The clocks gRPC support.
+/// The clocks gRPC supports.
 ///
 /// Based on `gpr_clock_type`.
 #[derive(Clone, Copy)]
@@ -224,7 +224,7 @@ pub enum GrpcCallStatus {
     /// Payload type requested is not the type registered.
     ErrorPayloadTypeMismatch,
 
-    /// Completion queue has been shutdown.
+    /// Completion queue has been shut down.
     ErrorCompletionQueueShutdown,
 }
 

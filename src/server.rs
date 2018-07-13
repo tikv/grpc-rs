@@ -417,7 +417,7 @@ unsafe impl Send for Inner {}
 
 /// A gRPC server.
 ///
-/// A single server can server arbitrary number of services and can listen on more than one ports.
+/// A single server can serve arbitrary number of services and can listen on more than one port.
 ///
 /// Use [`ServerBuilder`] to build a [`Server`].
 pub struct Server {
