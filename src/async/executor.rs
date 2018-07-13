@@ -40,7 +40,7 @@ impl Alarm {
             grpc_sys::grpc_alarm_set(alarm, cq_ref.as_ptr(), timeout, ptr as _, ptr::null_mut());
             alarm
         };
-        Ok(Alarm { alarm: alarm })
+        Ok(Alarm { alarm })
     }
 
     fn alarm(&mut self) {
@@ -106,7 +106,7 @@ impl SpawnNotify {
             worker_id: cq.worker_id(),
             handle: Arc::new(SpinLock::new(Some(s))),
             ctx: Arc::new(SpinLock::new(NotifyContext {
-                cq: cq,
+                cq,
                 alarmed: false,
                 alarm: None,
             })),
@@ -169,7 +169,7 @@ pub struct Executor<'a> {
 
 impl<'a> Executor<'a> {
     pub fn new(cq: &CompletionQueue) -> Executor {
-        Executor { cq: cq }
+        Executor { cq }
     }
 
     pub(crate) fn cq(&self) -> &CompletionQueue {

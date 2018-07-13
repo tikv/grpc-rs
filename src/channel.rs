@@ -32,34 +32,34 @@ pub use grpc_sys::{GrpcCompressionAlgorithms as CompressionAlgorithms,
                    GrpcCompressionLevel as CompressionLevel};
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
-const OPT_DEFAULT_AUTHORITY: &'static [u8] = b"grpc.default_authority\0";
-const OPT_MAX_CONCURRENT_STREAMS: &'static [u8] = b"grpc.max_concurrent_streams\0";
-const OPT_MAX_RECEIVE_MESSAGE_LENGTH: &'static [u8] = b"grpc.max_receive_message_length\0";
-const OPT_MAX_SEND_MESSAGE_LENGTH: &'static [u8] = b"grpc.max_send_message_length\0";
-const OPT_MAX_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.max_reconnect_backoff_ms\0";
-const OPT_INITIAL_RECONNECT_BACKOFF_MS: &'static [u8] = b"grpc.initial_reconnect_backoff_ms\0";
-const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8] = b"grpc.http2.initial_sequence_number\0";
-const OPT_SO_REUSE_PORT: &'static [u8] = b"grpc.so_reuseport\0";
-const OPT_STREAM_INITIAL_WINDOW_SIZE: &'static [u8] = b"grpc.http2.lookahead_bytes\0";
-const OPT_TCP_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_read_chunk_size\0";
-const OPT_TCP_MIN_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
-const OPT_TCP_MAX_READ_CHUNK_SIZE: &'static [u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
-const OPT_HTTP2_WRITE_BUFFER_SIZE: &'static [u8] = b"grpc.http2.write_buffer_size\0";
-const OPT_HTTP2_MAX_FRAME_SIZE: &'static [u8] = b"grpc.http2.max_frame_size\0";
-const OPT_HTTP2_BDP_PROBE: &'static [u8] = b"grpc.http2.bdp_probe\0";
-const OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &'static [u8] =
+const OPT_DEFAULT_AUTHORITY: &[u8] = b"grpc.default_authority\0";
+const OPT_MAX_CONCURRENT_STREAMS: &[u8] = b"grpc.max_concurrent_streams\0";
+const OPT_MAX_RECEIVE_MESSAGE_LENGTH: &[u8] = b"grpc.max_receive_message_length\0";
+const OPT_MAX_SEND_MESSAGE_LENGTH: &[u8] = b"grpc.max_send_message_length\0";
+const OPT_MAX_RECONNECT_BACKOFF_MS: &[u8] = b"grpc.max_reconnect_backoff_ms\0";
+const OPT_INITIAL_RECONNECT_BACKOFF_MS: &[u8] = b"grpc.initial_reconnect_backoff_ms\0";
+const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &[u8] = b"grpc.http2.initial_sequence_number\0";
+const OPT_SO_REUSE_PORT: &[u8] = b"grpc.so_reuseport\0";
+const OPT_STREAM_INITIAL_WINDOW_SIZE: &[u8] = b"grpc.http2.lookahead_bytes\0";
+const OPT_TCP_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_read_chunk_size\0";
+const OPT_TCP_MIN_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
+const OPT_TCP_MAX_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
+const OPT_HTTP2_WRITE_BUFFER_SIZE: &[u8] = b"grpc.http2.write_buffer_size\0";
+const OPT_HTTP2_MAX_FRAME_SIZE: &[u8] = b"grpc.http2.max_frame_size\0";
+const OPT_HTTP2_BDP_PROBE: &[u8] = b"grpc.http2.bdp_probe\0";
+const OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &[u8] =
     b"grpc.http2.min_time_between_pings_ms\0";
-const OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &'static [u8] =
+const OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &[u8] =
     b"grpc.http2.min_ping_interval_without_data_ms\0";
-const OPT_HTTP2_MAX_PINGS_WITHOUT_DATA: &'static [u8] = b"grpc.http2.max_pings_without_data\0";
-const OPT_HTTP2_MAX_PING_STRIKES: &'static [u8] = b"grpc.http2.max_ping_strikes\0";
-const OPT_DEFALUT_COMPRESSION_ALGORITHM: &'static [u8] = b"grpc.default_compression_algorithm\0";
-const OPT_DEFAULT_COMPRESSION_LEVEL: &'static [u8] = b"grpc.default_compression_level\0";
-const OPT_KEEPALIVE_TIME_MS: &'static [u8] = b"grpc.keepalive_time_ms\0";
-const OPT_KEEPALIVE_TIMEOUT_MS: &'static [u8] = b"grpc.keepalive_timeout_ms\0";
-const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &'static [u8] = b"grpc.keepalive_permit_without_calls\0";
-const OPT_OPTIMIZATION_TARGET: &'static [u8] = b"grpc.optimization_target\0";
-const PRIMARY_USER_AGENT_STRING: &'static [u8] = b"grpc.primary_user_agent\0";
+const OPT_HTTP2_MAX_PINGS_WITHOUT_DATA: &[u8] = b"grpc.http2.max_pings_without_data\0";
+const OPT_HTTP2_MAX_PING_STRIKES: &[u8] = b"grpc.http2.max_ping_strikes\0";
+const OPT_DEFALUT_COMPRESSION_ALGORITHM: &[u8] = b"grpc.default_compression_algorithm\0";
+const OPT_DEFAULT_COMPRESSION_LEVEL: &[u8] = b"grpc.default_compression_level\0";
+const OPT_KEEPALIVE_TIME_MS: &[u8] = b"grpc.keepalive_time_ms\0";
+const OPT_KEEPALIVE_TIMEOUT_MS: &[u8] = b"grpc.keepalive_timeout_ms\0";
+const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8] = b"grpc.keepalive_permit_without_calls\0";
+const OPT_OPTIMIZATION_TARGET: &[u8] = b"grpc.optimization_target\0";
+const PRIMARY_USER_AGENT_STRING: &[u8] = b"grpc.primary_user_agent\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
@@ -103,7 +103,7 @@ impl ChannelBuilder {
     /// Initialize a new [`ChannelBuilder`].
     pub fn new(env: Arc<Environment>) -> ChannelBuilder {
         ChannelBuilder {
-            env: env,
+            env,
             options: HashMap::new(),
         }
     }
@@ -414,7 +414,7 @@ impl ChannelBuilder {
                 },
             }
         }
-        ChannelArgs { args: args }
+        ChannelArgs { args }
     }
 
     fn prepare_connect_args(&mut self) -> ChannelArgs {
@@ -448,7 +448,7 @@ mod secure_channel {
 
     use super::{Channel, ChannelBuilder, Options};
 
-    const OPT_SSL_TARGET_NAME_OVERRIDE: &'static [u8] = b"grpc.ssl_target_name_override\0";
+    const OPT_SSL_TARGET_NAME_OVERRIDE: &[u8] = b"grpc.ssl_target_name_override\0";
 
     impl ChannelBuilder {
         /// The caller of the secure_channel_create functions may override the target name used
@@ -533,9 +533,9 @@ impl Channel {
         Channel {
             inner: Arc::new(ChannelInner {
                 _env: env,
-                channel: channel,
+                channel,
             }),
-            cq: cq,
+            cq,
         }
     }
 

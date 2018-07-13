@@ -87,7 +87,7 @@ pub struct CqFuture<T> {
 
 impl<T> CqFuture<T> {
     fn new(inner: Arc<Inner<T>>) -> CqFuture<T> {
-        CqFuture { inner: inner }
+        CqFuture { inner }
     }
 }
 

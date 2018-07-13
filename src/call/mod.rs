@@ -147,8 +147,8 @@ impl BatchContext {
         };
 
         RpcStatus {
-            status: status,
-            details: details,
+            status,
+            details,
         }
     }
 
@@ -386,8 +386,8 @@ struct ShareCall {
 impl ShareCall {
     fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
         ShareCall {
-            call: call,
-            close_f: close_f,
+            call,
+            close_f,
             finished: false,
             status: None,
         }
@@ -453,7 +453,7 @@ struct StreamingBase {
 impl StreamingBase {
     fn new(close_f: Option<BatchFuture>) -> StreamingBase {
         StreamingBase {
-            close_f: close_f,
+            close_f,
             msg_f: None,
             read_done: false,
         }
@@ -563,7 +563,7 @@ impl SinkBase {
         SinkBase {
             batch_f: None,
             buf: Vec::new(),
-            send_metadata: send_metadata,
+            send_metadata,
         }
     }
 

@@ -43,8 +43,8 @@ pub struct Handler {
 impl Handler {
     pub fn new(method_type: MethodType, cb: CallBack) -> Handler {
         Handler {
-            method_type: method_type,
-            cb: cb,
+            method_type,
+            cb,
         }
     }
 
@@ -241,7 +241,7 @@ impl ServerBuilder {
     /// Initialize a new [`ServerBuilder`].
     pub fn new(env: Arc<Environment>) -> ServerBuilder {
         ServerBuilder {
-            env: env,
+            env,
             binders: Vec::new(),
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
@@ -306,9 +306,9 @@ impl ServerBuilder {
             Ok(Server {
                 inner: Arc::new(Inner {
                     env: self.env,
-                    server: server,
+                    server,
                     shutdown: AtomicBool::new(false),
-                    bind_addrs: bind_addrs,
+                    bind_addrs,
                     slots_per_cq: self.slots_per_cq,
                     handlers: self.handlers,
                 }),
@@ -440,7 +440,7 @@ impl Server {
             )
         }
         self.inner.shutdown.store(true, Ordering::SeqCst);
-        ShutdownFuture { cq_f: cq_f }
+        ShutdownFuture { cq_f }
     }
 
     /// Cancel all in-progress calls.

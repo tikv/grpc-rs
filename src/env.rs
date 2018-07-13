@@ -92,7 +92,7 @@ impl EnvBuilder {
         }
 
         Environment {
-            cqs: cqs,
+            cqs,
             idx: AtomicUsize::new(0),
             _handles: handles,
         }
