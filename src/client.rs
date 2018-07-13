@@ -28,7 +28,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(channel: Channel) -> Client {
-        Client { channel: channel }
+        Client { channel }
     }
 
     /// Create a synchronized unary rpc call.
