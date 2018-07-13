@@ -47,7 +47,7 @@ const OPT_TCP_MAX_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_max_read_chun
 const OPT_HTTP2_WRITE_BUFFER_SIZE: &[u8] = b"grpc.http2.write_buffer_size\0";
 const OPT_HTTP2_MAX_FRAME_SIZE: &[u8] = b"grpc.http2.max_frame_size\0";
 const OPT_HTTP2_BDP_PROBE: &[u8] = b"grpc.http2.bdp_probe\0";
-const OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS:  &[u8] =
+const OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &[u8] =
     b"grpc.http2.min_time_between_pings_ms\0";
 const OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &[u8] =
     b"grpc.http2.min_ping_interval_without_data_ms\0";
@@ -444,7 +444,7 @@ mod secure_channel {
 
     use super::{Channel, ChannelBuilder, Options};
 
-    const OPT_SSL_TARGET_NAME_OVERRIDE:  &[u8] = b"grpc.ssl_target_name_override\0";
+    const OPT_SSL_TARGET_NAME_OVERRIDE: &[u8] = b"grpc.ssl_target_name_override\0";
 
     impl ChannelBuilder {
         /// The caller of the secure_channel_create functions may override the target name used

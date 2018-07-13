@@ -210,7 +210,7 @@ impl UnaryRequestContext {
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
-        self.request.call(cq.clone()).abort(&status)
+        self.request.call(cq.clone()).abort(status)
     }
 }
 
@@ -312,7 +312,7 @@ macro_rules! impl_unary_sink {
 
                 let write_flags = self.write_flags;
                 let res = self.call.call(|c| {
-                    c.call.start_send_status_from_server(&status, true, &data, write_flags)
+                    c.call.start_send_status_from_server(&status, true, data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -370,7 +370,7 @@ macro_rules! impl_stream_sink {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.call(|c| {
-                    c.call.start_send_status_from_server(&status, send_metadata, &None, 0)
+                    c.call.start_send_status_from_server(&status, send_metadata, None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -414,7 +414,7 @@ macro_rules! impl_stream_sink {
                     let send_metadata = self.base.send_metadata;
                     let status = &self.status;
                     let flush_f = self.call.call(|c| {
-                        c.call.start_send_status_from_server(status, send_metadata, &None, 0)
+                        c.call.start_send_status_from_server(status, send_metadata, None, 0)
                     })?;
                     self.flush_f = Some(flush_f);
                 }
@@ -550,7 +550,7 @@ pub fn execute_unary<P, Q, F>(
                 RpcStatusCode::Internal,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
-            call.abort(&status);
+            call.abort(status);
             return;
         }
     };
@@ -596,7 +596,7 @@ pub fn execute_server_streaming<P, Q, F>(
                 RpcStatusCode::Internal,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
-            call.abort(&status);
+            call.abort(status);
             return;
         }
     };
@@ -627,7 +627,7 @@ pub fn execute_duplex_streaming<P, Q, F>(
 pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))
+    call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
 }
 
 // Helper function to call handler.

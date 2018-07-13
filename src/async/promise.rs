@@ -77,7 +77,7 @@ impl Batch {
                 guard.set_result(Err(Error::RemoteStopped))
             }
         };
-        if let Some(t) = task { t.notify() };
+        task.map(|t| t.notify());
     }
 
     fn handle_unary_response(&mut self) {
@@ -90,7 +90,7 @@ impl Batch {
                 guard.set_result(Err(Error::RpcFailure(status)))
             }
         };
-        if let Some(t) = task { t.notify() };
+        task.map(|t| t.notify());
     }
 
     pub fn resolve(mut self, success: bool) {
@@ -134,6 +134,6 @@ impl Shutdown {
                 guard.set_result(Err(Error::ShutdownFailed))
             }
         };
-        if let Some(t) = task { t.notify() };
+        task.map(|t| t.notify());
     }
 }
