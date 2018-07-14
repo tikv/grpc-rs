@@ -39,9 +39,9 @@ pub struct Batch {
 impl Batch {
     pub fn new(ty: BatchType, inner: Arc<Inner<BatchMessage>>) -> Batch {
         Batch {
-            ty: ty,
+            ty,
             ctx: BatchContext::new(),
-            inner: inner,
+            inner,
         }
     }
 
@@ -122,7 +122,7 @@ pub struct Shutdown {
 
 impl Shutdown {
     pub fn new(inner: Arc<Inner<()>>) -> Shutdown {
-        Shutdown { inner: inner }
+        Shutdown { inner }
     }
 
     pub fn resolve(self, success: bool) {

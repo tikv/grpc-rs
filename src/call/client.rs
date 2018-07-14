@@ -235,8 +235,8 @@ impl<T> ClientUnaryReceiver<T> {
         de: DeserializeFn<T>,
     ) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
-            call: call,
-            resp_f: resp_f,
+            call,
+            resp_f,
             resp_de: de,
         }
     }
@@ -297,7 +297,7 @@ pub struct StreamingCallSink<P> {
 impl<P> StreamingCallSink<P> {
     fn new(call: Arc<SpinLock<ShareCall>>, ser: SerializeFn<P>) -> StreamingCallSink<P> {
         StreamingCallSink {
-            call: call,
+            call,
             sink_base: SinkBase::new(false),
             close_f: None,
             req_ser: ser,
@@ -369,10 +369,10 @@ struct ResponseStreamImpl<H, T> {
 impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
         ResponseStreamImpl {
-            call: call,
+            call,
             msg_f: None,
             read_done: false,
-            resp_de: resp_de,
+            resp_de,
         }
     }
 
