@@ -857,7 +857,7 @@ typedef struct grpcwrap_completion_queue {
   CompletionQueue* cq;
 } grpcwrap_completion_queue;
 
-/** Create a ComletionQueue, a shadow of grpc_completion_queue.
+/** Create a CompletionQueue, a shadow of grpc_completion_queue.
  */
 GPR_EXPORT grpcwrap_completion_queue *GPR_CALLTYPE
 grpcwrap_completion_queue_shadow(grpc_completion_queue *cq) {
@@ -885,8 +885,8 @@ grpcwrap_alarm_create(void) {
 
 /** Set a completion queue alarm instance associated to a cq.
  *
- * Once the alarm notifies (see a grpcwrap_alarm_notify) or it's destroy (see a
- * grpcwrap_alarm_destroy), an event with tag a tag will be added to a cq. If the
+ * Once the alarm notifies (see a grpcwrap_alarm_cancel) or it's destroy (see a
+ * grpcwrap_alarm_destroy), an event with a tag will be added to a cq. If the
  * alarm notified, the event's success bit will be true, false otherwise. */
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_alarm_set(grpcwrap_alarm* alarm, grpcwrap_completion_queue* cq,
@@ -917,7 +917,7 @@ using grpc::internal::CompletionQueueTag;
 /** A helper class that implements `CompletionQueueTag`.
  *
  * TODO: Remove it. The `grpc::Alarm` submit itself as a tag to a
- * `CompletionQueue`, so we needs it to unify extraction of tags`.
+ * `CompletionQueue`, so we need it to unify extraction of tags`.
  */
 class GrpcwrapTag : public CompletionQueueTag {
  public:

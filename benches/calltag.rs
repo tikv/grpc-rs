@@ -20,7 +20,7 @@ impl MockTag {
     /// Consumes the `MockTag`, returning the wrapped raw pointer.
     pub fn into_raw(self) -> *mut GrpcwrapTag {
         if let MockTag::Spawn(_) = self {
-            panic!("MockTag::Spawn can not into raw pointer")
+            panic!("MockTag::Spawn can not turn into a raw pointer")
         }
         let tag_box = Box::new(self);
         let tag_ptr = Box::into_raw(tag_box);
