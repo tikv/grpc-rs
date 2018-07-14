@@ -22,10 +22,24 @@ matrix:
   - os: osx
     rust: stable
 before_script:
+  - export GRPC_VERSION=1.13.0
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew update && brew install autoconf libtool shtool; fi
-  - test -f "$GRPC_HEADER" || (git clone -b v1.13.0 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c install_cxx)
+  - >-
+    if [[ ! -f "$GRPC_HEADER" ]] ; then
+      (
+        git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
+        cd grpc &&
+        git submodule update --init &&
+        env prefix=$HOME/.cache make install_c install_cxx &&
+        cd $HOME/.cache/lib &&
+        # gRPC installs a incorrect shared lib major version.
+        # See more: https://github.com/grpc/grpc/pull/13500
+        ln -s libgrpc++_unsecure.so.$GRPC_VERSION libgrpc++_unsecure.so.1 &&
+        ln -s libgrpc++.so.$GRPC_VERSION libgrpc++.so.1
+      );
+    fi
   - export C_INCLUDE_PATH="$HOME/.cache/include"
   - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"

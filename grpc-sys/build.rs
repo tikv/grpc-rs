@@ -21,21 +21,18 @@ use std::env::VarError;
 
 use cmake::Config;
 use cc::Build;
-use pkg_config::Config as PkgConfig;
+use pkg_config::{Config as PkgConfig, Library};
 
 const GRPC_VERSION: &'static str = "1.13.0";
 
-fn link_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
-    for l in &[library, library_cpp] {
-        match PkgConfig::new()
-            .atleast_version(GRPC_VERSION)
-            .probe(l)
-        {
-            Ok(lib) => for inc_path in lib.include_paths {
-                cc.include(inc_path);
-            },
-            Err(e) => panic!("can't find library {} via pkg-config: {:?}", l, e),
-        }
+fn probe_library(library: &str, cargo_metadata: bool) -> Library {
+    match PkgConfig::new()
+        .atleast_version(GRPC_VERSION)
+        .cargo_metadata(cargo_metadata)
+        .probe(library)
+    {
+        Ok(lib) => lib,
+        Err(e) => panic!("can't find library {} via pkg-config: {:?}", library, e),
     }
 }
 
@@ -167,21 +164,39 @@ fn main() {
         ("grpc_unsecure", "grpc++_unsecure")
     };
 
-    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
-        link_grpc(&mut cc, library_c, library_cpp);
+    let use_pkg_config = get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1");
+
+    if use_pkg_config {
+        // Do not print cargo metadata.
+        let lib_core = probe_library(library_c, false);
+        for inc_path in lib_core.include_paths {
+            cc.include(inc_path);
+        }
+        let lib_cpp = probe_library(library_cpp, false);
+        for inc_path in lib_cpp.include_paths {
+            cc.include(inc_path);
+        }
     } else {
         build_grpc(&mut cc, library_c, library_cpp);
     }
 
-    cc.cpp(true).file("grpc_wrap.cc");
+    cc.cpp(true);
     if !cfg!(target_env = "msvc") {
         cc.flag("-std=c++11");
     }
+    cc.file("grpc_wrap.cc");
 
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
     }
 
-    cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
+    cc.warnings_into_errors(true);
+    cc.compile("libgrpc_wrap.a");
+
+    if use_pkg_config {
+        // Link libgrpc.so and libgrpc++.so.
+        probe_library(library_c, true);
+        probe_library(library_cpp, true);
+    }
 }
