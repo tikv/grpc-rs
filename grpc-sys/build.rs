@@ -77,8 +77,11 @@ fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
         }
         if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
-            // As cmake CMP0042 suggests.
-            config.define("CMAKE_MACOSX_RPATH", "ON");
+            // Recognize that Apple Clang is a different compiler
+            // than upstream Clang.
+            // TODO: remove it once grpc update its boringssl newer
+            //       than `ec55dc15d3a39e5f1a58bfd79148729f38f6acb4`.
+            config.define("CMAKE_POLICY_DEFAULT_CMP0025", "NEW");
         }
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
@@ -192,6 +195,9 @@ fn main() {
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
+    } else if cfg!(target_os = "macos") {
+        // Suppress warning from grpcpp/impl/codegen/time.h.
+        cc.flag("-Wno-unused-parameter");
     }
 
     cc.warnings_into_errors(true);

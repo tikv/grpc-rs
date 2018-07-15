@@ -25,7 +25,11 @@ before_script:
   - export GRPC_VERSION=1.13.0
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-  - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew update && brew install autoconf libtool shtool; fi
+  - >-
+    if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
+      export CC=clang;
+      brew update && brew install autoconf libtool shtool;
+    fi
   - >-
     if [[ ! -f "$GRPC_HEADER" ]] ; then
       (
