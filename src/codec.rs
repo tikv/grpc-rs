@@ -22,7 +22,7 @@ pub struct Marshaller<T> {
     // Compiler will probably inline the function so performance
     // impact can be omitted.
     //
-    // Use trait will require trait object or generic which will
+    // Using trait will require a trait object or generic, which will
     // either have performance impact or make signature complicated.
     //
     // const function is not stable yet (rust-lang/rust#24111), hence

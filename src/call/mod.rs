@@ -34,7 +34,7 @@ pub enum MethodType {
     /// Single request sent from client, single response received from server.
     Unary,
 
-    /// Stream of request sent from client, single response received from server.
+    /// Stream of requests sent from client, single response received from server.
     ClientStreaming,
 
     /// Single request sent from client, stream of responses received from server.

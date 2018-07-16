@@ -236,10 +236,10 @@ pub enum GrpcCompletionType {
     /// Shutting down.
     QueueShutdown,
 
-    /// No event before timeout
+    /// No event before timeout.
     QueueTimeout,
 
-    /// Operation completion
+    /// Operation completion.
     OpComplete,
 }
 
