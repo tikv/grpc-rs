@@ -181,7 +181,10 @@ fn main() {
     }
 
     cc.cpp(true);
-    if !cfg!(target_env = "msvc") {
+    if cfg!(target_env = "msvc") {
+        // Suppress warning C4530 from `include\xlocale`.
+        cc.flag("/EHsc");
+    } else {
         cc.flag("-std=c++11");
     }
     cc.file("grpc_wrap.cc");
