@@ -850,16 +850,20 @@ grpcwrap_ssl_server_credentials_create(
 
 using grpc::CompletionQueue;
 
-/** Wrapper of grpc::CompletionQueue.
+/** Wrapper of `grpc::CompletionQueue`.
  */
 typedef struct grpcwrap_completion_queue {
   CompletionQueue* cq;
 } grpcwrap_completion_queue;
 
-/** Create a CompletionQueue, a shadow of grpc_completion_queue.
+/** Create a `grpcwrap_completion_queue`, a wrapper of `grpc_completion_queue`.
+ *
+ * Note that `grpc::CompletionQueue` wants to take the ownership of cq,
+ * but in our usage, its lifetime is maintained by `CompletionQueueHandle`
+ * in Rust.
  */
 GPR_EXPORT grpcwrap_completion_queue* GPR_CALLTYPE
-grpcwrap_completion_queue_shadow(grpc_completion_queue* cq) {
+grpcwrap_completion_queue_shadow_create(grpc_completion_queue* cq) {
   void* ptr = gpr_malloc(sizeof(CompletionQueue));
   CompletionQueue* shadow_cq = new (ptr) CompletionQueue(cq);
 
@@ -868,6 +872,16 @@ grpcwrap_completion_queue_shadow(grpc_completion_queue* cq) {
   cq_wrapper->cq = shadow_cq;
 
   return cq_wrapper;
+}
+
+/** Destroy a `grpcwrap_completion_queue`.
+ */
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_completion_queue_shadow_destroy(grpcwrap_completion_queue* cq_wrapper) {
+  // Free `grpc::CompletionQueue` without its destructor.
+  gpr_free(cq_wrapper->cq);
+  gpr_free(cq_wrapper);
+  return;
 }
 
 using grpc::Alarm;

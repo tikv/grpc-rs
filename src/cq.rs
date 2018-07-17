@@ -42,7 +42,7 @@ impl CompletionQueueHandle {
     pub fn new() -> CompletionQueueHandle {
         unsafe {
             let cq = grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut());
-            let cq_shadow = grpc_sys::grpcwrap_completion_queue_shadow(cq);
+            let cq_shadow = grpc_sys::grpcwrap_completion_queue_shadow_create(cq);
             CompletionQueueHandle {
                 cq,
                 cq_shadow,
@@ -116,8 +116,10 @@ impl CompletionQueueHandle {
 
 impl Drop for CompletionQueueHandle {
     fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_completion_queue_destroy(self.cq) }
-        // TOOD: free cq_shadow.
+        unsafe {
+            grpc_sys::grpc_completion_queue_destroy(self.cq);
+            grpc_sys::grpcwrap_completion_queue_shadow_destroy(self.cq_shadow);
+        }
     }
 }
 

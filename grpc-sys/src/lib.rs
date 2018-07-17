@@ -460,9 +460,12 @@ extern "C" {
         tag: *mut c_void,
     ) -> GrpcCallStatus;
 
-    pub fn grpcwrap_completion_queue_shadow(
+    pub fn grpcwrap_completion_queue_shadow_create(
         cq: *mut GrpcCompletionQueue,
     ) -> *mut GrpcCompletionQueueShadow;
+    pub fn grpcwrap_completion_queue_shadow_destroy(
+        cq_shadow: *mut GrpcCompletionQueueShadow
+    );
 
     pub fn grpcwrap_alarm_create() -> *mut GrpcAlarm;
     pub fn grpcwrap_alarm_set(
