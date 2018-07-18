@@ -21,20 +21,38 @@ extern crate openssl;
 use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
 use std::time::Duration;
 
+/// The clocks gRPC supports.
+///
+/// Based on `gpr_clock_type`.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub enum GprClockType {
+    /// Monotonic clock. Epoch undefined. Always moves forward.
     Monotonic = 0,
+
+    /// Realtime clock. May jump forwards or backwards. Settable by the system administrator.
+    /// Has its epoch at 0:00:00 UTC 1 Jan 1970.
     Realtime,
+
+    /// CPU cycle time obtained by rdtsc instruction on x86 platforms. Epoch undefined. Degrades
+    /// to [`GprClockType::Realtime`] on other platforms.
     Precise,
+
+    /// Unmeasurable clock type: no base, created by taking the difference between two times.
     Timespan,
 }
 
+/// Analogous to struct `timespec`. On some machines, absolute times may be in local time.
+///
+/// Based on `gpr_timespec`.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct GprTimespec {
     pub tv_sec: int64_t,
     pub tv_nsec: int32_t,
+
+    /// Against which clock was this time measured? (or [`GprClockType::Timespan`] if this is a
+    /// relative time measure)
     pub clock_type: GprClockType,
 }
 
@@ -54,25 +72,79 @@ impl From<Duration> for GprTimespec {
     }
 }
 
+/// Result of a remote procedure call.
+///
+/// Based on `grpc_status_code`.
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum GrpcStatusCode {
+    /// Not an error; returned on success.
     Ok = 0,
+
+    /// The operation was cancelled (typically by the caller).
     Cancelled = 1,
+
+    /// Unknown error. An example of where this error may be returned is if a Status value received
+    /// from another address space belongs to an error-space that is not known in this address
+    /// space. Also errors raised by APIs that do not return enough error information may be
+    /// converted to this error.
     Unknown = 2,
+
+    /// Client specified an invalid argument. Note that this differs from `FailedPrecondition`.
+    /// `InvalidArgument` indicates arguments that are problematic regardless of the state of the
+    /// system (e.g., a malformed file name).
     InvalidArgument = 3,
+
+    /// Deadline expired before operation could complete. For operations that change the state of
+    /// the system, this error may be returned even if the operation has completed successfully.
+    /// For example, a successful response from a server could have been delayed long enough for
+    /// the deadline to expire.
     DeadlineExceeded = 4,
+
+    /// Some requested entity (e.g., file or directory) was not found.
     NotFound = 5,
+
+    /// Some entity that we attempted to create (e.g., file or directory) already exists.
     AlreadyExists = 6,
+
+    /// The caller does not have permission to execute the specified operation.
+    /// `PermissionDenied` must not be used for rejections caused by exhausting
+    /// some resource (use `ResourceExhausted` instead for those errors).
+    /// `PermissionDenied` must not be used if the caller can not be
+    /// identified (use `Unauthenticated` instead for those errors).
     PermissionDenied = 7,
+
+    /// The request does not have valid authentication credentials for the operation.
     Unauthenticated = 16,
+
+    /// Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file
+    /// system is out of space.
     ResourceExhausted = 8,
+
+    /// Operation was rejected because the system is not in a state required for the operation's
+    /// execution. For example, directory to be deleted may be non-empty, an rmdir operation is
+    /// applied to a non-directory, etc.
     FailedPrecondition = 9,
+
+    /// The operation was aborted, typically due to a concurrency issue like sequencer check
+    /// failures, transaction aborts, etc.
     Aborted = 10,
+
+    /// Operation was attempted past the valid range. E.g., seeking or reading past end of file.
     OutOfRange = 11,
+
+    /// Operation is not implemented or not supported/enabled in this service.
     Unimplemented = 12,
+
+    /// Internal errors. Means some invariants expected by underlying system has been broken. If
+    /// you see one of these errors, something is very broken.
     Internal = 13,
+
+    /// The service is currently unavailable. This is a most likely a transient condition and may
+    /// be corrected by retrying with a backoff.
     Unavailable = 14,
+
+    /// Unrecoverable data loss or corruption.
     DataLoss = 15,
 }
 
@@ -100,33 +172,83 @@ impl From<i32> for GrpcStatusCode {
     }
 }
 
+/// Result of a gRPC call.
+///
+/// If the caller satisfies the prerequisites of a
+/// particular operation, the `GrpcCallStatus` returned will be `Ok`.
+/// Receiving any other value listed here is an indication of a bug in the caller.
+///
+/// Based on `grpc_call_error`.
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub enum GrpcCallStatus {
+    /// Everything went ok.
     Ok = 0,
+
+    /// Something failed, we don't know what.
     Error,
+
+    /// This method is not available on the server.
     ErrorNotOnServer,
+
+    /// This method is not available on the client.
     ErrorNotOnClient,
+
+    /// This method must be called before server_accept.
     ErrorAlreadyAccepted,
+
+    /// This method must be called before invoke.
     ErrorAlreadyInvoked,
+
+    /// This method must be called after invoke.
     ErrorNotInvoked,
+
+    /// This call is already finished (writes_done or write_status has already been called).
     ErrorAlreadyFinished,
+
+    /// There is already an outstanding read/write operation on the call.
     ErrorTooManyOperations,
+
+    /// The flags value was illegal for this call.
     ErrorInvalidFlags,
+
+    /// Invalid metadata was passed to this call.
     ErrorInvalidMetadata,
+
+    /// Invalid message was passed to this call.
     ErrorInvalidMessage,
+
+    /// Completion queue for notification has not been registered with the server.
     ErrorNotServerCompletionQueue,
+
+    /// This batch of operations leads to more operations than allowed.
     ErrorBatchTooBig,
+
+    /// Payload type requested is not the type registered.
     ErrorPayloadTypeMismatch,
+
+    /// Completion queue has been shut down.
+    ErrorCompletionQueueShutdown,
 }
 
+/// The type of completion.
+///
+/// Based on `grpc_completion_type`.
 #[repr(C)]
 pub enum GrpcCompletionType {
+    /// Shutting down.
     QueueShutdown,
+
+    /// No event before timeout.
     QueueTimeout,
+
+    /// Operation completion.
     OpComplete,
 }
 
+/// The result of an operation.
+///
+/// Returned by a completion queue when the operation started with tag.
 #[repr(C)]
 pub struct GrpcEvent {
     pub event_type: GrpcCompletionType,
@@ -136,24 +258,57 @@ pub struct GrpcEvent {
 
 pub enum GrpcChannelArgs {}
 
+/// Connectivity state of a channel.
+///
+/// Based on `grpc_connectivity_state`.
 #[repr(C)]
 pub enum GrpcConnectivityState {
+    /// Channel has just been initialized.
     Init = -1,
+
+    /// Channel is idle.
     Idle,
+
+    /// Channel is connecting.
     Connecting,
+
+    /// Channel is ready for work.
     Ready,
+
+    /// Channel has seen a failure but expects to recover.
     TransientFailure,
+
+    /// Channel has seen a failure that it cannot recover from.
     Shutdown,
 }
 
+/// Compression levels supported by gRPC.
+///
+/// Compression levels allow a party with knowledge of its peer's accepted
+/// encodings to request compression in an abstract way. The level-algorithm
+/// mapping is performed internally and depends on the peer's supported
+/// compression algorithms.
+///
+/// Based on `grpc_compression_level`.
 #[repr(C)]
 pub enum GrpcCompressionLevel {
+    /// No compression.
     None = 0,
+
+    /// Low compression.
     Low,
+
+    /// Medium compression.
+    // TODO: Change to `Medium`.
     Med,
+
+    /// High compression.
     High,
 }
 
+/// Various compression algorithms supported by gRPC.
+///
+/// Based on `grpc_compression_algorithm`.
 #[repr(C)]
 pub enum GrpcCompressionAlgorithms {
     None = 0,
@@ -161,9 +316,15 @@ pub enum GrpcCompressionAlgorithms {
     Gzip,
 }
 
+/// How to handle payloads for a registered method.
+///
+/// Based on `grpc_server_register_method_payload_handling`.
 #[repr(C)]
 pub enum GrpcServerRegisterMethodPayloadHandling {
+    /// Don't try to read the payload.
     None,
+
+    /// Read the initial payload as a byte buffer.
     ReadInitialByteBuffer,
 }
 

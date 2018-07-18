@@ -20,21 +20,28 @@ use protobuf::ProtobufError;
 
 use call::RpcStatus;
 
+/// Errors generated from this library.
 #[derive(Debug)]
 pub enum Error {
+    /// Codec error.
     Codec(Box<error::Error + Send + Sync>),
-    // return when failed to start an internal async call.
+    /// Failed to start an internal async call.
     CallFailure(GrpcCallStatus),
-    // fail when the rpc request fail.
+    /// Rpc request fail.
     RpcFailure(RpcStatus),
-    // return when trying to write to a finished rpc call.
+    /// Try to write to a finished rpc call.
     RpcFinished(Option<RpcStatus>),
+    /// Remote is stopped.
     RemoteStopped,
+    /// Failed to shutdown.
     ShutdownFailed,
+    /// Failed to bind.
     BindFail(String, u16),
+    /// gRPC completion queue is shutdown.
     QueueShutdown,
-    // Return when Google Default Credentials failed.
+    /// Failed to create Google default credentials.
     GoogleAuthenticationFailed,
+    /// Invalid format of metadata.
     InvalidMetadata(String),
 }
 
@@ -75,6 +82,7 @@ impl From<ProtobufError> for Error {
     }
 }
 
+/// Type alias to use this library's [`Error`] type in a `Result`.
 pub type Result<T> = result::Result<T, Error>;
 
 #[cfg(all(test, feature = "protobuf-codec"))]
