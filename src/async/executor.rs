@@ -159,7 +159,7 @@ fn poll(notify: Arc<SpawnNotify>, woken: bool) {
     }
 }
 
-/// An executor that drives a future in the grpc poll thread, which
+/// An executor that drives a future in the gRPC poll thread, which
 /// can reduce thread context switching.
 pub struct Executor<'a> {
     cq: &'a CompletionQueue,

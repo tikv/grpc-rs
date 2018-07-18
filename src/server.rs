@@ -34,7 +34,7 @@ const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
 pub type CallBack = Box<Fn(RpcContext, &[u8])>;
 
-/// Handler is an rpc call holder.
+/// An RPC call holder.
 pub struct Handler {
     method_type: MethodType,
     cb: CallBack,
@@ -118,7 +118,7 @@ mod imp {
 
 use self::imp::Binder;
 
-/// Service configuration struct.
+/// [`Service`] factory in order to configure the properties.
 ///
 /// Use it to build a service which can be registered to a server.
 pub struct ServiceBuilder {
@@ -126,18 +126,19 @@ pub struct ServiceBuilder {
 }
 
 impl ServiceBuilder {
+    /// Initialize a new [`ServiceBuilder`].
     pub fn new() -> ServiceBuilder {
         ServiceBuilder {
             handlers: HashMap::new(),
         }
     }
 
-    /// Add a unary rpc call handler.
-    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method<P, Q>, handler: F) -> ServiceBuilder
+    /// Add a unary RPC call handler.
+    pub fn add_unary_handler<Req, Resp, F>(mut self, method: &Method<Req, Resp>, handler: F) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, P, UnarySink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: Fn(RpcContext, Req, UnarySink<Resp>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
         let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
@@ -148,16 +149,16 @@ impl ServiceBuilder {
         self
     }
 
-    /// Add a client streaming rpc call handler.
-    pub fn add_client_streaming_handler<P, Q, F>(
+    /// Add a client streaming RPC call handler.
+    pub fn add_client_streaming_handler<Req, Resp, F>(
         mut self,
-        method: &Method<P, Q>,
+        method: &Method<Req, Resp>,
         handler: F,
     ) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: Fn(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
         let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
@@ -170,16 +171,16 @@ impl ServiceBuilder {
         self
     }
 
-    /// Add a server streaming rpc call handler.
-    pub fn add_server_streaming_handler<P, Q, F>(
+    /// Add a server streaming RPC call handler.
+    pub fn add_server_streaming_handler<Req, Resp, F>(
         mut self,
-        method: &Method<P, Q>,
+        method: &Method<Req, Resp>,
         handler: F,
     ) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: Fn(RpcContext, Req, ServerStreamingSink<Resp>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
         let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
@@ -192,16 +193,16 @@ impl ServiceBuilder {
         self
     }
 
-    /// Add a duplex streaming rpc call handler.
-    pub fn add_duplex_streaming_handler<P, Q, F>(
+    /// Add a duplex streaming RPC call handler.
+    pub fn add_duplex_streaming_handler<Req, Resp, F>(
         mut self,
-        method: &Method<P, Q>,
+        method: &Method<Req, Resp>,
         handler: F,
     ) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: Fn(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
         let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
@@ -212,6 +213,7 @@ impl ServiceBuilder {
         self
     }
 
+    /// Finalize the [`ServiceBuilder`] and build the [`Service`].
     pub fn build(self) -> Service {
         Service {
             handlers: self.handlers,
@@ -219,11 +221,14 @@ impl ServiceBuilder {
     }
 }
 
+/// A gRPC service.
+///
+/// Use [`ServiceBuilder`] to build a [`Service`].
 pub struct Service {
     handlers: HashMap<&'static [u8], Handler>,
 }
 
-/// Server configuration struct.
+/// [`Server`] factory in order to configure the properties.
 pub struct ServerBuilder {
     env: Arc<Environment>,
     binders: Vec<Binder>,
@@ -233,6 +238,7 @@ pub struct ServerBuilder {
 }
 
 impl ServerBuilder {
+    /// Initialize a new [`ServerBuilder`].
     pub fn new(env: Arc<Environment>) -> ServerBuilder {
         ServerBuilder {
             env,
@@ -245,13 +251,14 @@ impl ServerBuilder {
 
     /// Bind to an address.
     ///
-    /// This function can be called multiple times.
+    /// This function can be called multiple times to bind to multiple ports.
     pub fn bind<S: Into<String>>(mut self, host: S, port: u16) -> ServerBuilder {
         self.binders.push(Binder::new(host.into(), port));
         self
     }
 
     /// Add additional configuration for each incoming channel.
+    #[doc(hidden)]
     pub fn channel_args(mut self, args: ChannelArgs) -> ServerBuilder {
         self.args = Some(args);
         self
@@ -269,6 +276,7 @@ impl ServerBuilder {
         self
     }
 
+    /// Finalize the [`ServerBuilder`] and build the [`Server`].
     pub fn build(mut self) -> Result<Server> {
         let args = self.args
             .as_ref()
@@ -318,7 +326,7 @@ mod secure_server {
     impl ServerBuilder {
         /// Bind to an address for secure connection.
         ///
-        /// This function can be called multiple times.
+        /// This function can be called multiple times to bind to multiple ports.
         pub fn bind_secure<S: Into<String>>(
             mut self,
             host: S,
@@ -387,7 +395,7 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
     }
 }
 
-/// An asynchronize shutdown future.
+/// A `Future` that will resolve when shutdown completes.
 pub struct ShutdownFuture {
     cq_f: CqFuture<()>,
 }
@@ -406,6 +414,11 @@ impl Future for ShutdownFuture {
 unsafe impl Sync for Inner {}
 unsafe impl Send for Inner {}
 
+/// A gRPC server.
+///
+/// A single server can serve arbitrary number of services and can listen on more than one port.
+///
+/// Use [`ServerBuilder`] to build a [`Server`].
 pub struct Server {
     inner: Arc<Inner>,
 }
@@ -435,9 +448,7 @@ impl Server {
         unsafe { grpc_sys::grpc_server_cancel_all_calls(self.inner.server) }
     }
 
-    /// Start a server.
-    ///
-    /// Tells all listeners to start listening.
+    /// Start the server.
     pub fn start(&mut self) {
         unsafe {
             grpc_sys::grpc_server_start(self.inner.server);
@@ -449,7 +460,7 @@ impl Server {
         }
     }
 
-    /// Get the binded addresses.
+    /// Get binded addresses.
     pub fn bind_addrs(&self) -> &[(String, u16)] {
         &self.inner.bind_addrs
     }
