@@ -35,7 +35,7 @@ impl Alarm {
             let ptr = Box::into_raw(tag);
             let cq_ref = cq.borrow()?;
             let alarm = grpc_sys::grpcwrap_alarm_create();
-            grpc_sys::grpcwrap_alarm_set(alarm, cq_ref.as_shadow_ptr(), ptr as _);
+            grpc_sys::grpcwrap_alarm_set(alarm, cq_ref.as_wrapper_ptr(), ptr as _);
             alarm
         };
         Ok(Alarm { alarm })

@@ -365,8 +365,8 @@ pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
+pub enum GrpcCompletionQueueWrapper {}
 pub enum GrpcAlarm {}
-pub enum GrpcCompletionQueueShadow {}
 pub enum GrpcwrapTag {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
@@ -621,17 +621,21 @@ extern "C" {
         tag: *mut c_void,
     ) -> GrpcCallStatus;
 
-    pub fn grpcwrap_completion_queue_shadow_create(
-        cq: *mut GrpcCompletionQueue,
-    ) -> *mut GrpcCompletionQueueShadow;
-    pub fn grpcwrap_completion_queue_shadow_destroy(
-        cq_shadow: *mut GrpcCompletionQueueShadow
+    pub fn grpcwrap_completion_queue_create() -> *mut GrpcCompletionQueueWrapper;
+    pub fn grpcwrap_completion_queue_cq(
+        cq_wrapper: *mut GrpcCompletionQueueWrapper
+    ) -> *mut GrpcCompletionQueue;
+    pub fn grpcwrap_completion_queue_shutdown(
+        cq_wrapper: *mut GrpcCompletionQueueWrapper
+    );
+    pub fn grpcwrap_completion_queue_destroy(
+        cq_wrapper: *mut GrpcCompletionQueueWrapper
     );
 
     pub fn grpcwrap_alarm_create() -> *mut GrpcAlarm;
     pub fn grpcwrap_alarm_set(
         alarm: *mut GrpcAlarm,
-        cq: *mut GrpcCompletionQueueShadow,
+        cq_wrapper: *mut GrpcCompletionQueueWrapper,
         tag: *mut c_void,
     ) -> *mut GrpcAlarm;
     pub fn grpcwrap_alarm_cancel(alarm: *mut GrpcAlarm);
@@ -723,6 +727,8 @@ mod tests {
             super::grpc_init();
             let cq = super::grpc_completion_queue_create_for_next(ptr::null_mut());
             super::grpc_completion_queue_destroy(cq);
+            let cq_wrapper = super::grpcwrap_completion_queue_create();
+            super::grpcwrap_completion_queue_destroy(cq_wrapper);
             super::grpc_shutdown();
         }
     }
