@@ -95,7 +95,7 @@ impl RequestContext {
     /// request is received.
     pub fn handle_unary_req(self, inner: Arc<Inner>, _: &CompletionQueue) {
         // fetch message before calling callback.
-        let tag = Box::new(CallTag::unary_request(self, inner));
+        let tag = CallTag::unary_request(self, inner);
         let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
         let request_ctx = tag.request_ctx().unwrap().as_ptr();
         let tag_ptr = tag.into_raw();

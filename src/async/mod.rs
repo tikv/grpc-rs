@@ -198,6 +198,7 @@ impl CallTag {
     /// Consumes the `CallTag`, returning the wrapped raw pointer.
     pub fn into_raw(self) -> *mut GrpcwrapTag {
         if let CallTag::Spawn(_) = self {
+            // CallTag::Spawn is sent to CompletionQueue by Alarm.
             panic!("CallTag::Spawn can not into raw pointer")
         }
         let tag_box = Box::new(self);
