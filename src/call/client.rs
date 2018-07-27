@@ -351,7 +351,6 @@ impl<Req> Sink for StreamingCallSink<Req> {
 
         if let Async::NotReady = self.close_f.as_mut().unwrap().poll()? {
             // if call is finished, can return early here.
-            call.check_alive()?;
             return Ok(Async::NotReady);
         }
         Ok(Async::Ready(()))
