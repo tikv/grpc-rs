@@ -61,6 +61,8 @@ const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8] = b"grpc.keepalive_permit_withou
 const OPT_OPTIMIZATION_TARGET: &[u8] = b"grpc.optimization_target\0";
 const PRIMARY_USER_AGENT_STRING: &[u8] = b"grpc.primary_user_agent\0";
 
+const OPT_GRPC_ARG_LB_POLICY_NAME: &[u8] = b"grpc.lb_policy_name\0";
+
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
     let version = env!("CARGO_PKG_VERSION");
@@ -91,6 +93,11 @@ pub enum OptTarget {
     Blend,
     /// Maximize throughput at the expense of latency.
     Throughput,
+}
+
+pub enum LBPolicy {
+    RoundRobin,
+    Default,
 }
 
 /// [`Channel`] factory in order to configure the properties.
@@ -365,6 +372,21 @@ impl ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(OPT_OPTIMIZATION_TARGET),
             Options::String(val.unwrap()),
+        );
+        self
+    }
+
+    /// Set LBPolicy for channel
+    ///
+    /// This method allows one to set the load-balancing policy for a given channel.
+    pub fn load_balancing_policy_name(mut self, lb_policy: LBPolicy) -> ChannelBuilder {
+        let val = match lb_policy {
+            LBPolicy::RoundRobin => CString::new("round_robin"),
+            LBPolicy::Default => CString::new(""),
+        };
+        self.options.insert(
+            Cow::Borrowed(OPT_GRPC_ARG_LB_POLICY_NAME),
+            Options::String(val.unwrap())
         );
         self
     }
