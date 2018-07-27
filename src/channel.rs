@@ -95,7 +95,7 @@ pub enum OptTarget {
     Throughput,
 }
 
-pub enum LBPolicy {
+pub enum LbPolicy {
     RoundRobin,
     Default,
 }
@@ -376,13 +376,13 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set LBPolicy for channel
+    /// Set LbPolicy for channel
     ///
     /// This method allows one to set the load-balancing policy for a given channel.
-    pub fn load_balancing_policy_name(mut self, lb_policy: LBPolicy) -> ChannelBuilder {
+    pub fn load_balancing_policy(mut self, lb_policy: LbPolicy) -> ChannelBuilder {
         let val = match lb_policy {
-            LBPolicy::RoundRobin => CString::new("round_robin"),
-            LBPolicy::Default => CString::new(""),
+            LbPolicy::RoundRobin => CString::new("round_robin"),
+            LbPolicy::Default => CString::new(""),
         };
         self.options.insert(
             Cow::Borrowed(OPT_GRPC_ARG_LB_POLICY_NAME),
