@@ -60,7 +60,6 @@ const OPT_KEEPALIVE_TIMEOUT_MS: &[u8] = b"grpc.keepalive_timeout_ms\0";
 const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8] = b"grpc.keepalive_permit_without_calls\0";
 const OPT_OPTIMIZATION_TARGET: &[u8] = b"grpc.optimization_target\0";
 const PRIMARY_USER_AGENT_STRING: &[u8] = b"grpc.primary_user_agent\0";
-
 const OPT_GRPC_ARG_LB_POLICY_NAME: &[u8] = b"grpc.lb_policy_name\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
@@ -96,8 +95,8 @@ pub enum OptTarget {
 }
 
 pub enum LbPolicy {
-    RoundRobin,
     Default,
+    RoundRobin,
 }
 
 /// [`Channel`] factory in order to configure the properties.
