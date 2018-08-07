@@ -43,9 +43,7 @@ fn test_peer() {
         .unwrap();
     server.start();
     let port = server.bind_addrs()[0].1;
-    let cb = ChannelBuilder::new(env);
-    let cb = cb.load_balancing_policy(LbPolicy::RoundRobin);
-    let ch = cb.connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
     let req = HelloRequest::new();

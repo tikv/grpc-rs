@@ -95,7 +95,7 @@ pub enum OptTarget {
 }
 
 pub enum LbPolicy {
-    Default,
+    PickFirst,
     RoundRobin,
 }
 
@@ -380,8 +380,8 @@ impl ChannelBuilder {
     /// This method allows one to set the load-balancing policy for a given channel.
     pub fn load_balancing_policy(mut self, lb_policy: LbPolicy) -> ChannelBuilder {
         let val = match lb_policy {
+            LbPolicy::PickFirst => CString::new("pick_first"),
             LbPolicy::RoundRobin => CString::new("round_robin"),
-            LbPolicy::Default => CString::new(""),
         };
         self.options.insert(
             Cow::Borrowed(OPT_GRPC_ARG_LB_POLICY_NAME),
