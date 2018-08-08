@@ -12,21 +12,22 @@
 // limitations under the License.
 
 use std::ffi::CString;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment,
-           WriteFlags};
+use futures::future::Loop;
+use futures::sync::oneshot::{self, Receiver, Sender};
+use futures::{future, Async, Future, Sink, Stream};
+use grpc::{
+    CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
+};
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
 use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
-use futures::{future, Async, Future, Sink, Stream};
-use futures::sync::oneshot::{self, Receiver, Sender};
-use futures::future::Loop;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
@@ -42,8 +43,9 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
-    req.set_payload(proto_util::new_payload(simple_params.get_req_size()
-        as usize));
+    req.set_payload(proto_util::new_payload(
+        simple_params.get_req_size() as usize
+    ));
     req.set_response_size(simple_params.get_resp_size());
     req
 }
@@ -162,7 +164,8 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
     fn execute_stream(self) {
         let client = self.client.clone();
         let keep_running = self.ctx.keep_running.clone();
-        let (sender, receiver) = self.client
+        let (sender, receiver) = self
+            .client
             .duplex_streaming(
                 &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
                 CallOption::default(),

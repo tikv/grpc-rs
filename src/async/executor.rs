@@ -11,18 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ptr;
 use std::sync::Arc;
 use std::thread::{self, ThreadId};
-use std::ptr;
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
-use cq::CompletionQueue;
-use error::{Error, Result};
 use super::lock::SpinLock;
 use super::CallTag;
+use cq::CompletionQueue;
+use error::{Error, Result};
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 

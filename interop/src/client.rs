@@ -14,13 +14,14 @@
 use std::thread;
 use std::time::Duration;
 
-use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{future, stream, Future, Sink, Stream};
+use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 
-use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::testing::empty::Empty;
-use grpc_proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
-                                    StreamingOutputCallRequest};
+use grpc_proto::testing::messages::{
+    EchoStatus, SimpleRequest, StreamingInputCallRequest, StreamingOutputCallRequest,
+};
+use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::util;
 
 pub struct Client {
@@ -80,7 +81,8 @@ impl Client {
                 .push(util::new_parameters(*size));
         }
         let resp = self.client.streaming_output_call(&req).unwrap();
-        let resp_sizes = resp.map(|r| r.get_payload().get_body().len() as i32)
+        let resp_sizes = resp
+            .map(|r| r.get_payload().get_body().len() as i32)
             .collect()
             .wait()
             .unwrap();

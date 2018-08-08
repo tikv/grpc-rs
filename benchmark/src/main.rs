@@ -26,9 +26,9 @@ use std::sync::Arc;
 use benchmark::{init_log, Worker};
 use clap::{App, Arg};
 use futures::sync::oneshot;
+use futures::Future;
 use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::services_grpc;
-use futures::Future;
 use rand::Rng;
 
 const LOG_FILE: &'static str = "GRPCIO_BENCHMARK_LOG_FILE";

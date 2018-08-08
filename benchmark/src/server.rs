@@ -12,14 +12,14 @@
 // limitations under the License.
 
 use std::ffi::CString;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use error::Result;
 use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
-use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::testing::services_grpc;
+use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::util as proto_util;
 
 use bench::{self, Benchmark, Generic};

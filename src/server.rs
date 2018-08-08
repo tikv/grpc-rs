@@ -12,23 +12,23 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::ptr;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::ptr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
-use RpcContext;
 use async::{CallTag, CqFuture};
-use call::{Method, MethodType};
 use call::server::*;
+use call::{Method, MethodType};
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use env::Environment;
 use error::{Error, Result};
+use RpcContext;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -42,10 +42,7 @@ pub struct Handler {
 
 impl Handler {
     pub fn new(method_type: MethodType, cb: CallBack) -> Handler {
-        Handler {
-            method_type,
-            cb,
-        }
+        Handler { method_type, cb }
     }
 
     pub fn cb(&self) -> &CallBack {
@@ -134,7 +131,11 @@ impl ServiceBuilder {
     }
 
     /// Add a unary RPC call handler.
-    pub fn add_unary_handler<Req, Resp, F>(mut self, method: &Method<Req, Resp>, handler: F) -> ServiceBuilder
+    pub fn add_unary_handler<Req, Resp, F>(
+        mut self,
+        method: &Method<Req, Resp>,
+        handler: F,
+    ) -> ServiceBuilder
     where
         Req: 'static,
         Resp: 'static,
@@ -278,7 +279,8 @@ impl ServerBuilder {
 
     /// Finalize the [`ServerBuilder`] and build the [`Server`].
     pub fn build(mut self) -> Result<Server> {
-        let args = self.args
+        let args = self
+            .args
             .as_ref()
             .map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {

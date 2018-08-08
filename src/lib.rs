@@ -45,9 +45,9 @@ extern crate protobuf;
 mod async;
 mod call;
 mod channel;
+mod client;
 mod codec;
 mod cq;
-mod client;
 #[cfg(feature = "secure")]
 mod credentials;
 mod env;
@@ -56,21 +56,25 @@ mod log_util;
 mod metadata;
 mod server;
 
+pub use call::client::{
+    CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
+    ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver, StreamingCallSink,
+};
+pub use call::server::{
+    ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink, DuplexSinkFailure,
+    RequestStream, RpcContext, ServerStreamingSink, ServerStreamingSinkFailure, UnarySink,
+    UnarySinkResult,
+};
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
-pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
-                       ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
-                       ClientUnaryReceiver, StreamingCallSink};
-pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
-                       DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
-                       ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
-pub use channel::{OptTarget, Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel};
+pub use channel::{Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, OptTarget};
 pub use client::Client;
-pub use codec::Marshaller;
 #[cfg(feature = "protobuf-codec")]
 pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
+pub use codec::Marshaller;
 #[cfg(feature = "secure")]
-pub use credentials::{ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
-                      ServerCredentialsBuilder};
+pub use credentials::{
+    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
+};
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
 pub use log_util::redirect_log;

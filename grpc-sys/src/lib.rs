@@ -15,7 +15,7 @@
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 
 /// The clocks gRPC supports.

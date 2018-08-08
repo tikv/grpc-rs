@@ -11,15 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use grpc_proto::testing::services_grpc::BenchmarkService;
-use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use grpc_proto::util;
-use grpc::{self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
-           RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags};
 use futures::{Future, Sink, Stream};
+use grpc::{
+    self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
+    RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
+};
+use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::services_grpc::BenchmarkService;
+use grpc_proto::util;
 
 fn gen_resp(req: SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);

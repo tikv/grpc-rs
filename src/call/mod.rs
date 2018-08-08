@@ -14,8 +14,8 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, slice, usize};
 use std::sync::Arc;
+use std::{ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -43,7 +43,6 @@ pub enum MethodType {
     /// Both server and client can stream arbitrary number of requests and responses simultaneously.
     Duplex,
 }
-
 
 /// A description of a remote method.
 // TODO: add serializer and deserializer.
@@ -100,10 +99,7 @@ pub struct RpcStatus {
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
     pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
-        RpcStatus {
-            status,
-            details,
-        }
+        RpcStatus { status, details }
     }
 
     /// Create a new [`RpcStatus`] that status code is Ok.
@@ -146,10 +142,7 @@ impl BatchContext {
             }
         };
 
-        RpcStatus {
-            status,
-            details,
-        }
+        RpcStatus { status, details }
     }
 
     /// Fetch the response bytes of the rpc call.

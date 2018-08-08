@@ -13,8 +13,8 @@
 
 use std::sync::Arc;
 
-use call::{BatchContext, Call};
 use call::server::{RequestContext, UnaryRequestContext};
+use call::{BatchContext, Call};
 use cq::CompletionQueue;
 use server::{self, Inner as ServerInner};
 

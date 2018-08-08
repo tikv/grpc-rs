@@ -36,9 +36,9 @@ use std::collections::HashMap;
 
 use protobuf;
 use protobuf::compiler_plugin;
-use protobuf_codegen::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
+use protobuf_codegen::code_writer::CodeWriter;
 
 use super::util::{self, fq_grpc, to_snake_case, MethodType};
 

@@ -27,8 +27,8 @@ use std::io::Read;
 use std::sync::Arc;
 use std::{io, thread};
 
-use futures::Future;
 use futures::sync::oneshot;
+use futures::Future;
 use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
@@ -42,7 +42,8 @@ impl Greeter for GreeterService {
         let msg = format!("Hello {}", req.get_name());
         let mut resp = HelloReply::new();
         resp.set_message(msg);
-        let f = sink.success(resp)
+        let f = sink
+            .success(resp)
             .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
         ctx.spawn(f)
     }
