@@ -24,7 +24,7 @@ use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
 use metadata::Metadata;
-use server::{CallBack, Inner};
+use server::{BoxHandler, RequestCallContext};
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 
 pub struct Deadline {
@@ -52,16 +52,16 @@ impl Deadline {
 /// Context for accepting a request.
 pub struct RequestContext {
     ctx: *mut GrpcRequestCallContext,
-    inner: Option<Arc<Inner>>,
+    request_call: Option<RequestCallContext>,
 }
 
 impl RequestContext {
-    pub fn new(inner: Arc<Inner>) -> RequestContext {
+    pub fn new(rc: RequestCallContext) -> RequestContext {
         let ctx = unsafe { grpc_sys::grpcwrap_request_call_context_create() };
 
         RequestContext {
             ctx,
-            inner: Some(inner),
+            request_call: Some(rc),
         }
     }
 
@@ -71,13 +71,14 @@ impl RequestContext {
     pub fn handle_stream_req(
         self,
         cq: &CompletionQueue,
-        inner: &Inner,
+        rc: &RequestCallContext,
     ) -> result::Result<(), Self> {
-        match inner.get_handler(self.method()) {
+        let handler = unsafe { rc.get_handler(self.method()) };
+        match handler {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, &[], handler.cb());
+                    execute(self, cq, &[], handler);
                     Ok(())
                 }
             },
@@ -93,9 +94,9 @@ impl RequestContext {
     /// This method should be called after `handle_stream_req`. When handling
     /// client side unary request, handler will only be called after the unary
     /// request is received.
-    pub fn handle_unary_req(self, inner: Arc<Inner>, _: &CompletionQueue) {
+    pub fn handle_unary_req(self, rc: RequestCallContext, _: &CompletionQueue) {
         // fetch message before calling callback.
-        let tag = Box::new(CallTag::unary_request(self, inner));
+        let tag = Box::new(CallTag::unary_request(self, rc));
         let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
         let request_ctx = tag.request_ctx().unwrap().as_ptr();
         let tag_ptr = Box::into_raw(tag);
@@ -110,8 +111,8 @@ impl RequestContext {
         }
     }
 
-    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
-        self.inner.take()
+    pub fn take_request_call_context(&mut self) -> Option<RequestCallContext> {
+        self.request_call.take()
     }
 
     pub fn as_ptr(&self) -> *mut GrpcRequestCallContext {
@@ -178,15 +179,15 @@ impl Drop for RequestContext {
 /// A context for handling client side unary request.
 pub struct UnaryRequestContext {
     request: RequestContext,
-    inner: Option<Arc<Inner>>,
+    request_call: Option<RequestCallContext>,
     batch: BatchContext,
 }
 
 impl UnaryRequestContext {
-    pub fn new(ctx: RequestContext, inner: Arc<Inner>) -> UnaryRequestContext {
+    pub fn new(ctx: RequestContext, rc: RequestCallContext) -> UnaryRequestContext {
         UnaryRequestContext {
             request: ctx,
-            inner: Some(inner),
+            request_call: Some(rc),
             batch: BatchContext::new(),
         }
     }
@@ -199,14 +200,14 @@ impl UnaryRequestContext {
         &self.request
     }
 
-    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
-        self.inner.take()
+    pub fn take_request_call_context(&mut self) -> Option<RequestCallContext> {
+        self.request_call.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<&[u8]>) {
-        let handler = inner.get_handler(self.request.method()).unwrap();
+    pub fn handle(mut self, rc: &RequestCallContext, cq: &CompletionQueue, data: Option<&[u8]>) {
+        let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if let Some(data) = data {
-            return execute(self.request, cq, data, handler.cb());
+            return execute(self.request, cq, data, handler);
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
@@ -634,7 +635,7 @@ pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &CallBack) {
+fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &BoxHandler) {
     let rpc_ctx = RpcContext::new(ctx, cq);
-    f(rpc_ctx, payload)
+    f.handle(rpc_ctx, payload)
 }

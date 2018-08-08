@@ -29,7 +29,7 @@ use error::{Error, Result};
 use self::executor::SpawnNotify;
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
-use server::Inner as ServerInner;
+use server::RequestCallContext;
 
 pub use self::executor::Executor;
 pub use self::promise::BatchType;
@@ -140,8 +140,8 @@ impl CallTag {
 
     /// Generate a CallTag for request job. We don't have an eventloop
     /// to pull the future, so just the tag is enough.
-    pub fn request(inner: Arc<ServerInner>) -> CallTag {
-        CallTag::Request(RequestCallback::new(inner))
+    pub fn request(ctx: RequestCallContext) -> CallTag {
+        CallTag::Request(RequestCallback::new(ctx))
     }
 
     /// Generate a Future/CallTag pair for shutdown call.
@@ -157,8 +157,8 @@ impl CallTag {
     }
 
     /// Generate a CallTag for unary request job.
-    pub fn unary_request(ctx: RequestContext, inner: Arc<ServerInner>) -> CallTag {
-        let cb = UnaryRequestCallback::new(ctx, inner);
+    pub fn unary_request(ctx: RequestContext, rc: RequestCallContext) -> CallTag {
+        let cb = UnaryRequestCallback::new(ctx, rc);
         CallTag::UnaryRequest(cb)
     }
 
