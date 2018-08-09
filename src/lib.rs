@@ -66,7 +66,9 @@ pub use call::server::{
     UnarySinkResult,
 };
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
-pub use channel::{Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, OptTarget};
+pub use channel::{
+    Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
+};
 pub use client::Client;
 #[cfg(feature = "protobuf-codec")]
 pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
