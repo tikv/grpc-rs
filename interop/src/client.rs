@@ -48,10 +48,10 @@ impl Client {
     pub fn large_unary(&self) {
         print!("testing large unary ... ");
         let mut req = SimpleRequest::new();
-        req.set_response_size(314159);
-        req.set_payload(util::new_payload(271828));
+        req.set_response_size(314_159);
+        req.set_payload(util::new_payload(271_828));
         let resp = self.client.unary_call(&req).unwrap();
-        assert_eq!(314159, resp.get_payload().get_body().len());
+        assert_eq!(314_159, resp.get_payload().get_body().len());
         println!("pass");
     }
 

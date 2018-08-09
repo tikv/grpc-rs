@@ -273,7 +273,7 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: Option<Vec<u8>>,
+        payload: &Option<Vec<u8>>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
@@ -305,7 +305,7 @@ impl Call {
     }
 
     /// Abort an rpc call before handler is called.
-    pub fn abort(self, status: RpcStatus) {
+    pub fn abort(self, status: &RpcStatus) {
         match self.cq.borrow() {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
@@ -534,12 +534,12 @@ impl WriteFlags {
     }
 
     /// Get whether buffer hint is enabled.
-    pub fn get_buffer_hint(&self) -> bool {
+    pub fn get_buffer_hint(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
     /// Get whether compression is disabled.
-    pub fn get_force_no_compress(&self) -> bool {
+    pub fn get_force_no_compress(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }

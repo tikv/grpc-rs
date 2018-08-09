@@ -31,7 +31,7 @@ use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::services_grpc;
 use rand::Rng;
 
-const LOG_FILE: &'static str = "GRPCIO_BENCHMARK_LOG_FILE";
+const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
 
 fn main() {
     let matches = App::new("Benchmark QpsWorker")

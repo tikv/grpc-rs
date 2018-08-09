@@ -107,7 +107,7 @@ impl Server {
 
     pub fn get_status(&self) -> ServerStatus {
         let mut status = ServerStatus::new();
-        status.set_port(self.server.bind_addrs()[0].1 as i32);
+        status.set_port(i32::from(self.server.bind_addrs()[0].1));
         status.set_cores(util::cpu_num_cores() as i32);
         status
     }

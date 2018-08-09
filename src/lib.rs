@@ -28,10 +28,10 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 
 */
 
-#![allow(unknown_lints)]
-#![allow(new_without_default_derive)]
-#![allow(new_without_default)]
-#![allow(cast_lossless)]
+#![cfg_attr(feature = "cargo-clippy", allow(new_without_default_derive))]
+#![cfg_attr(feature = "cargo-clippy", allow(new_without_default))]
+#![cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
+#![cfg_attr(feature = "cargo-clippy", allow(option_map_unit_fn))]
 
 #[macro_use]
 extern crate futures;

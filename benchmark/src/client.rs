@@ -84,7 +84,7 @@ impl Backoff for Poisson {
         let backoff_time = self.exp.sample(&mut self.r);
         let sec = backoff_time as u64;
         let ns = (backoff_time.fract() * 1_000_000_000f64) as u32;
-        self.last_time = self.last_time + Duration::new(sec, ns);
+        self.last_time += Duration::new(sec, ns);
         let now = Instant::now();
         if self.last_time > now {
             Some(self.last_time - now)
@@ -112,10 +112,10 @@ impl<B: Backoff> ExecutorContext<B> {
         let (tx, rx) = oneshot::channel();
         (
             ExecutorContext {
-                keep_running: keep_running,
-                histogram: histogram,
-                backoff: backoff,
-                timer: timer,
+                keep_running,
+                histogram,
+                backoff,
+                timer,
                 _trace: tx,
             },
             rx,
@@ -155,9 +155,9 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         let cap = cfg.get_payload_config().get_bytebuf_params().get_req_size();
         let req = vec![0; cap as usize];
         GenericExecutor {
-            ctx: ctx,
+            ctx,
             client: Arc::new(GrpcClient::new(channel)),
-            req: req,
+            req,
         }
     }
 
@@ -218,7 +218,7 @@ struct RequestExecutor<B> {
 impl<B: Backoff + Send + 'static> RequestExecutor<B> {
     fn new(ctx: ExecutorContext<B>, channel: Channel, cfg: &ClientConfig) -> RequestExecutor<B> {
         RequestExecutor {
-            ctx: ctx,
+            ctx,
             client: Arc::new(BenchmarkServiceClient::new(channel)),
             req: gen_req(cfg),
         }
@@ -424,8 +424,8 @@ impl Client {
         }
 
         Client {
-            keep_running: keep_running,
-            recorder: recorder,
+            keep_running,
+            recorder,
             histogram: his,
             _env: env,
             running_reqs: Some(running_reqs),

@@ -86,6 +86,7 @@ enum Options {
 }
 
 /// The optimization target for a [`Channel`].
+#[derive(Clone, Copy)]
 pub enum OptTarget {
     /// Minimize latency at the cost of throughput.
     Latency,
@@ -95,6 +96,7 @@ pub enum OptTarget {
     Throughput,
 }
 
+#[derive(Clone, Copy)]
 pub enum LbPolicy {
     PickFirst,
     RoundRobin,
@@ -415,6 +417,7 @@ impl ChannelBuilder {
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
+    #[cfg_attr(feature = "cargo-clippy", allow(identity_conversion))]
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
