@@ -19,6 +19,7 @@ use std::sync::*;
 use std::sync::atomic::*;
 use std::cell::UnsafeCell;
 use std::thread::{self, JoinHandle};
+use std::time::*;
 
 #[test]
 fn test_peer() {
@@ -80,6 +81,12 @@ impl Counter {
     }
 }
 
+impl Drop for Counter {
+    fn drop(&mut self) {
+        self.flush();
+    }
+}
+
 impl Clone for Counter {
     fn clone(&self) -> Counter {
         Counter {
@@ -97,14 +104,9 @@ fn test_soundness() {
     }
 
     impl Greeter for CounterService {
-        fn say_hello(&self, ctx: RpcContext, req: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
             self.c.incr();
-            let name = req.get_name();
-            if name == "flush" {
-                self.c.flush();
-            }
-            let mut resp = HelloReply::new();
-            resp.set_message(name.to_string());
+            let resp = HelloReply::new();
             ctx.spawn(
                 sink.success(resp)
                     .map_err(|e| panic!("failed to reply {:?}", e)),
@@ -122,34 +124,33 @@ fn test_soundness() {
         .unwrap();
     server.start();
     let port = server.bind_addrs()[0].1;
-    let mut reqs = Vec::with_capacity(3000);
-    for i in 0..3000 {
-        let mut req = HelloRequest::new();
-        if i == 1000 || i > 2000 {
-            req.set_name("flush".to_string());
-        } else {
-            req.set_name("test".to_string());
-        }
-        reqs.push(req);
-    }
 
-    let spanw_reqs = || -> JoinHandle<()> {
-        let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    let spanw_reqs = |env| -> JoinHandle<()> {
+        let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
         let client = GreeterClient::new(ch);
-        let mut resps = Vec::with_capacity(reqs.len());
-        let reqs1 = reqs.clone();
+        let mut resps = Vec::with_capacity(3000);
         thread::spawn(move || {
-            for req in &reqs1 {
-                resps.push(client.say_hello_async(req).unwrap());
+            for _ in 0..3000 {
+                resps.push(client.say_hello_async(&HelloRequest::new()).unwrap());
             }
             future::join_all(resps).wait().unwrap();
         })
     };
-    let j1 = spanw_reqs();
-    let j2 = spanw_reqs();
-    let j3 = spanw_reqs();
+    let j1 = spanw_reqs(env.clone());
+    let j2 = spanw_reqs(env.clone());
+    let j3 = spanw_reqs(env.clone());
     j1.join().unwrap();
     j2.join().unwrap();
     j3.join().unwrap();
+    server.shutdown().wait().unwrap();
+    drop(server);
+    drop(env);
+    for _ in 0..100 {
+        let cnt = counter.load(Ordering::SeqCst);
+        if cnt == 9000 {
+            return;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
     assert_eq!(counter.load(Ordering::SeqCst), 9000);
 }
