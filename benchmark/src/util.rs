@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::{Duration, Instant};
 use std::f64;
+use std::time::{Duration, Instant};
 
 use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
@@ -38,8 +38,8 @@ pub struct CpuRecorder {
 
 impl CpuRecorder {
     pub fn new() -> CpuRecorder {
-        let (total_cpu, idle_cpu) = util::get_cpu_usage();
-        let (sys_time, user_time) = util::get_resource_usage();
+        let (total_cpu, idle_cpu) = sys_util::get_cpu_usage();
+        let (sys_time, user_time) = sys_util::get_resource_usage();
         let last_reset_time = Instant::now();
 
         CpuRecorder {
@@ -53,8 +53,8 @@ impl CpuRecorder {
 
     pub fn cpu_time(&mut self, reset: bool) -> Sample {
         let now = Instant::now();
-        let (total_cpu, idle_cpu) = util::get_cpu_usage();
-        let (sys_time, user_time) = util::get_resource_usage();
+        let (total_cpu, idle_cpu) = sys_util::get_cpu_usage();
+        let (sys_time, user_time) = sys_util::get_resource_usage();
 
         let total_cpu_diff = total_cpu - self.total_cpu;
         let idle_cpu_diff = idle_cpu - self.idle_cpu;
@@ -74,7 +74,7 @@ impl CpuRecorder {
         }
 
         Sample {
-            real_time: real_time,
+            real_time,
             user_time: user_time_diff,
             sys_time: sys_time_diff,
             total_cpu: total_cpu_diff,
@@ -84,7 +84,7 @@ impl CpuRecorder {
 }
 
 #[cfg(target_os = "linux")]
-mod util {
+mod sys_util {
     use std::fs::File;
     use std::io::Read;
     use std::mem;
@@ -122,7 +122,7 @@ mod util {
 }
 
 #[cfg(not(target_os = "linux"))]
-mod util {
+mod sys_util {
     pub fn get_resource_usage() -> (f64, f64) {
         (0f64, 0f64)
     }
@@ -139,12 +139,12 @@ pub fn cpu_num_cores() -> usize {
 
 #[inline]
 pub fn dur_to_secs(dur: Duration) -> f64 {
-    dur.as_secs() as f64 + dur.subsec_nanos() as f64 / 1_000_000_000f64
+    dur.as_secs() as f64 + f64::from(dur.subsec_nanos()) / 1_000_000_000f64
 }
 
 #[inline]
 pub fn dur_to_nanos(dur: Duration) -> f64 {
-    dur.as_secs() as f64 * 1_000_000_000f64 + dur.subsec_nanos() as f64
+    dur.as_secs() as f64 * 1_000_000_000f64 + f64::from(dur.subsec_nanos())
 }
 
 // Histogram accumulates values in the form of a histogram with
@@ -172,8 +172,8 @@ impl Histogram {
             min: f64::MAX,
             max: f64::MIN,
             buckets: vec![],
-            one_on_log_multiplier: one_on_log_multiplier,
-            max_val: max_val,
+            one_on_log_multiplier,
+            max_val,
         };
 
         let bucket_size = his.find_bucket(max_val);
@@ -207,7 +207,7 @@ impl Histogram {
 
     pub fn report(&mut self, reset: bool) -> HistogramData {
         let mut data = HistogramData::new();
-        data.set_count(self.count as f64);
+        data.set_count(f64::from(self.count));
         data.set_sum(self.sum);
         data.set_sum_of_squares(self.sum_of_squares);
         data.set_min_seen(self.min);

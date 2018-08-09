@@ -18,13 +18,13 @@ use std::time::Duration;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
+use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
 use call::{check_run, Call, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
 use metadata::Metadata;
-use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 
 /// Update the flag bit in res.
 #[inline]
