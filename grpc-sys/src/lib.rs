@@ -15,10 +15,7 @@
 
 extern crate libc;
 
-#[cfg(feature = "openssl")]
-extern crate openssl;
-
-use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 
 /// The clocks gRPC supports.
@@ -351,11 +348,16 @@ pub struct GrpcMetadataArray {
     pub metadata: *mut GrpcMetadata,
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
 pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x00000010;
+#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x00000020;
+#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
 pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
 
+#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
 pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x00000001;
+#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
 pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x00000002;
 
 pub enum GrpcMetadata {}

@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::*;
 use futures::sync::oneshot::{self, Sender};
+use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
@@ -30,7 +30,8 @@ impl Greeter for GreeterService {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
         let name = req.take_name();
-        let f = rx.map_err(|_| panic!("should receive message"))
+        let f = rx
+            .map_err(|_| panic!("should receive message"))
             .join(lazy(move || {
                 *tx_lock.lock().unwrap() = Some(tx);
                 Ok(())

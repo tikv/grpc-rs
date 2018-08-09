@@ -11,18 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ptr;
 use std::sync::Arc;
 use std::thread::{self, ThreadId};
-use std::ptr;
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
 use grpc_sys::{self, GprTimespec, GrpcAlarm};
 
-use cq::CompletionQueue;
-use error::{Error, Result};
 use super::lock::SpinLock;
 use super::CallTag;
+use cq::CompletionQueue;
+use error::{Error, Result};
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
@@ -116,7 +116,7 @@ impl SpawnNotify {
     pub fn resolve(self, success: bool) {
         // it should always be canceled for now.
         assert!(!success);
-        poll(Arc::new(self.clone()), true);
+        poll(&Arc::new(self.clone()), true);
     }
 }
 
@@ -126,7 +126,7 @@ unsafe impl Sync for SpawnNotify {}
 impl Notify for SpawnNotify {
     fn notify(&self, _: usize) {
         if thread::current().id() == self.worker_id {
-            poll(Arc::new(self.clone()), false)
+            poll(&Arc::new(self.clone()), false)
         } else {
             let mut ctx = self.ctx.lock();
             if ctx.alarmed {
@@ -141,7 +141,7 @@ impl Notify for SpawnNotify {
 /// Poll the future.
 ///
 /// `woken` indicates that if the alarm is woken by a cancel action.
-fn poll(notify: Arc<SpawnNotify>, woken: bool) {
+fn poll(notify: &Arc<SpawnNotify>, woken: bool) {
     let mut handle = notify.handle.lock();
     if woken {
         notify.ctx.lock().alarmed = false;
@@ -150,7 +150,7 @@ fn poll(notify: Arc<SpawnNotify>, woken: bool) {
         // it's resolved, no need to poll again.
         return;
     }
-    match handle.as_mut().unwrap().poll_future_notify(&notify, 0) {
+    match handle.as_mut().unwrap().poll_future_notify(notify, 0) {
         Err(_) | Ok(Async::Ready(_)) => {
             // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
@@ -186,6 +186,6 @@ impl<'a> Executor<'a> {
     {
         let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
         let notify = Arc::new(SpawnNotify::new(s, self.cq.clone()));
-        poll(notify, false)
+        poll(&notify, false)
     }
 }

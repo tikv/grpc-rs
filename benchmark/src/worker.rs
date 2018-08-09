@@ -13,17 +13,18 @@
 
 use std::sync::{Arc, Mutex};
 
-use grpc_proto::testing::services_grpc::WorkerService;
-use grpc_proto::testing::control::{ClientArgs, ClientStatus, CoreRequest, CoreResponse,
-                                   ServerArgs, ServerStatus, Void};
-use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 use error::Error;
-use futures::{future, Future, Sink, Stream};
 use futures::sync::oneshot::Sender;
+use futures::{future, Future, Sink, Stream};
+use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
+use grpc_proto::testing::control::{
+    ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
+};
+use grpc_proto::testing::services_grpc::WorkerService;
 
 use client::Client;
-use util;
 use server::Server;
+use util;
 
 #[derive(Clone)]
 pub struct Worker {
@@ -53,7 +54,8 @@ impl WorkerService for Worker {
                 info!("receive server setup: {:?}", cfg);
                 let server = Server::new(cfg)?;
                 let status = server.get_status();
-                Ok(sink.send((status, WriteFlags::default()))
+                Ok(sink
+                    .send((status, WriteFlags::default()))
                     .and_then(|sink| {
                         stream.fold((sink, server), |(sink, mut server), arg| {
                             let mark = arg.get_mark();

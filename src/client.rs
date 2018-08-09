@@ -14,9 +14,11 @@
 use futures::Future;
 
 use async::Executor;
+use call::client::{
+    CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
+    ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
+};
 use call::{Call, Method};
-use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
-                   ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver};
 use channel::Channel;
 
 use error::Result;
@@ -33,7 +35,12 @@ impl Client {
     }
 
     /// Create a synchronized unary RPC call.
-    pub fn unary_call<Req, Resp>(&self, method: &Method<Req, Resp>, req: &Req, opt: CallOption) -> Result<Resp> {
+    pub fn unary_call<Req, Resp>(
+        &self,
+        method: &Method<Req, Resp>,
+        req: &Req,
+        opt: CallOption,
+    ) -> Result<Resp> {
         let f = self.unary_call_async(method, req, opt)?;
         f.wait()
     }
