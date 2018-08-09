@@ -10,6 +10,7 @@ homepage = "https://github.com/pingcap/grpc-rs"
 documentation = "https://docs.rs/grpcio"
 description = "The rust language implementation of gRPC, base on the gRPC c core library."
 categories = ["asynchronous", "network-programming"]
+autoexamples = false
 
 [package.metadata.docs.rs]
 all-features = true

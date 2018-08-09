@@ -22,11 +22,11 @@ extern crate log;
 use std::sync::Arc;
 
 use clap::{App, Arg};
+use futures::{future, Future};
 use grpc::{Environment, ServerBuilder};
-use interop::InteropTestService;
 use grpc_proto::testing::test_grpc;
 use grpc_proto::util;
-use futures::{future, Future};
+use interop::InteropTestService;
 
 fn main() {
     let matches = App::new("Interoperability Test Server")
