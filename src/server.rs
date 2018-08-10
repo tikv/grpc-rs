@@ -374,7 +374,7 @@ pub struct RequestCallContext {
 }
 
 impl RequestCallContext {
-    /// Users should gurantee the method is always called from the same thread.
+    /// Users should guarantee the method is always called from the same thread.
     /// TODO: Is there a better way?
     #[inline]
     pub unsafe fn get_handler(&self, path: &[u8]) -> Option<&BoxHandler> {
@@ -382,7 +382,7 @@ impl RequestCallContext {
     }
 }
 
-// Apprently, its life time is guranteed by the ref count, hence is safe to be sent
+// Apprently, its life time is guaranteed by the ref count, hence is safe to be sent
 // to other thread. However it's not `Sync`, as `BoxHandler` is neccessary not `Sync`.
 unsafe impl Send for RequestCallContext {}
 
