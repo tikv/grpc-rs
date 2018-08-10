@@ -315,7 +315,7 @@ impl ServerBuilder {
 
             Ok(Server {
                 env: self.env,
-                ctx: Arc::new(ServerCore {
+                core: Arc::new(ServerCore {
                     server,
                     shutdown: AtomicBool::new(false),
                     bind_addrs,
@@ -437,7 +437,7 @@ impl Future for ShutdownFuture {
 /// Use [`ServerBuilder`] to build a [`Server`].
 pub struct Server {
     env: Arc<Environment>,
-    ctx: Arc<ServerCore>,
+    core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
 }
 
@@ -451,12 +451,12 @@ impl Server {
             // Since env still exists, no way can cq been shutdown.
             let cq_ref = self.env.completion_queues()[0].borrow().unwrap();
             grpc_sys::grpc_server_shutdown_and_notify(
-                self.ctx.server,
+                self.core.server,
                 cq_ref.as_ptr(),
                 tag as *mut _,
             )
         }
-        self.ctx.shutdown.store(true, Ordering::SeqCst);
+        self.core.shutdown.store(true, Ordering::SeqCst);
         ShutdownFuture { cq_f }
     }
 
@@ -464,24 +464,26 @@ impl Server {
     ///
     /// Only usable after shutdown.
     pub fn cancel_all_calls(&mut self) {
-        unsafe { grpc_sys::grpc_server_cancel_all_calls(self.ctx.server) }
+        unsafe { grpc_sys::grpc_server_cancel_all_calls(self.core.server) }
     }
 
     /// Start the server.
     pub fn start(&mut self) {
         unsafe {
-            grpc_sys::grpc_server_start(self.ctx.server);
+            grpc_sys::grpc_server_start(self.core.server);
             for cq in self.env.completion_queues() {
+                // Handlers are Send and Clone, but not Sync. So we need to
+                // provide a replica for each completion queue.
                 let registry = self
                     .handlers
                     .iter()
                     .map(|(k, v)| (k.to_owned(), v.box_clone()))
                     .collect();
                 let rc = RequestCallContext {
-                    server: self.ctx.clone(),
+                    server: self.core.clone(),
                     registry: Arc::new(registry),
                 };
-                for _ in 0..self.ctx.slots_per_cq {
+                for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);
                 }
             }
@@ -490,7 +492,7 @@ impl Server {
 
     /// Get binded addresses.
     pub fn bind_addrs(&self) -> &[(String, u16)] {
-        &self.ctx.bind_addrs
+        &self.core.bind_addrs
     }
 }
 
@@ -506,6 +508,6 @@ impl Drop for Server {
 
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Server {:?}", self.ctx.bind_addrs)
+        write!(f, "Server {:?}", self.core.bind_addrs)
     }
 }
