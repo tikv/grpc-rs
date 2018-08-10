@@ -15,9 +15,9 @@ use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
-use std::sync::*;
-use std::sync::atomic::*;
 use std::cell::UnsafeCell;
+use std::sync::atomic::*;
+use std::sync::*;
 use std::thread::{self, JoinHandle};
 use std::time::*;
 
@@ -55,7 +55,6 @@ fn test_peer() {
 
     assert!(resp.get_message().contains("127.0.0.1"), "{:?}", resp);
 }
-
 
 struct Counter {
     global_counter: Arc<AtomicUsize>,
@@ -116,7 +115,12 @@ fn test_soundness() {
 
     let env = Arc::new(EnvBuilder::new().cq_count(4).build());
     let counter = Arc::new(AtomicUsize::new(0));
-    let service = CounterService { c: Counter { global_counter: counter.clone(), local_counter: UnsafeCell::new(0) } };
+    let service = CounterService {
+        c: Counter {
+            global_counter: counter.clone(),
+            local_counter: UnsafeCell::new(0),
+        },
+    };
     let mut server = ServerBuilder::new(env.clone())
         .register_service(create_greeter(service))
         .bind("127.0.0.1", 0)

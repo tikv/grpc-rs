@@ -12,10 +12,10 @@
 // limitations under the License.
 
 use futures::*;
-use std::sync::mpsc::{self, Sender};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
+use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
 

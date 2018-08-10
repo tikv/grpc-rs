@@ -11,13 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{result, slice};
-use std::sync::Arc;
 use std::ffi::CStr;
+use std::sync::Arc;
+use std::{result, slice};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
+use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, SpinLock};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
@@ -25,7 +26,6 @@ use cq::CompletionQueue;
 use error::Error;
 use metadata::Metadata;
 use server::{BoxHandler, RequestCallContext};
-use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -211,7 +211,7 @@ impl UnaryRequestContext {
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
-        self.request.call(cq.clone()).abort(status)
+        self.request.call(cq.clone()).abort(&status)
     }
 }
 
@@ -257,7 +257,7 @@ impl<T> Stream for RequestStream<T> {
 /// `CallHolder` or `Call` to caller.
 // TODO: Use type alias to be friendly for documentation.
 macro_rules! impl_unary_sink {
-    ($t:ident, $rt:ident, $holder:ty) => (
+    ($t:ident, $rt:ident, $holder:ty) => {
         pub struct $rt {
             call: $holder,
             cq_f: Option<BatchFuture>,
@@ -314,7 +314,8 @@ macro_rules! impl_unary_sink {
 
                 let write_flags = self.write_flags;
                 let res = self.call.call(|c| {
-                    c.call.start_send_status_from_server(&status, true, data, write_flags)
+                    c.call
+                        .start_send_status_from_server(&status, true, &data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -329,7 +330,7 @@ macro_rules! impl_unary_sink {
                 }
             }
         }
-    );
+    };
 }
 
 impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
@@ -341,7 +342,7 @@ impl_unary_sink!(
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {
-    ($t:ident, $ft:ident, $holder:ty) => (
+    ($t:ident, $ft:ident, $holder:ty) => {
         pub struct $t<T> {
             call: $holder,
             base: SinkBase,
@@ -372,7 +373,8 @@ macro_rules! impl_stream_sink {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.call(|c| {
-                    c.call.start_send_status_from_server(&status, send_metadata, None, 0)
+                    c.call
+                        .start_send_status_from_server(&status, send_metadata, &None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -398,11 +400,13 @@ macro_rules! impl_stream_sink {
                 }
                 self.base
                     .start_send(&mut self.call, &item.0, item.1, self.ser)
-                    .map(|s| if s {
+                    .map(|s| {
+                        if s {
                             AsyncSink::Ready
                         } else {
                             AsyncSink::NotReady(item)
-                        })
+                        }
+                    })
             }
 
             fn poll_complete(&mut self) -> Poll<(), Error> {
@@ -416,7 +420,8 @@ macro_rules! impl_stream_sink {
                     let send_metadata = self.base.send_metadata;
                     let status = &self.status;
                     let flush_f = self.call.call(|c| {
-                        c.call.start_send_status_from_server(status, send_metadata, None, 0)
+                        c.call
+                            .start_send_status_from_server(status, send_metadata, &None, 0)
                     })?;
                     self.flush_f = Some(flush_f);
                 }
@@ -462,7 +467,7 @@ macro_rules! impl_stream_sink {
                 Ok(readiness)
             }
         }
-    )
+    };
 }
 
 impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, ShareCall);
@@ -530,7 +535,7 @@ macro_rules! accept_call {
             Err(e) => panic!("unexpected error when trying to accept request: {:?}", e),
             Ok(f) => f,
         }
-    }
+    };
 }
 
 // Helper function to call a unary handler.
@@ -552,7 +557,7 @@ pub fn execute_unary<P, Q, F>(
                 RpcStatusCode::Internal,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
-            call.abort(status);
+            call.abort(&status);
             return;
         }
     };
@@ -598,7 +603,7 @@ pub fn execute_server_streaming<P, Q, F>(
                 RpcStatusCode::Internal,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
-            call.abort(status);
+            call.abort(&status);
             return;
         }
     };
@@ -629,7 +634,7 @@ pub fn execute_duplex_streaming<P, Q, F>(
 pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+    call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))
 }
 
 // Helper function to call handler.

@@ -11,29 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod executor;
-mod promise;
 mod callback;
+mod executor;
 mod lock;
+mod promise;
 
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
+use futures::{Async, Future, Poll};
 
-use call::{BatchContext, Call};
+use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
+use self::executor::SpawnNotify;
+use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use call::server::RequestContext;
+use call::{BatchContext, Call};
 use cq::CompletionQueue;
 use error::{Error, Result};
-use self::executor::SpawnNotify;
-use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
-use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use server::RequestCallContext;
 
 pub use self::executor::Executor;
-pub use self::promise::BatchType;
 pub use self::lock::SpinLock;
+pub use self::promise::BatchType;
 
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
@@ -209,9 +209,9 @@ impl Debug for CallTag {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
-    use std::sync::*;
     use std::sync::mpsc::*;
+    use std::sync::*;
+    use std::thread;
 
     use super::*;
     use env::Environment;

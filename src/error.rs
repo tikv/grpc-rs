@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{error, result};
 use std::fmt::{self, Display, Formatter};
+use std::{error, result};
 
 use grpc_sys::GrpcCallStatus;
 #[cfg(feature = "protobuf-codec")]
@@ -89,8 +89,8 @@ pub type Result<T> = result::Result<T, Error>;
 mod tests {
     use std::error::Error as StdError;
 
-    use protobuf::ProtobufError;
     use protobuf::error::WireError;
+    use protobuf::ProtobufError;
 
     use super::Error;
 

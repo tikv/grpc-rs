@@ -12,23 +12,23 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::ptr;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::ptr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
-use RpcContext;
 use async::{CallTag, CqFuture};
-use call::{Method, MethodType};
 use call::server::*;
+use call::{Method, MethodType};
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use env::Environment;
 use error::{Error, Result};
+use RpcContext;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -41,10 +41,7 @@ pub struct Handler<F> {
 
 impl<F> Handler<F> {
     pub fn new(method_type: MethodType, cb: F) -> Handler<F> {
-        Handler {
-            method_type,
-            cb,
-        }
+        Handler { method_type, cb }
     }
 }
 
@@ -55,7 +52,9 @@ pub trait CloneableHandler: Send {
 }
 
 impl<F: 'static> CloneableHandler for Handler<F>
-where F: Fn(RpcContext, &[u8]) + Send + Clone {
+where
+    F: Fn(RpcContext, &[u8]) + Send + Clone,
+{
     #[inline]
     fn handle(&self, ctx: RpcContext, reqs: &[u8]) {
         (self.cb)(ctx, reqs)
@@ -149,16 +148,19 @@ impl ServiceBuilder {
     }
 
     /// Add a unary RPC call handler.
-    pub fn add_unary_handler<Req, Resp, F>(mut self, method: &Method<Req, Resp>, handler: F) -> ServiceBuilder
+    pub fn add_unary_handler<Req, Resp, F>(
+        mut self,
+        method: &Method<Req, Resp>,
+        handler: F,
+    ) -> ServiceBuilder
     where
         Req: 'static,
         Resp: 'static,
         F: Fn(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: &[u8]| {
-            execute_unary(ctx, ser, de, payload, &handler)
-        };
+        let h =
+            move |ctx: RpcContext, payload: &[u8]| execute_unary(ctx, ser, de, payload, &handler);
         let ch = Box::new(Handler::new(MethodType::Unary, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -176,9 +178,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: &[u8]| {
-            execute_client_streaming(ctx, ser, de, &handler)
-        };
+        let h = move |ctx: RpcContext, _: &[u8]| execute_client_streaming(ctx, ser, de, &handler);
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -216,9 +216,7 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: &[u8]| {
-            execute_duplex_streaming(ctx, ser, de, &handler)
-        };
+        let h = move |ctx: RpcContext, _: &[u8]| execute_duplex_streaming(ctx, ser, de, &handler);
         let ch = Box::new(Handler::new(MethodType::Duplex, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -289,7 +287,8 @@ impl ServerBuilder {
 
     /// Finalize the [`ServerBuilder`] and build the [`Server`].
     pub fn build(mut self) -> Result<Server> {
-        let args = self.args
+        let args = self
+            .args
             .as_ref()
             .map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
@@ -473,7 +472,11 @@ impl Server {
         unsafe {
             grpc_sys::grpc_server_start(self.ctx.server);
             for cq in self.env.completion_queues() {
-                let registry = self.handlers.iter().map(|(k, v)| (k.to_owned(), v.box_clone())).collect();
+                let registry = self
+                    .handlers
+                    .iter()
+                    .map(|(k, v)| (k.to_owned(), v.box_clone()))
+                    .collect();
                 let rc = RequestCallContext {
                     server: self.ctx.clone(),
                     registry: Arc::new(registry),

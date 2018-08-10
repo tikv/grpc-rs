@@ -27,7 +27,6 @@ pub struct Marshaller<T> {
     //
     // const function is not stable yet (rust-lang/rust#24111), hence
     // make all fields public.
-
     /// The serialize function.
     pub ser: SerializeFn<T>,
 

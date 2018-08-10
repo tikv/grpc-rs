@@ -36,9 +36,9 @@ use std::collections::HashMap;
 
 use protobuf;
 use protobuf::compiler_plugin;
-use protobuf_codegen::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
+use protobuf_codegen::code_writer::CodeWriter;
 
 use super::util::{self, fq_grpc, to_snake_case, MethodType};
 
@@ -57,10 +57,10 @@ impl<'a> MethodGen<'a> {
         root_scope: &'a RootScope<'a>,
     ) -> MethodGen<'a> {
         MethodGen {
-            proto: proto,
-            service_name: service_name,
-            service_path: service_path,
-            root_scope: root_scope,
+            proto,
+            service_name,
+            service_path,
+            root_scope,
         }
     }
 
@@ -429,10 +429,7 @@ impl<'a> ServiceGen<'a> {
             })
             .collect();
 
-        ServiceGen {
-            proto: proto,
-            methods: methods,
-        }
+        ServiceGen { proto, methods }
     }
 
     fn service_name(&self) -> String {
@@ -550,9 +547,7 @@ pub fn gen(
     let files_map: HashMap<&str, &FileDescriptorProto> =
         file_descriptors.iter().map(|f| (f.get_name(), f)).collect();
 
-    let root_scope = RootScope {
-        file_descriptors: file_descriptors,
-    };
+    let root_scope = RootScope { file_descriptors };
 
     let mut results = Vec::new();
 

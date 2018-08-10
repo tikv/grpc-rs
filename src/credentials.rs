@@ -14,8 +14,8 @@
 use std::ffi::CString;
 use std::ptr;
 
-use grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
 use error::{Error, Result};
+use grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
 use libc::c_char;
 
 fn clear_key_securely(key: &mut [u8]) {
@@ -74,7 +74,8 @@ impl ServerCredentialsBuilder {
 
     /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
     pub fn build(mut self) -> ServerCredentials {
-        let root_cert = self.root
+        let root_cert = self
+            .root
             .take()
             .map_or_else(ptr::null_mut, CString::into_raw);
         let cert_chains = self.cert_chains.as_mut_ptr();
@@ -163,13 +164,17 @@ impl ChannelCredentialsBuilder {
             clear_key_securely(&mut private_key);
             private_key = nil_key;
         }
-        self.cert_key_pair = Some((CString::new(cert).unwrap(), CString::new(private_key).unwrap()));
+        self.cert_key_pair = Some((
+            CString::new(cert).unwrap(),
+            CString::new(private_key).unwrap(),
+        ));
         self
     }
 
     /// Finalize the [`ChannelCredentialsBuilder`] and build the [`ChannelCredentials`].
     pub fn build(mut self) -> ChannelCredentials {
-        let root_ptr = self.root
+        let root_ptr = self
+            .root
             .take()
             .map_or_else(ptr::null_mut, CString::into_raw);
         let (cert_ptr, key_ptr) = self.cert_key_pair.take().map_or_else(

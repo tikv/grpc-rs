@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use call::{BatchContext, Call};
 use call::server::{RequestContext, UnaryRequestContext};
+use call::{BatchContext, Call};
 use cq::CompletionQueue;
 use server::{self, RequestCallContext};
 
