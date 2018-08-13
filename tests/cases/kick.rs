@@ -47,7 +47,7 @@ impl Greeter for GreeterService {
 }
 
 #[test]
-fn test_alarm_notify() {
+fn test_kick() {
     let env = Arc::new(EnvBuilder::new().build());
     let tx = Arc::new(Mutex::new(None));
     let service = create_greeter(GreeterService { tx: tx.clone() });
@@ -74,4 +74,14 @@ fn test_alarm_notify() {
     }
     let reply = f.wait().expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
+
+    let (tx1, rx1) = oneshot::channel();
+    let (tx2, rx2) = oneshot::channel();
+    let f = rx1.map(|n| {
+        let _ = tx2.send(n);
+    }).map_err(|_| ());
+    client.spawn(f);
+    thread::sleep(Duration::from_millis(10));
+    let _ = tx1.send(77);
+    assert_eq!(rx2.wait().unwrap(), 77);
 }

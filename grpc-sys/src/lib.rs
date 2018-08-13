@@ -474,6 +474,11 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
     ) -> int32_t;
 
+    pub fn grpcwrap_call_kick_completion_queue(
+        call: *mut GrpcCall,
+        tag: *mut c_void,
+    );
+
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
@@ -564,6 +569,7 @@ extern "C" {
         description: *const c_char,
         reserved: *mut c_void,
     );
+    pub fn grpc_call_ref(call: *mut GrpcCall);
     pub fn grpc_call_unref(call: *mut GrpcCall);
 
     pub fn grpc_server_register_method(

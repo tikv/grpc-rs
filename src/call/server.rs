@@ -118,7 +118,7 @@ impl RequestContext {
         self.ctx
     }
 
-    fn call(&mut self, cq: CompletionQueue) -> Call {
+    fn call(&self, cq: CompletionQueue) -> Call {
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_ref_call(self.ctx);
             assert!(!call.is_null());
@@ -203,7 +203,7 @@ impl UnaryRequestContext {
         self.inner.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<&[u8]>) {
+    pub fn handle(self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<&[u8]>) {
         let handler = inner.get_handler(self.request.method()).unwrap();
         if let Some(data) = data {
             return execute(self.request, cq, data, handler.cb());
@@ -488,7 +488,7 @@ impl<'a> RpcContext<'a> {
         }
     }
 
-    pub(crate) fn call(&mut self) -> Call {
+    pub(crate) fn call(&self) -> Call {
         self.ctx.call(self.executor.cq().clone())
     }
 
@@ -521,7 +521,7 @@ impl<'a> RpcContext<'a> {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        self.executor.spawn(f)
+        self.executor.spawn(f, self.call())
     }
 }
 
@@ -539,7 +539,7 @@ macro_rules! accept_call {
 
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: &[u8],
@@ -566,7 +566,7 @@ pub fn execute_unary<P, Q, F>(
 
 // Helper function to call client streaming handler.
 pub fn execute_client_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &F,
@@ -584,7 +584,7 @@ pub fn execute_client_streaming<P, Q, F>(
 
 // Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: &[u8],
@@ -613,7 +613,7 @@ pub fn execute_server_streaming<P, Q, F>(
 
 // Helper function to call duplex streaming handler.
 pub fn execute_duplex_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &F,
@@ -630,7 +630,7 @@ pub fn execute_duplex_streaming<P, Q, F>(
 }
 
 // A helper function used to handle all undefined rpc calls.
-pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
+pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
     let mut call = ctx.call(cq);
     accept_call!(call);
     call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))

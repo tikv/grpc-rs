@@ -561,6 +561,33 @@ impl Channel {
         }
     }
 
+    /// Create a raw call can be used to kick its completion queue.
+    pub (crate) fn create_raw_call(&self) -> Result<Call> {
+        let cq_ref = self.cq.borrow()?;
+        let raw_call = unsafe {
+            let ch = self.inner.channel;
+            let cq = cq_ref.as_ptr();
+            let method_ptr = "".as_ptr();
+            let method_len = "".len();
+            // Do not timeout.
+            let timeout = GprTimespec::inf_future();
+            grpc_sys::grpcwrap_channel_create_call(
+                ch,
+                ptr::null_mut(),
+                0,
+                cq,
+                method_ptr as *const _,
+                method_len,
+                ptr::null(),
+                0,
+                timeout,
+                ptr::null_mut(),
+            )
+        };
+
+        unsafe { Ok(Call::from_raw(raw_call, self.cq.clone())) }
+    }
+
     /// Create a call using the method and option.
     pub(crate) fn create_call<Req, Resp>(
         &self,

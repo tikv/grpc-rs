@@ -356,6 +356,32 @@ impl Call {
             grpc_sys::grpc_call_cancel(self.call, ptr::null_mut());
         }
     }
+
+    /// Kick its completion queue.
+    pub (crate) fn kick_completion_queue(&self, tag: Box<CallTag>) {
+        match self.cq.borrow() {
+            // Queue is shutdown, ignore.
+            Err(Error::QueueShutdown) => return,
+            Err(e) => panic!("unexpected error when canceling call: {:?}", e),
+            _ => {}
+        }
+        unsafe {
+            let ptr = Box::into_raw(tag);
+            grpc_sys::grpcwrap_call_kick_completion_queue(self.call, ptr as _);
+        }
+    }
+}
+
+impl Clone for Call {
+    fn clone(&self) -> Call {
+        // Bump call's reference count.
+        let call = unsafe {
+            grpc_sys::grpc_call_ref(self.call);
+            self.call
+        };
+        let cq = self.cq.clone();
+        Call { call, cq }
+    }
 }
 
 impl Drop for Call {

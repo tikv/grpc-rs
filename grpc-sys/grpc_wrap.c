@@ -762,6 +762,16 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_initial_metadata(
                                NULL);
 }
 
+/** Kick call's completion queue, it should be called after there is an event
+    ready to poll.
+    THREAD SAFETY: grpcwrap_call_kick_completion_queue is thread-compatible
+    because it does not change the call's state. */
+GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_kick_completion_queue(
+    grpc_call* call, void* tag) {
+  // Empty batch grpc_op kicks call's completion queue immediately.
+  return grpc_call_start_batch(call, NULL, 0, tag, NULL);
+}
+
 /* Server */
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE
