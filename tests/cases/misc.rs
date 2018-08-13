@@ -129,7 +129,7 @@ fn test_soundness() {
     server.start();
     let port = server.bind_addrs()[0].1;
 
-    let spanw_reqs = |env| -> JoinHandle<()> {
+    let spawn_reqs = |env| -> JoinHandle<()> {
         let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
         let client = GreeterClient::new(ch);
         let mut resps = Vec::with_capacity(3000);
@@ -140,9 +140,9 @@ fn test_soundness() {
             future::join_all(resps).wait().unwrap();
         })
     };
-    let j1 = spanw_reqs(env.clone());
-    let j2 = spanw_reqs(env.clone());
-    let j3 = spanw_reqs(env.clone());
+    let j1 = spawn_reqs(env.clone());
+    let j2 = spawn_reqs(env.clone());
+    let j3 = spawn_reqs(env.clone());
     j1.join().unwrap();
     j2.join().unwrap();
     j3.join().unwrap();
