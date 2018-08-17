@@ -182,20 +182,20 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 }
 
 /// A helper function that runs the batch call and checks the result.
-fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
+fn check_run<F>(bt: BatchType, f: F) -> Result<BatchFuture>
 where
-    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> Result<GrpcCallStatus>,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr as *mut c_void);
+    let code = f(batch_ptr, tag_ptr as *mut c_void)?;
     if code != GrpcCallStatus::Ok {
         unsafe {
             Box::from_raw(tag_ptr);
         }
         panic!("create call fail: {:?}", code);
     }
-    cq_f
+    Ok(cq_f)
 }
 
 /// A Call represents an RPC.
@@ -215,105 +215,127 @@ impl Call {
         assert!(!call.is_null());
         Call { call, cq }
     }
+}
+
+impl CallHolder for Call {
+    fn call<R, F: FnOnce(*mut GrpcCall) -> R>(&mut self, f: F) -> Result<R> {
+        let _cq_ref = self.cq.borrow()?;
+        Ok(f(self.call))
+    }
+
+    fn into_sync(self) -> Arc<SpinLock<Call>> {
+        Arc::new(SpinLock::new(self))
+    }
+}
+
+impl CallHolder for Arc<SpinLock<Call>> {
+    fn call<R, F: FnOnce(*mut GrpcCall) -> R>(&mut self, f: F) -> Result<R> {
+        let call = self.lock();
+        Ok(f(call.call))
+    }
+
+    fn into_sync(self) -> Arc<SpinLock<Call>> {
+        self
+    }
+}
+
+pub(crate) trait CallHolder: Sized {
+    fn call<R, F: FnOnce(*mut GrpcCall) -> R>(&mut self, f: F) -> Result<R>;
+    fn into_sync(self) -> Arc<SpinLock<Call>>;
 
     /// Send a message asynchronously.
-    pub fn start_send_message(
+    fn start_send_message(
         &mut self,
         msg: &[u8],
         write_flags: u32,
         initial_meta: bool,
     ) -> Result<BatchFuture> {
-        let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(
-                self.call,
-                ctx,
-                msg.as_ptr() as _,
-                msg.len(),
-                write_flags,
-                i,
-                tag,
-            )
-        });
-        Ok(f)
+        check_run(BatchType::Finish, |ctx, tag| {
+            self.call(|call| unsafe {
+                grpc_sys::grpcwrap_call_send_message(
+                    call,
+                    ctx,
+                    msg.as_ptr() as _,
+                    msg.len(),
+                    write_flags,
+                    i,
+                    tag,
+                )
+            })
+        })
     }
 
     /// Finish the rpc call from client.
-    pub fn start_send_close_client(&mut self) -> Result<BatchFuture> {
-        let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Finish, |_, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_close_from_client(self.call, tag)
-        });
-        Ok(f)
+    fn start_send_close_client(&mut self) -> Result<BatchFuture> {
+        check_run(BatchType::Finish, |_, tag| {
+            self.call(|call| unsafe { grpc_sys::grpcwrap_call_send_close_from_client(call, tag) })
+        })
     }
 
     /// Receive a message asynchronously.
-    pub fn start_recv_message(&mut self) -> Result<BatchFuture> {
-        let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Read, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
-        });
-        Ok(f)
+    fn start_recv_message(&mut self) -> Result<BatchFuture> {
+        check_run(BatchType::Read, |ctx, tag| {
+            self.call(|call| unsafe { grpc_sys::grpcwrap_call_recv_message(call, ctx, tag) })
+        })
     }
 
     /// Start handling from server side.
     ///
     /// Future will finish once close is received by the server.
-    pub fn start_server_side(&mut self) -> Result<BatchFuture> {
-        let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
-        });
-        Ok(f)
+    fn start_server_side(&mut self) -> Result<BatchFuture> {
+        check_run(BatchType::Finish, |ctx, tag| {
+            self.call(|call| unsafe { grpc_sys::grpcwrap_call_start_serverside(call, ctx, tag) })
+        })
     }
 
     /// Send a status from server.
-    pub fn start_send_status_from_server(
+    fn start_send_status_from_server(
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
         payload: &Option<Vec<u8>>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
-        let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let (payload_ptr, payload_len) = payload
             .as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let details_ptr = status
-                .details
-                .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
-            let details_len = status.details.as_ref().map_or(0, String::len);
-            grpc_sys::grpcwrap_call_send_status_from_server(
-                self.call,
-                ctx,
-                status.status,
-                details_ptr,
-                details_len,
-                ptr::null_mut(),
-                send_empty_metadata,
-                payload_ptr as _,
-                payload_len,
-                write_flags,
-                tag,
-            )
-        });
-        Ok(f)
+        check_run(BatchType::Finish, |ctx, tag| {
+            self.call(|call| unsafe {
+                let details_ptr = status
+                    .details
+                    .as_ref()
+                    .map_or_else(ptr::null, |s| s.as_ptr() as _);
+                let details_len = status.details.as_ref().map_or(0, String::len);
+                grpc_sys::grpcwrap_call_send_status_from_server(
+                    call,
+                    ctx,
+                    status.status,
+                    details_ptr,
+                    details_len,
+                    ptr::null_mut(),
+                    send_empty_metadata,
+                    payload_ptr as _,
+                    payload_len,
+                    write_flags,
+                    tag,
+                )
+            })
+        })
     }
 
     /// Abort an rpc call before handler is called.
-    pub fn abort(self, status: &RpcStatus) {
-        match self.cq.borrow() {
+    fn abort(mut self, status: &RpcStatus) {
+        let call_ptr = match self.call(|call| call) {
+            Ok(call) => call,
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
             Err(e) => panic!("unexpected error when aborting call: {:?}", e),
-            _ => {}
-        }
-        let call_ptr = self.call;
-        let tag = CallTag::abort(self);
+        };
+
+        let call = self.into_sync();
+        let tag = CallTag::abort(call);
         let (batch_ptr, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
@@ -345,29 +367,27 @@ impl Call {
     }
 
     /// Cancel the rpc call by client.
-    fn cancel(&self) {
-        match self.cq.borrow() {
+    fn cancel(&mut self) {
+        match self.call(|call| unsafe {
+            grpc_sys::grpc_call_cancel(call, ptr::null_mut());
+        }) {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
             Err(e) => panic!("unexpected error when canceling call: {:?}", e),
             _ => {}
-        }
-        unsafe {
-            grpc_sys::grpc_call_cancel(self.call, ptr::null_mut());
         }
     }
 
     /// Kick its completion queue.
-    pub (crate) fn kick_completion_queue(&self, tag: Box<CallTag>) {
-        match self.cq.borrow() {
+    fn kick_completion_queue(&mut self, tag: Box<CallTag>) {
+        match self.call(|call| unsafe {
+            let ptr = Box::into_raw(tag);
+            grpc_sys::grpcwrap_call_kick_completion_queue(call, ptr as _);
+        }) {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
             Err(e) => panic!("unexpected error when canceling call: {:?}", e),
             _ => {}
-        }
-        unsafe {
-            let ptr = Box::into_raw(tag);
-            grpc_sys::grpcwrap_call_kick_completion_queue(self.call, ptr as _);
         }
     }
 }
@@ -395,17 +415,15 @@ impl Drop for Call {
 /// In both cases, receiver and sender can be polled in the same time,
 /// hence we need to share the call in the both sides and abort the sink
 /// once the call is canceled or finished early.
-struct ShareCall {
-    call: Call,
+struct Finish {
     close_f: CqFuture<BatchMessage>,
     finished: bool,
     status: Option<RpcStatus>,
 }
 
-impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
-        ShareCall {
-            call,
+impl Finish {
+    fn new(close_f: CqFuture<BatchMessage>) -> Finish {
+        Finish {
             close_f,
             finished: false,
             status: None,
@@ -444,19 +462,19 @@ impl ShareCall {
     }
 }
 
-/// A helper trait that allows executing function on the inernal `ShareCall` struct.
-trait ShareCallHolder {
-    fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R;
+/// A helper trait that allows executing function on the inernal `Finish` struct.
+trait FinishHolder {
+    fn call<R, F: FnOnce(&mut Finish) -> R>(&mut self, f: F) -> R;
 }
 
-impl ShareCallHolder for ShareCall {
-    fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R {
+impl FinishHolder for Finish {
+    fn call<R, F: FnOnce(&mut Finish) -> R>(&mut self, f: F) -> R {
         f(self)
     }
 }
 
-impl ShareCallHolder for Arc<SpinLock<ShareCall>> {
-    fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R {
+impl FinishHolder for Arc<SpinLock<Finish>> {
+    fn call<R, F: FnOnce(&mut Finish) -> R>(&mut self, f: F) -> R {
         let mut call = self.lock();
         f(&mut call)
     }
@@ -478,7 +496,7 @@ impl StreamingBase {
         }
     }
 
-    fn poll<C: ShareCallHolder>(
+    fn poll<C: CallHolder>(
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
@@ -519,7 +537,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.call(|c| c.call.start_recv_message())?;
+        let msg_f = call.start_recv_message()?;
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -586,7 +604,7 @@ impl SinkBase {
         }
     }
 
-    fn start_send<T, C: ShareCallHolder>(
+    fn start_send<T, C: CallHolder>(
         &mut self,
         call: &mut C,
         t: &T,
@@ -607,10 +625,7 @@ impl SinkBase {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
         }
-        let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
-        })?;
+        let write_f = call.start_send_message(&self.buf, flags.flags, self.send_metadata)?;
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)

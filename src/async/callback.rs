@@ -11,6 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
+use async::lock::SpinLock;
 use call::server::{RequestContext, UnaryRequestContext};
 use call::{BatchContext, Call};
 use cq::CompletionQueue;
@@ -79,11 +82,11 @@ impl UnaryRequest {
 /// A callback to wait for status for the aborted rpc call to be sent.
 pub struct Abort {
     ctx: BatchContext,
-    _call: Call,
+    _call: Arc<SpinLock<Call>>,
 }
 
 impl Abort {
-    pub fn new(call: Call) -> Abort {
+    pub fn new(call: Arc<SpinLock<Call>>) -> Abort {
         Abort {
             ctx: BatchContext::new(),
             _call: call,
