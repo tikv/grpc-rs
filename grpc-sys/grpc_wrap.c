@@ -311,6 +311,24 @@ grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
   return buf;
 }
 
+GPR_EXPORT const char *GPR_CALLTYPE
+grpcwrap_slice_raw(const grpc_slice *slice, size_t *len) {
+  *len = slice->refcount ? slice->data.refcounted.length
+                         : slice->data.inlined.length;
+  return (const char *)(slice->refcount ? slice->data.refcounted.bytes
+                                        : slice->data.inlined.bytes);
+}
+
+GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
+grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
+  grpc_byte_buffer *buf = NULL;
+  if (ctx->recv_message) {
+    buf = ctx->recv_message;
+    ctx->recv_message = NULL;
+  }
+  return buf;
+}
+
 GPR_EXPORT grpc_status_code GPR_CALLTYPE
 grpcwrap_batch_context_recv_status_on_client_status(
     const grpcwrap_batch_context* ctx) {
