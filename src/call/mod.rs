@@ -131,17 +131,12 @@ impl MessageReader {
     pub fn pending_bytes_count(&self) -> usize {
         self.length
     }
-}
 
-unsafe impl Sync for MessageReader {}
-unsafe impl Send for MessageReader {}
-
-impl Read for MessageReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    fn read_directly(&mut self, buf: &mut [u8]) -> usize {
         let amt = {
-            let bytes = self.fill_buf()?;
+            let bytes = self.fill_buf_directly();
             if bytes.is_empty() {
-                return Ok(0);
+                return 0;
             }
             let amt = cmp::min(buf.len(), bytes.len());
             if amt == 1 {
@@ -152,12 +147,12 @@ impl Read for MessageReader {
             amt
         };
         self.consume(amt);
-        Ok(amt)
+        amt
     }
 
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+    fn read_to_end_directly(&mut self, buf: &mut Vec<u8>) -> usize {
         if self.length == 0 {
-            return Ok(0);
+            return 0;
         }
         buf.reserve(self.length);
         let start = buf.len();
@@ -166,11 +161,9 @@ impl Read for MessageReader {
             buf.set_len(start + self.length);
         }
         let ret = loop {
-            match self.read(&mut buf[len..]) {
-                Ok(0) => break Ok(len - start),
-                Ok(n) => len += n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
-                Err(e) => break Err(e),
+            match self.read_directly(&mut buf[len..]) {
+                0 => break len - start,
+                n => len += n,
             }
         };
         unsafe {
@@ -178,13 +171,11 @@ impl Read for MessageReader {
         }
         ret
     }
-}
 
-impl BufRead for MessageReader {
-    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+    pub fn fill_buf_directly(&mut self) -> &[u8] {
         if self.bytes.is_empty() {
             if self.length == 0 {
-                return Ok(&[]);
+                return &[];
             }
             let mut len = 0;
             unsafe {
@@ -199,8 +190,28 @@ impl BufRead for MessageReader {
                 self.bytes = slice::from_raw_parts(ptr as _, len);
             }
         }
-        Ok(self.bytes)
+        self.bytes
     }
+}
+
+unsafe impl Sync for MessageReader {}
+unsafe impl Send for MessageReader {}
+
+impl Read for MessageReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        Ok(self.read_directly(buf))
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        Ok(self.read_to_end_directly(buf))
+    }
+}
+
+impl BufRead for MessageReader {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        Ok(self.fill_buf_directly())
+    }
+
     fn consume(&mut self, amt: usize) {
         self.length -= amt;
         self.bytes = &self.bytes[amt..];
