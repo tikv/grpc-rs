@@ -333,6 +333,24 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_recv_message_to_buffer(
   grpc_byte_buffer_reader_destroy(&reader);
 }
 
+GPR_EXPORT const char *GPR_CALLTYPE
+grpcwrap_slice_raw(const grpc_slice *slice, size_t *len) {
+  *len = slice->refcount ? slice->data.refcounted.length
+                         : slice->data.inlined.length;
+  return (const char *)(slice->refcount ? slice->data.refcounted.bytes
+                                        : slice->data.inlined.bytes);
+}
+
+GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
+grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
+  grpc_byte_buffer *buf = NULL;
+  if (ctx->recv_message) {
+    buf = ctx->recv_message;
+    ctx->recv_message = NULL;
+  }
+  return buf;
+}
+
 GPR_EXPORT grpc_status_code GPR_CALLTYPE
 grpcwrap_batch_context_recv_status_on_client_status(
     const grpcwrap_batch_context* ctx) {
@@ -855,3 +873,18 @@ grpcwrap_ssl_server_credentials_create(
 }
 
 #endif
+
+/* Sanity check for complicated types */
+#define alignof(type)((size_t) & ((struct {char c; type d; } *) 0)->d)
+
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_sanity_check_slice(size_t size,
+                                                         size_t align) {
+  GPR_ASSERT(sizeof(grpc_slice) == size);
+  GPR_ASSERT(alignof(grpc_slice) == align);
+}
+
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_sanity_check_byte_buffer_reader(size_t size, size_t align) {
+  GPR_ASSERT(sizeof(grpc_byte_buffer_reader) == size);
+  GPR_ASSERT(alignof(grpc_byte_buffer_reader) == align);
+}
