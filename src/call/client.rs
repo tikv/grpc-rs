@@ -272,6 +272,11 @@ impl<T> ClientCStreamReceiver<T> {
         let lock = self.call.lock();
         lock.call.cancel()
     }
+
+    #[inline]
+    pub fn resp_de(&self, u8s: &[u8]) -> Result<T> {
+        (self.resp_de)(u8s)
+    }
 }
 
 impl<T> Future for ClientCStreamReceiver<T> {
@@ -283,7 +288,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             try_ready!(call.poll_finish())
         };
-        let t = (self.resp_de)(&data.unwrap())?;
+        let t = self.resp_de(&data.unwrap())?;
         Ok(Async::Ready(t))
     }
 }
