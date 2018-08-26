@@ -310,7 +310,7 @@ where
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr as *mut c_void);
+    let code = f(batch_ptr, tag_ptr);
     if code != GrpcCallStatus::Ok {
         unsafe {
             Box::from_raw(tag_ptr);

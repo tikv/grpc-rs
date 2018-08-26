@@ -384,7 +384,6 @@ pub struct GrpcSlice {
 }
 
 #[repr(C)]
-#[repr(C)]
 pub union GrpcByteBufferReaderCurrent {
     index: c_uint,
 }
