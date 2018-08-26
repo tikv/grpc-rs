@@ -406,12 +406,12 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             res
         })?;
 
-        let mut bytes = None;
+        let mut bytes = MessageReader::default();
         loop {
             if !self.read_done {
                 if let Some(ref mut msg_f) = self.msg_f {
                     bytes = try_ready!(msg_f.poll());
-                    if bytes.is_none() {
+                    if bytes.empty {
                         self.read_done = true;
                     }
                 }

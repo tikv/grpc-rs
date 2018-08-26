@@ -323,8 +323,8 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
-where
-    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+    where
+        F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
