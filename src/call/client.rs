@@ -19,8 +19,8 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
-use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
-use call::{check_run, Call, Method};
+use async::{BatchFuture, BatchType, CqFuture, SpinLock};
+use call::{check_run, Call, Method, MessageReader};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
@@ -226,14 +226,14 @@ impl Call {
 /// The future is resolved once response is received.
 pub struct ClientUnaryReceiver<T> {
     call: Call,
-    resp_f: CqFuture<BatchMessage>,
+    resp_f: CqFuture<MessageReader>,
     resp_de: DeserializeFn<T>,
 }
 
 impl<T> ClientUnaryReceiver<T> {
     fn new(
         call: Call,
-        resp_f: CqFuture<BatchMessage>,
+        resp_f: CqFuture<MessageReader>,
         de: DeserializeFn<T>,
     ) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
@@ -244,8 +244,14 @@ impl<T> ClientUnaryReceiver<T> {
     }
 
     /// Cancel the call.
+    #[inline]
     pub fn cancel(&mut self) {
         self.call.cancel()
+    }
+
+    #[inline]
+    pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
+        (self.resp_de)(reader)
     }
 }
 
@@ -255,7 +261,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = try_ready!(self.resp_f.poll());
-        let t = (self.resp_de)(&data.unwrap())?;
+        let t = self.resp_de(data)?;
         Ok(Async::Ready(t))
     }
 }
@@ -274,8 +280,8 @@ impl<T> ClientCStreamReceiver<T> {
     }
 
     #[inline]
-    pub fn resp_de(&self, u8s: &[u8]) -> Result<T> {
-        (self.resp_de)(u8s)
+    pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
+        (self.resp_de)(reader)
     }
 }
 
@@ -288,7 +294,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             try_ready!(call.poll_finish())
         };
-        let t = self.resp_de(&data.unwrap())?;
+        let t = self.resp_de(data)?;
         Ok(Async::Ready(t))
     }
 }
@@ -400,12 +406,12 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             res
         })?;
 
-        let mut bytes = None;
+        let mut bytes = MessageReader::default();
         loop {
             if !self.read_done {
                 if let Some(ref mut msg_f) = self.msg_f {
                     bytes = try_ready!(msg_f.poll());
-                    if bytes.is_none() {
+                    if bytes.empty {
                         self.read_done = true;
                     }
                 }
@@ -422,8 +428,8 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             self.msg_f.take();
             let msg_f = self.call.call(|c| c.call.start_recv_message())?;
             self.msg_f = Some(msg_f);
-            if let Some(ref data) = bytes {
-                let msg = (self.resp_de)(data)?;
+            if !bytes.empty {
+                let msg = (self.resp_de)(bytes)?;
                 return Ok(Async::Ready(Some(msg)));
             }
         }
@@ -438,7 +444,7 @@ pub struct ClientSStreamReceiver<Resp> {
 impl<Resp> ClientSStreamReceiver<Resp> {
     fn new(
         call: Call,
-        finish_f: CqFuture<BatchMessage>,
+        finish_f: CqFuture<MessageReader>,
         de: DeserializeFn<Resp>,
     ) -> ClientSStreamReceiver<Resp> {
         let share_call = ShareCall::new(call, finish_f);

@@ -12,8 +12,9 @@
 // limitations under the License.
 
 use error::Result;
+use call::MessageReader;
 
-pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
+pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
@@ -36,9 +37,10 @@ pub struct Marshaller<T> {
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
-    use protobuf::{self, Message};
+    use protobuf::{CodedInputStream, Message};
 
     use error::Result;
+    use super::MessageReader;
 
     #[inline]
     pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
@@ -46,7 +48,10 @@ pub mod pb_codec {
     }
 
     #[inline]
-    pub fn de<T: Message>(buf: &[u8]) -> Result<T> {
-        protobuf::parse_from_bytes(buf).map_err(From::from)
+    pub fn de<T: Message>(mut reader: MessageReader) -> Result<T> {
+        let mut s = CodedInputStream::from_buffered_reader(&mut reader);
+        let mut m = T::new();
+        m.merge_from(&mut s)?;
+        Ok(m)
     }
 }
