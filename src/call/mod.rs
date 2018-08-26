@@ -194,6 +194,19 @@ impl MessageReader {
     }
 }
 
+impl Default for MessageReader {
+    /// a MessageReader that reads nothing
+    fn default() -> Self {
+        MessageReader {
+            buf: ptr::null_mut(),
+            reader: GrpcByteBufferReader::default(),
+            bytes: &[],
+            slice: None,
+            length: 0,
+        }
+    }
+}
+
 unsafe impl Sync for MessageReader {}
 unsafe impl Send for MessageReader {}
 
