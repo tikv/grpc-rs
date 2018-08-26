@@ -69,9 +69,8 @@ impl UnaryRequest {
             return;
         }
 
-        let data = self.ctx.batch_ctx().recv_message();
-        self.ctx
-            .handle(&rc, cq, data.as_ref().map(|v| v.as_slice()));
+        let reader = self.ctx.batch_ctx().recv_message();
+        self.ctx.handle(&rc, cq, reader);
         server::request_call(rc, cq);
     }
 }

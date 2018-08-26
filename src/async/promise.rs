@@ -14,8 +14,8 @@
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use super::{BatchMessage, Inner};
-use call::{BatchContext, RpcStatusCode};
+use super::Inner;
+use call::{BatchContext, MessageReader, RpcStatusCode};
 use error::Error;
 
 /// Batch job type.
@@ -33,11 +33,11 @@ pub enum BatchType {
 pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
-    inner: Arc<Inner<BatchMessage>>,
+    inner: Arc<Inner<MessageReader>>,
 }
 
 impl Batch {
-    pub fn new(ty: BatchType, inner: Arc<Inner<BatchMessage>>) -> Batch {
+    pub fn new(ty: BatchType, inner: Arc<Inner<MessageReader>>) -> Batch {
         Batch {
             ty,
             ctx: BatchContext::new(),
@@ -57,7 +57,7 @@ impl Batch {
             } else {
                 // rely on C core to handle the failed read (e.g. deliver approriate
                 // statusCode on the clientside).
-                guard.set_result(Ok(None))
+                guard.set_result(Ok(Default::default()))
             }
         };
         task.map(|t| t.notify());
@@ -69,7 +69,7 @@ impl Batch {
             if succeed {
                 let status = self.ctx.rpc_status();
                 if status.status == RpcStatusCode::Ok {
-                    guard.set_result(Ok(None))
+                    guard.set_result(Ok(Default::default()))
                 } else {
                     guard.set_result(Err(Error::RpcFailure(status)))
                 }

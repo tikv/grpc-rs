@@ -20,7 +20,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
-use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{BatchContext, MessageReader, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -206,9 +206,14 @@ impl UnaryRequestContext {
         self.request_call.take()
     }
 
-    pub fn handle(self, rc: &RequestCallContext, cq: &CompletionQueue, data: Option<&[u8]>) {
+    pub fn handle(
+        mut self,
+        rc: &RequestCallContext,
+        cq: &CompletionQueue,
+        reader: Option<MessageReader>
+    ) {
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
-        if let Some(data) = data {
+        if let Some(data) = reader {
             return execute(self.request, cq, data, handler);
         }
 
@@ -247,7 +252,7 @@ impl<T> Stream for RequestStream<T> {
         match data {
             None => Ok(Async::Ready(None)),
             Some(data) => {
-                let msg = (self.de)(&data)?;
+                let msg = (self.de)(data)?;
                 Ok(Async::Ready(Some(msg)))
             }
         }
@@ -550,7 +555,7 @@ pub fn execute_unary<P, Q, F>(
     ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    payload: &[u8],
+    payload: MessageReader,
     f: &F,
 ) where
     F: Fn(RpcContext, P, UnarySink<Q>),
@@ -595,7 +600,7 @@ pub fn execute_server_streaming<P, Q, F>(
     ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    payload: &[u8],
+    payload: MessageReader,
     f: &F,
 ) where
     F: Fn(RpcContext, P, ServerStreamingSink<Q>),
@@ -649,7 +654,7 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &BoxHandler) {
+fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: MessageReader, f: &BoxHandler) {
     let rpc_ctx = RpcContext::new(ctx, cq);
     f.handle(rpc_ctx, payload)
 }

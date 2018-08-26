@@ -15,7 +15,7 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::io::{self, BufRead, ErrorKind, Read};
+use std::io::{self, BufRead, Read};
 use std::{ptr, slice, mem, cmp, usize};
 
 use cq::CompletionQueue;
@@ -24,7 +24,7 @@ use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcByteBuffer, GrpcByteBuffer
                GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
+use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
@@ -123,6 +123,7 @@ pub struct MessageReader {
     // to mark it static here.
     bytes: &'static [u8],
     length: usize,
+    empty: bool,
 }
 
 impl MessageReader {
@@ -132,7 +133,7 @@ impl MessageReader {
         self.length
     }
 
-    fn read_directly(&mut self, buf: &mut [u8]) -> usize {
+    pub fn read_directly(&mut self, buf: &mut [u8]) -> usize {
         let amt = {
             let bytes = self.fill_buf_directly();
             if bytes.is_empty() {
@@ -150,7 +151,7 @@ impl MessageReader {
         amt
     }
 
-    fn read_to_end_directly(&mut self, buf: &mut Vec<u8>) -> usize {
+    pub fn read_to_end_directly(&mut self, buf: &mut Vec<u8>) -> usize {
         if self.length == 0 {
             return 0;
         }
@@ -203,6 +204,7 @@ impl Default for MessageReader {
             bytes: &[],
             slice: None,
             length: 0,
+            empty: true
         }
     }
 }
@@ -233,6 +235,7 @@ impl BufRead for MessageReader {
 
 impl Drop for MessageReader {
     fn drop(&mut self) {
+        if self.empty { return; }
         unsafe {
             grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
             if let Some(slice) = self.slice {
@@ -281,23 +284,29 @@ impl BatchContext {
     }
 
     /// Fetch the response bytes of the rpc call.
-    // TODO: return Read instead.
-    pub fn recv_message(&self) -> Option<Vec<u8>> {
-        // TODO: avoid copy
-        let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };
-        if len == usize::MAX {
-            return None;
-        }
-        let mut buffer = Vec::with_capacity(len);
+    pub fn recv_message(&self) -> MessageReader {
+        let buf;
+        let mut reader;
+        let length;
         unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(
-                self.ctx,
-                buffer.as_mut_ptr() as *mut _,
-                len,
-            );
-            buffer.set_len(len);
+            buf = grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx);
+            if buf.is_null() {
+                return MessageReader::default();
+            }
+
+            reader = mem::zeroed();
+            assert_eq!(grpc_sys::grpc_byte_buffer_reader_init(&mut reader, buf), 1);
+            length = grpc_sys::grpc_byte_buffer_length(reader.buffer_out);
         }
-        Some(buffer)
+
+        MessageReader {
+            buf,
+            reader,
+            slice: None,
+            bytes: &[],
+            length,
+            empty: false,
+        }
     }
 }
 
@@ -506,13 +515,13 @@ impl Drop for Call {
 /// once the call is canceled or finished early.
 struct ShareCall {
     call: Call,
-    close_f: CqFuture<BatchMessage>,
+    close_f: BatchFuture,
     finished: bool,
     status: Option<RpcStatus>,
 }
 
 impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+    fn new(call: Call, close_f: BatchFuture) -> ShareCall {
         ShareCall {
             call,
             close_f,
@@ -524,7 +533,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+    fn poll_finish(&mut self) -> Poll<MessageReader, Error> {
         let res = match self.close_f.poll() {
             Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
@@ -591,7 +600,7 @@ impl StreamingBase {
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<Option<Vec<u8>>, Error> {
+    ) -> Poll<MessageReader, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -609,11 +618,11 @@ impl StreamingBase {
             }
         }
 
-        let mut bytes = None;
+        let mut bytes = MessageReader::default();
         if !self.read_done {
             if let Some(ref mut msg_f) = self.msg_f {
                 bytes = try_ready!(msg_f.poll());
-                if bytes.is_none() {
+                if bytes.empty {
                     self.read_done = true;
                 }
             }
@@ -621,7 +630,7 @@ impl StreamingBase {
 
         if self.read_done {
             if self.close_f.is_none() {
-                return Ok(Async::Ready(None));
+                return Ok(Async::Ready(bytes));
             }
             return Ok(Async::NotReady);
         }
@@ -630,7 +639,7 @@ impl StreamingBase {
         self.msg_f.take();
         let msg_f = call.call(|c| c.call.start_recv_message())?;
         self.msg_f = Some(msg_f);
-        if bytes.is_none() {
+        if bytes.empty {
             self.poll(call, true)
         } else {
             Ok(Async::Ready(bytes))
@@ -732,5 +741,25 @@ impl SinkBase {
 
         self.batch_f.take();
         Ok(Async::Ready(()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Read;
+
+    #[test]
+    fn test_message_reader_default() {
+        let mut reader = super::MessageReader::default();
+        assert_eq!(reader.pending_bytes_count(), 0);
+        assert_eq!(reader.length, 0);
+        let mut buf = vec![];
+        let size = reader.read_to_end_directly(&mut buf);
+        assert_eq!(buf.len(), 0);
+        assert_eq!(size, 0);
+        let mut buf = vec![];
+        let size = reader.read_to_end(&mut buf).unwrap();
+        assert_eq!(buf.len(), 0);
+        assert_eq!(size, 0);
     }
 }
