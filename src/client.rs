@@ -13,12 +13,12 @@
 
 use futures::Future;
 
-use async::{Executor, SpinLock};
+use async::Executor;
 use call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
 };
-use call::{Call, Method};
+use call::{Call, Kicker, Method};
 use channel::Channel;
 
 use error::Result;
@@ -27,14 +27,14 @@ use error::Result;
 pub struct Client {
     channel: Channel,
     // Used to kick its completion queue.
-    call: SpinLock<Call>,
+    kicker: Kicker,
 }
 
 impl Client {
     /// Initialize a new [`Client`].
     pub fn new(channel: Channel) -> Client {
-        let call = SpinLock::new(channel.create_raw_call().unwrap());
-        Client { channel, call }
+        let kicker = channel.create_kicker().unwrap();
+        Client { channel, kicker }
     }
 
     /// Create a synchronized unary RPC call.
@@ -102,7 +102,7 @@ impl Client {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        let call = self.call.lock().clone();
-        Executor::new(self.channel.cq()).spawn(f, call)
+        let kicker = self.kicker.clone();
+        Executor::new(self.channel.cq()).spawn(f, kicker)
     }
 }

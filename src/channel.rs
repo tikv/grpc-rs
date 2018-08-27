@@ -22,7 +22,7 @@ use std::{cmp, i32, ptr};
 use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
-use call::{Call, Method};
+use call::{Call, Kicker, Method};
 use cq::CompletionQueue;
 use env::Environment;
 use error::Result;
@@ -562,7 +562,7 @@ impl Channel {
     }
 
     /// Create a raw call can be used to kick its completion queue.
-    pub (crate) fn create_raw_call(&self) -> Result<Call> {
+    pub(crate) fn create_kicker(&self) -> Result<Kicker> {
         let cq_ref = self.cq.borrow()?;
         let raw_call = unsafe {
             let ch = self.inner.channel;
@@ -584,8 +584,8 @@ impl Channel {
                 ptr::null_mut(),
             )
         };
-
-        unsafe { Ok(Call::from_raw(raw_call, self.cq.clone())) }
+        let call = unsafe { Call::from_raw(raw_call, self.cq.clone()) };
+        Ok(Kicker::from_call(call))
     }
 
     /// Create a call using the method and option.

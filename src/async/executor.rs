@@ -17,10 +17,10 @@ use std::thread::{self, ThreadId};
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
 
-use call::Call;
-use cq::CompletionQueue;
 use super::lock::SpinLock;
 use super::CallTag;
+use call::Kicker;
+use cq::CompletionQueue;
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
@@ -30,7 +30,7 @@ type SpawnHandle = Option<Spawn<BoxFuture<(), ()>>>;
 
 struct NotifyContext {
     kicked: bool,
-    call: Call,
+    kicker: Kicker,
 }
 
 impl NotifyContext {
@@ -39,7 +39,7 @@ impl NotifyContext {
     /// It only makes sence to call this function from the thread
     /// that cq is not run on.
     fn notify(&mut self, tag: Box<CallTag>) {
-        self.call.kick_completion_queue(tag);
+        self.kicker.kick(tag);
     }
 }
 
@@ -55,13 +55,13 @@ pub struct SpawnNotify {
 }
 
 impl SpawnNotify {
-    fn new(s: Spawn<BoxFuture<(), ()>>, call: Call, worker_id: ThreadId) -> SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker, worker_id: ThreadId) -> SpawnNotify {
         SpawnNotify {
             worker_id,
             handle: Arc::new(SpinLock::new(Some(s))),
             ctx: Arc::new(SpinLock::new(NotifyContext {
                 kicked: false,
-                call,
+                kicker,
             })),
         }
     }
@@ -72,9 +72,6 @@ impl SpawnNotify {
         poll(&Arc::new(self.clone()), true);
     }
 }
-
-unsafe impl Send for SpawnNotify {}
-unsafe impl Sync for SpawnNotify {}
 
 impl Notify for SpawnNotify {
     fn notify(&self, _: usize) {
@@ -116,7 +113,7 @@ fn poll(notify: &Arc<SpawnNotify>, woken: bool) {
 
 /// An executor that drives a future in the gRPC poll thread, which
 /// can reduce thread context switching.
-pub struct Executor<'a> {
+pub(crate) struct Executor<'a> {
     cq: &'a CompletionQueue,
 }
 
@@ -125,7 +122,7 @@ impl<'a> Executor<'a> {
         Executor { cq }
     }
 
-    pub(crate) fn cq(&self) -> &CompletionQueue {
+    pub fn cq(&self) -> &CompletionQueue {
         self.cq
     }
 
@@ -133,12 +130,12 @@ impl<'a> Executor<'a> {
     ///
     /// If you want to trace the future, you may need to create a sender/receiver
     /// pair by yourself.
-    pub fn spawn<F>(&self, f: F, call: Call)
+    pub fn spawn<F>(&self, f: F, kicker: Kicker)
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
         let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
-        let notify = Arc::new(SpawnNotify::new(s, call, self.cq.worker_id()));
+        let notify = Arc::new(SpawnNotify::new(s, kicker, self.cq.worker_id()));
         poll(&notify, false)
     }
 }

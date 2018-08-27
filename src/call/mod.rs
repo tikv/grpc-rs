@@ -356,10 +356,26 @@ impl Call {
             grpc_sys::grpc_call_cancel(self.call, ptr::null_mut());
         }
     }
+}
+
+impl Drop for Call {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpc_call_unref(self.call) }
+    }
+}
+
+pub(crate) struct Kicker {
+    call: Call,
+}
+
+impl Kicker {
+    pub fn from_call(call: Call) -> Kicker {
+        Kicker { call }
+    }
 
     /// Kick its completion queue.
-    pub (crate) fn kick_completion_queue(&self, tag: Box<CallTag>) {
-        match self.cq.borrow() {
+    pub fn kick(&self, tag: Box<CallTag>) {
+        match self.call.cq.borrow() {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
             Err(e) => panic!("unexpected error when canceling call: {:?}", e),
@@ -367,26 +383,24 @@ impl Call {
         }
         unsafe {
             let ptr = Box::into_raw(tag);
-            grpc_sys::grpcwrap_call_kick_completion_queue(self.call, ptr as _);
+            grpc_sys::grpcwrap_call_kick_completion_queue(self.call.call, ptr as _);
         }
     }
 }
 
-impl Clone for Call {
-    fn clone(&self) -> Call {
+unsafe impl Sync for Kicker {}
+
+impl Clone for Kicker {
+    fn clone(&self) -> Kicker {
         // Bump call's reference count.
         let call = unsafe {
-            grpc_sys::grpc_call_ref(self.call);
-            self.call
+            grpc_sys::grpc_call_ref(self.call.call);
+            self.call.call
         };
-        let cq = self.cq.clone();
-        Call { call, cq }
-    }
-}
-
-impl Drop for Call {
-    fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_call_unref(self.call) }
+        let cq = self.call.cq.clone();
+        Kicker {
+            call: Call { call, cq },
+        }
     }
 }
 

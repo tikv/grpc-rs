@@ -20,7 +20,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, SpinLock};
-use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{BatchContext, Call, Kicker, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -489,6 +489,11 @@ impl<'a> RpcContext<'a> {
         }
     }
 
+    fn kicker(&self) -> Kicker {
+        let call = self.call();
+        Kicker::from_call(call)
+    }
+
     pub(crate) fn call(&self) -> Call {
         self.ctx.call(self.executor.cq().clone())
     }
@@ -522,7 +527,7 @@ impl<'a> RpcContext<'a> {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        self.executor.spawn(f, self.call())
+        self.executor.spawn(f, self.kicker())
     }
 }
 
@@ -632,6 +637,8 @@ pub fn execute_duplex_streaming<P, Q, F>(
 
 // A helper function used to handle all undefined rpc calls.
 pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
+    // Suppress needless-pass-by-value.
+    let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
     call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))
