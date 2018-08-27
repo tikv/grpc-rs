@@ -41,7 +41,7 @@ impl Worker {
 
 impl WorkerService for Worker {
     fn run_server(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<ServerArgs>,
         sink: DuplexSink<ServerStatus>,
@@ -78,7 +78,7 @@ impl WorkerService for Worker {
     }
 
     fn run_client(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<ClientArgs>,
         sink: DuplexSink<ClientStatus>,
@@ -114,7 +114,7 @@ impl WorkerService for Worker {
         ctx.spawn(f)
     }
 
-    fn core_count(&self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
+    fn core_count(&mut self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
         let mut resp = CoreResponse::new();
         resp.set_cores(cpu_count as i32);
@@ -124,7 +124,7 @@ impl WorkerService for Worker {
         )
     }
 
-    fn quit_worker(&self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
+    fn quit_worker(&mut self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
         if let Some(notifier) = notifier {
             let _ = notifier.send(());
