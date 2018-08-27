@@ -18,9 +18,9 @@ use std::{result, slice};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
-use super::{Finish, FinishHolder, RpcStatus, WriteFlags};
+use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, SpinLock};
-use call::{BatchContext, Call, CallHolder, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -119,11 +119,11 @@ impl RequestContext {
         self.ctx
     }
 
-    fn call(&self, cq: CompletionQueue) -> Arc<SpinLock<Call>> {
+    fn call(&self, cq: CompletionQueue) -> Call {
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_ref_call(self.ctx);
             assert!(!call.is_null());
-            Call::from_raw(call, cq).into_sync()
+            Call::from_raw(call, cq)
         }
     }
 
@@ -216,21 +216,15 @@ impl UnaryRequestContext {
 }
 
 pub struct RequestStream<T> {
-    call: Arc<SpinLock<Call>>,
-    finish: Arc<SpinLock<Finish>>,
+    call: Arc<SpinLock<ShareCall>>,
     base: StreamingBase,
     de: DeserializeFn<T>,
 }
 
 impl<T> RequestStream<T> {
-    fn new(
-        call: Arc<SpinLock<Call>>,
-        finish: Arc<SpinLock<Finish>>,
-        de: DeserializeFn<T>,
-    ) -> RequestStream<T> {
+    fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<T>) -> RequestStream<T> {
         RequestStream {
             call,
-            finish,
             base: StreamingBase::new(None),
             de,
         }
@@ -243,8 +237,8 @@ impl<T> Stream for RequestStream<T> {
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
         {
-            let mut finish = self.finish.lock();
-            finish.check_alive()?;
+            let mut call = self.call.lock();
+            call.check_alive()?;
         }
         let data = try_ready!(self.base.poll(&mut self.call, false));
 
@@ -263,10 +257,9 @@ impl<T> Stream for RequestStream<T> {
 /// `CallHolder` or `Call` to caller.
 // TODO: Use type alias to be friendly for documentation.
 macro_rules! impl_unary_sink {
-    ($t:ident, $rt:ident, $call_holder:ty, $finish_holder:ty) => {
+    ($t:ident, $rt:ident, $holder:ty) => {
         pub struct $rt {
-            _call: $call_holder,
-            finish: $finish_holder,
+            call: $holder,
             cq_f: Option<BatchFuture>,
             err: Option<Error>,
         }
@@ -284,23 +277,21 @@ macro_rules! impl_unary_sink {
                     self.cq_f.take();
                 }
 
-                try_ready!(self.finish.call(|c| c.poll_finish()));
+                try_ready!(self.call.call(|c| c.poll_finish()));
                 Ok(Async::Ready(()))
             }
         }
 
         pub struct $t<T> {
-            call: $call_holder,
-            finish: $finish_holder,
+            call: $holder,
             write_flags: u32,
             ser: SerializeFn<T>,
         }
 
         impl<T> $t<T> {
-            fn new(call: $call_holder, finish: $finish_holder, ser: SerializeFn<T>) -> $t<T> {
+            fn new(call: $holder, ser: SerializeFn<T>) -> $t<T> {
                 $t {
-                    call,
-                    finish,
+                    call: call,
                     write_flags: 0,
                     ser: ser,
                 }
@@ -322,9 +313,10 @@ macro_rules! impl_unary_sink {
                 });
 
                 let write_flags = self.write_flags;
-                let res =
-                    self.call
-                        .start_send_status_from_server(&status, true, &data, write_flags);
+                let res = self.call.call(|c| {
+                    c.call
+                        .start_send_status_from_server(&status, true, &data, write_flags)
+                });
 
                 let (cq_f, err) = match res {
                     Ok(f) => (Some(f), None),
@@ -332,8 +324,7 @@ macro_rules! impl_unary_sink {
                 };
 
                 $rt {
-                    _call: self.call,
-                    finish: self.finish,
+                    call: self.call,
                     cq_f: cq_f,
                     err: err,
                 }
@@ -342,20 +333,18 @@ macro_rules! impl_unary_sink {
     };
 }
 
-impl_unary_sink!(UnarySink, UnarySinkResult, Arc<SpinLock<Call>>, Finish);
+impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
 impl_unary_sink!(
     ClientStreamingSink,
     ClientStreamingSinkResult,
-    Arc<SpinLock<Call>>,
-    Arc<SpinLock<Finish>>
+    Arc<SpinLock<ShareCall>>
 );
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {
-    ($t:ident, $ft:ident, $call_holder:ty, $finish_holder:ty) => {
+    ($t:ident, $ft:ident, $holder:ty) => {
         pub struct $t<T> {
-            call: $call_holder,
-            finish: $finish_holder,
+            call: $holder,
             base: SinkBase,
             flush_f: Option<BatchFuture>,
             status: RpcStatus,
@@ -364,10 +353,9 @@ macro_rules! impl_stream_sink {
         }
 
         impl<T> $t<T> {
-            fn new(call: $call_holder, finish: $finish_holder, ser: SerializeFn<T>) -> $t<T> {
+            fn new(call: $holder, ser: SerializeFn<T>) -> $t<T> {
                 $t {
-                    call,
-                    finish,
+                    call: call,
                     base: SinkBase::new(true),
                     flush_f: None,
                     status: RpcStatus::ok(),
@@ -384,9 +372,10 @@ macro_rules! impl_stream_sink {
             pub fn fail(mut self, status: RpcStatus) -> $ft {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
-                let res = self
-                    .call
-                    .start_send_status_from_server(&status, send_metadata, &None, 0);
+                let res = self.call.call(|c| {
+                    c.call
+                        .start_send_status_from_server(&status, send_metadata, &None, 0)
+                });
 
                 let (fail_f, err) = match res {
                     Ok(f) => (Some(f), None),
@@ -394,8 +383,7 @@ macro_rules! impl_stream_sink {
                 };
 
                 $ft {
-                    _call: self.call,
-                    finish: self.finish,
+                    call: self.call,
                     fail_f: fail_f,
                     err: err,
                 }
@@ -407,7 +395,7 @@ macro_rules! impl_stream_sink {
             type SinkError = Error;
 
             fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
-                if let Async::Ready(_) = self.finish.call(|c| c.poll_finish())? {
+                if let Async::Ready(_) = self.call.call(|c| c.poll_finish())? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base
@@ -431,9 +419,10 @@ macro_rules! impl_stream_sink {
 
                     let send_metadata = self.base.send_metadata;
                     let status = &self.status;
-                    let flush_f =
-                        self.call
-                            .start_send_status_from_server(status, send_metadata, &None, 0)?;
+                    let flush_f = self.call.call(|c| {
+                        c.call
+                            .start_send_status_from_server(status, send_metadata, &None, 0)
+                    })?;
                     self.flush_f = Some(flush_f);
                 }
 
@@ -442,14 +431,13 @@ macro_rules! impl_stream_sink {
                     self.flushed = true;
                 }
 
-                try_ready!(self.finish.call(|c| c.poll_finish()));
+                try_ready!(self.call.call(|c| c.poll_finish()));
                 Ok(Async::Ready(()))
             }
         }
 
         pub struct $ft {
-            _call: $call_holder,
-            finish: $finish_holder,
+            call: $holder,
             fail_f: Option<BatchFuture>,
             err: Option<Error>,
         }
@@ -463,7 +451,7 @@ macro_rules! impl_stream_sink {
                     return Err(e);
                 }
 
-                let readiness = self.finish.call(|c| {
+                let readiness = self.call.call(|c| {
                     if c.finished {
                         return Ok(Async::Ready(()));
                     }
@@ -482,40 +470,27 @@ macro_rules! impl_stream_sink {
     };
 }
 
-impl_stream_sink!(
-    ServerStreamingSink,
-    ServerStreamingSinkFailure,
-    Arc<SpinLock<Call>>,
-    Finish
-);
-impl_stream_sink!(
-    DuplexSink,
-    DuplexSinkFailure,
-    Arc<SpinLock<Call>>,
-    Arc<SpinLock<Finish>>
-);
+impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, ShareCall);
+impl_stream_sink!(DuplexSink, DuplexSinkFailure, Arc<SpinLock<ShareCall>>);
 
 /// A context for rpc handling.
 pub struct RpcContext<'a> {
     ctx: RequestContext,
-    call: Arc<SpinLock<Call>>,
     executor: Executor<'a>,
     deadline: Deadline,
 }
 
 impl<'a> RpcContext<'a> {
     fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext {
-        let call = ctx.call(cq.clone());
         RpcContext {
             deadline: ctx.deadline(),
-            call,
             ctx,
             executor: Executor::new(cq),
         }
     }
 
-    pub(crate) fn call(&self) -> Arc<SpinLock<Call>> {
-        self.call.clone()
+    pub(crate) fn call(&self) -> Call {
+        self.ctx.call(self.executor.cq().clone())
     }
 
     pub fn method(&self) -> &[u8] {
@@ -586,7 +561,7 @@ pub fn execute_unary<P, Q, F>(
             return;
         }
     };
-    let sink = UnarySink::new(call, Finish::new(close_f), ser);
+    let sink = UnarySink::new(ShareCall::new(call, close_f), ser);
     f(ctx, request, sink)
 }
 
@@ -601,10 +576,10 @@ pub fn execute_client_streaming<P, Q, F>(
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
-    let finish = Arc::new(SpinLock::new(Finish::new(close_f)));
+    let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
-    let req_s = RequestStream::new(call.clone(), finish.clone(), de);
-    let sink = ClientStreamingSink::new(call, finish, ser);
+    let req_s = RequestStream::new(call.clone(), de);
+    let sink = ClientStreamingSink::new(call, ser);
     f(ctx, req_s, sink)
 }
 
@@ -633,7 +608,7 @@ pub fn execute_server_streaming<P, Q, F>(
         }
     };
 
-    let sink = ServerStreamingSink::new(call, Finish::new(close_f), ser);
+    let sink = ServerStreamingSink::new(ShareCall::new(call, close_f), ser);
     f(ctx, request, sink)
 }
 
@@ -648,10 +623,10 @@ pub fn execute_duplex_streaming<P, Q, F>(
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
-    let finish = Arc::new(SpinLock::new(Finish::new(close_f)));
+    let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
 
-    let req_s = RequestStream::new(call.clone(), finish.clone(), de);
-    let sink = DuplexSink::new(call, finish.clone(), ser);
+    let req_s = RequestStream::new(call.clone(), de);
+    let sink = DuplexSink::new(call, ser);
     f(ctx, req_s, sink)
 }
 

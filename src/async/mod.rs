@@ -152,7 +152,7 @@ impl CallTag {
     }
 
     /// Generate a CallTag for abort call before handler is called.
-    pub fn abort(call: Arc<SpinLock<Call>>) -> CallTag {
+    pub fn abort(call: Call) -> CallTag {
         CallTag::Abort(Abort::new(call))
     }
 

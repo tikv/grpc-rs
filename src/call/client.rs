@@ -18,8 +18,9 @@ use std::time::Duration;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
-use super::{check_run, Call, CallHolder, Finish, FinishHolder, Method, SinkBase, WriteFlags};
+use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
+use call::{check_run, Call, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
@@ -111,25 +112,23 @@ impl Call {
         req: &Req,
         mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Resp>> {
-        let mut call = channel.create_call(method, &opt)?;
+        let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| {
-            call.call(|call| unsafe {
-                grpc_sys::grpcwrap_call_start_unary(
-                    call,
-                    ctx,
-                    payload.as_ptr() as *const _,
-                    payload.len(),
-                    opt.write_flags.flags,
-                    opt.headers
-                        .as_mut()
-                        .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
-                    opt.call_flags,
-                    tag,
-                )
-            })
-        })?;
+        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_unary(
+                call.call,
+                ctx,
+                payload.as_ptr() as *const _,
+                payload.len(),
+                opt.write_flags.flags,
+                opt.headers
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.call_flags,
+                tag,
+            )
+        });
         Ok(ClientUnaryReceiver::new(call, cq_f, method.resp_de()))
     }
 
@@ -138,27 +137,23 @@ impl Call {
         method: &Method<Req, Resp>,
         mut opt: CallOption,
     ) -> Result<(ClientCStreamSender<Req>, ClientCStreamReceiver<Resp>)> {
-        let mut call = channel.create_call(method, &opt)?;
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| {
-            call.call(|call| unsafe {
-                grpc_sys::grpcwrap_call_start_client_streaming(
-                    call,
-                    ctx,
-                    opt.headers
-                        .as_mut()
-                        .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
-                    opt.call_flags,
-                    tag,
-                )
-            })
-        })?;
+        let call = channel.create_call(method, &opt)?;
+        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_client_streaming(
+                call.call,
+                ctx,
+                opt.headers
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.call_flags,
+                tag,
+            )
+        });
 
-        let call = call.into_sync();
-        let finish = Arc::new(SpinLock::new(Finish::new(cq_f)));
-        let sink = ClientCStreamSender::new(call.clone(), finish.clone(), method.req_ser());
+        let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
+        let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser());
         let recv = ClientCStreamReceiver {
-            call,
-            finish,
+            call: share_call,
             resp_de: method.resp_de(),
         };
         Ok((sink, recv))
@@ -170,31 +165,27 @@ impl Call {
         req: &Req,
         mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Resp>> {
-        let mut call = channel.create_call(method, &opt)?;
+        let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run(BatchType::Finish, |ctx, tag| {
-            call.call(|call| unsafe {
-                grpc_sys::grpcwrap_call_start_server_streaming(
-                    call,
-                    ctx,
-                    payload.as_ptr() as _,
-                    payload.len(),
-                    opt.write_flags.flags,
-                    opt.headers
-                        .as_mut()
-                        .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
-                    opt.call_flags,
-                    tag,
-                )
-            })
-        })?;
+        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_server_streaming(
+                call.call,
+                ctx,
+                payload.as_ptr() as _,
+                payload.len(),
+                opt.write_flags.flags,
+                opt.headers
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.call_flags,
+                tag,
+            )
+        });
 
         // TODO: handle header
-        let _ = check_run(BatchType::Finish, |ctx, tag| {
-            call.call(|call| unsafe {
-                grpc_sys::grpcwrap_call_recv_initial_metadata(call, ctx, tag)
-            })
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
         Ok(ClientSStreamReceiver::new(call, cq_f, method.resp_de()))
@@ -205,32 +196,27 @@ impl Call {
         method: &Method<Req, Resp>,
         mut opt: CallOption,
     ) -> Result<(ClientDuplexSender<Req>, ClientDuplexReceiver<Resp>)> {
-        let mut call = channel.create_call(method, &opt)?;
-        let cq_f = check_run(BatchType::Finish, |ctx, tag| {
-            call.call(|call| unsafe {
-                grpc_sys::grpcwrap_call_start_duplex_streaming(
-                    call,
-                    ctx,
-                    opt.headers
-                        .as_mut()
-                        .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
-                    opt.call_flags,
-                    tag,
-                )
-            })
-        })?;
-
-        // TODO: handle header.
-        let _ = check_run(BatchType::Finish, |ctx, tag| {
-            call.call(|call| unsafe {
-                grpc_sys::grpcwrap_call_recv_initial_metadata(call, ctx, tag)
-            })
+        let call = channel.create_call(method, &opt)?;
+        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_start_duplex_streaming(
+                call.call,
+                ctx,
+                opt.headers
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.call_flags,
+                tag,
+            )
         });
 
-        let call = call.into_sync();
-        let finish = Arc::new(SpinLock::new(Finish::new(cq_f)));
-        let sink = ClientDuplexSender::new(call.clone(), finish.clone(), method.req_ser());
-        let recv = ClientDuplexReceiver::new(call, finish, method.resp_de());
+        // TODO: handle header.
+        check_run(BatchType::Finish, |ctx, tag| unsafe {
+            grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
+        });
+
+        let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
+        let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
+        let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
         Ok((sink, recv))
     }
 }
@@ -276,15 +262,15 @@ impl<T> Future for ClientUnaryReceiver<T> {
 
 /// A receiver for client streaming call.
 pub struct ClientCStreamReceiver<T> {
-    call: Arc<SpinLock<Call>>,
-    finish: Arc<SpinLock<Finish>>,
+    call: Arc<SpinLock<ShareCall>>,
     resp_de: DeserializeFn<T>,
 }
 
 impl<T> ClientCStreamReceiver<T> {
     /// Cancel the call.
     pub fn cancel(&mut self) {
-        self.call.cancel()
+        let lock = self.call.lock();
+        lock.call.cancel()
     }
 }
 
@@ -294,8 +280,8 @@ impl<T> Future for ClientCStreamReceiver<T> {
 
     fn poll(&mut self) -> Poll<T, Error> {
         let data = {
-            let mut finish = self.finish.lock();
-            try_ready!(finish.poll_finish())
+            let mut call = self.call.lock();
+            try_ready!(call.poll_finish())
         };
         let t = (self.resp_de)(&data.unwrap())?;
         Ok(Async::Ready(t))
@@ -304,22 +290,16 @@ impl<T> Future for ClientCStreamReceiver<T> {
 
 /// A sink for client streaming call and duplex streaming call.
 pub struct StreamingCallSink<Req> {
-    call: Arc<SpinLock<Call>>,
-    finish: Arc<SpinLock<Finish>>,
+    call: Arc<SpinLock<ShareCall>>,
     sink_base: SinkBase,
     close_f: Option<BatchFuture>,
     req_ser: SerializeFn<Req>,
 }
 
 impl<Req> StreamingCallSink<Req> {
-    fn new(
-        call: Arc<SpinLock<Call>>,
-        finish: Arc<SpinLock<Finish>>,
-        ser: SerializeFn<Req>,
-    ) -> StreamingCallSink<Req> {
+    fn new(call: Arc<SpinLock<ShareCall>>, ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
         StreamingCallSink {
             call,
-            finish,
             sink_base: SinkBase::new(false),
             close_f: None,
             req_ser: ser,
@@ -327,7 +307,8 @@ impl<Req> StreamingCallSink<Req> {
     }
 
     pub fn cancel(&mut self) {
-        self.call.cancel()
+        let call = self.call.lock();
+        call.call.cancel()
     }
 }
 
@@ -337,8 +318,8 @@ impl<Req> Sink for StreamingCallSink<Req> {
 
     fn start_send(&mut self, (msg, flags): Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
         {
-            let mut finish = self.finish.lock();
-            finish.check_alive()?;
+            let mut call = self.call.lock();
+            call.check_alive()?;
         }
         self.sink_base
             .start_send(&mut self.call, &msg, flags, self.req_ser)
@@ -353,24 +334,24 @@ impl<Req> Sink for StreamingCallSink<Req> {
 
     fn poll_complete(&mut self) -> Poll<(), Error> {
         {
-            let mut finish = self.finish.lock();
-            finish.check_alive()?;
+            let mut call = self.call.lock();
+            call.check_alive()?;
         }
         self.sink_base.poll_complete()
     }
 
     fn close(&mut self) -> Poll<(), Error> {
+        let mut call = self.call.lock();
         if self.close_f.is_none() {
             try_ready!(self.sink_base.poll_complete());
 
-            let close_f = self.call.start_send_close_client()?;
+            let close_f = call.call.start_send_close_client()?;
             self.close_f = Some(close_f);
         }
 
         if let Async::NotReady = self.close_f.as_mut().unwrap().poll()? {
             // if call is finished, can return early here.
-            let mut finish = self.finish.lock();
-            finish.check_alive()?;
+            call.check_alive()?;
             return Ok(Async::NotReady);
         }
         Ok(Async::Ready(()))
@@ -380,19 +361,17 @@ impl<Req> Sink for StreamingCallSink<Req> {
 pub type ClientCStreamSender<T> = StreamingCallSink<T>;
 pub type ClientDuplexSender<T> = StreamingCallSink<T>;
 
-struct ResponseStreamImpl<C, H, T> {
-    call: C,
-    finish: H,
+struct ResponseStreamImpl<H, T> {
+    call: H,
     msg_f: Option<BatchFuture>,
     read_done: bool,
     resp_de: DeserializeFn<T>,
 }
 
-impl<C: CallHolder, H: FinishHolder, T> ResponseStreamImpl<C, H, T> {
-    fn new(call: C, finish: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<C, H, T> {
+impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
+    fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
         ResponseStreamImpl {
             call,
-            finish,
             msg_f: None,
             read_done: false,
             resp_de,
@@ -400,12 +379,12 @@ impl<C: CallHolder, H: FinishHolder, T> ResponseStreamImpl<C, H, T> {
     }
 
     fn cancel(&mut self) {
-        self.call.cancel()
+        self.call.call(|c| c.call.cancel())
     }
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
         let mut finished = false;
-        self.finish.call(|c| {
+        self.call.call(|c| {
             if c.finished {
                 finished = true;
                 return Ok(());
@@ -436,7 +415,7 @@ impl<C: CallHolder, H: FinishHolder, T> ResponseStreamImpl<C, H, T> {
 
             // so msg_f must be either stale or not initialised yet.
             self.msg_f.take();
-            let msg_f = self.call.start_recv_message()?;
+            let msg_f = self.call.call(|c| c.call.start_recv_message())?;
             self.msg_f = Some(msg_f);
             if let Some(ref data) = bytes {
                 let msg = (self.resp_de)(data)?;
@@ -448,7 +427,7 @@ impl<C: CallHolder, H: FinishHolder, T> ResponseStreamImpl<C, H, T> {
 
 /// A receiver for server streaming call.
 pub struct ClientSStreamReceiver<Resp> {
-    imp: ResponseStreamImpl<Call, Finish, Resp>,
+    imp: ResponseStreamImpl<ShareCall, Resp>,
 }
 
 impl<Resp> ClientSStreamReceiver<Resp> {
@@ -457,9 +436,9 @@ impl<Resp> ClientSStreamReceiver<Resp> {
         finish_f: CqFuture<BatchMessage>,
         de: DeserializeFn<Resp>,
     ) -> ClientSStreamReceiver<Resp> {
-        let finish = Finish::new(finish_f);
+        let share_call = ShareCall::new(call, finish_f);
         ClientSStreamReceiver {
-            imp: ResponseStreamImpl::new(call, finish, de),
+            imp: ResponseStreamImpl::new(share_call, de),
         }
     }
 
@@ -479,17 +458,13 @@ impl<Resp> Stream for ClientSStreamReceiver<Resp> {
 
 /// A response receiver for duplex call.
 pub struct ClientDuplexReceiver<Resp> {
-    imp: ResponseStreamImpl<Arc<SpinLock<Call>>, Arc<SpinLock<Finish>>, Resp>,
+    imp: ResponseStreamImpl<Arc<SpinLock<ShareCall>>, Resp>,
 }
 
 impl<Resp> ClientDuplexReceiver<Resp> {
-    fn new(
-        call: Arc<SpinLock<Call>>,
-        finish: Arc<SpinLock<Finish>>,
-        de: DeserializeFn<Resp>,
-    ) -> ClientDuplexReceiver<Resp> {
+    fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<Resp>) -> ClientDuplexReceiver<Resp> {
         ClientDuplexReceiver {
-            imp: ResponseStreamImpl::new(call, finish, de),
+            imp: ResponseStreamImpl::new(call, de),
         }
     }
 

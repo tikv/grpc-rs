@@ -17,10 +17,10 @@ use std::thread::{self, ThreadId};
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
 
-use super::lock::SpinLock;
-use super::CallTag;
 use call::Call;
 use cq::CompletionQueue;
+use super::lock::SpinLock;
+use super::CallTag;
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
@@ -30,7 +30,7 @@ type SpawnHandle = Option<Spawn<BoxFuture<(), ()>>>;
 
 struct NotifyContext {
     kicked: bool,
-    call: Arc<SpinLock<Call>>,
+    call: Call,
 }
 
 impl NotifyContext {
@@ -39,7 +39,6 @@ impl NotifyContext {
     /// It only makes sence to call this function from the thread
     /// that cq is not run on.
     fn notify(&mut self, tag: Box<CallTag>) {
-        use call::CallHolder;
         self.call.kick_completion_queue(tag);
     }
 }
@@ -56,11 +55,7 @@ pub struct SpawnNotify {
 }
 
 impl SpawnNotify {
-    fn new(
-        s: Spawn<BoxFuture<(), ()>>,
-        call: Arc<SpinLock<Call>>,
-        worker_id: ThreadId,
-    ) -> SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, call: Call, worker_id: ThreadId) -> SpawnNotify {
         SpawnNotify {
             worker_id,
             handle: Arc::new(SpinLock::new(Some(s))),
@@ -130,11 +125,15 @@ impl<'a> Executor<'a> {
         Executor { cq }
     }
 
+    pub(crate) fn cq(&self) -> &CompletionQueue {
+        self.cq
+    }
+
     /// Spawn the future into inner poll loop.
     ///
     /// If you want to trace the future, you may need to create a sender/receiver
     /// pair by yourself.
-    pub fn spawn<F>(&self, f: F, call: Arc<SpinLock<Call>>)
+    pub fn spawn<F>(&self, f: F, call: Call)
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {

@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use futures::Future;
 
 use async::{Executor, SpinLock};
@@ -20,7 +18,7 @@ use call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
 };
-use call::{Call, CallHolder, Method};
+use call::{Call, Method};
 use channel::Channel;
 
 use error::Result;
@@ -29,17 +27,14 @@ use error::Result;
 pub struct Client {
     channel: Channel,
     // Used to kick its completion queue.
-    call: Arc<SpinLock<Call>>,
+    call: SpinLock<Call>,
 }
 
 impl Client {
     /// Initialize a new [`Client`].
     pub fn new(channel: Channel) -> Client {
-        let call = channel.create_raw_call().unwrap();
-        Client {
-            channel,
-            call: call.into_sync(),
-        }
+        let call = SpinLock::new(channel.create_raw_call().unwrap());
+        Client { channel, call }
     }
 
     /// Create a synchronized unary RPC call.
@@ -107,7 +102,7 @@ impl Client {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        let call = self.call.clone();
+        let call = self.call.lock().clone();
         Executor::new(self.channel.cq()).spawn(f, call)
     }
 }
