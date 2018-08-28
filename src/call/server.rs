@@ -247,11 +247,12 @@ impl<T> Stream for RequestStream<T> {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
-        let data: Option<MessageReader> = try_ready!(self.base.poll(&mut self.call, false));
+        let data = try_ready!(self.base.poll(&mut self.call, false));
 
         match data.map(self.de) {
             None => Ok(Async::Ready(None)),
-            Some(data) => Ok(Async::Ready(Some(data?)))
+            Some(Ok(data)) => Ok(Async::Ready(Some(data))),
+            Some(Err(err)) => Err(err)
         }
     }
 }
