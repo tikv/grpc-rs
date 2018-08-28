@@ -123,7 +123,6 @@ pub struct MessageReader {
     // to mark it static here.
     bytes: &'static [u8],
     length: usize,
-    empty: bool,
 }
 
 impl MessageReader {
@@ -195,20 +194,6 @@ impl MessageReader {
     }
 }
 
-impl Default for MessageReader {
-    /// a MessageReader that reads nothing
-    fn default() -> Self {
-        MessageReader {
-            buf: ptr::null_mut(),
-            reader: GrpcByteBufferReader::default(),
-            bytes: &[],
-            slice: None,
-            length: 0,
-            empty: true
-        }
-    }
-}
-
 unsafe impl Sync for MessageReader {}
 unsafe impl Send for MessageReader {}
 
@@ -235,7 +220,6 @@ impl BufRead for MessageReader {
 
 impl Drop for MessageReader {
     fn drop(&mut self) {
-        if self.empty { return; }
         unsafe {
             grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
             if let Some(slice) = self.slice {
@@ -284,14 +268,14 @@ impl BatchContext {
     }
 
     /// Fetch the response bytes of the rpc call.
-    pub fn recv_message(&self) -> MessageReader {
+    pub fn recv_message(&self) -> Option<MessageReader> {
         let buf;
         let mut reader;
         let length;
         unsafe {
             buf = grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx);
             if buf.is_null() {
-                return MessageReader::default();
+                return None;
             }
 
             reader = mem::zeroed();
@@ -299,14 +283,13 @@ impl BatchContext {
             length = grpc_sys::grpc_byte_buffer_length(reader.buffer_out);
         }
 
-        MessageReader {
+        Some(MessageReader {
             buf,
             reader,
             slice: None,
             bytes: &[],
             length,
-            empty: false,
-        }
+        })
     }
 }
 
@@ -533,7 +516,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<MessageReader, Error> {
+    fn poll_finish(&mut self) -> Poll<Option<MessageReader>, Error> {
         let res = match self.close_f.poll() {
             Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
@@ -600,7 +583,7 @@ impl StreamingBase {
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<MessageReader, Error> {
+    ) -> Poll<Option<MessageReader>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -618,11 +601,11 @@ impl StreamingBase {
             }
         }
 
-        let mut bytes = MessageReader::default();
+        let mut bytes = None;
         if !self.read_done {
             if let Some(ref mut msg_f) = self.msg_f {
                 bytes = try_ready!(msg_f.poll());
-                if bytes.empty {
+                if bytes.is_none() {
                     self.read_done = true;
                 }
             }
@@ -639,7 +622,7 @@ impl StreamingBase {
         self.msg_f.take();
         let msg_f = call.call(|c| c.call.start_recv_message())?;
         self.msg_f = Some(msg_f);
-        if bytes.empty {
+        if bytes.is_none() {
             self.poll(call, true)
         } else {
             Ok(Async::Ready(bytes))
@@ -744,22 +727,3 @@ impl SinkBase {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Read;
-
-    #[test]
-    fn test_message_reader_default() {
-        let mut reader = super::MessageReader::default();
-        assert_eq!(reader.pending_bytes_count(), 0);
-        assert_eq!(reader.length, 0);
-        let mut buf = vec![];
-        let size = reader.read_to_end_directly(&mut buf);
-        assert_eq!(buf.len(), 0);
-        assert_eq!(size, 0);
-        let mut buf = vec![];
-        let size = reader.read_to_end(&mut buf).unwrap();
-        assert_eq!(buf.len(), 0);
-        assert_eq!(size, 0);
-    }
-}
