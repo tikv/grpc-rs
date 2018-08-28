@@ -116,7 +116,7 @@ impl<T> Future for CqFuture<T> {
 }
 
 /// Future object for batch jobs.
-pub type BatchFuture = CqFuture<MessageReader>;
+pub type BatchFuture = CqFuture<Option<MessageReader>>;
 
 /// A result holder for asynchronous execution.
 // This enum is going to be passed to FFI, so don't use trait or generic here.

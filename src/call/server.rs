@@ -78,7 +78,7 @@ impl RequestContext {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, &[], handler);
+                    execute(self, cq, None, handler);
                     Ok(())
                 }
             },
@@ -213,8 +213,8 @@ impl UnaryRequestContext {
         reader: Option<MessageReader>
     ) {
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
-        if let Some(data) = reader {
-            return execute(self.request, cq, data, handler);
+        if reader.is_some() {
+            return execute(self.request, cq, reader, handler);
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
@@ -247,14 +247,11 @@ impl<T> Stream for RequestStream<T> {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
-        let data = try_ready!(self.base.poll(&mut self.call, false));
+        let data: Option<MessageReader> = try_ready!(self.base.poll(&mut self.call, false));
 
-        match data {
+        match data.map(self.de) {
             None => Ok(Async::Ready(None)),
-            Some(data) => {
-                let msg = (self.de)(data)?;
-                Ok(Async::Ready(Some(msg)))
-            }
+            Some(data) => Ok(Async::Ready(Some(data?)))
         }
     }
 }
@@ -654,7 +651,7 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: MessageReader, f: &BoxHandler) {
+fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: Option<MessageReader>, f: &BoxHandler) {
     let rpc_ctx = RpcContext::new(ctx, cq);
     f.handle(rpc_ctx, payload)
 }

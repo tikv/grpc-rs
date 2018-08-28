@@ -46,17 +46,17 @@ impl<F> Handler<F> {
 }
 
 pub trait CloneableHandler: Send {
-    fn handle(&self, ctx: RpcContext, reqs: MessageReader);
+    fn handle(&self, ctx: RpcContext, reqs: Option<MessageReader>);
     fn box_clone(&self) -> Box<CloneableHandler>;
     fn method_type(&self) -> MethodType;
 }
 
 impl<F: 'static> CloneableHandler for Handler<F>
 where
-    F: Fn(RpcContext, MessageReader) + Send + Clone,
+    F: Fn(RpcContext, Option<MessageReader>) + Send + Clone,
 {
     #[inline]
-    fn handle(&self, ctx: RpcContext, reqs: MessageReader) {
+    fn handle(&self, ctx: RpcContext, reqs: Option<MessageReader>) {
         (self.cb)(ctx, reqs)
     }
 
@@ -160,7 +160,8 @@ impl ServiceBuilder {
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
         let h =
-            move |ctx: RpcContext, payload: MessageReader| execute_unary(ctx, ser, de, payload, &handler);
+            move |ctx: RpcContext, payload: Option<MessageReader>|
+                execute_unary(ctx, ser, de, payload.unwrap(), &handler);
         let ch = Box::new(Handler::new(MethodType::Unary, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -178,7 +179,8 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: MessageReader| execute_client_streaming(ctx, ser, de, &handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>|
+            execute_client_streaming(ctx, ser, de, &handler);
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -196,8 +198,8 @@ impl ServiceBuilder {
         F: Fn(RpcContext, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: MessageReader| {
-            execute_server_streaming(ctx, ser, de, payload, &handler)
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_server_streaming(ctx, ser, de, payload.unwrap(), &handler)
         };
         let ch = Box::new(Handler::new(MethodType::ServerStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
@@ -216,7 +218,8 @@ impl ServiceBuilder {
         F: Fn(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: MessageReader| execute_duplex_streaming(ctx, ser, de, &handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>|
+            execute_duplex_streaming(ctx, ser, de, &handler);
         let ch = Box::new(Handler::new(MethodType::Duplex, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self

@@ -33,11 +33,11 @@ pub enum BatchType {
 pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
-    inner: Arc<Inner<MessageReader>>,
+    inner: Arc<Inner<Option<MessageReader>>>,
 }
 
 impl Batch {
-    pub fn new(ty: BatchType, inner: Arc<Inner<MessageReader>>) -> Batch {
+    pub fn new(ty: BatchType, inner: Arc<Inner<Option<MessageReader>>>) -> Batch {
         Batch {
             ty,
             ctx: BatchContext::new(),
@@ -57,7 +57,7 @@ impl Batch {
             } else {
                 // rely on C core to handle the failed read (e.g. deliver approriate
                 // statusCode on the clientside).
-                guard.set_result(Ok(Default::default()))
+                guard.set_result(Ok(None))
             }
         };
         task.map(|t| t.notify());
