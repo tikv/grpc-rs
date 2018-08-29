@@ -16,7 +16,7 @@
 extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, uint8_t, int32_t, int64_t, size_t, uint32_t};
-use std::{mem, ptr};
+use std::mem;
 use std::time::Duration;
 
 /// The clocks gRPC supports.
@@ -510,6 +510,7 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
     ) -> *const GrpcMetadataArray;
     pub fn grpcwrap_batch_context_recv_message_length(ctx: *mut GrpcBatchContext) -> size_t;
+    #[deprecated(note="this is copying the original data")]
     pub fn grpcwrap_batch_context_recv_message_to_buffer(
         ctx: *mut GrpcBatchContext,
         buffer: *mut c_char,
@@ -540,7 +541,7 @@ extern "C" {
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
+        send_buffer: *const c_char,
         send_buffer_len: size_t,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
@@ -557,7 +558,7 @@ extern "C" {
     pub fn grpcwrap_call_start_server_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
+        send_buffer: *const c_char,
         send_buffer_len: size_t,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
@@ -579,7 +580,7 @@ extern "C" {
     pub fn grpcwrap_call_send_message(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
+        send_buffer: *const c_char,
         send_buffer_len: size_t,
         write_flags: uint32_t,
         send_empty_initial_metadata: uint32_t,
@@ -634,7 +635,7 @@ extern "C" {
         server: *mut GrpcServer,
         method: *const c_char,
         host: *const c_char,
-        paylod_handling: GrpcServerRegisterMethodPayloadHandling,
+        payload_handling: GrpcServerRegisterMethodPayloadHandling,
         flags: uint32_t,
     ) -> *mut c_void;
     pub fn grpc_server_create(

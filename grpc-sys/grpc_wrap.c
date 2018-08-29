@@ -335,10 +335,8 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_recv_message_to_buffer(
 
 GPR_EXPORT const char *GPR_CALLTYPE
 grpcwrap_slice_raw(const grpc_slice *slice, size_t *len) {
-  *len = slice->refcount ? slice->data.refcounted.length
-                         : slice->data.inlined.length;
-  return (const char *)(slice->refcount ? slice->data.refcounted.bytes
-                                        : slice->data.inlined.bytes);
+  *len = GRPC_SLICE_LENGTH(*slice);
+  return (const char *)(GRPC_SLICE_START_PTR(*slice));
 }
 
 GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE

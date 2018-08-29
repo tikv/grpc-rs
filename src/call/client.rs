@@ -308,12 +308,12 @@ pub struct StreamingCallSink<Req> {
 }
 
 impl<Req> StreamingCallSink<Req> {
-    fn new(call: Arc<SpinLock<ShareCall>>, ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
+    fn new(call: Arc<SpinLock<ShareCall>>, req_ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
         StreamingCallSink {
             call,
             sink_base: SinkBase::new(false),
             close_f: None,
-            req_ser: ser,
+            req_ser,
         }
     }
 
