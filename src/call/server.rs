@@ -247,9 +247,8 @@ impl<T> Stream for RequestStream<T> {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
-        let data = try_ready!(self.base.poll(&mut self.call, false));
 
-        match data.map(self.de) {
+        match try_ready!(self.base.poll(&mut self.call, false)).map(self.de) {
             None => Ok(Async::Ready(None)),
             Some(Ok(data)) => Ok(Async::Ready(Some(data))),
             Some(Err(err)) => Err(err)
