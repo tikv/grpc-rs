@@ -374,17 +374,13 @@ impl Kicker {
     }
 
     /// Kick its completion queue.
-    pub fn kick(&self, tag: Box<CallTag>) {
-        match self.call.cq.borrow() {
-            // Queue is shutdown, ignore.
-            Err(Error::QueueShutdown) => return,
-            Err(e) => panic!("unexpected error when canceling call: {:?}", e),
-            _ => {}
-        }
+    pub fn kick(&self, tag: Box<CallTag>) -> Result<()> {
+        let _ref = self.call.cq.borrow()?;
         unsafe {
             let ptr = Box::into_raw(tag);
             grpc_sys::grpcwrap_call_kick_completion_queue(self.call.call, ptr as _);
         }
+        Ok(())
     }
 }
 

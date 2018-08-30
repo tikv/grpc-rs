@@ -21,6 +21,7 @@ use super::lock::SpinLock;
 use super::CallTag;
 use call::Kicker;
 use cq::CompletionQueue;
+use error::Error;
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
@@ -39,7 +40,12 @@ impl NotifyContext {
     /// It only makes sence to call this function from the thread
     /// that cq is not run on.
     fn notify(&mut self, tag: Box<CallTag>) {
-        self.kicker.kick(tag);
+        match self.kicker.kick(tag) {
+            // Queue is shutdown, ignore.
+            Err(Error::QueueShutdown) => return,
+            Err(e) => panic!("unexpected error when canceling call: {:?}", e),
+            _ => (),
+        }
     }
 }
 
