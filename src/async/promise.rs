@@ -49,6 +49,10 @@ impl Batch {
         &self.ctx
     }
 
+    pub fn context_mut(&mut self) -> &mut BatchContext {
+        &mut self.ctx
+    }
+
     fn read_one_msg(&mut self, success: bool) {
         let task = {
             let mut guard = self.inner.lock();

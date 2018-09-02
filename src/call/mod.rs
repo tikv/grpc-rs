@@ -246,13 +246,20 @@ impl Drop for MessageReader {
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
+    content: Vec<u8>,
 }
 
 impl BatchContext {
     pub fn new() -> BatchContext {
         BatchContext {
             ctx: unsafe { grpc_sys::grpcwrap_batch_context_create() },
+            content: vec![],
         }
+    }
+
+    pub fn set_content(&mut self, content: Vec<u8>) -> &mut Self {
+        self.content = content;
+        self
     }
 
     pub fn as_ptr(&self) -> *mut GrpcBatchContext {
@@ -313,12 +320,21 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
+fn box_batch_tag(tag: &mut CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
     let tag_box = Box::new(tag);
-    (
-        tag_box.batch_ctx().unwrap().as_ptr(),
-        Box::into_raw(tag_box) as _,
-    )
+    (tag_box.batch_ctx().unwrap().as_ptr(), Box::into_raw(tag_box) as _)
+}
+
+#[inline]
+fn box_batch_tag_with_content(
+    tag: &mut CallTag,
+    content: Vec<u8>,
+) -> (*const u8, usize, *mut GrpcBatchContext, *mut c_void) {
+    let tag_box = Box::new(tag);
+    let ptr = content.as_ptr();
+    let len = content.len();
+    let ctx = tag_box.batch_ctx_mut().unwrap().set_content(content).as_ptr();
+    (ptr, len, ctx, Box::into_raw(tag_box) as _)
 }
 
 /// A helper function that runs the batch call and checks the result.
@@ -326,13 +342,26 @@ fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
     where
         F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
-    let (cq_f, tag) = CallTag::batch_pair(bt);
-    let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr);
+    let (cq_f, mut tag) = CallTag::batch_pair(bt);
+    let (batch, tag_ptr) = box_batch_tag(&mut tag);
+    let code = f(batch, tag_ptr);
     if code != GrpcCallStatus::Ok {
-        unsafe {
-            Box::from_raw(tag_ptr);
-        }
+        unsafe { Box::from_raw(tag_ptr); }
+        panic!("create call fail: {:?}", code);
+    }
+    cq_f
+}
+
+/// A helper function that runs the batch call and checks the result.
+fn check_run_with_content<F>(bt: BatchType, content: Vec<u8>, f: F) -> BatchFuture
+where
+    F: FnOnce(*const u8, usize, *mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+{
+    let (cq_f, mut tag) = CallTag::batch_pair(bt);
+    let (content, content_size, batch, tag_ptr) = box_batch_tag_with_content(&mut tag, content);
+    let code = f(content, content_size, batch, tag_ptr);
+    if code != GrpcCallStatus::Ok {
+        unsafe { Box::from_raw(tag_ptr); }
         panic!("create call fail: {:?}", code);
     }
     cq_f
@@ -453,8 +482,8 @@ impl Call {
             _ => {}
         }
         let call_ptr = self.call;
-        let tag = CallTag::abort(self);
-        let (batch_ptr, tag_ptr) = box_batch_tag(tag);
+        let mut tag = CallTag::abort(self);
+        let (batch, tag_ptr) = box_batch_tag(&mut tag);
 
         let code = unsafe {
             let details_ptr = status
@@ -464,7 +493,7 @@ impl Call {
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
-                batch_ptr,
+                batch,
                 status.status,
                 details_ptr,
                 details_len,

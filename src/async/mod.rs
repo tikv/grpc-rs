@@ -171,6 +171,16 @@ impl CallTag {
         }
     }
 
+    /// Get the batch context from result holder.
+    pub fn batch_ctx_mut(&mut self) -> Option<&mut BatchContext> {
+        match *self {
+            CallTag::Batch(ref mut prom) => Some(prom.context_mut()),
+            CallTag::UnaryRequest(ref mut cb) => Some(cb.batch_ctx_mut()),
+            CallTag::Abort(ref mut cb) => Some(cb.batch_ctx_mut()),
+            _ => None,
+        }
+    }
+
     /// Get the request context from the result holder.
     pub fn request_ctx(&self) -> Option<&RequestContext> {
         match *self {
