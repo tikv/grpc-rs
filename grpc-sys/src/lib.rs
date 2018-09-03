@@ -12,6 +12,8 @@
 // limitations under the License.
 
 #![allow(unknown_lints)]
+#![allow(renamed_and_removed_lints)]
+// remove this after Rust's tool_lints is stabilized
 
 extern crate libc;
 
