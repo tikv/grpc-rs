@@ -477,7 +477,7 @@ extern "C" {
     pub fn grpcwrap_call_kick_completion_queue(
         call: *mut GrpcCall,
         tag: *mut c_void,
-    );
+    ) -> GrpcCallStatus;
 
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,

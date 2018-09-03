@@ -41,7 +41,8 @@ impl NotifyContext {
     /// that cq is not run on.
     fn notify(&mut self, tag: Box<CallTag>) {
         match self.kicker.kick(tag) {
-            // Queue is shutdown, ignore.
+            // If the queue is shutdown, then the tag will be notified
+            // eventually. So just skip here.
             Err(Error::QueueShutdown) => return,
             Err(e) => panic!("unexpected error when canceling call: {:?}", e),
             _ => (),

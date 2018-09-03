@@ -378,9 +378,13 @@ impl Kicker {
         let _ref = self.call.cq.borrow()?;
         unsafe {
             let ptr = Box::into_raw(tag);
-            grpc_sys::grpcwrap_call_kick_completion_queue(self.call.call, ptr as _);
+            let status = grpc_sys::grpcwrap_call_kick_completion_queue(self.call.call, ptr as _);
+            if status == GrpcCallStatus::Ok {
+                Ok(())
+            } else {
+                Err(Error::CallFailure(status))
+            }
         }
-        Ok(())
     }
 }
 
