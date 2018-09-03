@@ -36,9 +36,7 @@ impl Deadline {
         let realtime_spec =
             unsafe { grpc_sys::gpr_convert_clock_type(spec, GprClockType::Realtime) };
 
-        Deadline {
-            spec: realtime_spec,
-        }
+        Deadline { spec: realtime_spec }
     }
 
     pub fn exceeded(&self) -> bool {
@@ -75,13 +73,16 @@ impl RequestContext {
     ) -> result::Result<(), Self> {
         let handler = unsafe { rc.get_handler(self.method()) };
         match handler {
-            Some(handler) => match handler.method_type() {
-                MethodType::Unary | MethodType::ServerStreaming => Err(self),
-                _ => {
-                    execute(self, cq, None, handler);
-                    Ok(())
+            Some(handler) => {
+                match handler.method_type() {
+                    MethodType::Unary |
+                    MethodType::ServerStreaming => Err(self),
+                    _ => {
+                        execute(self, cq, None, handler);
+                        Ok(())
+                    }
                 }
-            },
+            }
             None => {
                 execute_unimplemented(self, cq.clone());
                 Ok(())
@@ -214,7 +215,7 @@ impl UnaryRequestContext {
         self,
         rc: &RequestCallContext,
         cq: &CompletionQueue,
-        reader: Option<MessageReader>
+        reader: Option<MessageReader>,
     ) {
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if reader.is_some() {
@@ -255,7 +256,7 @@ impl<T> Stream for RequestStream<T> {
         match try_ready!(self.base.poll(&mut self.call, false)).map(self.de) {
             None => Ok(Async::Ready(None)),
             Some(Ok(data)) => Ok(Async::Ready(Some(data))),
-            Some(Err(err)) => Err(err)
+            Some(Err(err)) => Err(err),
         }
     }
 }
@@ -655,7 +656,12 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: Option<MessageReader>, f: &BoxHandler) {
+fn execute(
+    ctx: RequestContext,
+    cq: &CompletionQueue,
+    payload: Option<MessageReader>,
+    f: &BoxHandler,
+) {
     let rpc_ctx = RpcContext::new(ctx, cq);
     f.handle(rpc_ctx, payload)
 }

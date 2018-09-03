@@ -21,8 +21,8 @@ use std::result;
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcByteBuffer, GrpcByteBufferReader,
-               GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcByteBuffer, GrpcByteBufferReader, GrpcCall,
+               GrpcCallStatus};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
@@ -325,7 +325,10 @@ impl Drop for BatchContext {
 #[inline]
 fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
     let tag_box = Box::new(tag);
-    (tag_box.batch_ctx().unwrap().as_ptr(), Box::into_raw(tag_box) as _)
+    (
+        tag_box.batch_ctx().unwrap().as_ptr(),
+        Box::into_raw(tag_box) as _,
+    )
 }
 
 #[inline]
@@ -338,7 +341,11 @@ fn box_batch_tag_with_content(
         Ok(slice) => (slice.as_ptr(), slice.len()),
         Err(vec) => (vec.as_ptr(), vec.len()),
     };
-    let ctx = tag_box.batch_ctx_mut().unwrap().set_content(content).as_ptr();
+    let ctx = tag_box
+        .batch_ctx_mut()
+        .unwrap()
+        .set_content(content)
+        .as_ptr();
     (ptr, len, ctx, Box::into_raw(tag_box) as _)
 }
 
@@ -358,7 +365,11 @@ fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
 }
 
 /// A helper function that runs the batch call and checks the result.
-fn check_run_with_content<F>(bt: BatchType, content: Either<Box<[u8]>, Vec<u8>>, f: F) -> BatchFuture
+fn check_run_with_content<F>(
+    bt: BatchType,
+    content: Either<Box<[u8]>, Vec<u8>>,
+    f: F,
+) -> BatchFuture
 where
     F: FnOnce(*const u8, usize, *mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
@@ -399,12 +410,15 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let f = check_run_with_content(BatchType::Finish, Err(Vec::from(msg)), |content,
+         content_size,
+         ctx,
+         tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
-                msg.as_ptr() as _,
-                msg.len(),
+                content as _,
+                content_size,
                 write_flags,
                 i,
                 tag,
@@ -452,14 +466,15 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let (payload_ptr, payload_len) = payload
-            .as_ref()
-            .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
+        let (payload_ptr, payload_len) = payload.as_ref().map_or(
+            (ptr::null(), 0),
+            |b| (b.as_ptr(), b.len()),
+        );
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let details_ptr = status
-                .details
-                .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_ptr = status.details.as_ref().map_or_else(
+                ptr::null,
+                |s| s.as_ptr() as _,
+            );
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
@@ -491,10 +506,10 @@ impl Call {
         let (batch, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
-            let details_ptr = status
-                .details
-                .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_ptr = status.details.as_ref().map_or_else(
+                ptr::null,
+                |s| s.as_ptr() as _,
+            );
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
@@ -756,8 +771,11 @@ impl SinkBase {
             flags = flags.buffer_hint(false);
         }
         let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+            c.call.start_send_message(
+                &self.buf,
+                flags.flags,
+                self.send_metadata,
+            )
         })?;
         self.batch_f = Some(write_f);
         self.send_metadata = false;
@@ -773,4 +791,3 @@ impl SinkBase {
         Ok(Async::Ready(()))
     }
 }
-
