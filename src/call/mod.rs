@@ -320,17 +320,17 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: &mut CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
+fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
     let tag_box = Box::new(tag);
     (tag_box.batch_ctx().unwrap().as_ptr(), Box::into_raw(tag_box) as _)
 }
 
 #[inline]
 fn box_batch_tag_with_content(
-    tag: &mut CallTag,
+    tag: CallTag,
     content: Vec<u8>,
 ) -> (*const u8, usize, *mut GrpcBatchContext, *mut c_void) {
-    let tag_box = Box::new(tag);
+    let mut tag_box = Box::new(tag);
     let ptr = content.as_ptr();
     let len = content.len();
     let ctx = tag_box.batch_ctx_mut().unwrap().set_content(content).as_ptr();
@@ -342,8 +342,8 @@ fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
     where
         F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
-    let (cq_f, mut tag) = CallTag::batch_pair(bt);
-    let (batch, tag_ptr) = box_batch_tag(&mut tag);
+    let (cq_f, tag) = CallTag::batch_pair(bt);
+    let (batch, tag_ptr) = box_batch_tag(tag);
     let code = f(batch, tag_ptr);
     if code != GrpcCallStatus::Ok {
         unsafe { Box::from_raw(tag_ptr); }
@@ -357,8 +357,8 @@ fn check_run_with_content<F>(bt: BatchType, content: Vec<u8>, f: F) -> BatchFutu
 where
     F: FnOnce(*const u8, usize, *mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
-    let (cq_f, mut tag) = CallTag::batch_pair(bt);
-    let (content, content_size, batch, tag_ptr) = box_batch_tag_with_content(&mut tag, content);
+    let (cq_f, tag) = CallTag::batch_pair(bt);
+    let (content, content_size, batch, tag_ptr) = box_batch_tag_with_content(tag, content);
     let code = f(content, content_size, batch, tag_ptr);
     if code != GrpcCallStatus::Ok {
         unsafe { Box::from_raw(tag_ptr); }
@@ -482,8 +482,8 @@ impl Call {
             _ => {}
         }
         let call_ptr = self.call;
-        let mut tag = CallTag::abort(self);
-        let (batch, tag_ptr) = box_batch_tag(&mut tag);
+        let tag = CallTag::abort(self);
+        let (batch, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
             let details_ptr = status
