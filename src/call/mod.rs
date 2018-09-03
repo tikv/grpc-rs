@@ -17,6 +17,7 @@ pub mod server;
 use std::sync::Arc;
 use std::io::{self, BufRead, ErrorKind, Read};
 use std::{ptr, slice, mem, cmp, usize};
+use std::result;
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -243,21 +244,23 @@ impl Drop for MessageReader {
     }
 }
 
+type Either<A, B> = result::Result<A, B>;
+
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
-    content: Vec<u8>,
+    content: Either<Box<[u8]>, Vec<u8>>,
 }
 
 impl BatchContext {
     pub fn new() -> BatchContext {
         BatchContext {
             ctx: unsafe { grpc_sys::grpcwrap_batch_context_create() },
-            content: vec![],
+            content: Ok(Box::new([])),
         }
     }
 
-    pub fn set_content(&mut self, content: Vec<u8>) -> &mut Self {
+    pub fn set_content(&mut self, content: Either<Box<[u8]>, Vec<u8>>) -> &mut Self {
         self.content = content;
         self
     }
@@ -328,11 +331,13 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 #[inline]
 fn box_batch_tag_with_content(
     tag: CallTag,
-    content: Vec<u8>,
+    content: Either<Box<[u8]>, Vec<u8>>,
 ) -> (*const u8, usize, *mut GrpcBatchContext, *mut c_void) {
     let mut tag_box = Box::new(tag);
-    let ptr = content.as_ptr();
-    let len = content.len();
+    let (ptr, len) = match &content {
+        Ok(slice) => (slice.as_ptr(), slice.len()),
+        Err(vec) => (vec.as_ptr(), vec.len()),
+    };
     let ctx = tag_box.batch_ctx_mut().unwrap().set_content(content).as_ptr();
     (ptr, len, ctx, Box::into_raw(tag_box) as _)
 }
@@ -353,7 +358,7 @@ fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
 }
 
 /// A helper function that runs the batch call and checks the result.
-fn check_run_with_content<F>(bt: BatchType, content: Vec<u8>, f: F) -> BatchFuture
+fn check_run_with_content<F>(bt: BatchType, content: Either<Box<[u8]>, Vec<u8>>, f: F) -> BatchFuture
 where
     F: FnOnce(*const u8, usize, *mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {

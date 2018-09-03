@@ -115,21 +115,24 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run_with_content(BatchType::CheckRead, payload, |content, content_size, ctx, tag|
-            unsafe {
-                grpc_sys::grpcwrap_call_start_unary(
-                    call.call,
-                    ctx,
-                    content as *const _,
-                    content_size,
-                    opt.write_flags.flags,
-                    opt.headers
-                        .as_mut()
-                        .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
-                    opt.call_flags,
-                    tag,
-                )
-            });
+        let cq_f = check_run_with_content(BatchType::CheckRead, Err(payload), |content,
+         content_size,
+         ctx,
+         tag| unsafe {
+            grpc_sys::grpcwrap_call_start_unary(
+                call.call,
+                ctx,
+                content as *const _,
+                content_size,
+                opt.write_flags.flags,
+                opt.headers.as_mut().map_or_else(
+                    ptr::null_mut,
+                    |c| c as *mut _ as _,
+                ),
+                opt.call_flags,
+                tag,
+            )
+        });
         Ok(ClientUnaryReceiver::new(call, cq_f, method.resp_de()))
     }
 
@@ -143,9 +146,10 @@ impl Call {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
-                opt.headers
-                    .as_mut()
-                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.headers.as_mut().map_or_else(
+                    ptr::null_mut,
+                    |c| c as *mut _ as _,
+                ),
                 opt.call_flags,
                 tag,
             )
@@ -169,21 +173,24 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run_with_content(BatchType::Finish, payload, |content, content_size, ctx, tag|
-            unsafe {
-                grpc_sys::grpcwrap_call_start_server_streaming(
-                    call.call,
-                    ctx,
-                    content as _,
-                    content_size,
-                    opt.write_flags.flags,
-                    opt.headers
-                        .as_mut()
-                        .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
-                    opt.call_flags,
-                    tag,
-                )
-            });
+        let cq_f = check_run_with_content(BatchType::Finish, Err(payload), |content,
+         content_size,
+         ctx,
+         tag| unsafe {
+            grpc_sys::grpcwrap_call_start_server_streaming(
+                call.call,
+                ctx,
+                content as _,
+                content_size,
+                opt.write_flags.flags,
+                opt.headers.as_mut().map_or_else(
+                    ptr::null_mut,
+                    |c| c as *mut _ as _,
+                ),
+                opt.call_flags,
+                tag,
+            )
+        });
 
         // TODO: handle header
         check_run(BatchType::Finish, |ctx, tag| unsafe {
@@ -203,9 +210,10 @@ impl Call {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
-                opt.headers
-                    .as_mut()
-                    .map_or_else(ptr::null_mut, |c| c as *mut _ as _),
+                opt.headers.as_mut().map_or_else(
+                    ptr::null_mut,
+                    |c| c as *mut _ as _,
+                ),
                 opt.call_flags,
                 tag,
             )
@@ -233,11 +241,7 @@ pub struct ClientUnaryReceiver<T> {
 }
 
 impl<T> ClientUnaryReceiver<T> {
-    fn new(
-        call: Call,
-        resp_f: BatchFuture,
-        resp_de: DeserializeFn<T>,
-    ) -> ClientUnaryReceiver<T> {
+    fn new(call: Call, resp_f: BatchFuture, resp_de: DeserializeFn<T>) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
             call,
             resp_f,
@@ -336,12 +340,10 @@ impl<Req> Sink for StreamingCallSink<Req> {
         }
         self.sink_base
             .start_send(&mut self.call, &msg, flags, self.req_ser)
-            .map(|s| {
-                if s {
-                    AsyncSink::Ready
-                } else {
-                    AsyncSink::NotReady((msg, flags))
-                }
+            .map(|s| if s {
+                AsyncSink::Ready
+            } else {
+                AsyncSink::NotReady((msg, flags))
             })
     }
 
@@ -450,9 +452,7 @@ impl<Resp> ClientSStreamReceiver<Resp> {
         de: DeserializeFn<Resp>,
     ) -> ClientSStreamReceiver<Resp> {
         let share_call = ShareCall::new(call, finish_f);
-        ClientSStreamReceiver {
-            imp: ResponseStreamImpl::new(share_call, de),
-        }
+        ClientSStreamReceiver { imp: ResponseStreamImpl::new(share_call, de) }
     }
 
     pub fn cancel(&mut self) {
@@ -476,9 +476,7 @@ pub struct ClientDuplexReceiver<Resp> {
 
 impl<Resp> ClientDuplexReceiver<Resp> {
     fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<Resp>) -> ClientDuplexReceiver<Resp> {
-        ClientDuplexReceiver {
-            imp: ResponseStreamImpl::new(call, de),
-        }
+        ClientDuplexReceiver { imp: ResponseStreamImpl::new(call, de) }
     }
 
     pub fn cancel(&mut self) {
