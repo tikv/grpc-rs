@@ -76,10 +76,17 @@
 #define GPR_CALLTYPE
 #endif
 
+grpc_slice grpc_slice_from_buffer(const char *source, size_t length) {
+    if (length == 0) return grpc_empty_slice();
+    grpc_slice slice = grpc_slice_malloc_large(length);
+    slice.data.refcounted.bytes = (uint8_t *) source;
+    return slice;
+}
+
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
-  grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
+  grpc_slice slice = grpc_slice_from_buffer(buffer, len);
   grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);
-  grpc_slice_unref(slice);
+//  grpc_slice_unref(slice);
   return bb;
 }
 
