@@ -115,7 +115,7 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run_with_content(BatchType::CheckRead, Err(payload), |content,
+        let cq_f = check_run_with_content(BatchType::CheckRead, payload, |content,
          content_size,
          ctx,
          tag| unsafe {
@@ -173,7 +173,7 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run_with_content(BatchType::Finish, Err(payload), |content,
+        let cq_f = check_run_with_content(BatchType::Finish, payload, |content,
          content_size,
          ctx,
          tag| unsafe {
