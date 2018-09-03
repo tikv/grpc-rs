@@ -249,6 +249,9 @@ type Either<A, B> = result::Result<A, B>;
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
+    /// Content of the request.
+    /// Since the memory taken by the content can be correctly released by Rust,
+    /// we can reduce a copy in C-side if we move the ownership of the content to BatchContext.
     content: Either<Box<[u8]>, Vec<u8>>,
 }
 
