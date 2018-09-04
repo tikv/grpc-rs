@@ -76,13 +76,11 @@
 #define GPR_CALLTYPE
 #endif
 
-grpc_slice grpc_slice_from_buffer(const char *source, size_t length) {
-  return length == 0 ? grpc_empty_slice()
-                     : grpc_slice_from_static_buffer(source, length);
-}
-
+/// The slices owned by BatchContext are managed by Rust,
+/// they will be destructed when BatchContext is dropped.
+/// So from C's point of view, these slices are static.
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
-  grpc_slice slice = grpc_slice_from_buffer(buffer, len);
+  grpc_slice slice = grpc_slice_from_static_buffer(buffer, len);
   grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);
   grpc_slice_unref(slice);
   return bb;
