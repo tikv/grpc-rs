@@ -121,6 +121,8 @@ impl RequestContext {
 
     fn call(&self, cq: CompletionQueue) -> Call {
         unsafe {
+            // It is okay to use a mutable pointer on a immutable reference, `self`,
+            // because grpcwrap_request_call_context_ref_call is thread-safe.
             let call = grpc_sys::grpcwrap_request_call_context_ref_call(self.ctx);
             assert!(!call.is_null());
             Call::from_raw(call, cq)
