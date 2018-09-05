@@ -204,8 +204,8 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    call: *mut GrpcCall,
-    cq: CompletionQueue,
+    pub call: *mut GrpcCall,
+    pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
@@ -361,46 +361,6 @@ impl Call {
 impl Drop for Call {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_call_unref(self.call) }
-    }
-}
-
-pub(crate) struct Kicker {
-    call: Call,
-}
-
-impl Kicker {
-    pub fn from_call(call: Call) -> Kicker {
-        Kicker { call }
-    }
-
-    /// Kick its completion queue.
-    pub fn kick(&self, tag: Box<CallTag>) -> Result<()> {
-        let _ref = self.call.cq.borrow()?;
-        unsafe {
-            let ptr = Box::into_raw(tag);
-            let status = grpc_sys::grpcwrap_call_kick_completion_queue(self.call.call, ptr as _);
-            if status == GrpcCallStatus::Ok {
-                Ok(())
-            } else {
-                Err(Error::CallFailure(status))
-            }
-        }
-    }
-}
-
-unsafe impl Sync for Kicker {}
-
-impl Clone for Kicker {
-    fn clone(&self) -> Kicker {
-        // Bump call's reference count.
-        let call = unsafe {
-            grpc_sys::grpc_call_ref(self.call.call);
-            self.call.call
-        };
-        let cq = self.call.cq.clone();
-        Kicker {
-            call: Call { call, cq },
-        }
     }
 }
 

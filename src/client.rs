@@ -14,11 +14,12 @@
 use futures::Future;
 
 use async::Executor;
+use async::Kicker;
 use call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
 };
-use call::{Call, Kicker, Method};
+use call::{Call, Method};
 use channel::Channel;
 
 use error::Result;

@@ -764,7 +764,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_initial_metadata(
 
 /** Kick call's completion queue, it should be called after there is an event
     ready to poll.
-    THREAD SAFETY: grpcwrap_call_kick_completion_queue is thread-compatible
+    THREAD SAFETY: grpcwrap_call_kick_completion_queue is thread-safe
     because it does not change the call's state. */
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_kick_completion_queue(
     grpc_call* call, void* tag) {

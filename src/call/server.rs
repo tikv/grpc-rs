@@ -19,8 +19,8 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use async::{BatchFuture, CallTag, Executor, SpinLock};
-use call::{BatchContext, Call, Kicker, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
+use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;

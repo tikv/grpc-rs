@@ -22,7 +22,8 @@ use std::{cmp, i32, ptr};
 use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
-use call::{Call, Kicker, Method};
+use async::Kicker;
+use call::{Call, Method};
 use cq::CompletionQueue;
 use env::Environment;
 use error::Result;
@@ -561,14 +562,12 @@ impl Channel {
         }
     }
 
-    /// Create a raw call can be used to kick its completion queue.
+    /// Create a Kicker.
     pub(crate) fn create_kicker(&self) -> Result<Kicker> {
         let cq_ref = self.cq.borrow()?;
         let raw_call = unsafe {
             let ch = self.inner.channel;
             let cq = cq_ref.as_ptr();
-            let method_ptr = "".as_ptr();
-            let method_len = "".len();
             // Do not timeout.
             let timeout = GprTimespec::inf_future();
             grpc_sys::grpcwrap_channel_create_call(
@@ -576,8 +575,8 @@ impl Channel {
                 ptr::null_mut(),
                 0,
                 cq,
-                method_ptr as *const _,
-                method_len,
+                ptr::null(),
+                0,
                 ptr::null(),
                 0,
                 timeout,

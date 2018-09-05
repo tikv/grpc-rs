@@ -75,13 +75,30 @@ fn test_kick() {
     let reply = f.wait().expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
 
-    let (tx1, rx1) = oneshot::channel();
-    let (tx2, rx2) = oneshot::channel();
-    let f = rx1.map(|n| {
-        let _ = tx2.send(n);
-    }).map_err(|_| ());
-    client.spawn(f);
+    // Spawn a future in the client.
+    let (tx1, rx2) = spawn_chianed_channel(&client);
     thread::sleep(Duration::from_millis(10));
     let _ = tx1.send(77);
     assert_eq!(rx2.wait().unwrap(), 77);
+
+    // Drop the client before a future is resloved.
+    let (tx1, rx2) = spawn_chianed_channel(&client);
+    drop(client);
+    thread::sleep(Duration::from_millis(10));
+    let _ = tx1.send(88);
+    assert_eq!(rx2.wait().unwrap(), 88);
+}
+
+fn spawn_chianed_channel(
+    client: &GreeterClient,
+) -> (oneshot::Sender<usize>, oneshot::Receiver<usize>) {
+    let (tx1, rx1) = oneshot::channel();
+    let (tx2, rx2) = oneshot::channel();
+    let f =
+        rx1.map(|n| {
+            let _ = tx2.send(n);
+        }).map_err(|_| ());
+    client.spawn(f);
+
+    (tx1, rx2)
 }
