@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod alarm;
+mod kick;
 mod health_check;
 mod metadata;
 mod misc;
