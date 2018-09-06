@@ -33,7 +33,7 @@ fn poll_queue(cq: Arc<CompletionQueueHandle>) {
             EventType::OpComplete => {}
         }
 
-        let tag = unsafe { CallTag::from_raw(e.tag as _) };
+        let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
 
         tag.resolve(&cq, e.success != 0);
     }

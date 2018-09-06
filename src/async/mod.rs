@@ -21,7 +21,6 @@ use std::sync::Arc;
 
 use futures::task::{self, Task};
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcwrapTag};
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnNotify;
@@ -192,31 +191,6 @@ impl CallTag {
             CallTag::Shutdown(prom) => prom.resolve(success),
             CallTag::Spawn(notify) => notify.resolve(success),
         }
-    }
-
-    /// Consumes the `CallTag`, returning the wrapped raw pointer.
-    pub fn into_raw(self) -> *mut GrpcwrapTag {
-        if let CallTag::Spawn(_) = self {
-            // CallTag::Spawn is sent to CompletionQueue by Alarm.
-            panic!("CallTag::Spawn can not into raw pointer")
-        }
-        let tag_box = Box::new(self);
-        let tag_ptr = Box::into_raw(tag_box);
-        unsafe { grpc_sys::grpcwrap_tag_create(tag_ptr as _) }
-    }
-
-    /// Constructs a `CallTag` from a raw pointer.
-    pub unsafe fn from_raw(tag_ptr: *mut GrpcwrapTag) -> Box<CallTag> {
-        let ptr = grpc_sys::grpcwrap_unwrap_tag(tag_ptr as _);
-        let tag_box = Box::from_raw(ptr as _);
-        match *tag_box {
-            // Spawn is notified from Alarm, Alarm manages the `tag_ptr` lifetime.
-            CallTag::Spawn(_) => (),
-            _ => {
-                grpc_sys::grpcwrap_tag_destroy(tag_ptr as _);
-            }
-        }
-        tag_box
     }
 }
 

@@ -19,7 +19,7 @@ use std::{ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcwrapTag};
+use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
@@ -173,9 +173,12 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut GrpcwrapTag) {
-    let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
-    (batch_ctx, tag.into_raw())
+fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
+    let tag_box = Box::new(tag);
+    (
+        tag_box.batch_ctx().unwrap().as_ptr(),
+        Box::into_raw(tag_box) as _,
+    )
 }
 
 /// A helper function that runs the batch call and checks the result.

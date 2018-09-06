@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 use std::thread::ThreadId;
 
-use grpc_sys::{self, GprClockType, GrpcCompletionQueue, GrpcCompletionQueueWrapper};
+use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
 
 use error::{Error, Result};
 
@@ -25,7 +25,7 @@ pub use grpc_sys::GrpcEvent as Event;
 
 /// `CompletionQueueHandle` enable notification of the completion of asynchronous actions.
 pub struct CompletionQueueHandle {
-    cq: *mut GrpcCompletionQueueWrapper,
+    cq: *mut GrpcCompletionQueue,
     // When `ref_cnt` < 0, a shutdown is pending, completion queue should not
     // accept requests anymore; when `ref_cnt` == 0, completion queue should
     // be shutdown; When `ref_cnt` > 0, completion queue can accept requests
@@ -38,12 +38,9 @@ unsafe impl Send for CompletionQueueHandle {}
 
 impl CompletionQueueHandle {
     pub fn new() -> CompletionQueueHandle {
-        unsafe {
-            let cq = grpc_sys::grpcwrap_completion_queue_create();
-            CompletionQueueHandle {
-                cq,
-                ref_cnt: AtomicIsize::new(1),
-            }
+        CompletionQueueHandle {
+            cq: unsafe { grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut()) },
+            ref_cnt: AtomicIsize::new(1),
         }
     }
 
@@ -79,7 +76,7 @@ impl CompletionQueueHandle {
         };
         if shutdown {
             unsafe {
-                grpc_sys::grpcwrap_completion_queue_shutdown(self.cq);
+                grpc_sys::grpc_completion_queue_shutdown(self.cq);
             }
         }
     }
@@ -104,7 +101,7 @@ impl CompletionQueueHandle {
         };
         if shutdown {
             unsafe {
-                grpc_sys::grpcwrap_completion_queue_shutdown(self.cq);
+                grpc_sys::grpc_completion_queue_shutdown(self.cq);
             }
         }
     }
@@ -113,7 +110,7 @@ impl CompletionQueueHandle {
 impl Drop for CompletionQueueHandle {
     fn drop(&mut self) {
         unsafe {
-            grpc_sys::grpcwrap_completion_queue_destroy(self.cq);
+            grpc_sys::grpc_completion_queue_destroy(self.cq);
         }
     }
 }
@@ -124,10 +121,6 @@ pub struct CompletionQueueRef<'a> {
 
 impl<'a> CompletionQueueRef<'a> {
     pub fn as_ptr(&self) -> *mut GrpcCompletionQueue {
-        unsafe { grpc_sys::grpcwrap_completion_queue_cq(self.queue.handle.cq) }
-    }
-
-    pub fn as_wrapper_ptr(&self) -> *mut GrpcCompletionQueueWrapper {
         self.queue.handle.cq
     }
 }
@@ -153,8 +146,7 @@ impl CompletionQueue {
     pub fn next(&self) -> Event {
         unsafe {
             let inf = grpc_sys::gpr_inf_future(GprClockType::Realtime);
-            let cq = grpc_sys::grpcwrap_completion_queue_cq(self.handle.cq);
-            grpc_sys::grpc_completion_queue_next(cq, inf, ptr::null_mut())
+            grpc_sys::grpc_completion_queue_next(self.handle.cq, inf, ptr::null_mut())
         }
     }
 

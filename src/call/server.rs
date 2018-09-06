@@ -96,15 +96,15 @@ impl RequestContext {
     /// request is received.
     pub fn handle_unary_req(self, rc: RequestCallContext, _: &CompletionQueue) {
         // fetch message before calling callback.
-        let tag = CallTag::unary_request(self, rc);
+        let tag = Box::new(CallTag::unary_request(self, rc));
         let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
         let request_ctx = tag.request_ctx().unwrap().as_ptr();
-        let tag_ptr = tag.into_raw();
+        let tag_ptr = Box::into_raw(tag);
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(request_ctx);
             let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag_ptr as _);
             if code != GrpcCallStatus::Ok {
-                CallTag::from_raw(tag_ptr);
+                Box::from_raw(tag_ptr);
                 // it should not failed.
                 panic!("try to receive message fail: {:?}", code);
             }

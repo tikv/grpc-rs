@@ -399,7 +399,8 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
     let server_ptr = ctx.server.server;
     let prom = CallTag::request(ctx);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
-    let tag = prom.into_raw();
+    let prom_box = Box::new(prom);
+    let tag = Box::into_raw(prom_box);
     let code = unsafe {
         grpc_sys::grpcwrap_server_request_call(
             server_ptr,
@@ -444,7 +445,8 @@ impl Server {
     /// Shutdown the server asynchronously.
     pub fn shutdown(&mut self) -> ShutdownFuture {
         let (cq_f, prom) = CallTag::shutdown_pair();
-        let tag = prom.into_raw();
+        let prom_box = Box::new(prom);
+        let tag = Box::into_raw(prom_box);
         unsafe {
             // Since env still exists, no way can cq been shutdown.
             let cq_ref = self.env.completion_queues()[0].borrow().unwrap();
