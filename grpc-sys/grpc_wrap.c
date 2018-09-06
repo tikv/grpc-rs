@@ -295,44 +295,6 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-GPR_EXPORT size_t GPR_CALLTYPE
-grpcwrap_batch_context_recv_message_length(const grpcwrap_batch_context* ctx) {
-  grpc_byte_buffer_reader reader;
-  if (!ctx->recv_message) {
-    return (size_t)-1;
-  }
-
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
-  size_t result = grpc_byte_buffer_length(reader.buffer_out);
-  grpc_byte_buffer_reader_destroy(&reader);
-
-  return result;
-}
-
-/*
- * Copies data from recv_message to a buffer. Fatal error occurs if
- * buffer is too small.
- */
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_recv_message_to_buffer(
-    const grpcwrap_batch_context* ctx, char* buffer, size_t buffer_len) {
-  grpc_byte_buffer_reader reader;
-  grpc_slice slice;
-  size_t offset = 0;
-
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
-
-  while (grpc_byte_buffer_reader_next(&reader, &slice)) {
-    size_t len = GRPC_SLICE_LENGTH(slice);
-    GPR_ASSERT(offset + len <= buffer_len);
-    memcpy(buffer + offset, GRPC_SLICE_START_PTR(slice),
-           GRPC_SLICE_LENGTH(slice));
-    offset += len;
-    grpc_slice_unref(slice);
-  }
-
-  grpc_byte_buffer_reader_destroy(&reader);
-}
-
 GPR_EXPORT const char *GPR_CALLTYPE
 grpcwrap_slice_raw(const grpc_slice *slice, size_t *len) {
   *len = GRPC_SLICE_LENGTH(*slice);

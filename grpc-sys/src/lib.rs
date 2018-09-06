@@ -511,13 +511,6 @@ extern "C" {
     pub fn grpcwrap_batch_context_recv_initial_metadata(
         ctx: *mut GrpcBatchContext,
     ) -> *const GrpcMetadataArray;
-    pub fn grpcwrap_batch_context_recv_message_length(ctx: *mut GrpcBatchContext) -> size_t;
-    #[deprecated(note="this is copying the original data")]
-    pub fn grpcwrap_batch_context_recv_message_to_buffer(
-        ctx: *mut GrpcBatchContext,
-        buffer: *mut c_char,
-        buffer_len: size_t,
-    );
     pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut GrpcBatchContext,
     ) -> *mut GrpcByteBuffer;
