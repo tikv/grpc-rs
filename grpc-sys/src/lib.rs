@@ -348,17 +348,12 @@ pub struct GrpcMetadataArray {
     pub metadata: *mut GrpcMetadata,
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x00000010;
-#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x00000020;
-#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
+pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
+pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
+pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
 
-#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x00000001;
-#[cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x00000002;
+pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
+pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
 pub enum GrpcSlice {}
