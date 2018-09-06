@@ -207,7 +207,7 @@ impl UnaryRequestContext {
     }
 
     pub fn handle(
-        mut self,
+        self,
         rc: &RequestCallContext,
         cq: &CompletionQueue,
         reader: Option<MessageReader>

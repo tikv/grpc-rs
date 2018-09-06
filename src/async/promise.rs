@@ -69,7 +69,7 @@ impl Batch {
             if succeed {
                 let status = self.ctx.rpc_status();
                 if status.status == RpcStatusCode::Ok {
-                    guard.set_result(Ok(Default::default()))
+                    guard.set_result(Ok(None))
                 } else {
                     guard.set_result(Err(Error::RpcFailure(status)))
                 }
