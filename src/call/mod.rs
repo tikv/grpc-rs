@@ -15,7 +15,7 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::io::{self, BufRead, ErrorKind, Read};
+use std::io::{self, BufRead, Read};
 use std::{ptr, slice, mem, cmp, usize};
 
 use cq::CompletionQueue;
@@ -191,19 +191,6 @@ impl MessageReader {
             }
         }
         self.bytes
-    }
-}
-
-impl Default for MessageReader {
-    /// a MessageReader that reads nothing
-    fn default() -> Self {
-        MessageReader {
-            buf: ptr::null_mut(),
-            reader: GrpcByteBufferReader::default(),
-            bytes: &[],
-            slice: None,
-            length: 0,
-        }
     }
 }
 
