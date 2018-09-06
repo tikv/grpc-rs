@@ -31,7 +31,7 @@ use cq::CompletionQueue;
 use error::{Error, Result};
 use server::RequestCallContext;
 
-pub use self::executor::Executor;
+pub(crate) use self::executor::{Executor, Kicker};
 pub use self::lock::SpinLock;
 pub use self::promise::BatchType;
 
