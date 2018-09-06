@@ -22,6 +22,7 @@ use std::{cmp, i32, ptr};
 use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
+use async::Kicker;
 use call::{Call, Method};
 use cq::CompletionQueue;
 use env::Environment;
@@ -559,6 +560,31 @@ impl Channel {
             inner: Arc::new(ChannelInner { _env: env, channel }),
             cq,
         }
+    }
+
+    /// Create a Kicker.
+    pub(crate) fn create_kicker(&self) -> Result<Kicker> {
+        let cq_ref = self.cq.borrow()?;
+        let raw_call = unsafe {
+            let ch = self.inner.channel;
+            let cq = cq_ref.as_ptr();
+            // Do not timeout.
+            let timeout = GprTimespec::inf_future();
+            grpc_sys::grpcwrap_channel_create_call(
+                ch,
+                ptr::null_mut(),
+                0,
+                cq,
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                timeout,
+                ptr::null_mut(),
+            )
+        };
+        let call = unsafe { Call::from_raw(raw_call, self.cq.clone()) };
+        Ok(Kicker::from_call(call))
     }
 
     /// Create a call using the method and option.

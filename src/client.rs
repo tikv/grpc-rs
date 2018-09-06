@@ -14,6 +14,7 @@
 use futures::Future;
 
 use async::Executor;
+use async::Kicker;
 use call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
@@ -26,12 +27,15 @@ use error::Result;
 /// A generic client for making RPC calls.
 pub struct Client {
     channel: Channel,
+    // Used to kick its completion queue.
+    kicker: Kicker,
 }
 
 impl Client {
     /// Initialize a new [`Client`].
     pub fn new(channel: Channel) -> Client {
-        Client { channel }
+        let kicker = channel.create_kicker().unwrap();
+        Client { channel, kicker }
     }
 
     /// Create a synchronized unary RPC call.
@@ -99,6 +103,7 @@ impl Client {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        Executor::new(self.channel.cq()).spawn(f)
+        let kicker = self.kicker.clone();
+        Executor::new(self.channel.cq()).spawn(f, kicker)
     }
 }
