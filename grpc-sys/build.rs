@@ -15,12 +15,12 @@ extern crate cc;
 extern crate cmake;
 extern crate pkg_config;
 
+use std::env::VarError;
 use std::path::Path;
 use std::{env, fs, io};
-use std::env::VarError;
 
-use cmake::Config;
 use cc::Build;
+use cmake::Config;
 use pkg_config::{Config as PkgConfig, Library};
 
 const GRPC_VERSION: &'static str = "1.13.0";

@@ -74,11 +74,11 @@ impl<'a, T> Drop for LockGuard<'a, T> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::sync::mpsc::*;
+    use std::sync::*;
     use std::thread;
     use std::time::Duration;
-    use std::sync::*;
-    use std::sync::mpsc::*;
-    use super::*;
 
     #[test]
     fn test_lock() {

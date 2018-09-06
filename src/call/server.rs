@@ -11,21 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{result, slice};
-use std::sync::Arc;
 use std::ffi::CStr;
+use std::sync::Arc;
+use std::{result, slice};
 
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
-use async::{BatchFuture, CallTag, Executor, SpinLock};
+use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
+use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
 use metadata::Metadata;
-use server::{CallBack, Inner};
-use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
+use server::{BoxHandler, RequestCallContext};
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -52,16 +52,16 @@ impl Deadline {
 /// Context for accepting a request.
 pub struct RequestContext {
     ctx: *mut GrpcRequestCallContext,
-    inner: Option<Arc<Inner>>,
+    request_call: Option<RequestCallContext>,
 }
 
 impl RequestContext {
-    pub fn new(inner: Arc<Inner>) -> RequestContext {
+    pub fn new(rc: RequestCallContext) -> RequestContext {
         let ctx = unsafe { grpc_sys::grpcwrap_request_call_context_create() };
 
         RequestContext {
             ctx,
-            inner: Some(inner),
+            request_call: Some(rc),
         }
     }
 
@@ -71,13 +71,14 @@ impl RequestContext {
     pub fn handle_stream_req(
         self,
         cq: &CompletionQueue,
-        inner: &Inner,
+        rc: &RequestCallContext,
     ) -> result::Result<(), Self> {
-        match inner.get_handler(self.method()) {
+        let handler = unsafe { rc.get_handler(self.method()) };
+        match handler {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, &[], handler.cb());
+                    execute(self, cq, &[], handler);
                     Ok(())
                 }
             },
@@ -93,9 +94,9 @@ impl RequestContext {
     /// This method should be called after `handle_stream_req`. When handling
     /// client side unary request, handler will only be called after the unary
     /// request is received.
-    pub fn handle_unary_req(self, inner: Arc<Inner>, _: &CompletionQueue) {
+    pub fn handle_unary_req(self, rc: RequestCallContext, _: &CompletionQueue) {
         // fetch message before calling callback.
-        let tag = CallTag::unary_request(self, inner);
+        let tag = CallTag::unary_request(self, rc);
         let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
         let request_ctx = tag.request_ctx().unwrap().as_ptr();
         let tag_ptr = tag.into_raw();
@@ -110,16 +111,18 @@ impl RequestContext {
         }
     }
 
-    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
-        self.inner.take()
+    pub fn take_request_call_context(&mut self) -> Option<RequestCallContext> {
+        self.request_call.take()
     }
 
     pub fn as_ptr(&self) -> *mut GrpcRequestCallContext {
         self.ctx
     }
 
-    fn call(&mut self, cq: CompletionQueue) -> Call {
+    fn call(&self, cq: CompletionQueue) -> Call {
         unsafe {
+            // It is okay to use a mutable pointer on a immutable reference, `self`,
+            // because grpcwrap_request_call_context_ref_call is thread-safe.
             let call = grpc_sys::grpcwrap_request_call_context_ref_call(self.ctx);
             assert!(!call.is_null());
             Call::from_raw(call, cq)
@@ -178,15 +181,15 @@ impl Drop for RequestContext {
 /// A context for handling client side unary request.
 pub struct UnaryRequestContext {
     request: RequestContext,
-    inner: Option<Arc<Inner>>,
+    request_call: Option<RequestCallContext>,
     batch: BatchContext,
 }
 
 impl UnaryRequestContext {
-    pub fn new(ctx: RequestContext, inner: Arc<Inner>) -> UnaryRequestContext {
+    pub fn new(ctx: RequestContext, rc: RequestCallContext) -> UnaryRequestContext {
         UnaryRequestContext {
             request: ctx,
-            inner: Some(inner),
+            request_call: Some(rc),
             batch: BatchContext::new(),
         }
     }
@@ -199,18 +202,18 @@ impl UnaryRequestContext {
         &self.request
     }
 
-    pub fn take_inner(&mut self) -> Option<Arc<Inner>> {
-        self.inner.take()
+    pub fn take_request_call_context(&mut self) -> Option<RequestCallContext> {
+        self.request_call.take()
     }
 
-    pub fn handle(mut self, inner: &Arc<Inner>, cq: &CompletionQueue, data: Option<&[u8]>) {
-        let handler = inner.get_handler(self.request.method()).unwrap();
+    pub fn handle(self, rc: &RequestCallContext, cq: &CompletionQueue, data: Option<&[u8]>) {
+        let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if let Some(data) = data {
-            return execute(self.request, cq, data, handler.cb());
+            return execute(self.request, cq, data, handler);
         }
 
         let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
-        self.request.call(cq.clone()).abort(status)
+        self.request.call(cq.clone()).abort(&status)
     }
 }
 
@@ -256,7 +259,7 @@ impl<T> Stream for RequestStream<T> {
 /// `CallHolder` or `Call` to caller.
 // TODO: Use type alias to be friendly for documentation.
 macro_rules! impl_unary_sink {
-    ($t:ident, $rt:ident, $holder:ty) => (
+    ($t:ident, $rt:ident, $holder:ty) => {
         pub struct $rt {
             call: $holder,
             cq_f: Option<BatchFuture>,
@@ -313,7 +316,8 @@ macro_rules! impl_unary_sink {
 
                 let write_flags = self.write_flags;
                 let res = self.call.call(|c| {
-                    c.call.start_send_status_from_server(&status, true, data, write_flags)
+                    c.call
+                        .start_send_status_from_server(&status, true, &data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -328,7 +332,7 @@ macro_rules! impl_unary_sink {
                 }
             }
         }
-    );
+    };
 }
 
 impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
@@ -340,7 +344,7 @@ impl_unary_sink!(
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {
-    ($t:ident, $ft:ident, $holder:ty) => (
+    ($t:ident, $ft:ident, $holder:ty) => {
         pub struct $t<T> {
             call: $holder,
             base: SinkBase,
@@ -371,7 +375,8 @@ macro_rules! impl_stream_sink {
                 assert!(self.flush_f.is_none());
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.call(|c| {
-                    c.call.start_send_status_from_server(&status, send_metadata, None, 0)
+                    c.call
+                        .start_send_status_from_server(&status, send_metadata, &None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -397,11 +402,13 @@ macro_rules! impl_stream_sink {
                 }
                 self.base
                     .start_send(&mut self.call, &item.0, item.1, self.ser)
-                    .map(|s| if s {
+                    .map(|s| {
+                        if s {
                             AsyncSink::Ready
                         } else {
                             AsyncSink::NotReady(item)
-                        })
+                        }
+                    })
             }
 
             fn poll_complete(&mut self) -> Poll<(), Error> {
@@ -415,7 +422,8 @@ macro_rules! impl_stream_sink {
                     let send_metadata = self.base.send_metadata;
                     let status = &self.status;
                     let flush_f = self.call.call(|c| {
-                        c.call.start_send_status_from_server(status, send_metadata, None, 0)
+                        c.call
+                            .start_send_status_from_server(status, send_metadata, &None, 0)
                     })?;
                     self.flush_f = Some(flush_f);
                 }
@@ -461,7 +469,7 @@ macro_rules! impl_stream_sink {
                 Ok(readiness)
             }
         }
-    )
+    };
 }
 
 impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, ShareCall);
@@ -483,7 +491,12 @@ impl<'a> RpcContext<'a> {
         }
     }
 
-    pub(crate) fn call(&mut self) -> Call {
+    fn kicker(&self) -> Kicker {
+        let call = self.call();
+        Kicker::from_call(call)
+    }
+
+    pub(crate) fn call(&self) -> Call {
         self.ctx.call(self.executor.cq().clone())
     }
 
@@ -516,7 +529,7 @@ impl<'a> RpcContext<'a> {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        self.executor.spawn(f)
+        self.executor.spawn(f, self.kicker())
     }
 }
 
@@ -529,12 +542,12 @@ macro_rules! accept_call {
             Err(e) => panic!("unexpected error when trying to accept request: {:?}", e),
             Ok(f) => f,
         }
-    }
+    };
 }
 
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: &[u8],
@@ -551,7 +564,7 @@ pub fn execute_unary<P, Q, F>(
                 RpcStatusCode::Internal,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
-            call.abort(status);
+            call.abort(&status);
             return;
         }
     };
@@ -561,7 +574,7 @@ pub fn execute_unary<P, Q, F>(
 
 // Helper function to call client streaming handler.
 pub fn execute_client_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &F,
@@ -579,7 +592,7 @@ pub fn execute_client_streaming<P, Q, F>(
 
 // Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: &[u8],
@@ -597,7 +610,7 @@ pub fn execute_server_streaming<P, Q, F>(
                 RpcStatusCode::Internal,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
-            call.abort(status);
+            call.abort(&status);
             return;
         }
     };
@@ -608,7 +621,7 @@ pub fn execute_server_streaming<P, Q, F>(
 
 // Helper function to call duplex streaming handler.
 pub fn execute_duplex_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &F,
@@ -625,16 +638,18 @@ pub fn execute_duplex_streaming<P, Q, F>(
 }
 
 // A helper function used to handle all undefined rpc calls.
-pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
+pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
+    // Suppress needless-pass-by-value.
+    let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+    call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))
 }
 
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &CallBack) {
+fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: &[u8], f: &BoxHandler) {
     let rpc_ctx = RpcContext::new(ctx, cq);
-    f(rpc_ctx, payload)
+    f.handle(rpc_ctx, payload)
 }

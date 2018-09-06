@@ -11,31 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod executor;
-mod promise;
 mod callback;
+mod executor;
 mod lock;
+mod promise;
 
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use futures::{Async, Future, Poll};
 use futures::task::{self, Task};
-
-use call::{BatchContext, Call};
-use call::server::RequestContext;
-use cq::CompletionQueue;
-use error::{Error, Result};
-use self::executor::SpawnNotify;
-use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
-use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
-use server::Inner as ServerInner;
-
+use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcwrapTag};
 
-pub use self::executor::Executor;
-pub use self::promise::BatchType;
+use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
+use self::executor::SpawnNotify;
+use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
+use call::server::RequestContext;
+use call::{BatchContext, Call};
+use cq::CompletionQueue;
+use error::{Error, Result};
+use server::RequestCallContext;
+
+pub(crate) use self::executor::{Executor, Kicker};
 pub use self::lock::SpinLock;
+pub use self::promise::BatchType;
 
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
@@ -142,8 +141,8 @@ impl CallTag {
 
     /// Generate a CallTag for request job. We don't have an eventloop
     /// to pull the future, so just the tag is enough.
-    pub fn request(inner: Arc<ServerInner>) -> CallTag {
-        CallTag::Request(RequestCallback::new(inner))
+    pub fn request(ctx: RequestCallContext) -> CallTag {
+        CallTag::Request(RequestCallback::new(ctx))
     }
 
     /// Generate a Future/CallTag pair for shutdown call.
@@ -159,8 +158,8 @@ impl CallTag {
     }
 
     /// Generate a CallTag for unary request job.
-    pub fn unary_request(ctx: RequestContext, inner: Arc<ServerInner>) -> CallTag {
-        let cb = UnaryRequestCallback::new(ctx, inner);
+    pub fn unary_request(ctx: RequestContext, rc: RequestCallContext) -> CallTag {
+        let cb = UnaryRequestCallback::new(ctx, rc);
         CallTag::UnaryRequest(cb)
     }
 
@@ -203,9 +202,7 @@ impl CallTag {
         }
         let tag_box = Box::new(self);
         let tag_ptr = Box::into_raw(tag_box);
-        unsafe {
-            grpc_sys::grpcwrap_tag_create(tag_ptr as _)
-        }
+        unsafe { grpc_sys::grpcwrap_tag_create(tag_ptr as _) }
     }
 
     /// Constructs a `CallTag` from a raw pointer.
@@ -238,9 +235,9 @@ impl Debug for CallTag {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
-    use std::sync::*;
     use std::sync::mpsc::*;
+    use std::sync::*;
+    use std::thread;
 
     use super::*;
     use env::Environment;

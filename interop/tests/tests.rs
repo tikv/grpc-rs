@@ -16,7 +16,7 @@ extern crate grpcio_proto as grpc_proto;
 extern crate interop;
 
 macro_rules! mk_test {
-    ($case_name:ident, $func:ident, $use_tls:expr) => (
+    ($case_name:ident, $func:ident, $use_tls:expr) => {
         #[test]
         fn $case_name() {
             let env = Arc::new(Environment::new(2));
@@ -34,8 +34,8 @@ macro_rules! mk_test {
             let mut server = builder.build().unwrap();
             server.start();
 
-            let builder = ChannelBuilder::new(env.clone())
-                              .override_ssl_target("foo.test.google.fr");
+            let builder =
+                ChannelBuilder::new(env.clone()).override_ssl_target("foo.test.google.fr");
             let channel = {
                 let (ref host, port) = server.bind_addrs()[0];
                 if $use_tls {
@@ -50,15 +50,15 @@ macro_rules! mk_test {
 
             client.$func();
         }
-    );
+    };
     ($func:ident) => {
         mod $func {
             use std::sync::Arc;
 
-            use grpc::{Environment, ServerBuilder, ChannelBuilder};
-            use interop::{InteropTestService, Client};
+            use grpc::{ChannelBuilder, Environment, ServerBuilder};
             use grpc_proto::testing::test_grpc;
             use grpc_proto::util;
+            use interop::{Client, InteropTestService};
 
             mk_test!(test_insecure, $func, false);
             mk_test!(test_secure, $func, true);

@@ -12,8 +12,8 @@
 // limitations under the License.
 
 use std::ptr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::Arc;
 use std::thread::ThreadId;
 
 use grpc_sys::{self, GprClockType, GrpcCompletionQueue, GrpcCompletionQueueWrapper};
@@ -55,9 +55,9 @@ impl CompletionQueueHandle {
                 return Err(Error::QueueShutdown);
             }
             let new_cnt = cnt + 1;
-            if cnt
-                == self.ref_cnt
-                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
+            if cnt == self
+                .ref_cnt
+                .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
             {
                 return Ok(());
             }
@@ -70,9 +70,9 @@ impl CompletionQueueHandle {
             // If `shutdown` is not called, `cnt` > 0, so minus 1 to unref.
             // If `shutdown` is called, `cnt` < 0, so plus 1 to unref.
             let new_cnt = cnt - cnt.signum();
-            if cnt
-                == self.ref_cnt
-                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
+            if cnt == self
+                .ref_cnt
+                .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
             {
                 break new_cnt == 0;
             }
@@ -95,9 +95,9 @@ impl CompletionQueueHandle {
             // Because `cnt` is initialised to 1, so minus 1 to make it reach
             // toward 0. That is `new_cnt = -(cnt - 1) = -cnt + 1`.
             let new_cnt = -cnt + 1;
-            if cnt
-                == self.ref_cnt
-                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
+            if cnt == self
+                .ref_cnt
+                .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
             {
                 break new_cnt == 0;
             }
@@ -124,9 +124,7 @@ pub struct CompletionQueueRef<'a> {
 
 impl<'a> CompletionQueueRef<'a> {
     pub fn as_ptr(&self) -> *mut GrpcCompletionQueue {
-        unsafe {
-            grpc_sys::grpcwrap_completion_queue_cq(self.queue.handle.cq)
-        }
+        unsafe { grpc_sys::grpcwrap_completion_queue_cq(self.queue.handle.cq) }
     }
 
     pub fn as_wrapper_ptr(&self) -> *mut GrpcCompletionQueueWrapper {
@@ -148,10 +146,7 @@ pub struct CompletionQueue {
 
 impl CompletionQueue {
     pub fn new(handle: Arc<CompletionQueueHandle>, id: ThreadId) -> CompletionQueue {
-        CompletionQueue {
-            handle,
-            id,
-        }
+        CompletionQueue { handle, id }
     }
 
     /// Blocks until an event is available, the completion queue is being shut down.

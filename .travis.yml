@@ -16,8 +16,6 @@ rust:
   - beta
   - nightly
 matrix:
-  allow_failures:
-    - rust: nightly
   include:
   - os: osx
     rust: stable
@@ -51,9 +49,9 @@ before_script:
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 script:
-  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then rustup component add clippy-preview --toolchain nightly && cargo clippy; fi
-  - export RUSTFLAGS=-Dwarnings
   - export RUST_BACKTRACE=1
+  - export RUSTFLAGS=-Dwarnings
+  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then rustup component add clippy-preview --toolchain nightly && cargo clippy --all; fi
   - cargo build --no-default-features
   - cargo build --no-default-features --features protobuf-codec
   - cargo build

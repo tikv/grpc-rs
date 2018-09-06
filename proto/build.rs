@@ -15,16 +15,16 @@ extern crate grpcio_compiler;
 extern crate protobuf;
 extern crate protobuf_codegen;
 
-use std::fs::{self, File};
 use std::env;
+use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
 
 use grpcio_compiler::codegen as grpc_gen;
-use protobuf_codegen as pb_gen;
-use protobuf::compiler_plugin::GenResult;
 use pb_gen::Customize;
+use protobuf::compiler_plugin::GenResult;
 use protobuf::descriptor::{FileDescriptorProto, FileDescriptorSet};
+use protobuf_codegen as pb_gen;
 
 /// Descriptor file to module file.
 fn desc_to_module<G, W>(descriptor: &Path, output_dir: &Path, mut gen: G, mut module: W)

@@ -15,7 +15,7 @@
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 
 /// The clocks gRPC supports.
@@ -348,12 +348,12 @@ pub struct GrpcMetadataArray {
     pub metadata: *mut GrpcMetadata,
 }
 
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x00000010;
-pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x00000020;
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
+pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
+pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
+pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
 
-pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x00000001;
-pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x00000002;
+pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
+pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
 pub enum GrpcSlice {}
@@ -471,6 +471,11 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
     ) -> int32_t;
 
+    pub fn grpcwrap_call_kick_completion_queue(
+        call: *mut GrpcCall,
+        tag: *mut c_void,
+    ) -> GrpcCallStatus;
+
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
@@ -561,6 +566,7 @@ extern "C" {
         description: *const c_char,
         reserved: *mut c_void,
     );
+    pub fn grpc_call_ref(call: *mut GrpcCall);
     pub fn grpc_call_unref(call: *mut GrpcCall);
 
     pub fn grpc_server_register_method(
@@ -623,14 +629,10 @@ extern "C" {
 
     pub fn grpcwrap_completion_queue_create() -> *mut GrpcCompletionQueueWrapper;
     pub fn grpcwrap_completion_queue_cq(
-        cq_wrapper: *mut GrpcCompletionQueueWrapper
+        cq_wrapper: *mut GrpcCompletionQueueWrapper,
     ) -> *mut GrpcCompletionQueue;
-    pub fn grpcwrap_completion_queue_shutdown(
-        cq_wrapper: *mut GrpcCompletionQueueWrapper
-    );
-    pub fn grpcwrap_completion_queue_destroy(
-        cq_wrapper: *mut GrpcCompletionQueueWrapper
-    );
+    pub fn grpcwrap_completion_queue_shutdown(cq_wrapper: *mut GrpcCompletionQueueWrapper);
+    pub fn grpcwrap_completion_queue_destroy(cq_wrapper: *mut GrpcCompletionQueueWrapper);
 
     pub fn grpcwrap_alarm_create() -> *mut GrpcAlarm;
     pub fn grpcwrap_alarm_set(

@@ -14,8 +14,8 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, slice, usize};
 use std::sync::Arc;
+use std::{ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -43,7 +43,6 @@ pub enum MethodType {
     /// Both server and client can stream arbitrary number of requests and responses simultaneously.
     Duplex,
 }
-
 
 /// A description of a remote method.
 // TODO: add serializer and deserializer.
@@ -100,10 +99,7 @@ pub struct RpcStatus {
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
     pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
-        RpcStatus {
-            status,
-            details,
-        }
+        RpcStatus { status, details }
     }
 
     /// Create a new [`RpcStatus`] that status code is Ok.
@@ -146,10 +142,7 @@ impl BatchContext {
             }
         };
 
-        RpcStatus {
-            status,
-            details,
-        }
+        RpcStatus { status, details }
     }
 
     /// Fetch the response bytes of the rpc call.
@@ -182,10 +175,7 @@ impl Drop for BatchContext {
 #[inline]
 fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut GrpcwrapTag) {
     let batch_ctx = tag.batch_ctx().unwrap().as_ptr();
-    (
-        batch_ctx,
-        tag.into_raw()
-    )
+    (batch_ctx, tag.into_raw())
 }
 
 /// A helper function that runs the batch call and checks the result.
@@ -211,8 +201,8 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    call: *mut GrpcCall,
-    cq: CompletionQueue,
+    pub call: *mut GrpcCall,
+    pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
@@ -280,7 +270,7 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: Option<Vec<u8>>,
+        payload: &Option<Vec<u8>>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
@@ -312,7 +302,7 @@ impl Call {
     }
 
     /// Abort an rpc call before handler is called.
-    pub fn abort(self, status: RpcStatus) {
+    pub fn abort(self, status: &RpcStatus) {
         match self.cq.borrow() {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
@@ -541,12 +531,12 @@ impl WriteFlags {
     }
 
     /// Get whether buffer hint is enabled.
-    pub fn get_buffer_hint(&self) -> bool {
+    pub fn get_buffer_hint(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
     /// Get whether compression is disabled.
-    pub fn get_force_no_compress(&self) -> bool {
+    pub fn get_force_no_compress(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }

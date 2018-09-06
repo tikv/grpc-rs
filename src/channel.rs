@@ -12,24 +12,26 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::{cmp, ptr, i32};
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::sync::Arc;
 use std::time::Duration;
+use std::{cmp, i32, ptr};
 
-use libc::{self, c_char, c_int};
 use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
+use libc::{self, c_char, c_int};
 
-use CallOption;
+use async::Kicker;
 use call::{Call, Method};
 use cq::CompletionQueue;
 use env::Environment;
 use error::Result;
+use CallOption;
 
-pub use grpc_sys::{GrpcCompressionAlgorithms as CompressionAlgorithms,
-                   GrpcCompressionLevel as CompressionLevel};
+pub use grpc_sys::{
+    GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
+};
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
 const OPT_DEFAULT_AUTHORITY: &[u8] = b"grpc.default_authority\0";
@@ -60,6 +62,7 @@ const OPT_KEEPALIVE_TIMEOUT_MS: &[u8] = b"grpc.keepalive_timeout_ms\0";
 const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8] = b"grpc.keepalive_permit_without_calls\0";
 const OPT_OPTIMIZATION_TARGET: &[u8] = b"grpc.optimization_target\0";
 const PRIMARY_USER_AGENT_STRING: &[u8] = b"grpc.primary_user_agent\0";
+const OPT_GRPC_ARG_LB_POLICY_NAME: &[u8] = b"grpc.lb_policy_name\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
@@ -84,6 +87,7 @@ enum Options {
 }
 
 /// The optimization target for a [`Channel`].
+#[derive(Clone, Copy)]
 pub enum OptTarget {
     /// Minimize latency at the cost of throughput.
     Latency,
@@ -91,6 +95,12 @@ pub enum OptTarget {
     Blend,
     /// Maximize throughput at the expense of latency.
     Throughput,
+}
+
+#[derive(Clone, Copy)]
+pub enum LbPolicy {
+    PickFirst,
+    RoundRobin,
 }
 
 /// [`Channel`] factory in order to configure the properties.
@@ -369,6 +379,21 @@ impl ChannelBuilder {
         self
     }
 
+    /// Set LbPolicy for channel
+    ///
+    /// This method allows one to set the load-balancing policy for a given channel.
+    pub fn load_balancing_policy(mut self, lb_policy: LbPolicy) -> ChannelBuilder {
+        let val = match lb_policy {
+            LbPolicy::PickFirst => CString::new("pick_first"),
+            LbPolicy::RoundRobin => CString::new("round_robin"),
+        };
+        self.options.insert(
+            Cow::Borrowed(OPT_GRPC_ARG_LB_POLICY_NAME),
+            Options::String(val.unwrap()),
+        );
+        self
+    }
+
     /// Set a raw integer configuration.
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
@@ -393,6 +418,7 @@ impl ChannelBuilder {
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
+    #[cfg_attr(feature = "cargo-clippy", allow(identity_conversion))]
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
@@ -438,9 +464,9 @@ impl ChannelBuilder {
 
 #[cfg(feature = "secure")]
 mod secure_channel {
-    use std::ptr;
-    use std::ffi::CString;
     use std::borrow::Cow;
+    use std::ffi::CString;
+    use std::ptr;
 
     use grpc_sys;
 
@@ -531,23 +557,50 @@ unsafe impl Sync for Channel {}
 impl Channel {
     fn new(cq: CompletionQueue, env: Arc<Environment>, channel: *mut GrpcChannel) -> Channel {
         Channel {
-            inner: Arc::new(ChannelInner {
-                _env: env,
-                channel,
-            }),
+            inner: Arc::new(ChannelInner { _env: env, channel }),
             cq,
         }
     }
 
+    /// Create a Kicker.
+    pub(crate) fn create_kicker(&self) -> Result<Kicker> {
+        let cq_ref = self.cq.borrow()?;
+        let raw_call = unsafe {
+            let ch = self.inner.channel;
+            let cq = cq_ref.as_ptr();
+            // Do not timeout.
+            let timeout = GprTimespec::inf_future();
+            grpc_sys::grpcwrap_channel_create_call(
+                ch,
+                ptr::null_mut(),
+                0,
+                cq,
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                timeout,
+                ptr::null_mut(),
+            )
+        };
+        let call = unsafe { Call::from_raw(raw_call, self.cq.clone()) };
+        Ok(Kicker::from_call(call))
+    }
+
     /// Create a call using the method and option.
-    pub(crate) fn create_call<Req, Resp>(&self, method: &Method<Req, Resp>, opt: &CallOption) -> Result<Call> {
+    pub(crate) fn create_call<Req, Resp>(
+        &self,
+        method: &Method<Req, Resp>,
+        opt: &CallOption,
+    ) -> Result<Call> {
         let cq_ref = self.cq.borrow()?;
         let raw_call = unsafe {
             let ch = self.inner.channel;
             let cq = cq_ref.as_ptr();
             let method_ptr = method.name.as_ptr();
             let method_len = method.name.len();
-            let timeout = opt.get_timeout()
+            let timeout = opt
+                .get_timeout()
                 .map_or_else(GprTimespec::inf_future, GprTimespec::from);
             grpc_sys::grpcwrap_channel_create_call(
                 ch,
