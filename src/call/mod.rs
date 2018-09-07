@@ -268,7 +268,7 @@ impl BatchContext {
     }
 
     /// Fetch the response bytes of the rpc call.
-    pub fn recv_message(&self) -> Option<MessageReader> {
+    pub fn recv_message(&mut self) -> Option<MessageReader> {
         let buf;
         let mut reader;
         let length;
