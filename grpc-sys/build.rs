@@ -160,11 +160,9 @@ fn main() {
         "grpc_unsecure"
     };
 
-    let use_pkg_config = get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1");
-
-    if use_pkg_config {
-        // Do not print cargo metadata.
-        let lib_core = probe_library(library, false);
+    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
+        // Print cargo metadata.
+        let lib_core = probe_library(library, true);
         for inc_path in lib_core.include_paths {
             cc.include(inc_path);
         }
@@ -185,9 +183,4 @@ fn main() {
 
     cc.warnings_into_errors(true);
     cc.compile("libgrpc_wrap.a");
-
-    if use_pkg_config {
-        // Link libgrpc.so.
-        probe_library(library, true);
-    }
 }
