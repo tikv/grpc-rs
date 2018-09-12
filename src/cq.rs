@@ -109,9 +109,7 @@ impl CompletionQueueHandle {
 
 impl Drop for CompletionQueueHandle {
     fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpc_completion_queue_destroy(self.cq);
-        }
+        unsafe { grpc_sys::grpc_completion_queue_destroy(self.cq) }
     }
 }
 

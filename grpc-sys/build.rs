@@ -64,7 +64,7 @@ fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
     Ok(entries.next().is_none())
 }
 
-fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
+fn build_grpc(cc: &mut Build, library: &str) {
     prepare_grpc();
 
     let dst = {
@@ -77,19 +77,13 @@ fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
         }
         if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
-            // Recognize that Apple Clang is a different compiler
-            // than upstream Clang.
-            // TODO: remove it once grpc update its boringssl newer
-            //       than `ec55dc15d3a39e5f1a58bfd79148729f38f6acb4`.
-            config.define("CMAKE_POLICY_DEFAULT_CMP0025", "NEW");
         }
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
         // We dont need generate install targets.
         config.define("gRPC_INSTALL", "false");
-        // Target grpc++ also builds grpc.
-        config.build_target(library_cpp).uses_cxx11().build()
+        config.build_target(library).uses_cxx11().build()
     };
 
     let mut zlib = "z";
@@ -133,7 +127,6 @@ fn build_grpc(cc: &mut Build, library: &str, library_cpp: &str) {
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static=address_sorting");
     println!("cargo:rustc-link-lib=static={}", library);
-    println!("cargo:rustc-link-lib=static={}", library_cpp);
 
     if cfg!(feature = "secure") {
         println!("cargo:rustc-link-lib=static=ssl");
@@ -157,37 +150,30 @@ fn get_env(name: &str) -> Option<String> {
 fn main() {
     let mut cc = Build::new();
 
-    println!("cargo:rerun-if-changed=grpc_wrap.c");
+    println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
 
-    let (library_c, library_cpp) = if cfg!(feature = "secure") {
+    let library = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
-        ("grpc", "grpc++")
+        "grpc"
     } else {
-        ("grpc_unsecure", "grpc++_unsecure")
+        "grpc_unsecure"
     };
 
     let use_pkg_config = get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1");
 
     if use_pkg_config {
         // Do not print cargo metadata.
-        let lib_core = probe_library(library_c, false);
+        let lib_core = probe_library(library, false);
         for inc_path in lib_core.include_paths {
             cc.include(inc_path);
         }
-        let lib_cpp = probe_library(library_cpp, false);
-        for inc_path in lib_cpp.include_paths {
-            cc.include(inc_path);
-        }
     } else {
-        build_grpc(&mut cc, library_c, library_cpp);
+        build_grpc(&mut cc, library);
     }
 
     cc.cpp(true);
-    if cfg!(target_env = "msvc") {
-        // Suppress warning C4530 from `include\xlocale`.
-        cc.flag("/EHsc");
-    } else {
+    if !cfg!(target_env = "msvc") {
         cc.flag("-std=c++11");
     }
     cc.file("grpc_wrap.cc");
@@ -195,17 +181,13 @@ fn main() {
     if cfg!(target_os = "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
-    } else if cfg!(target_os = "macos") {
-        // Suppress warning from grpcpp/impl/codegen/time.h.
-        cc.flag("-Wno-unused-parameter");
     }
 
     cc.warnings_into_errors(true);
     cc.compile("libgrpc_wrap.a");
 
     if use_pkg_config {
-        // Link libgrpc.so and libgrpc++.so.
-        probe_library(library_c, true);
-        probe_library(library_cpp, true);
+        // Link libgrpc.so.
+        probe_library(library, true);
     }
 }

@@ -8,7 +8,6 @@ cache:
     - $TRAVIS_BUILD_DIR/target
 before_cache:
   - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
-  - cargo clean -p grpcio-sys
 os:
   - linux
 rust:
@@ -23,26 +22,18 @@ before_script:
   - export GRPC_VERSION=1.14.2
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-  - >-
-    if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
+  - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
       export CC=clang;
       brew update && brew install autoconf libtool shtool;
     fi
-  - >-
-    if [[ ! -f "$GRPC_HEADER" ]] ; then
+  - if [[ ! -f "$GRPC_HEADER" ]] ; then
       (
         git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
         cd grpc &&
         git submodule update --init &&
-        env prefix=$HOME/.cache make install_c install_cxx &&
-        cd $HOME/.cache/lib &&
-        # gRPC installs a incorrect shared lib major version.
-        # See more: https://github.com/grpc/grpc/pull/13500
-        ln -s libgrpc++_unsecure.so.$GRPC_VERSION libgrpc++_unsecure.so.1 &&
-        ln -s libgrpc++.so.$GRPC_VERSION libgrpc++.so.1
+        env prefix=$HOME/.cache make install_c
       );
     fi
-  - export C_INCLUDE_PATH="$HOME/.cache/include"
   - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
