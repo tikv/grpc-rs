@@ -111,50 +111,38 @@ fn test_client_cancel_on_dropping() {
     let (service, client, _server) = run_suite();
 
     // Client streaming.
-    {
-        let mut record_route_handler = service.record_route_handler.lock().unwrap();
-        *record_route_handler = Some(Box::new(|stream, sink| {
-            // Start the call and keep the stream and the sink.
-            let f = stream.for_each(|_| Ok(())).then(|_| {
-                let _sink = sink;
-                Ok(())
-            });
-            Box::new(f)
-        }));
-    }
-    {
-        let (tx, rx) = client.record_route().unwrap();
-        drop(tx);
-        check_cancel(rx.into_stream());
-    }
-    {
-        let (tx, rx) = client.record_route().unwrap();
-        drop(rx);
-        check_cancel(tx.send(Default::default()).into_stream());
-    }
+    *service.record_route_handler.lock().unwrap() = Some(Box::new(|stream, sink| {
+        // Start the call and keep the stream and the sink.
+        let f = stream.for_each(|_| Ok(())).then(|_| {
+            let _sink = sink;
+            Ok(())
+        });
+        Box::new(f)
+    }));
+    let (tx, rx) = client.record_route().unwrap();
+    drop(tx);
+    check_cancel(rx.into_stream());
+
+    let (tx, rx) = client.record_route().unwrap();
+    drop(rx);
+    check_cancel(tx.send(Default::default()).into_stream());
 
     // Duplex streaming.
-    {
-        let mut record_route_handler = service.record_route_handler.lock().unwrap();
-        *record_route_handler = Some(Box::new(|stream, sink| {
-            // Start the call and keep the stream and the sink.
-            let f = stream.for_each(|_| Ok(())).then(|_| {
-                let _sink = sink;
-                Ok(())
-            });
-            Box::new(f)
-        }));
-    }
-    {
-        let (tx, rx) = client.route_chat().unwrap();
-        drop(tx);
-        check_cancel(rx);
-    }
-    {
-        let (tx, rx) = client.route_chat().unwrap();
-        drop(rx);
-        check_cancel(tx.send(Default::default()).into_stream());
-    }
+    *service.record_route_handler.lock().unwrap() = Some(Box::new(|stream, sink| {
+        // Start the call and keep the stream and the sink.
+        let f = stream.for_each(|_| Ok(())).then(|_| {
+            let _sink = sink;
+            Ok(())
+        });
+        Box::new(f)
+    }));
+    let (tx, rx) = client.route_chat().unwrap();
+    drop(tx);
+    check_cancel(rx);
+
+    let (tx, rx) = client.route_chat().unwrap();
+    drop(rx);
+    check_cancel(tx.send(Default::default()).into_stream());
 }
 
 #[test]
@@ -170,71 +158,68 @@ fn test_server_cancel_on_dropping() {
     check_cancel(rx);
 
     // Start the call, keep the stream and drop the sink.
-    macro_rules! drop_sink {
-        ($stream:expr, $sink:expr) => {{
-            let f = $stream
-                .for_each(|_| Ok(()))
-                .join(future::result(Ok(())).map(move |_| {
-                    drop($sink);
-                }))
-                .then(|_| Ok(()));
-            Box::new(f)
-        }};
+    fn drop_sink<S, R, T>(stream: S, sink: T) -> BoxFuture
+    where
+        S: Stream<Item = R, Error = Error> + Send + 'static,
+        R: Send + 'static,
+        T: Send + 'static,
+    {
+        let f = stream
+            .for_each(|_| Ok(()))
+            .join(future::result(Ok(())).map(move |_| {
+                drop(sink);
+            }))
+            .then(|_| Ok(()));
+        Box::new(f)
     }
 
     // Start the call, drop the stream and keep the sink.
-    macro_rules! drop_stream {
-        ($stream:expr, $sink:expr) => {{
-            let mut stream = Some($stream);
-            let f = streams::poll_fn(move || -> Poll<Option<()>, ()> {
-                                                                if stream.is_some() {
-                                                                    let s = stream.as_mut().unwrap();
-                                                                    // start the call.
-                                                                    let _ = s.poll();
-                                                                }
-                                                                // drop the stream.
-                                                                stream.take();
-                                                                Ok(Async::NotReady)
-                                                            })
-                                                            // It never resolves.
-                                                            .for_each(|_| Ok(()))
-                                                                .then(move |_| {
-                                                                    let _sink = $sink;
-                                                                    Ok(())
-                                                                });
-            Box::new(f)
-        }};
+    fn drop_stream<S, R, T>(stream: S, sink: T) -> BoxFuture
+    where
+        S: Stream<Item = R, Error = Error> + Send + 'static,
+        R: Send + 'static,
+        T: Send + 'static,
+    {
+        let mut stream = Some(stream);
+        let f = streams::poll_fn(move || -> Poll<Option<()>, ()> {
+            if stream.is_some() {
+                let s = stream.as_mut().unwrap();
+                // start the call.
+                let _ = s.poll();
+            }
+            // drop the stream.
+            stream.take();
+            Ok(Async::NotReady)
+        });
+        // It never resolves.
+        let f = f.for_each(|_| Ok(())).then(move |_| {
+            let _sink = sink;
+            Ok(())
+        });
+        Box::new(f)
     }
 
     // Client streaming, drop sink.
-    {
-        let mut record_route_handler = service.record_route_handler.lock().unwrap();
-        *record_route_handler = Some(Box::new(|stream, sink| drop_sink!(stream, sink)));
-    }
+    *service.record_route_handler.lock().unwrap() =
+        Some(Box::new(|stream, sink| drop_sink(stream, sink)));
     let (_tx, rx) = client.record_route().unwrap();
     check_cancel(rx.into_stream());
 
     // Client streaming, drop stream.
-    {
-        let mut record_route_handler = service.record_route_handler.lock().unwrap();
-        *record_route_handler = Some(Box::new(|stream, sink| drop_stream!(stream, sink)));
-    }
+    *service.record_route_handler.lock().unwrap() =
+        Some(Box::new(|stream, sink| drop_stream(stream, sink)));
     let (_tx, rx) = client.record_route().unwrap();
     check_cancel(rx.into_stream());
 
     // Duplex streaming, drop sink.
-    {
-        let mut route_chat_handler = service.route_chat_handler.lock().unwrap();
-        *route_chat_handler = Some(Box::new(|stream, sink| drop_sink!(stream, sink)));
-    }
+    *service.route_chat_handler.lock().unwrap() =
+        Some(Box::new(|stream, sink| drop_sink(stream, sink)));
     let (_tx, rx) = client.route_chat().unwrap();
     check_cancel(rx);
 
     // Duplex streaming, drop stream.
-    {
-        let mut route_chat_handler = service.route_chat_handler.lock().unwrap();
-        *route_chat_handler = Some(Box::new(|stream, sink| drop_stream!(stream, sink)));
-    }
+    *service.route_chat_handler.lock().unwrap() =
+        Some(Box::new(|stream, sink| drop_stream(stream, sink)));
     let (_tx, rx) = client.route_chat().unwrap();
     check_cancel(rx);
 }
