@@ -11,17 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
+// TODO: Remove it once Rust's tool_lints is stabilized.
+#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use grpc_proto::testing::services_grpc::BenchmarkService;
-use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use grpc_proto::util;
-use grpc::{self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
-           RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags};
 use futures::{Future, Sink, Stream};
+use grpc::{
+    self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
+    RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
+};
+use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::services_grpc::BenchmarkService;
+use grpc_proto::util;
 
-fn gen_resp(req: SimpleRequest) -> SimpleResponse {
+fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
     let mut resp = SimpleResponse::new();
     resp.set_payload(payload);
@@ -35,7 +40,7 @@ pub struct Benchmark {
 
 impl BenchmarkService for Benchmark {
     fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
-        let f = sink.success(gen_resp(req));
+        let f = sink.success(gen_resp(&req));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "unary", f)
     }
@@ -46,7 +51,7 @@ impl BenchmarkService for Benchmark {
         stream: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
     ) {
-        let f = sink.send_all(stream.map(|req| (gen_resp(req), WriteFlags::default())));
+        let f = sink.send_all(stream.map(|req| (gen_resp(&req), WriteFlags::default())));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "streaming", f)
     }
@@ -93,7 +98,7 @@ pub struct Generic {
 impl Generic {
     pub fn streaming_call(
         &self,
-        ctx: RpcContext,
+        ctx: &RpcContext,
         stream: RequestStream<Vec<u8>>,
         sink: DuplexSink<Vec<u8>>,
     ) {
@@ -104,6 +109,7 @@ impl Generic {
 }
 
 #[inline]
+#[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
 pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
     buf.extend_from_slice(t)
 }
@@ -130,7 +136,7 @@ pub fn create_generic_service(s: Generic) -> ::grpc::Service {
     ServiceBuilder::new()
         .add_duplex_streaming_handler(
             &METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
-            move |ctx, req, resp| s.streaming_call(ctx, req, resp),
+            move |ctx, req, resp| s.streaming_call(&ctx, req, resp),
         )
         .build()
 }

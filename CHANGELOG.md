@@ -1,3 +1,20 @@
+# 0.3.1 - 2018-08-27
+
+- Support configuring load balancing policy
+- Fix compilation failure when go is missing
+- Fix compilation issue under musl
+- Fix soundness of service handler
+
+# 0.3.0 - 2018-06-01
+
+- keep compatible with protobuf 2.0
+- enable secure feature by default
+- fix potential overflow in channel args
+
+# 0.2.3 - 2018-04-27
+
+- support querying client address
+
 # 0.2.2 - 2018-04-04
 
 - use a different lock for notify to avoid deadlock

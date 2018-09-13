@@ -11,21 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use call::{BatchContext, Call};
 use call::server::{RequestContext, UnaryRequestContext};
+use call::{BatchContext, Call};
 use cq::CompletionQueue;
-use server::{self, Inner as ServerInner};
+use server::{self, RequestCallContext};
 
 pub struct Request {
     ctx: RequestContext,
 }
 
 impl Request {
-    pub fn new(inner: Arc<ServerInner>) -> Request {
-        let ctx = RequestContext::new(inner);
-        Request { ctx: ctx }
+    pub fn new(rc: RequestCallContext) -> Request {
+        let ctx = RequestContext::new(rc);
+        Request { ctx }
     }
 
     pub fn context(&self) -> &RequestContext {
@@ -33,15 +31,15 @@ impl Request {
     }
 
     pub fn resolve(mut self, cq: &CompletionQueue, success: bool) {
-        let inner = self.ctx.take_inner().unwrap();
+        let rc = self.ctx.take_request_call_context().unwrap();
         if !success {
-            server::request_call(inner, cq);
+            server::request_call(rc, cq);
             return;
         }
 
-        match self.ctx.handle_stream_req(cq, &inner) {
-            Ok(_) => server::request_call(inner, cq),
-            Err(ctx) => ctx.handle_unary_req(inner, cq),
+        match self.ctx.handle_stream_req(cq, &rc) {
+            Ok(_) => server::request_call(rc, cq),
+            Err(ctx) => ctx.handle_unary_req(rc, cq),
         }
     }
 }
@@ -51,9 +49,9 @@ pub struct UnaryRequest {
 }
 
 impl UnaryRequest {
-    pub fn new(ctx: RequestContext, inner: Arc<ServerInner>) -> UnaryRequest {
-        let ctx = UnaryRequestContext::new(ctx, inner);
-        UnaryRequest { ctx: ctx }
+    pub fn new(ctx: RequestContext, rc: RequestCallContext) -> UnaryRequest {
+        let ctx = UnaryRequestContext::new(ctx, rc);
+        UnaryRequest { ctx }
     }
 
     pub fn batch_ctx(&self) -> &BatchContext {
@@ -65,16 +63,16 @@ impl UnaryRequest {
     }
 
     pub fn resolve(mut self, cq: &CompletionQueue, success: bool) {
-        let inner = self.ctx.take_inner().unwrap();
+        let rc = self.ctx.take_request_call_context().unwrap();
         if !success {
-            server::request_call(inner, cq);
+            server::request_call(rc, cq);
             return;
         }
 
         let data = self.ctx.batch_ctx().recv_message();
         self.ctx
-            .handle(&inner, cq, data.as_ref().map(|v| v.as_slice()));
-        server::request_call(inner, cq);
+            .handle(&rc, cq, data.as_ref().map(|v| v.as_slice()));
+        server::request_call(rc, cq);
     }
 }
 

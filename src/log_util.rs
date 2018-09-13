@@ -14,14 +14,14 @@
 use std::ffi::CStr;
 
 use grpc_sys::{self, GprLogFuncArgs, GprLogSeverity};
-use log::{self, LogLevel, LogLevelFilter, LogLocation};
+use log::{self, Level, LevelFilter, Record};
 
 #[inline]
-fn severity_to_log_level(severity: GprLogSeverity) -> LogLevel {
+fn severity_to_log_level(severity: GprLogSeverity) -> Level {
     match severity {
-        GprLogSeverity::Debug => LogLevel::Debug,
-        GprLogSeverity::Info => LogLevel::Info,
-        GprLogSeverity::Error => LogLevel::Error,
+        GprLogSeverity::Debug => Level::Debug,
+        GprLogSeverity::Info => Level::Info,
+        GprLogSeverity::Error => Level::Error,
     }
 }
 
@@ -36,28 +36,29 @@ extern "C" fn delegate(c_args: *mut GprLogFuncArgs) {
     let file_str = unsafe { CStr::from_ptr(args.file).to_str().unwrap() };
     let line = args.line as u32;
 
-    // use hidden API for now, will
-    // TODO: use public API once available.
-    let location = LogLocation {
-        __module_path: module_path!(),
-        __file: file_str,
-        __line: line,
-    };
     let msg = unsafe { CStr::from_ptr(args.message).to_string_lossy() };
-    log::__log(level, module_path!(), &location, format_args!("{}", msg));
+    log::logger().log(
+        &Record::builder()
+            .args(format_args!("{}", msg))
+            .level(level)
+            .file(file_str.into())
+            .line(line.into())
+            .module_path(module_path!().into())
+            .build(),
+    );
 }
 
 /// Redirect grpc log to rust's log implementation.
 pub fn redirect_log() {
-    let level = match log::max_log_level() {
-        LogLevelFilter::Off => unsafe {
+    let level = match log::max_level() {
+        LevelFilter::Off => unsafe {
             // disable log.
             grpc_sys::gpr_set_log_function(None);
             return;
         },
-        LogLevelFilter::Error | LogLevelFilter::Warn => GprLogSeverity::Error,
-        LogLevelFilter::Info => GprLogSeverity::Info,
-        LogLevelFilter::Debug | LogLevelFilter::Trace => GprLogSeverity::Debug,
+        LevelFilter::Error | LevelFilter::Warn => GprLogSeverity::Error,
+        LevelFilter::Info => GprLogSeverity::Info,
+        LevelFilter::Debug | LevelFilter::Trace => GprLogSeverity::Debug,
     };
 
     unsafe {

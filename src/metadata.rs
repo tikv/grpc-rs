@@ -12,8 +12,8 @@
 // limitations under the License.
 
 use grpc_sys::{self, GrpcMetadataArray};
-use std::{mem, slice, str};
 use std::borrow::Cow;
+use std::{mem, slice, str};
 
 use libc;
 

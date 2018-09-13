@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 
 use grpc_sys;
@@ -39,12 +39,14 @@ fn poll_queue(cq: Arc<CompletionQueueHandle>) {
     }
 }
 
+/// [`Environment`] factory in order to configure the properties.
 pub struct EnvBuilder {
     cq_count: usize,
     name_prefix: Option<String>,
 }
 
 impl EnvBuilder {
+    /// Initialize a new [`EnvBuilder`].
     pub fn new() -> EnvBuilder {
         EnvBuilder {
             cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
@@ -52,17 +54,25 @@ impl EnvBuilder {
         }
     }
 
+    /// Set the number of completion queues and polling threads. Each thread polls
+    /// one completion queue.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if `count` is 0.
     pub fn cq_count(mut self, count: usize) -> EnvBuilder {
         assert!(count > 0);
         self.cq_count = count;
         self
     }
 
+    /// Set the thread name prefix of each polling thread.
     pub fn name_prefix<S: Into<String>>(mut self, prefix: S) -> EnvBuilder {
         self.name_prefix = Some(prefix.into());
         self
     }
 
+    /// Finalize the [`EnvBuilder`], build the [`Environment`] and initialize the gRPC library.
     pub fn build(self) -> Environment {
         unsafe {
             grpc_sys::grpc_init();
@@ -82,14 +92,14 @@ impl EnvBuilder {
         }
 
         Environment {
-            cqs: cqs,
+            cqs,
             idx: AtomicUsize::new(0),
             _handles: handles,
         }
     }
 }
 
-/// An object that used to control concurrency and start event loop.
+/// An object that used to control concurrency and start gRPC event loop.
 pub struct Environment {
     cqs: Vec<CompletionQueue>,
     idx: AtomicUsize,
@@ -97,9 +107,13 @@ pub struct Environment {
 }
 
 impl Environment {
-    /// Initialize grpc and create a threadpool to poll event loop.
+    /// Initialize gRPC and create a thread pool to poll completion queue. The thread pool size
+    /// and the number of completion queue is specified by `cq_count`. Each thread polls one
+    /// completion queue.
     ///
-    /// Each thread in threadpool will have one event loop.
+    /// # Panics
+    ///
+    /// This method will panic if `cq_count` is 0.
     pub fn new(cq_count: usize) -> Environment {
         assert!(cq_count > 0);
         EnvBuilder::new()

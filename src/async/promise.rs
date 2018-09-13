@@ -11,12 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use std::fmt::{self, Debug, Formatter};
+use std::sync::Arc;
 
+use super::{BatchMessage, Inner};
 use call::{BatchContext, RpcStatusCode};
 use error::Error;
-use super::{BatchMessage, Inner};
 
 /// Batch job type.
 #[derive(PartialEq, Debug)]
@@ -39,9 +39,9 @@ pub struct Batch {
 impl Batch {
     pub fn new(ty: BatchType, inner: Arc<Inner<BatchMessage>>) -> Batch {
         Batch {
-            ty: ty,
+            ty,
             ctx: BatchContext::new(),
-            inner: inner,
+            inner,
         }
     }
 
@@ -122,7 +122,7 @@ pub struct Shutdown {
 
 impl Shutdown {
     pub fn new(inner: Arc<Inner<()>>) -> Shutdown {
-        Shutdown { inner: inner }
+        Shutdown { inner }
     }
 
     pub fn resolve(self, success: bool) {

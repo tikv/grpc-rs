@@ -179,7 +179,7 @@ fn test_server_cancel_on_dropping() {
                 }))
                 .then(|_| Ok(()));
             Box::new(f)
-        }}
+        }};
     }
 
     // Start the call, drop the stream and keep the sink.
@@ -187,21 +187,21 @@ fn test_server_cancel_on_dropping() {
         ($stream:expr, $sink:expr) => {{
             let mut stream = Some($stream);
             let f = streams::poll_fn(move || -> Poll<Option<()>, ()> {
-                if stream.is_some() {
-                    let s = stream.as_mut().unwrap();
-                    // start the call.
-                    let _ = s.poll();
-                }
-                // drop the stream.
-                stream.take();
-                Ok(Async::NotReady)
-            })
-            // It never resolves.
-            .for_each(|_| Ok(()))
-                .then(move |_| {
-                    let _sink = $sink;
-                    Ok(())
-                });
+                                                                if stream.is_some() {
+                                                                    let s = stream.as_mut().unwrap();
+                                                                    // start the call.
+                                                                    let _ = s.poll();
+                                                                }
+                                                                // drop the stream.
+                                                                stream.take();
+                                                                Ok(Async::NotReady)
+                                                            })
+                                                            // It never resolves.
+                                                            .for_each(|_| Ok(()))
+                                                                .then(move |_| {
+                                                                    let _sink = $sink;
+                                                                    Ok(())
+                                                                });
             Box::new(f)
         }};
     }

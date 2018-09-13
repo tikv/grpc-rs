@@ -14,8 +14,8 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, slice, usize};
 use std::sync::Arc;
+use std::{ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -28,60 +28,81 @@ use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 
+/// Method types supported by gRPC.
 #[derive(Clone, Copy)]
 pub enum MethodType {
+    /// Single request sent from client, single response received from server.
     Unary,
+
+    /// Stream of requests sent from client, single response received from server.
     ClientStreaming,
+
+    /// Single request sent from client, stream of responses received from server.
     ServerStreaming,
+
+    /// Both server and client can stream arbitrary number of requests and responses simultaneously.
     Duplex,
 }
 
+/// A description of a remote method.
 // TODO: add serializer and deserializer.
-pub struct Method<P, Q> {
+pub struct Method<Req, Resp> {
+    /// Type of method.
     pub ty: MethodType,
+
+    /// Full qualified name of the method.
     pub name: &'static str,
-    pub req_mar: Marshaller<P>,
-    pub resp_mar: Marshaller<Q>,
+
+    /// The marshaller used for request messages.
+    pub req_mar: Marshaller<Req>,
+
+    /// The marshaller used for response messages.
+    pub resp_mar: Marshaller<Resp>,
 }
 
-impl<P, Q> Method<P, Q> {
+impl<Req, Resp> Method<Req, Resp> {
+    /// Get the request serializer.
     #[inline]
-    pub fn req_ser(&self) -> SerializeFn<P> {
+    pub fn req_ser(&self) -> SerializeFn<Req> {
         self.req_mar.ser
     }
 
+    /// Get the request deserializer.
     #[inline]
-    pub fn req_de(&self) -> DeserializeFn<P> {
+    pub fn req_de(&self) -> DeserializeFn<Req> {
         self.req_mar.de
     }
 
+    /// Get the response serializer.
     #[inline]
-    pub fn resp_ser(&self) -> SerializeFn<Q> {
+    pub fn resp_ser(&self) -> SerializeFn<Resp> {
         self.resp_mar.ser
     }
 
+    /// Get the response deserializer.
     #[inline]
-    pub fn resp_de(&self) -> DeserializeFn<Q> {
+    pub fn resp_de(&self) -> DeserializeFn<Resp> {
         self.resp_mar.de
     }
 }
 
-/// Status return from server.
+/// RPC result returned from the server.
 #[derive(Debug, Clone)]
 pub struct RpcStatus {
+    /// gRPC status code. `Ok` indicates success, all other values indicate an error.
     pub status: RpcStatusCode,
+
+    /// Optional detail string.
     pub details: Option<String>,
 }
 
 impl RpcStatus {
+    /// Create a new [`RpcStatus`].
     pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
-        RpcStatus {
-            status: status,
-            details: details,
-        }
+        RpcStatus { status, details }
     }
 
-    /// Generate an Ok status.
+    /// Create a new [`RpcStatus`] that status code is Ok.
     pub fn ok() -> RpcStatus {
         RpcStatus::new(RpcStatusCode::Ok, None)
     }
@@ -121,10 +142,7 @@ impl BatchContext {
             }
         };
 
-        RpcStatus {
-            status: status,
-            details: details,
-        }
+        RpcStatus { status, details }
     }
 
     /// Fetch the response bytes of the rpc call.
@@ -186,8 +204,8 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    call: *mut GrpcCall,
-    cq: CompletionQueue,
+    pub call: *mut GrpcCall,
+    pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
@@ -255,7 +273,7 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: Option<Vec<u8>>,
+        payload: &Option<Vec<u8>>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
@@ -287,7 +305,7 @@ impl Call {
     }
 
     /// Abort an rpc call before handler is called.
-    pub fn abort(self, status: RpcStatus) {
+    pub fn abort(self, status: &RpcStatus) {
         match self.cq.borrow() {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
@@ -361,8 +379,8 @@ struct ShareCall {
 impl ShareCall {
     fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
         ShareCall {
-            call: call,
-            close_f: close_f,
+            call,
+            close_f,
             finished: false,
             status: None,
         }
@@ -428,7 +446,7 @@ struct StreamingBase {
 impl StreamingBase {
     fn new(close_f: Option<BatchFuture>) -> StreamingBase {
         StreamingBase {
-            close_f: close_f,
+            close_f,
             msg_f: None,
             read_done: false,
         }
@@ -493,6 +511,7 @@ impl StreamingBase {
     }
 }
 
+/// Flags for write operations.
 #[derive(Default, Clone, Copy)]
 pub struct WriteFlags {
     flags: u32,
@@ -500,6 +519,9 @@ pub struct WriteFlags {
 
 impl WriteFlags {
     /// Hint that the write may be buffered and need not go out on the wire immediately.
+    ///
+    /// gRPC is free to buffer the message until the next non-buffered write, or until write stream
+    /// completion, but it need not buffer completely or at all.
     pub fn buffer_hint(mut self, need_buffered: bool) -> WriteFlags {
         client::change_flag(
             &mut self.flags,
@@ -519,13 +541,13 @@ impl WriteFlags {
         self
     }
 
-    /// Get if buffer hint is enabled.
-    pub fn get_buffer_hint(&self) -> bool {
+    /// Get whether buffer hint is enabled.
+    pub fn get_buffer_hint(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
-    /// Get if compression is disabled.
-    pub fn get_force_no_compress(&self) -> bool {
+    /// Get whether compression is disabled.
+    pub fn get_force_no_compress(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }
@@ -542,7 +564,7 @@ impl SinkBase {
         SinkBase {
             batch_f: None,
             buf: Vec::new(),
-            send_metadata: send_metadata,
+            send_metadata,
         }
     }
 

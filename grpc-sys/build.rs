@@ -15,12 +15,12 @@ extern crate cc;
 extern crate cmake;
 extern crate pkg_config;
 
+use std::env::VarError;
 use std::path::Path;
 use std::{env, fs, io};
-use std::env::VarError;
 
-use cmake::Config;
 use cc::Build;
+use cmake::Config;
 use pkg_config::Config as PkgConfig;
 
 const GRPC_VERSION: &'static str = "1.6.1";
@@ -69,8 +69,17 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let dst = {
         let mut config = Config::new("grpc");
+        if !cfg!(feature = "secure") {
+            // boringssl's configuration is still included, but targets
+            // will never be built, hence specify a fake go to get rid of
+            // the unnecessary dependency.
+            config.define("GO_EXECUTABLE", "fake-go-nonexist");
+        }
         if cfg!(target_os = "macos") {
             config.cxxflag("-stdlib=libc++");
+        }
+        if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
+            config.define("CMAKE_CXX_COMPILER", "g++");
         }
         config.build_target(library).uses_cxx11().build()
     };
