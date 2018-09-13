@@ -268,7 +268,7 @@ impl<T> Drop for RequestStream<T> {
 // TODO: Use type alias to be friendly for documentation.
 macro_rules! impl_unary_sink {
     ($t:ident, $rt:ident, $holder:ty) => {
-        #[must_use]
+        #[must_use = "if unused the sink may immediately cancel the RPC"]
         pub struct $rt {
             call: $holder,
             cq_f: Option<BatchFuture>,
@@ -475,7 +475,7 @@ macro_rules! impl_stream_sink {
             }
         }
 
-        #[must_use]
+        #[must_use = "if unused the sink failure may immediately cancel the RPC"]
         pub struct $ft {
             call: $holder,
             fail_f: Option<BatchFuture>,
