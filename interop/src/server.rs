@@ -135,8 +135,12 @@ impl TestService for InteropTestService {
                     if let Some(param) = req.get_response_parameters().get(0) {
                         resp.set_payload(util::new_payload(param.get_size() as usize));
                     }
-                    // A Workaround for timeout_on_sleeping_server test.
+                    // A workaround for timeout_on_sleeping_server test.
                     // The request only has 27182 bytes of zeros in payload.
+                    //
+                    // Client timeout 1ms is too short for grpcio. The server
+                    // can response in 1ms. To make the test stable, the server
+                    // sleeps 10ms explicitly.
                     if req.get_payload().get_body().len() == 27182
                         && req.get_response_parameters().is_empty()
                         && !req.has_response_status()
