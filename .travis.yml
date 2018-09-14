@@ -19,16 +19,28 @@ matrix:
   - os: osx
     rust: stable
 before_script:
+  - export GRPC_VERSION=1.14.2
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-  - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then export CC=clang; brew update && brew install autoconf libtool shtool; fi
-  - test -f "$GRPC_HEADER" || (git clone -b v1.7.2 https://github.com/grpc/grpc && cd grpc && git submodule update --init && env prefix=$HOME/.cache make install_c)
-  - export C_INCLUDE_PATH="$HOME/.cache/include"
+  - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
+      export CC=clang;
+      brew update && brew install autoconf libtool shtool;
+    fi
+  - if [[ ! -f "$GRPC_HEADER" ]] ; then
+      (
+        git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
+        cd grpc &&
+        git submodule update --init &&
+        env prefix=$HOME/.cache make install_c
+      );
+    fi
+  - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 script:
+  - export RUST_BACKTRACE=1
   - export RUSTFLAGS=-Dwarnings
   - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then rustup component add clippy-preview --toolchain nightly && cargo clippy --all; fi
   - cargo build --no-default-features
