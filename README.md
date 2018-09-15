@@ -11,13 +11,13 @@
 
 This project is still under development. The following features with the check marks are supported:
 
-- [x] Basic asynchronous unary/steaming call 
+- [x] Basic asynchronous unary/steaming call
 - [x] SSL
 - [x] Generic call
 - [x] Connection level compression
 - [x] Interoperability test
 - [x] QPS benchmark
-- [ ] Custom metadata
+- [x] Custom metadata
 - [x] Health check
 - [ ] Reflection
 - [ ] Authentication
@@ -33,7 +33,7 @@ For Linux and MacOS, you also need to install gcc (or clang) too.
 
 For Windows, you also need to install following software:
 
-- Active State Perl 
+- Active State Perl
 - yasm
 - Visual Studio 2015+
 

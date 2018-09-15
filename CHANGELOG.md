@@ -1,3 +1,9 @@
+# 0.4.0 - 2018-09-15
+
+- Update gRPC from 1.7.2 to 1.14.2
+- Services accept mut reference
+- Cancel RPC when senders and receivers were dropped
+
 # 0.3.1 - 2018-08-27
 
 - Support configuring load balancing policy
