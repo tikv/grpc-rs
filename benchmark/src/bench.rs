@@ -39,14 +39,14 @@ pub struct Benchmark {
 }
 
 impl BenchmarkService for Benchmark {
-    fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(&mut self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let f = sink.success(gen_resp(&req));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "unary", f)
     }
 
     fn streaming_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
@@ -57,7 +57,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_from_client(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: RequestStream<SimpleRequest>,
         sink: ClientStreamingSink<SimpleResponse>,
@@ -68,7 +68,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_from_server(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: SimpleRequest,
         sink: ServerStreamingSink<SimpleResponse>,
@@ -79,7 +79,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_both_ways(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
