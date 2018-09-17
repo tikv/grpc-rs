@@ -11,9 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(unknown_lints)]
-#![allow(unreadable_literal)]
-
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
@@ -159,7 +156,7 @@ fn main() {
     let service = route_guide_grpc::create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
-        .bind("127.0.0.1", 50051)
+        .bind("127.0.0.1", 50_051)
         .build()
         .unwrap();
     server.start();

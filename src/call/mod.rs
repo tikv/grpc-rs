@@ -204,8 +204,8 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    call: *mut GrpcCall,
-    cq: CompletionQueue,
+    pub call: *mut GrpcCall,
+    pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}

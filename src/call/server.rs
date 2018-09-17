@@ -19,7 +19,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use async::{BatchFuture, CallTag, Executor, SpinLock};
+use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
@@ -119,8 +119,10 @@ impl RequestContext {
         self.ctx
     }
 
-    fn call(&mut self, cq: CompletionQueue) -> Call {
+    fn call(&self, cq: CompletionQueue) -> Call {
         unsafe {
+            // It is okay to use a mutable pointer on a immutable reference, `self`,
+            // because grpcwrap_request_call_context_ref_call is thread-safe.
             let call = grpc_sys::grpcwrap_request_call_context_ref_call(self.ctx);
             assert!(!call.is_null());
             Call::from_raw(call, cq)
@@ -204,12 +206,7 @@ impl UnaryRequestContext {
         self.request_call.take()
     }
 
-    pub fn handle(
-        mut self,
-        rc: &mut RequestCallContext,
-        cq: &CompletionQueue,
-        data: Option<&[u8]>,
-    ) {
+    pub fn handle(self, rc: &mut RequestCallContext, cq: &CompletionQueue, data: Option<&[u8]>) {
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if let Some(data) = data {
             return execute(self.request, cq, data, handler);
@@ -494,7 +491,12 @@ impl<'a> RpcContext<'a> {
         }
     }
 
-    pub(crate) fn call(&mut self) -> Call {
+    fn kicker(&self) -> Kicker {
+        let call = self.call();
+        Kicker::from_call(call)
+    }
+
+    pub(crate) fn call(&self) -> Call {
         self.ctx.call(self.executor.cq().clone())
     }
 
@@ -527,7 +529,7 @@ impl<'a> RpcContext<'a> {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        self.executor.spawn(f)
+        self.executor.spawn(f, self.kicker())
     }
 }
 
@@ -545,7 +547,7 @@ macro_rules! accept_call {
 
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: &[u8],
@@ -572,7 +574,7 @@ pub fn execute_unary<P, Q, F>(
 
 // Helper function to call client streaming handler.
 pub fn execute_client_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &mut F,
@@ -590,7 +592,7 @@ pub fn execute_client_streaming<P, Q, F>(
 
 // Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: &[u8],
@@ -619,7 +621,7 @@ pub fn execute_server_streaming<P, Q, F>(
 
 // Helper function to call duplex streaming handler.
 pub fn execute_duplex_streaming<P, Q, F>(
-    mut ctx: RpcContext,
+    ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &mut F,
@@ -636,7 +638,9 @@ pub fn execute_duplex_streaming<P, Q, F>(
 }
 
 // A helper function used to handle all undefined rpc calls.
-pub fn execute_unimplemented(mut ctx: RequestContext, cq: CompletionQueue) {
+pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
+    // Suppress needless-pass-by-value.
+    let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
     call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))

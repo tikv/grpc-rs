@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{thread::sleep, time::Duration};
+
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
 use grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
@@ -142,6 +144,18 @@ impl TestService for InteropTestService {
                     let mut resp = StreamingOutputCallResponse::new();
                     if let Some(param) = req.get_response_parameters().get(0) {
                         resp.set_payload(util::new_payload(param.get_size() as usize));
+                    }
+                    // A workaround for timeout_on_sleeping_server test.
+                    // The request only has 27182 bytes of zeros in payload.
+                    //
+                    // Client timeout 1ms is too short for grpcio. The server
+                    // can response in 1ms. To make the test stable, the server
+                    // sleeps 10ms explicitly.
+                    if req.get_payload().get_body().len() == 27182
+                        && req.get_response_parameters().is_empty()
+                        && !req.has_response_status()
+                    {
+                        sleep(Duration::from_millis(10));
                     }
                     send = Some(sink.send((resp, WriteFlags::default())));
                 }

@@ -11,6 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: Remove it once Rust's tool_lints is stabilized.
+#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
