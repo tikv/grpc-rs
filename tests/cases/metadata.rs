@@ -25,7 +25,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(&self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(&mut self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
         for (key, value) in ctx.request_headers() {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
         }

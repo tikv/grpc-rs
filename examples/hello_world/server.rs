@@ -35,7 +35,7 @@ use grpcio_proto::example::helloworld_grpc::{self, Greeter};
 struct GreeterService;
 
 impl Greeter for GreeterService {
-    fn say_hello(&self, ctx: RpcContext, req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(&mut self, ctx: RpcContext, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let msg = format!("Hello {}", req.get_name());
         let mut resp = HelloReply::new();
         resp.set_message(msg);
