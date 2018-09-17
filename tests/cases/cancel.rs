@@ -91,7 +91,7 @@ where
     }
 }
 
-fn run_suite() -> (CancelService, RouteGuideClient, Server) {
+fn prepare_suite() -> (CancelService, RouteGuideClient, Server) {
     let env = Arc::new(EnvBuilder::new().build());
     let service = CancelService::new();
     let mut server = ServerBuilder::new(env.clone())
@@ -108,7 +108,7 @@ fn run_suite() -> (CancelService, RouteGuideClient, Server) {
 
 #[test]
 fn test_client_cancel_on_dropping() {
-    let (service, client, _server) = run_suite();
+    let (service, client, _server) = prepare_suite();
 
     // Client streaming.
     *service.record_route_handler.lock().unwrap() = Some(Box::new(|stream, sink| {
@@ -147,7 +147,7 @@ fn test_client_cancel_on_dropping() {
 
 #[test]
 fn test_server_cancel_on_dropping() {
-    let (service, client, _server) = run_suite();
+    let (service, client, _server) = prepare_suite();
 
     // Unary
     let rx = client.get_feature_async(&Default::default()).unwrap();

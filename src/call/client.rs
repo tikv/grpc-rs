@@ -310,6 +310,9 @@ impl<T> Future for ClientCStreamReceiver<T> {
 }
 
 /// A sink for client streaming call and duplex streaming call.
+/// To close the sink properly, you should call [`close`] before dropping.
+///
+/// [`close`]: #method.close
 #[must_use = "if unused the StreamingCallSink may immediately cancel the RPC"]
 pub struct StreamingCallSink<Req> {
     call: Arc<SpinLock<ShareCall>>,
@@ -392,7 +395,17 @@ impl<Req> Sink for StreamingCallSink<Req> {
     }
 }
 
+/// A sink for client streaming call.
+///
+/// To close the sink properly, you should call [`close`] before dropping.
+///
+/// [`close`]: #method.close
 pub type ClientCStreamSender<T> = StreamingCallSink<T>;
+/// A sink for duplex streaming call.
+///
+/// To close the sink properly, you should call [`close`] before dropping.
+///
+/// [`close`]: #method.close
 pub type ClientDuplexSender<T> = StreamingCallSink<T>;
 
 struct ResponseStreamImpl<H, T> {

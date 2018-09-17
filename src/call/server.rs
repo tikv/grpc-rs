@@ -217,6 +217,11 @@ impl UnaryRequestContext {
     }
 }
 
+/// A stream for client a streaming call and a duplex streaming call.
+///
+/// The corresponding RPC will be canceled if the stream did not
+/// finish before dropping.
+#[must_use = "if unused the RequestStream may immediately cancel the RPC"]
 pub struct RequestStream<T> {
     call: Arc<SpinLock<ShareCall>>,
     base: StreamingBase,
@@ -267,8 +272,7 @@ impl<T> Drop for RequestStream<T> {
 /// `CallHolder` or `Call` to caller.
 // TODO: Use type alias to be friendly for documentation.
 macro_rules! impl_unary_sink {
-    ($t:ident, $rt:ident, $holder:ty) => {
-        #[must_use = "if unused the sink may immediately cancel the RPC"]
+    ($(#[$attr:meta])* $t:ident, $rt:ident, $holder:ty) => {
         pub struct $rt {
             call: $holder,
             cq_f: Option<BatchFuture>,
@@ -293,6 +297,7 @@ macro_rules! impl_unary_sink {
             }
         }
 
+        $(#[$attr])*
         pub struct $t<T> {
             call: Option<$holder>,
             write_flags: u32,
@@ -354,8 +359,26 @@ macro_rules! impl_unary_sink {
     };
 }
 
-impl_unary_sink!(UnarySink, UnarySinkResult, ShareCall);
 impl_unary_sink!(
+    /// A sink for unary call.
+    ///
+    /// To close the sink properly, you should call [`success`] or [`fail`] before dropping.
+    ///
+    /// [`success`]: #method.success
+    /// [`fail`]: #method.fail
+    #[must_use = "if unused the sink may immediately cancel the RPC"]
+    UnarySink,
+    UnarySinkResult,
+    ShareCall
+);
+impl_unary_sink!(
+    /// A sink for client streaming call.
+    ///
+    /// To close the sink properly, you should call [`success`] or [`fail`] before dropping.
+    ///
+    /// [`success`]: #method.success
+    /// [`fail`]: #method.fail
+    #[must_use = "if unused the sink may immediately cancel the RPC"]
     ClientStreamingSink,
     ClientStreamingSinkResult,
     Arc<SpinLock<ShareCall>>
@@ -363,7 +386,8 @@ impl_unary_sink!(
 
 // A macro helper to implement server side streaming sink.
 macro_rules! impl_stream_sink {
-    ($t:ident, $ft:ident, $holder:ty) => {
+    ($(#[$attr:meta])* $t:ident, $ft:ident, $holder:ty) => {
+        $(#[$attr])*
         pub struct $t<T> {
             call: Option<$holder>,
             base: SinkBase,
@@ -510,8 +534,30 @@ macro_rules! impl_stream_sink {
     };
 }
 
-impl_stream_sink!(ServerStreamingSink, ServerStreamingSinkFailure, ShareCall);
-impl_stream_sink!(DuplexSink, DuplexSinkFailure, Arc<SpinLock<ShareCall>>);
+impl_stream_sink!(
+    /// A sink for server streaming call.
+    ///
+    /// To close the sink properly, you should call [`close`] or [`fail`] before dropping.
+    ///
+    /// [`close`]: #method.close
+    /// [`fail`]: #method.fail
+    #[must_use = "if unused the sink may immediately cancel the RPC"]
+    ServerStreamingSink,
+    ServerStreamingSinkFailure,
+    ShareCall
+);
+impl_stream_sink!(
+    /// A sink for duplex streaming call.
+    ///
+    /// To close the sink properly, you should call [`close`] or [`fail`] before dropping.
+    ///
+    /// [`close`]: #method.close
+    /// [`fail`]: #method.fail
+    #[must_use = "if unused the sink may immediately cancel the RPC"]
+    DuplexSink,
+    DuplexSinkFailure,
+    Arc<SpinLock<ShareCall>>
+);
 
 /// A context for rpc handling.
 pub struct RpcContext<'a> {
