@@ -43,7 +43,7 @@ struct RouteGuideService {
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&mut self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
         let data = self.data.clone();
         let resp = data
             .iter()
@@ -55,7 +55,12 @@ impl RouteGuide for RouteGuideService {
         ctx.spawn(f)
     }
 
-    fn list_features(&self, ctx: RpcContext, rect: Rectangle, resp: ServerStreamingSink<Feature>) {
+    fn list_features(
+        &mut self,
+        ctx: RpcContext,
+        rect: Rectangle,
+        resp: ServerStreamingSink<Feature>,
+    ) {
         let data = self.data.clone();
         let features: Vec<_> = data
             .iter()
@@ -75,7 +80,7 @@ impl RouteGuide for RouteGuideService {
     }
 
     fn record_route(
-        &self,
+        &mut self,
         ctx: RpcContext,
         points: RequestStream<Point>,
         resp: ClientStreamingSink<RouteSummary>,
@@ -112,7 +117,7 @@ impl RouteGuide for RouteGuideService {
     }
 
     fn route_chat(
-        &self,
+        &mut self,
         ctx: RpcContext,
         notes: RequestStream<RouteNote>,
         resp: DuplexSink<RouteNote>,
