@@ -41,18 +41,18 @@ impl CancelService {
 }
 
 impl RouteGuide for CancelService {
-    fn get_feature(&self, _: RpcContext, _: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&mut self, _: RpcContext, _: Point, sink: UnarySink<Feature>) {
         // Drop the sink, client should receive Cancelled.
         drop(sink);
     }
 
-    fn list_features(&self, _: RpcContext, _: Rectangle, sink: ServerStreamingSink<Feature>) {
+    fn list_features(&mut self, _: RpcContext, _: Rectangle, sink: ServerStreamingSink<Feature>) {
         // Drop the sink, client should receive Cancelled.
         drop(sink);
     }
 
     fn record_route(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<Point>,
         sink: ClientStreamingSink<RouteSummary>,
@@ -65,7 +65,7 @@ impl RouteGuide for CancelService {
     }
 
     fn route_chat(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<RouteNote>,
         sink: DuplexSink<RouteNote>,
