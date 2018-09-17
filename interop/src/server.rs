@@ -42,7 +42,7 @@ impl From<grpc::Error> for Error {
 pub struct InteropTestService;
 
 impl TestService for InteropTestService {
-    fn empty_call(&self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
+    fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
         let res = Empty::new();
         let f = resp
             .success(res)
@@ -50,7 +50,12 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn unary_call(&self, ctx: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(
+        &mut self,
+        ctx: RpcContext,
+        mut req: SimpleRequest,
+        sink: UnarySink<SimpleResponse>,
+    ) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
@@ -70,12 +75,17 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn cacheable_unary_call(&self, _: RpcContext, _: SimpleRequest, _: UnarySink<SimpleResponse>) {
+    fn cacheable_unary_call(
+        &mut self,
+        _: RpcContext,
+        _: SimpleRequest,
+        _: UnarySink<SimpleResponse>,
+    ) {
         unimplemented!()
     }
 
     fn streaming_output_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         mut req: StreamingOutputCallRequest,
         sink: ServerStreamingSink<StreamingOutputCallResponse>,
@@ -93,7 +103,7 @@ impl TestService for InteropTestService {
     }
 
     fn streaming_input_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<StreamingInputCallRequest>,
         sink: ClientStreamingSink<StreamingInputCallResponse>,
@@ -115,7 +125,7 @@ impl TestService for InteropTestService {
     }
 
     fn full_duplex_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<StreamingOutputCallRequest>,
         sink: DuplexSink<StreamingOutputCallResponse>,
@@ -170,7 +180,7 @@ impl TestService for InteropTestService {
     }
 
     fn half_duplex_call(
-        &self,
+        &mut self,
         _: RpcContext,
         _: RequestStream<StreamingOutputCallRequest>,
         _: DuplexSink<StreamingOutputCallResponse>,
@@ -178,7 +188,7 @@ impl TestService for InteropTestService {
         unimplemented!()
     }
 
-    fn unimplemented_call(&self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
+    fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
         let f = sink
             .fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
             .map_err(|e| error!("failed to report unimplemented method: {:?}", e));
