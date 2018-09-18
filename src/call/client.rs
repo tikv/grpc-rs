@@ -241,7 +241,11 @@ pub struct ClientUnaryReceiver<T> {
 }
 
 impl<T> ClientUnaryReceiver<T> {
-    fn new(call: Call, resp_f: BatchFuture, resp_de: DeserializeFn<T>) -> ClientUnaryReceiver<T> {
+    fn new(
+        call: Call,
+        resp_f: BatchFuture,
+        resp_de: DeserializeFn<T>,
+    ) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
             call,
             resp_f,

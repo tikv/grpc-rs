@@ -15,7 +15,6 @@ use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
-use std::cell::UnsafeCell;
 use std::sync::atomic::*;
 use std::sync::*;
 use std::thread::{self, JoinHandle};
@@ -27,7 +26,7 @@ fn test_peer() {
     struct PeerService;
 
     impl Greeter for PeerService {
-        fn say_hello(&self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&mut self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
             let peer = ctx.peer();
             let mut resp = HelloReply::new();
             resp.set_message(peer);
@@ -56,42 +55,26 @@ fn test_peer() {
     assert!(resp.get_message().contains("127.0.0.1"), "{:?}", resp);
 }
 
+#[derive(Clone)]
 struct Counter {
     global_counter: Arc<AtomicUsize>,
-    local_counter: UnsafeCell<usize>,
+    local_counter: usize,
 }
 
 impl Counter {
-    fn incr(&self) {
-        unsafe {
-            let counter = self.local_counter.get();
-            let c = &mut *counter;
-            *c += 1;
-        }
+    fn incr(&mut self) {
+        self.local_counter += 1;
     }
 
     fn flush(&self) {
-        unsafe {
-            let counter = self.local_counter.get();
-            let c = &mut *counter;
-            self.global_counter.fetch_add(*c, Ordering::SeqCst);
-            *c = 0;
-        }
+        self.global_counter
+            .fetch_add(self.local_counter, Ordering::SeqCst);
     }
 }
 
 impl Drop for Counter {
     fn drop(&mut self) {
         self.flush();
-    }
-}
-
-impl Clone for Counter {
-    fn clone(&self) -> Counter {
-        Counter {
-            global_counter: self.global_counter.clone(),
-            local_counter: UnsafeCell::new(0),
-        }
     }
 }
 
@@ -103,7 +86,7 @@ fn test_soundness() {
     }
 
     impl Greeter for CounterService {
-        fn say_hello(&self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&mut self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
             self.c.incr();
             let resp = HelloReply::new();
             ctx.spawn(
@@ -118,7 +101,7 @@ fn test_soundness() {
     let service = CounterService {
         c: Counter {
             global_counter: counter.clone(),
-            local_counter: UnsafeCell::new(0),
+            local_counter: 0,
         },
     };
     let mut server = ServerBuilder::new(env.clone())

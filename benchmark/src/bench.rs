@@ -16,6 +16,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::io::Read;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
@@ -40,14 +41,14 @@ pub struct Benchmark {
 }
 
 impl BenchmarkService for Benchmark {
-    fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(&mut self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let f = sink.success(gen_resp(&req));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "unary", f)
     }
 
     fn streaming_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
@@ -58,7 +59,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_from_client(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: RequestStream<SimpleRequest>,
         sink: ClientStreamingSink<SimpleResponse>,
@@ -69,7 +70,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_from_server(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: SimpleRequest,
         sink: ServerStreamingSink<SimpleResponse>,
@@ -80,7 +81,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_both_ways(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
@@ -118,7 +119,7 @@ pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
 #[inline]
 pub fn bin_de(mut reader: MessageReader) -> grpc::Result<Vec<u8>> {
     let mut buf = vec![];
-    reader.read_to_end_directly(&mut buf);
+    reader.read_to_end(&mut buf).unwrap();
     Ok(buf)
 }
 
