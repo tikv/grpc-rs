@@ -838,7 +838,7 @@ grpcwrap_ssl_server_credentials_create(
 #endif
 
 /* Sanity check for complicated types */
-#define alignof(type)((size_t) & ((struct {char c; type d; } *) 0)->d)
+//#define alignof(type)((size_t) & ((struct {char c; type d; } *) 0)->d)
 
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_sanity_check_slice(size_t size,
                                                          size_t align) {

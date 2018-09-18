@@ -16,6 +16,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::io::Read;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
@@ -118,7 +119,7 @@ pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
 #[inline]
 pub fn bin_de(mut reader: MessageReader) -> grpc::Result<Vec<u8>> {
     let mut buf = vec![];
-    reader.read_to_end_directly(&mut buf);
+    reader.read_to_end(&mut buf).unwrap();
     Ok(buf)
 }
 

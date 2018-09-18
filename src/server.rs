@@ -47,7 +47,7 @@ impl<F> Handler<F> {
 }
 
 pub trait CloneableHandler: Send {
-    fn handle(&self, ctx: RpcContext, reqs: Option<MessageReader>);
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>);
     fn box_clone(&self) -> Box<CloneableHandler>;
     fn method_type(&self) -> MethodType;
 }
@@ -184,7 +184,7 @@ impl ServiceBuilder {
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
         let h = move |ctx: RpcContext, _: Option<MessageReader>|
-            execute_client_streaming(ctx, ser, de, &handler);
+            execute_client_streaming(ctx, ser, de, &mut handler);
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -390,8 +390,8 @@ impl RequestCallContext {
     }
 }
 
-// Apprently, its life time is guaranteed by the ref count, hence is safe to be sent
-// to other thread. However it's not `Sync`, as `BoxHandler` is not neccessary `Sync`.
+// Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
+// to other thread. However it's not `Sync`, as `BoxHandler` is not necessary `Sync`.
 unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.
