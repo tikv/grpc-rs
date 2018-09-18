@@ -15,7 +15,7 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::io::{self, BufRead, Read};
+use std::io::{self, BufRead, Read, ErrorKind};
 use std::{ptr, slice, mem, cmp, usize};
 
 use cq::CompletionQueue;
