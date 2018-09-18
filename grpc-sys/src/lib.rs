@@ -413,7 +413,6 @@ pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
-pub enum GrpcAlarm {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -683,17 +682,6 @@ extern "C" {
         ctx: *mut GrpcRequestCallContext,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
-
-    pub fn grpc_alarm_create(reserved: *mut c_void) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_set(
-        alarm: *mut GrpcAlarm,
-        cq: *mut GrpcCompletionQueue,
-        deadline: GprTimespec,
-        tag: *mut c_void,
-        reserved: *mut c_void,
-    ) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
-    pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
 
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
     pub fn grpcwrap_metadata_array_add(

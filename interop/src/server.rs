@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{thread::sleep, time::Duration};
+
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
 use grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
@@ -40,7 +42,7 @@ impl From<grpc::Error> for Error {
 pub struct InteropTestService;
 
 impl TestService for InteropTestService {
-    fn empty_call(&self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
+    fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
         let res = Empty::new();
         let f = resp
             .success(res)
@@ -48,7 +50,12 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn unary_call(&self, ctx: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(
+        &mut self,
+        ctx: RpcContext,
+        mut req: SimpleRequest,
+        sink: UnarySink<SimpleResponse>,
+    ) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
@@ -68,12 +75,17 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn cacheable_unary_call(&self, _: RpcContext, _: SimpleRequest, _: UnarySink<SimpleResponse>) {
+    fn cacheable_unary_call(
+        &mut self,
+        _: RpcContext,
+        _: SimpleRequest,
+        _: UnarySink<SimpleResponse>,
+    ) {
         unimplemented!()
     }
 
     fn streaming_output_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         mut req: StreamingOutputCallRequest,
         sink: ServerStreamingSink<StreamingOutputCallResponse>,
@@ -91,7 +103,7 @@ impl TestService for InteropTestService {
     }
 
     fn streaming_input_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<StreamingInputCallRequest>,
         sink: ClientStreamingSink<StreamingInputCallResponse>,
@@ -113,7 +125,7 @@ impl TestService for InteropTestService {
     }
 
     fn full_duplex_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<StreamingOutputCallRequest>,
         sink: DuplexSink<StreamingOutputCallResponse>,
@@ -132,6 +144,18 @@ impl TestService for InteropTestService {
                     let mut resp = StreamingOutputCallResponse::new();
                     if let Some(param) = req.get_response_parameters().get(0) {
                         resp.set_payload(util::new_payload(param.get_size() as usize));
+                    }
+                    // A workaround for timeout_on_sleeping_server test.
+                    // The request only has 27182 bytes of zeros in payload.
+                    //
+                    // Client timeout 1ms is too short for grpcio. The server
+                    // can response in 1ms. To make the test stable, the server
+                    // sleeps 10ms explicitly.
+                    if req.get_payload().get_body().len() == 27182
+                        && req.get_response_parameters().is_empty()
+                        && !req.has_response_status()
+                    {
+                        sleep(Duration::from_millis(10));
                     }
                     send = Some(sink.send((resp, WriteFlags::default())));
                 }
@@ -156,7 +180,7 @@ impl TestService for InteropTestService {
     }
 
     fn half_duplex_call(
-        &self,
+        &mut self,
         _: RpcContext,
         _: RequestStream<StreamingOutputCallRequest>,
         _: DuplexSink<StreamingOutputCallResponse>,
@@ -164,7 +188,7 @@ impl TestService for InteropTestService {
         unimplemented!()
     }
 
-    fn unimplemented_call(&self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
+    fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
         let f = sink
             .fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
             .map_err(|e| error!("failed to report unimplemented method: {:?}", e));

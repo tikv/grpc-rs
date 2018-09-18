@@ -71,7 +71,7 @@ impl RequestContext {
     pub fn handle_stream_req(
         self,
         cq: &CompletionQueue,
-        rc: &RequestCallContext,
+        rc: &mut RequestCallContext,
     ) -> result::Result<(), Self> {
         let handler = unsafe { rc.get_handler(self.method()) };
         match handler {
@@ -212,7 +212,7 @@ impl UnaryRequestContext {
 
     pub fn handle(
         self,
-        rc: &RequestCallContext,
+        rc: &mut RequestCallContext,
         cq: &CompletionQueue,
         reader: Option<MessageReader>
     ) {
@@ -557,9 +557,9 @@ pub fn execute_unary<P, Q, F>(
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: MessageReader,
-    f: &F,
+    f: &mut F,
 ) where
-    F: Fn(RpcContext, P, UnarySink<Q>),
+    F: FnMut(RpcContext, P, UnarySink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -583,9 +583,9 @@ pub fn execute_client_streaming<P, Q, F>(
     ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    f: &F,
+    f: &mut F,
 ) where
-    F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
+    F: FnMut(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -602,9 +602,9 @@ pub fn execute_server_streaming<P, Q, F>(
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: MessageReader,
-    f: &F,
+    f: &mut F,
 ) where
-    F: Fn(RpcContext, P, ServerStreamingSink<Q>),
+    F: FnMut(RpcContext, P, ServerStreamingSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -630,9 +630,9 @@ pub fn execute_duplex_streaming<P, Q, F>(
     ctx: RpcContext,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
-    f: &F,
+    f: &mut F,
 ) where
-    F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>),
+    F: FnMut(RpcContext, RequestStream<P>, DuplexSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -655,7 +655,12 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
 // Helper function to call handler.
 //
 // Invoked after a request is ready to be handled.
-fn execute(ctx: RequestContext, cq: &CompletionQueue, payload: Option<MessageReader>, f: &BoxHandler) {
+fn execute(
+    ctx: RequestContext,
+    cq: &CompletionQueue,
+    payload: Option<MessageReader>,
+    f: &mut BoxHandler
+) {
     let rpc_ctx = RpcContext::new(ctx, cq);
     f.handle(rpc_ctx, payload)
 }
