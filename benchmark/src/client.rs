@@ -169,8 +169,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
             .duplex_streaming(
                 &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
                 CallOption::default(),
-            )
-            .unwrap();
+            ).unwrap();
         let f = future::loop_fn(
             (sender, self, receiver),
             move |(sender, mut executor, receiver)| {
@@ -202,8 +201,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
             },
         ).and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
-        })
-            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        }).and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f)
     }
 }
@@ -302,8 +300,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
             },
         ).and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
-        })
-            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        }).and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f);
     }
 }
