@@ -432,14 +432,9 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     }
 
     fn poll(&mut self) -> Poll<Option<T>, Error> {
-        {
+        if !self.finished {
             let finished = &mut self.finished;
             self.call.call(|c| {
-                if c.finished {
-                    *finished = true;
-                    return Ok(());
-                }
-
                 let res = c.poll_finish().map(|_| ());
                 *finished = c.finished;
                 res
