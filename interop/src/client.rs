@@ -63,7 +63,8 @@ impl Client {
             (req, WriteFlags::default())
         });
         let (sender, receiver) = self.client.streaming_input_call().unwrap();
-        sender
+        // Keep the sender, so that receiver will not receive Cancelled error.
+        let _sender = sender
             .send_all(stream::iter_ok::<_, grpc::Error>(reqs))
             .wait()
             .unwrap();
@@ -171,7 +172,8 @@ impl Client {
         let (sender, receiver) = self.client.full_duplex_call_opt(opt).unwrap();
         let mut req = StreamingOutputCallRequest::new();
         req.set_payload(util::new_payload(27182));
-        let _ = sender.send((req, WriteFlags::default())).wait();
+        // Keep the sender, so that receiver will not receive Cancelled error.
+        let _sender = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
@@ -200,7 +202,8 @@ impl Client {
         let mut req = StreamingOutputCallRequest::new();
         req.set_response_status(status);
         let (sender, receiver) = self.client.full_duplex_call().unwrap();
-        let _ = sender.send((req, WriteFlags::default())).wait();
+        // Keep the sender, so that receiver will not receive Cancelled error.
+        let _sender = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::Unknown);
