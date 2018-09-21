@@ -501,6 +501,14 @@ impl StreamingBase {
             Ok(Async::Ready(bytes))
         }
     }
+
+    // Cancel the call if we still have some messages or did not
+    // receive status code.
+    fn on_drop<C: ShareCallHolder>(&self, call: &mut C) {
+        if !self.read_done || self.close_f.is_some() {
+            call.call(|c| c.call.cancel());
+        }
+    }
 }
 
 /// Flags for write operations.
