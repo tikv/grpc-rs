@@ -19,4 +19,4 @@ grpcio = { path = "..", version = "0.4.0" }
 [build-dependencies]
 protobuf = "~2.0"
 protobuf-codegen = "~2.0"
-grpcio-compiler = { path = "../compiler", version = "0.3.0" }
+grpcio-compiler = { path = "../compiler", version = "0.4.0" }
