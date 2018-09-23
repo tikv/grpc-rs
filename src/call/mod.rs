@@ -15,14 +15,16 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::{ptr, slice, usize};
+use std::io::{self, BufRead, Read, ErrorKind};
+use std::{ptr, slice, mem, cmp, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcByteBuffer, GrpcByteBufferReader,
+               GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
+use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
@@ -108,16 +110,136 @@ impl RpcStatus {
     }
 }
 
+/// `MessageReader` is a zero-copy reader for the message payload.
+///
+/// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
+/// to operate the reader.
+pub struct MessageReader {
+    buf: *mut GrpcByteBuffer,
+    reader: GrpcByteBufferReader,
+    slice: Option<GrpcSlice>,
+    // Hack: apparently its lifetime depends on `self.slice`. However
+    // it's not going to be accessed by others directly, hence it's safe
+    // to mark it static here.
+    bytes: &'static [u8],
+    length: usize,
+}
+
+impl MessageReader {
+    /// Get the available bytes count of the reader.
+    #[inline]
+    pub fn pending_bytes_count(&self) -> usize {
+        self.length
+    }
+}
+
+unsafe impl Sync for MessageReader {}
+unsafe impl Send for MessageReader {}
+
+impl Read for MessageReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let amt = {
+            let bytes = self.fill_buf()?;
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+            let amt = cmp::min(buf.len(), bytes.len());
+            if amt == 1 {
+                buf[0] = bytes[0];
+            } else {
+                buf[..amt].copy_from_slice(bytes);
+            }
+            amt
+        };
+        self.consume(amt);
+        Ok(amt)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        if self.length == 0 {
+            return Ok(0);
+        }
+        buf.reserve(self.length);
+        let start = buf.len();
+        let mut len = start;
+        unsafe {
+            buf.set_len(start + self.length);
+        }
+        let ret = loop {
+            match self.read(&mut buf[len..]) {
+                Ok(0) => break Ok(len - start),
+                Ok(n) => len += n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => break Err(e),
+            }
+        };
+        unsafe {
+            buf.set_len(len);
+        }
+        ret
+    }
+}
+
+impl BufRead for MessageReader {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.bytes.is_empty() {
+            if self.length == 0 {
+                return Ok(&[]);
+            }
+            let mut len = 0;
+            unsafe {
+                match self.slice {
+                    None => self.slice = Some(mem::zeroed()),
+                    Some(s) => grpc_sys::grpc_slice_unref(s),
+                }
+                let slice = self.slice.as_mut().unwrap();
+                let code = grpc_sys::grpc_byte_buffer_reader_next(&mut self.reader, slice);
+                debug_assert!(code != 0);
+                let ptr = grpc_sys::grpcwrap_slice_raw(slice, &mut len);
+                self.bytes = slice::from_raw_parts(ptr as _, len);
+            }
+        }
+        Ok(self.bytes)
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.length -= amt;
+        self.bytes = &self.bytes[amt..];
+    }
+}
+
+impl Drop for MessageReader {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
+            if let Some(slice) = self.slice {
+                grpc_sys::grpc_slice_unref(slice);
+            }
+            grpc_sys::grpc_byte_buffer_destroy(self.buf);
+        }
+    }
+}
+
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
+    /// Content of the request.
+    /// Since the memory taken by the content can be correctly released by Rust,
+    /// we can reduce a copy in C-side if we move the ownership of the content to BatchContext.
+    content: Vec<u8>,
 }
 
 impl BatchContext {
     pub fn new() -> BatchContext {
         BatchContext {
             ctx: unsafe { grpc_sys::grpcwrap_batch_context_create() },
+            content: Vec::with_capacity(0),
         }
+    }
+
+    pub fn set_content(&mut self, content: Vec<u8>) -> &mut Self {
+        self.content = content;
+        self
     }
 
     pub fn as_ptr(&self) -> *mut GrpcBatchContext {
@@ -146,23 +268,28 @@ impl BatchContext {
     }
 
     /// Fetch the response bytes of the rpc call.
-    // TODO: return Read instead.
-    pub fn recv_message(&self) -> Option<Vec<u8>> {
-        // TODO: avoid copy
-        let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };
-        if len == usize::MAX {
-            return None;
-        }
-        let mut buffer = Vec::with_capacity(len);
+    pub fn recv_message(&mut self) -> Option<MessageReader> {
+        let buf;
+        let mut reader;
+        let length;
         unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(
-                self.ctx,
-                buffer.as_mut_ptr() as *mut _,
-                len,
-            );
-            buffer.set_len(len);
+            buf = grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx);
+            if buf.is_null() {
+                return None;
+            }
+
+            reader = mem::zeroed();
+            assert_eq!(grpc_sys::grpc_byte_buffer_reader_init(&mut reader, buf), 1);
+            length = grpc_sys::grpc_byte_buffer_length(reader.buffer_out);
         }
-        Some(buffer)
+
+        Some(MessageReader {
+            buf,
+            reader,
+            slice: None,
+            bytes: &[],
+            length,
+        })
     }
 }
 
@@ -181,18 +308,43 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
     )
 }
 
+#[inline]
+fn box_batch_tag_with_content(
+    tag: CallTag,
+    content: Vec<u8>,
+) -> (*const u8, usize, *mut GrpcBatchContext, *mut c_void) {
+    let mut tag_box = Box::new(tag);
+    let ptr = content.as_ptr();
+    let len = content.len();
+    let ctx = tag_box.batch_ctx_mut().unwrap().set_content(content).as_ptr();
+    (ptr, len, ctx, Box::into_raw(tag_box) as _)
+}
+
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
-where
-    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+    where
+        F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
-    let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr as *mut c_void);
+    let (batch, tag_ptr) = box_batch_tag(tag);
+    let code = f(batch, tag_ptr);
     if code != GrpcCallStatus::Ok {
-        unsafe {
-            Box::from_raw(tag_ptr);
-        }
+        unsafe { Box::from_raw(tag_ptr); }
+        panic!("create call fail: {:?}", code);
+    }
+    cq_f
+}
+
+/// A helper function that runs the batch call and checks the result.
+fn check_run_with_content<F>(bt: BatchType, content: Vec<u8>, f: F) -> BatchFuture
+where
+    F: FnOnce(*const u8, usize, *mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+{
+    let (cq_f, tag) = CallTag::batch_pair(bt);
+    let (content, content_size, batch, tag_ptr) = box_batch_tag_with_content(tag, content);
+    let code = f(content, content_size, batch, tag_ptr);
+    if code != GrpcCallStatus::Ok {
+        unsafe { Box::from_raw(tag_ptr); }
         panic!("create call fail: {:?}", code);
     }
     cq_f
@@ -225,12 +377,15 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let f = check_run_with_content(BatchType::Finish, msg.to_vec(), |content,
+         content_size,
+         ctx,
+         tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
-                msg.as_ptr() as _,
-                msg.len(),
+                content as _,
+                content_size,
                 write_flags,
                 i,
                 tag,
@@ -278,14 +433,15 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let (payload_ptr, payload_len) = payload
-            .as_ref()
-            .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
+        let (payload_ptr, payload_len) = payload.as_ref().map_or(
+            (ptr::null(), 0),
+            |b| (b.as_ptr(), b.len()),
+        );
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let details_ptr = status
-                .details
-                .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_ptr = status.details.as_ref().map_or_else(
+                ptr::null,
+                |s| s.as_ptr() as _,
+            );
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
@@ -314,17 +470,17 @@ impl Call {
         }
         let call_ptr = self.call;
         let tag = CallTag::abort(self);
-        let (batch_ptr, tag_ptr) = box_batch_tag(tag);
+        let (batch, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
-            let details_ptr = status
-                .details
-                .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
+            let details_ptr = status.details.as_ref().map_or_else(
+                ptr::null,
+                |s| s.as_ptr() as _,
+            );
             let details_len = status.details.as_ref().map_or(0, String::len);
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
-                batch_ptr,
+                batch,
                 status.status,
                 details_ptr,
                 details_len,
@@ -371,13 +527,13 @@ impl Drop for Call {
 /// once the call is canceled or finished early.
 struct ShareCall {
     call: Call,
-    close_f: CqFuture<BatchMessage>,
+    close_f: BatchFuture,
     finished: bool,
     status: Option<RpcStatus>,
 }
 
 impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+    fn new(call: Call, close_f: BatchFuture) -> ShareCall {
         ShareCall {
             call,
             close_f,
@@ -389,7 +545,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+    fn poll_finish(&mut self) -> Poll<Option<MessageReader>, Error> {
         let res = match self.close_f.poll() {
             Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
@@ -456,7 +612,7 @@ impl StreamingBase {
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<Option<Vec<u8>>, Error> {
+    ) -> Poll<Option<MessageReader>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -486,7 +642,7 @@ impl StreamingBase {
 
         if self.read_done {
             if self.close_f.is_none() {
-                return Ok(Async::Ready(None));
+                return Ok(Async::Ready(bytes));
             }
             return Ok(Async::NotReady);
         }
@@ -590,8 +746,11 @@ impl SinkBase {
             flags = flags.buffer_hint(false);
         }
         let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+            c.call.start_send_message(
+                &self.buf,
+                flags.flags,
+                self.send_metadata,
+            )
         })?;
         self.batch_f = Some(write_f);
         self.send_metadata = false;
@@ -607,3 +766,4 @@ impl SinkBase {
         Ok(Async::Ready(()))
     }
 }
+

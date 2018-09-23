@@ -26,7 +26,7 @@ use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryReq
 use self::executor::SpawnNotify;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use call::server::RequestContext;
-use call::{BatchContext, Call};
+use call::{BatchContext, Call, MessageReader};
 use cq::CompletionQueue;
 use error::{Error, Result};
 use server::RequestCallContext;
@@ -115,9 +115,8 @@ impl<T> Future for CqFuture<T> {
     }
 }
 
-pub type BatchMessage = Option<Vec<u8>>;
 /// Future object for batch jobs.
-pub type BatchFuture = CqFuture<BatchMessage>;
+pub type BatchFuture = CqFuture<Option<MessageReader>>;
 
 /// A result holder for asynchronous execution.
 // This enum is going to be passed to FFI, so don't use trait or generic here.
@@ -168,6 +167,16 @@ impl CallTag {
             CallTag::Batch(ref prom) => Some(prom.context()),
             CallTag::UnaryRequest(ref cb) => Some(cb.batch_ctx()),
             CallTag::Abort(ref cb) => Some(cb.batch_ctx()),
+            _ => None,
+        }
+    }
+
+    /// Get the batch context from result holder.
+    pub fn batch_ctx_mut(&mut self) -> Option<&mut BatchContext> {
+        match *self {
+            CallTag::Batch(ref mut prom) => Some(prom.context_mut()),
+            CallTag::UnaryRequest(ref mut cb) => Some(cb.batch_ctx_mut()),
+            CallTag::Abort(ref mut cb) => Some(cb.batch_ctx_mut()),
             _ => None,
         }
     }

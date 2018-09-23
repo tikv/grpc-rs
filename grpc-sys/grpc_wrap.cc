@@ -76,8 +76,11 @@
 #define GPR_CALLTYPE
 #endif
 
+/// The slices owned by BatchContext are managed by Rust,
+/// they will be destructed when BatchContext is dropped.
+/// So from C's point of view, these slices are static.
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
-  grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
+  grpc_slice slice = grpc_slice_from_static_buffer(buffer, len);
   grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);
   grpc_slice_unref(slice);
   return bb;
@@ -297,42 +300,20 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-GPR_EXPORT size_t GPR_CALLTYPE
-grpcwrap_batch_context_recv_message_length(const grpcwrap_batch_context* ctx) {
-  grpc_byte_buffer_reader reader;
-  if (!ctx->recv_message) {
-    return (size_t)-1;
-  }
-
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
-  size_t result = grpc_byte_buffer_length(reader.buffer_out);
-  grpc_byte_buffer_reader_destroy(&reader);
-
-  return result;
+GPR_EXPORT const char *GPR_CALLTYPE
+grpcwrap_slice_raw(const grpc_slice *slice, size_t *len) {
+  *len = GRPC_SLICE_LENGTH(*slice);
+  return (const char *)(GRPC_SLICE_START_PTR(*slice));
 }
 
-/*
- * Copies data from recv_message to a buffer. Fatal error occurs if
- * buffer is too small.
- */
-GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_recv_message_to_buffer(
-    const grpcwrap_batch_context* ctx, char* buffer, size_t buffer_len) {
-  grpc_byte_buffer_reader reader;
-  grpc_slice slice;
-  size_t offset = 0;
-
-  GPR_ASSERT(grpc_byte_buffer_reader_init(&reader, ctx->recv_message));
-
-  while (grpc_byte_buffer_reader_next(&reader, &slice)) {
-    size_t len = GRPC_SLICE_LENGTH(slice);
-    GPR_ASSERT(offset + len <= buffer_len);
-    memcpy(buffer + offset, GRPC_SLICE_START_PTR(slice),
-           GRPC_SLICE_LENGTH(slice));
-    offset += len;
-    grpc_slice_unref(slice);
+GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
+grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
+  grpc_byte_buffer *buf = NULL;
+  if (ctx->recv_message) {
+    buf = ctx->recv_message;
+    ctx->recv_message = NULL;
   }
-
-  grpc_byte_buffer_reader_destroy(&reader);
+  return buf;
 }
 
 GPR_EXPORT grpc_status_code GPR_CALLTYPE
@@ -858,3 +839,18 @@ grpcwrap_ssl_server_credentials_create(
 }
 
 #endif
+
+/* Sanity check for complicated types */
+//#define alignof(type)((size_t) & ((struct {char c; type d; } *) 0)->d)
+
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_sanity_check_slice(size_t size,
+                                                         size_t align) {
+  GPR_ASSERT(sizeof(grpc_slice) == size);
+  GPR_ASSERT(alignof(grpc_slice) == align);
+}
+
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_sanity_check_byte_buffer_reader(size_t size, size_t align) {
+  GPR_ASSERT(sizeof(grpc_byte_buffer_reader) == size);
+  GPR_ASSERT(alignof(grpc_byte_buffer_reader) == align);
+}

@@ -58,6 +58,10 @@ impl UnaryRequest {
         self.ctx.batch_ctx()
     }
 
+    pub fn batch_ctx_mut(&mut self) -> &mut BatchContext {
+        self.ctx.batch_ctx_mut()
+    }
+
     pub fn request_ctx(&self) -> &RequestContext {
         self.ctx.request_ctx()
     }
@@ -69,9 +73,8 @@ impl UnaryRequest {
             return;
         }
 
-        let data = self.ctx.batch_ctx().recv_message();
-        self.ctx
-            .handle(&mut rc, cq, data.as_ref().map(|v| v.as_slice()));
+        let reader = self.ctx.batch_ctx_mut().recv_message();
+        self.ctx.handle(&mut rc, cq, reader);
         server::request_call(rc, cq);
     }
 }
@@ -92,5 +95,9 @@ impl Abort {
 
     pub fn batch_ctx(&self) -> &BatchContext {
         &self.ctx
+    }
+
+    pub fn batch_ctx_mut(&mut self) -> &mut BatchContext {
+        &mut self.ctx
     }
 }

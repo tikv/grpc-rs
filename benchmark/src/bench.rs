@@ -16,11 +16,13 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::io::Read;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
     self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
     RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
+    MessageReader,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;
@@ -115,8 +117,10 @@ pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
 }
 
 #[inline]
-pub fn bin_de(buf: &[u8]) -> grpc::Result<Vec<u8>> {
-    Ok(buf.to_vec())
+pub fn bin_de(mut reader: MessageReader) -> grpc::Result<Vec<u8>> {
+    let mut buf = vec![];
+    reader.read_to_end(&mut buf).unwrap();
+    Ok(buf)
 }
 
 pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Method {
