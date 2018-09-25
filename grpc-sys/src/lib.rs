@@ -255,6 +255,8 @@ pub struct GrpcEvent {
 
 pub enum GrpcChannelArgs {}
 
+pub enum GrpcSocketMutator {}
+
 /// Connectivity state of a channel.
 ///
 /// Based on `grpc_connectivity_state`.
@@ -403,6 +405,18 @@ extern "C" {
     ) -> GrpcEvent;
     pub fn grpc_completion_queue_shutdown(cq: *mut GrpcCompletionQueue);
     pub fn grpc_completion_queue_destroy(cq: *mut GrpcCompletionQueue);
+
+    pub fn grpcwrap_socket_mutator_create(
+        callback: *const c_void, // Box<Fn(i32)->bool>
+        linkage: extern fn(* const c_void, i32)->bool
+    ) -> *const GrpcSocketMutator;
+
+    pub fn grpcwrap_channel_args_set_socket_mutator(
+        args: *mut GrpcChannelArgs,
+        index: size_t,
+        key: *const c_char,
+        mutator: *const GrpcSocketMutator
+    );
 
     pub fn grpcwrap_channel_args_create(num_args: size_t) -> *mut GrpcChannelArgs;
     pub fn grpcwrap_channel_args_set_string(

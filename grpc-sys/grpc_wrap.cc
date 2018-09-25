@@ -57,6 +57,9 @@
 #include <grpc/support/string_util.h>
 #include <grpc/support/thd_id.h>
 
+#include "src/core/lib/gpr/useful.h"
+#include "src/core/lib/iomgr/socket_mutator.h"
+
 #ifdef GRPC_SYS_SECURE
 #include <grpc/grpc_security.h>
 #endif
@@ -435,6 +438,63 @@ grpcwrap_channel_args_create(size_t num_args) {
   memset(args->args, 0, sizeof(grpc_arg) * num_args);
   return args;
 }
+
+typedef void* rust_socket_mutator_callback;
+typedef bool (*rust_socket_mutator_linkage)(rust_socket_mutator_callback, int);
+rust_socket_mutator_linkage g_socket_mutator = nullptr;
+rust_socket_mutator_callback g_rust_socket_mutator_callback = nullptr;
+
+bool socket_mutator_mutate_fd(int fd, grpc_socket_mutator* mutator) {
+    if (g_rust_socket_mutator_callback &&
+        g_socket_mutator &&
+        mutator) {
+        return g_socket_mutator(g_rust_socket_mutator_callback, fd);
+    }
+    return false;
+}
+
+int socket_mutator_compare(grpc_socket_mutator* a, grpc_socket_mutator* b) {
+    return GPR_ICMP(a, b);
+}
+
+void socket_mutator_destroy(grpc_socket_mutator* mutator) {
+    gpr_free(mutator);
+}
+
+grpc_socket_mutator_vtable socket_mutator_vtable = {
+    socket_mutator_mutate_fd, socket_mutator_compare, socket_mutator_destroy
+};
+
+GPR_EXPORT grpc_socket_mutator* GPR_CALLTYPE
+grpcwrap_socket_mutator_create(rust_socket_mutator_callback callback,
+    rust_socket_mutator_linkage socket_mutator_linkage) {
+  GPR_ASSERT(callback);
+  GPR_ASSERT(socket_mutator_linkage);
+  grpc_socket_mutator* mutator =
+      (grpc_socket_mutator*)gpr_malloc(sizeof(grpc_socket_mutator));
+  memset(mutator, 0, sizeof(grpc_socket_mutator));
+
+  g_rust_socket_mutator_callback = callback;
+  g_socket_mutator = socket_mutator_linkage;
+
+  grpc_socket_mutator_init(mutator, &socket_mutator_vtable);
+
+  return mutator;
+}
+
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_channel_args_set_socket_mutator(
+    grpc_channel_args* args, size_t index, const char* key, grpc_socket_mutator* mutator) {
+  GPR_ASSERT(args);
+  GPR_ASSERT(index < args->num_args);
+
+  grpc_arg mutator_arg = grpc_socket_mutator_to_arg(mutator);
+  args->args[index].type = mutator_arg.type;
+  args->args[index].key = gpr_strdup(key);
+  args->args[index].value.pointer.p = mutator_arg.value.pointer.p;
+  args->args[index].value.pointer.vtable = mutator_arg.value.pointer.vtable;
+}
+
+/* TODO: grpcwrap_socket_mutator_destroy */
 
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_channel_args_set_string(
     grpc_channel_args* args, size_t index, const char* key, const char* value) {
