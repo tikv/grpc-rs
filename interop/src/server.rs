@@ -11,9 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{thread::sleep, time::Duration};
+use std::time::Duration;
 
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
+use futures_timer::Delay;
 use grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
     ServerStreamingSink, UnarySink, WriteFlags,
@@ -111,13 +112,11 @@ impl TestService for InteropTestService {
         let f = stream
             .fold(0, |s, req| {
                 Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>
-            })
-            .and_then(|s| {
+            }).and_then(|s| {
                 let mut resp = StreamingInputCallResponse::new();
                 resp.set_aggregated_payload_size(s as i32);
                 sink.success(resp)
-            })
-            .map_err(|e| match e {
+            }).map_err(|e| match e {
                 grpc::Error::RemoteStopped => {}
                 e => error!("failed to send streaming inptu: {:?}", e),
             });
@@ -150,14 +149,18 @@ impl TestService for InteropTestService {
                     //
                     // Client timeout 1ms is too short for grpcio. The server
                     // can response in 1ms. To make the test stable, the server
-                    // sleeps 10ms explicitly.
-                    if req.get_payload().get_body().len() == 27182
+                    // sleeps 1s explicitly.
+                    let dur = if req.get_payload().get_body().len() == 27182
                         && req.get_response_parameters().is_empty()
                         && !req.has_response_status()
                     {
-                        sleep(Duration::from_millis(10));
-                    }
-                    send = Some(sink.send((resp, WriteFlags::default())));
+                        Duration::from_secs(1)
+                    } else {
+                        Duration::from_secs(0)
+                    };
+                    send = Some(
+                        Delay::new(dur).then(move |_| sink.send((resp, WriteFlags::default()))),
+                    );
                 }
                 future::poll_fn(
                     move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
@@ -170,8 +173,7 @@ impl TestService for InteropTestService {
                         }
                     },
                 )
-            })
-            .and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
+            }).and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
             .map_err(|e| match e {
                 Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
                 Error::Grpc(e) => error!("failed to handle duplex call: {:?}", e),
