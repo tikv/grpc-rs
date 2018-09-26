@@ -17,7 +17,7 @@ This project is still under development. The following features with the check m
 - [x] Connection level compression
 - [x] Interoperability test
 - [x] QPS benchmark
-- [x] Custom metadata
+- [ ] Custom metadata
 - [x] Health check
 - [ ] Reflection
 - [ ] Authentication

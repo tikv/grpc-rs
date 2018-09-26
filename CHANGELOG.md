@@ -3,6 +3,7 @@
 - Update gRPC from 1.7.2 to 1.14.2
 - Services accept mut reference
 - Cancel RPC when senders and receivers were dropped
+- Notify completion queue via call
 
 # 0.3.1 - 2018-08-27
 
