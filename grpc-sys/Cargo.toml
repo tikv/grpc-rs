@@ -37,7 +37,6 @@ exclude = [
     "grpc/third_party/protobuf/*",
     "grpc/third_party/rake-compiler-dock/*",
     "grpc/third_party/toolchan/*",
-    "grpc/tools/*",
 ]
 
 [dependencies]
