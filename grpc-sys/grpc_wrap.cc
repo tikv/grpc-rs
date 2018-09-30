@@ -76,6 +76,176 @@
 #define GPR_CALLTYPE
 #endif
 
+
+#include <stdlib.h>
+#include <stddef.h>
+#include <memory.h>
+#include <assert.h>
+
+class CharVector {
+public:
+  size_t Size, Capacity;
+  unsigned char *Data;
+
+  typedef unsigned char value_type;
+  typedef value_type *iterator;
+  typedef const value_type *const_iterator;
+
+  /// this means if we get Data's value and assign it to NULL
+  inline ~CharVector() { if (Data) free(Data); }
+  inline CharVector() { Size = Capacity = 0; Data = nullptr; }
+  inline CharVector(const CharVector &src) {
+    Size = Capacity = 0;
+    Data = nullptr;
+    operator=(src);
+  }
+
+  inline CharVector &operator=(const CharVector &src) {
+    clear();
+    resize(src.Size);
+    memcpy(Data, src.Data, Size * sizeof(value_type));
+    return *this;
+  }
+
+  inline bool empty() const { return Size == 0; }
+  inline size_t size() const { return Size; }
+  inline size_t capacity() const { return Capacity; }
+  inline value_type &operator[](size_t i) { assert(i < Size); return Data[i]; }
+  inline const value_type &operator[](size_t i) const {
+    assert(i < Size);
+    return Data[i];
+  }
+
+  inline void clear() {
+    if (!Data) return;
+    Size = Capacity = 0;
+    free(Data);
+    Data = nullptr;
+  }
+
+  inline iterator begin() { return Data; }
+  inline const_iterator begin() const { return Data; }
+  inline iterator end() { return Data + Size; }
+  inline const_iterator end() const { return Data + Size; }
+  inline value_type &front() { assert(Size > 0); return Data[0]; }
+  inline const value_type &front() const { assert(Size > 0); return Data[0]; }
+  inline value_type &back() { assert(Size > 0); return Data[Size - 1]; }
+  inline void pop_back() { assert(Size > 0); Size--; }
+
+  inline const value_type &back() const {
+    assert(Size > 0);
+    return Data[Size - 1];
+  }
+
+  inline void swap(CharVector &rhs) {
+    size_t rhs_size = rhs.Size;
+    rhs.Size = Size;
+    Size = rhs_size;
+    size_t rhs_cap = rhs.Capacity;
+    rhs.Capacity = Capacity;
+    Capacity = rhs_cap;
+    value_type *rhs_data = rhs.Data;
+    rhs.Data = Data;
+    Data = rhs_data;
+  }
+
+  inline size_t _grow_capacity(size_t sz) const {
+    size_t new_capacity = Capacity ? (Capacity + Capacity / 2) : 8;
+    return new_capacity > sz ? new_capacity : sz;
+  }
+
+  inline void resize(size_t new_size) {
+    if (new_size > Capacity) reserve(_grow_capacity(new_size));
+    Size = new_size;
+  }
+
+  inline void resize(size_t new_size, const value_type &v) {
+    if (new_size > Capacity)reserve(_grow_capacity(new_size));
+    if (new_size > Size)
+      for (size_t n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v));
+    Size = new_size;
+  }
+
+  inline void reserve(size_t new_capacity) {
+    if (new_capacity <= Capacity) return;
+    auto *new_data = (value_type *) malloc(new_capacity * sizeof(value_type));
+    if (Data) {
+      memcpy(new_data, Data, Size * sizeof(value_type));
+      free(Data);
+    }
+    Data = new_data;
+    Capacity = new_capacity;
+  }
+
+  // NB: It is forbidden to call push_back/push_front/insert with a reference pointing inside the ImVector data itself! e.g. v.push_back(v[10]) is forbidden.
+  inline void push_back(const value_type &v) {
+    if (Size == Capacity) reserve(_grow_capacity(Size + 1));
+    memcpy(&Data[Size], &v, sizeof(v));
+    Size++;
+  }
+
+  inline void push_front(const value_type &v) {
+    if (Size == 0) push_back(v);
+    else insert(Data, v);
+  }
+
+  inline iterator erase(const_iterator it) {
+    assert(it >= Data && it < Data + Size);
+    const ptrdiff_t off = it - Data;
+    memmove(Data + off, Data + off + 1,
+            (Size - (size_t) off - 1) * sizeof(value_type));
+    Size--;
+    return Data + off;
+  }
+
+  inline iterator erase(const_iterator it, const_iterator it_last) {
+    assert(it >= Data && it < Data + Size && it_last > it &&
+           it_last <= Data + Size);
+    const ptrdiff_t count = it_last - it;
+    const ptrdiff_t off = it - Data;
+    memmove(Data + off, Data + off + count,
+            (Size - (size_t) off - count) * sizeof(value_type));
+    Size -= count;
+    return Data + off;
+  }
+
+  inline iterator erase_unsorted(const_iterator it) {
+    assert(it >= Data && it < Data + Size);
+    const ptrdiff_t off = it - Data;
+    if (it < Data + Size - 1)
+      memcpy(Data + off, Data + Size - 1, sizeof(value_type));
+    Size--;
+    return Data + off;
+  }
+
+  inline iterator insert(const_iterator it, const value_type &v) {
+    assert(it >= Data && it <= Data + Size);
+    const ptrdiff_t off = it - Data;
+    if (Size == Capacity) reserve(_grow_capacity(Size + 1));
+    if (off < Size)
+      memmove(Data + off + 1, Data + off,
+        (Size - (size_t) off) * sizeof(value_type));
+    memcpy(&Data[off], &v, sizeof(v));
+    Size++;
+    return Data + off;
+  }
+
+  inline bool contains(const value_type &v) const {
+    const auto *data = Data;
+    const auto *data_end = Data + Size;
+    while (data < data_end) if (*data++ == v) return true;
+    return false;
+  }
+
+  inline size_t index_from_pointer(const_iterator it) const {
+    assert(it >= Data && it <= Data + Size);
+    const ptrdiff_t off = it - Data;
+    return (size_t) off;
+  }
+};
+
+
+
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
   grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
   grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);

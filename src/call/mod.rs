@@ -16,6 +16,7 @@ pub mod server;
 
 use std::sync::Arc;
 use std::{ptr, slice, usize};
+use std::io::{self, Write, ErrorKind};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -27,6 +28,7 @@ use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
+use grpc_sys::GrpcSlice;
 
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
@@ -111,6 +113,28 @@ impl RpcStatus {
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
+}
+
+pub struct MessageWriter {
+    ptr: *mut GrpcSlice
+}
+
+impl MessageWriter {
+    pub fn new() -> MessageWriter {
+        MessageWriter {
+            ptr: unimplemented!()
+        }
+    }
+}
+
+impl Write for MessageWriter {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        unimplemented!()
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl BatchContext {

@@ -12,9 +12,10 @@
 // limitations under the License.
 
 use error::Result;
+use call::MessageWriter;
 
 pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
-pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
+pub type SerializeFn<T> = fn(&T, &mut MessageWriter);
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -39,10 +40,11 @@ pub mod pb_codec {
     use protobuf::{self, Message};
 
     use error::Result;
+    use call::MessageWriter;
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
-        t.write_to_vec(buf).unwrap()
+    pub fn ser<T: Message>(t: &T, writer: MessageWriter) {
+        t.write_to_writer(writer).unwrap()
     }
 
     #[inline]
