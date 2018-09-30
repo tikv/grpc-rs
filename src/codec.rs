@@ -42,6 +42,7 @@ pub mod pb_codec {
 
     #[inline]
     pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
+        buf.reserve_exact(t.compute_size() as usize + 1);
         t.write_to_vec(buf).unwrap()
     }
 
