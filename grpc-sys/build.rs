@@ -84,8 +84,12 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
-        // We dont need generate install targets.
+        // We don't need to generate install targets.
         config.define("gRPC_INSTALL", "false");
+        // We don't need to build csharp target.
+        config.define("gRPC_BUILD_CSHARP_EXT", "false");
+        // We don't need to build codegen target.
+        config.define("gRPC_BUILD_CODEGEN", "false");
         config.build_target(library).uses_cxx11().build()
     };
 

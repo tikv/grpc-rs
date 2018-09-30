@@ -16,6 +16,9 @@ exclude = [
     "grpc/examples/*",
     "grpc/Makefile",
     "grpc/templates/*",
+    "grpc/src/android/*",
+    "grpc/src/csharp/*",
+    "grpc/src/boringssl/crypto_test_data.cc",
     "grpc/src/node/*",
     "grpc/src/objective-c/*",
     "grpc/src/php/*",
@@ -27,7 +30,9 @@ exclude = [
     "grpc/third_party/benchmark/*",
     "grpc/third_party/bloaty/*",
     "grpc/third_party/boringssl/fuzz/*",
-    "grpc/third_party/boringssl/crypto/cipher/test/*",
+    "grpc/third_party/boringssl/crypto/cipher_extra/test/*",
+    "grpc/third_party/boringssl/third_party/android-cmake/*",
+    "grpc/third_party/boringssl/util/*",
     "grpc/third_party/boringssl-with-bazel/*",
     "grpc/third_party/gflags/*",
     "grpc/third_party/googletest/*",
@@ -37,6 +42,7 @@ exclude = [
     "grpc/third_party/protobuf/*",
     "grpc/third_party/rake-compiler-dock/*",
     "grpc/third_party/toolchan/*",
+    "grpc/tools/run_tests/generated/*",
 ]
 
 [dependencies]
