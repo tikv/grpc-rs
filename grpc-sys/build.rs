@@ -138,6 +138,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
     }
 
     cc.include("grpc/include");
+    cc.include("grpc");
 }
 
 fn get_env(name: &str) -> Option<String> {

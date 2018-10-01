@@ -58,19 +58,15 @@ mod log_util;
 mod metadata;
 mod server;
 
-pub use call::client::{
-    CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
-    ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver, StreamingCallSink,
-};
-pub use call::server::{
-    ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink, DuplexSinkFailure,
-    RequestStream, RpcContext, ServerStreamingSink, ServerStreamingSinkFailure, UnarySink,
-    UnarySinkResult,
-};
 pub use call::{Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
-pub use channel::{
-    Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
-};
+pub use call::client::{CallOption, ClientCStreamReceiver, ClientCStreamSender,
+                       ClientDuplexReceiver, ClientDuplexSender, ClientSStreamReceiver,
+                       ClientUnaryReceiver, StreamingCallSink};
+pub use call::server::{ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink,
+                       DuplexSinkFailure, RequestStream, RpcContext, ServerStreamingSink,
+                       ServerStreamingSinkFailure, UnarySink, UnarySinkResult};
+pub use channel::{LbPolicy, OptTarget, Channel, ChannelArgsBuilder, ChannelBuilder,
+                  CompressionAlgorithms, CompressionLevel};
 pub use client::Client;
 #[cfg(feature = "protobuf-codec")]
 pub use codec::pb_codec::{de as pb_de, ser as pb_ser};

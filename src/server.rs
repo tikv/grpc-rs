@@ -25,7 +25,7 @@ use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 use async::{CallTag, CqFuture};
 use call::server::*;
 use call::{Method, MethodType};
-use channel::ChannelArgs;
+use channel::{ChannelArgsBuilder, ChannelArgs};
 use cq::CompletionQueue;
 use env::Environment;
 use error::{Error, Result};
@@ -248,7 +248,8 @@ pub struct Service {
 pub struct ServerBuilder {
     env: Arc<Environment>,
     binders: Vec<Binder>,
-    args: Option<ChannelArgs>,
+    args_builder: ChannelArgsBuilder,
+    args: Option<ChannelArgs>, // bench usage only
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
 }
@@ -259,6 +260,7 @@ impl ServerBuilder {
         ServerBuilder {
             env,
             binders: Vec::new(),
+            args_builder: ChannelArgsBuilder::new(),
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
@@ -280,6 +282,15 @@ impl ServerBuilder {
         self
     }
 
+    /// Apply a closure that can mutate each TCP socket's file descriptor.
+    pub fn socket_mutator<F>(mut self, f: F) -> ServerBuilder
+    where F: Fn(i32) -> bool,
+          F: 'static
+    {
+        self.args_builder.socket_mutator(f);
+        self
+    }
+
     /// Set how many requests a completion queue can handle.
     pub fn requests_slot_per_cq(mut self, slots: usize) -> ServerBuilder {
         self.slots_per_cq = slots;
@@ -294,10 +305,13 @@ impl ServerBuilder {
 
     /// Finalize the [`ServerBuilder`] and build the [`Server`].
     pub fn build(mut self) -> Result<Server> {
+        let built_args = self.args_builder.build();
         let args = self
             .args
             .as_ref()
-            .map_or_else(ptr::null, |args| args.as_ptr());
+            .unwrap_or(&built_args)
+            .as_ptr();
+
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let mut bind_addrs = Vec::with_capacity(self.binders.len());
