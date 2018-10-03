@@ -38,7 +38,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::RpcFailure(RpcStatus { status, details }) => match details {
+            Error::RpcFailure(RpcStatus { status, details, .. }) => match details {
                 Some(details) => write!(fmt, "RpcFailure: {} {}", status, details),
                 None => write!(fmt, "RpcFailure: {}", status),
             },
