@@ -11,6 +11,7 @@ protobuf = "~2.0"
 futures = "0.1"
 log = "0.3"
 clap = "2.23"
+futures-timer = "0.1"
 
 [[bin]]
 name = "interop_client"
