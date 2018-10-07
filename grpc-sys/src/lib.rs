@@ -17,6 +17,7 @@ extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
+use std::ptr;
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -24,6 +25,72 @@ pub struct CharVector {
     pub size: usize,
     pub capacity: usize,
     pub data: *mut u8,
+}
+
+impl Default for CharVector {
+    fn default() -> CharVector {
+        CharVector {
+            size: 0,
+            capacity: 0,
+            data: ptr::null_mut(),
+        }
+    }
+}
+
+impl CharVector {
+    pub fn new() -> CharVector {
+        CharVector::default()
+    }
+
+    #[inline]
+    pub fn push_back(&mut self, val: u8) {
+        unsafe {
+            char_vec_push_back(self as *mut _, val);
+        }
+    }
+
+    #[inline]
+    pub fn push_front(&mut self, val: u8) {
+        unsafe {
+            char_vec_push_front(self as *mut _, val);
+        }
+    }
+
+    #[inline]
+    pub fn pop_back(&mut self) {
+        unsafe {
+            char_vec_pop_back(self as *mut _);
+        }
+    }
+
+    #[inline]
+    pub fn set(&mut self, index: usize, val: u8) {
+        unsafe {
+            char_vec_set(self as *mut _, index, val);
+        }
+    }
+
+    #[inline]
+    pub fn get(&self, index: usize) -> u8 {
+        unsafe {
+            char_vec_get(self as *const _, index)
+        }
+    }
+
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    #[inline]
+    pub unsafe fn raw_ptr(&self) -> *mut u8 {
+        self.data
+    }
 }
 
 /// The clocks gRPC supports.
@@ -364,19 +431,34 @@ pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
 pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
+
 pub enum GrpcSlice {}
+
 pub enum GrpcCallDetails {}
+
 pub enum GrpcCompletionQueue {}
+
 pub enum GrpcChannel {}
+
 pub enum GrpcCall {}
+
 pub enum GrpcByteBuffer {}
+
 pub enum GrpcBatchContext {}
+
 pub enum GrpcServer {}
+
 pub enum GrpcRequestCallContext {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
+    pub fn char_vec_push_back(this: *mut CharVector, _: u8);
+    pub fn char_vec_push_front(this: *mut CharVector, _: u8);
+    pub fn char_vec_pop_back(this: *mut CharVector);
+    pub fn char_vec_set(this: *mut CharVector, index: usize, val: u8);
+    pub fn char_vec_get(this: *const CharVector, index: usize) -> u8;
+
     pub fn grpc_init();
     pub fn grpc_shutdown();
     pub fn grpc_version_string() -> *const c_char;
@@ -397,7 +479,7 @@ extern "C" {
     pub fn gpr_cpu_num_cores() -> c_uint;
 
     pub fn grpc_completion_queue_create_for_next(reserved: *mut c_void)
-        -> *mut GrpcCompletionQueue;
+                                                 -> *mut GrpcCompletionQueue;
     pub fn grpc_completion_queue_next(
         cq: *mut GrpcCompletionQueue,
         deadline: GprTimespec,
@@ -663,6 +745,7 @@ mod secure_component {
     use super::{GrpcChannel, GrpcChannelArgs, GrpcServer};
 
     pub enum GrpcChannelCredentials {}
+
     pub enum GrpcServerCredentials {}
 
     extern "C" {
@@ -706,6 +789,7 @@ pub use secure_component::*;
 #[cfg(test)]
 mod tests {
     use std::ptr;
+    use super::CharVector;
 
     #[test]
     fn smoke() {
@@ -715,5 +799,16 @@ mod tests {
             super::grpc_completion_queue_destroy(cq);
             super::grpc_shutdown();
         }
+    }
+
+    #[test]
+    fn vec_tests() {
+        let mut vec = CharVector::default();
+        assert_eq!(0, vec.size());
+        vec.push_back(233);
+        assert_eq!(233, vec.get(0));
+        assert_eq!(1, vec.size());
+        vec.pop_back();
+        assert_eq!(0, vec.size());
     }
 }

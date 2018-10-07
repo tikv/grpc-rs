@@ -82,12 +82,14 @@
 #include <memory.h>
 #include <assert.h>
 
+#define byte unsigned char
+
 class CharVector {
 public:
   size_t Size, Capacity;
-  unsigned char *Data;
+  byte *Data;
 
-  typedef unsigned char value_type;
+  typedef byte value_type;
   typedef value_type *iterator;
   typedef const value_type *const_iterator;
 
@@ -222,7 +224,7 @@ public:
     assert(it >= Data && it <= Data + Size);
     const ptrdiff_t off = it - Data;
     if (Size == Capacity) reserve(_grow_capacity(Size + 1));
-    if (off < Size)
+    if ((size_t) off < Size)
       memmove(Data + off + 1, Data + off,
         (Size - (size_t) off) * sizeof(value_type));
     memcpy(&Data[off], &v, sizeof(v));
@@ -244,7 +246,26 @@ public:
   }
 };
 
+GPR_EXPORT void GPR_CALLTYPE char_vec_push_back(CharVector* self, byte val) {
+  self->push_back(val);
+}
 
+GPR_EXPORT void GPR_CALLTYPE char_vec_push_front(CharVector* self, byte val) {
+  self->push_front(val);
+}
+
+GPR_EXPORT void GPR_CALLTYPE char_vec_pop_back(CharVector* self) {
+  self->pop_back();
+}
+
+GPR_EXPORT void GPR_CALLTYPE
+char_vec_set(CharVector* self, size_t index, byte val) {
+  self->operator[](index) = val;
+}
+
+GPR_EXPORT byte GPR_CALLTYPE char_vec_get(CharVector* self, size_t index) {
+  return self->operator[](index);
+}
 
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
   grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
