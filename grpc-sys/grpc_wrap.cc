@@ -270,6 +270,10 @@ GPR_EXPORT void GPR_CALLTYPE char_vec_drop(CharVector* self) {
   self->~CharVector();
 }
 
+GPR_EXPORT void GPR_CALLTYPE char_vec_reserve(CharVector* self, size_t new_len) {
+  self->reserve(new_len);
+}
+
 grpc_byte_buffer*
 u8_vec_to_byte_buffer_no_copy(uint8_t* buffer, size_t len) {
   auto slice = grpc_slice_new(buffer, len, gpr_free);

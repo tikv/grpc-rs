@@ -20,7 +20,7 @@ use std::io::{self, Write, ErrorKind};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, CharVector};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
@@ -28,7 +28,6 @@ use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
-use grpc_sys::GrpcSlice;
 
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
@@ -116,20 +115,23 @@ pub struct BatchContext {
 }
 
 pub struct MessageWriter {
-    ptr: *mut GrpcSlice
+    data: CharVector
 }
 
 impl MessageWriter {
     pub fn new() -> MessageWriter {
         MessageWriter {
-            ptr: unimplemented!()
+            data: CharVector::new()
         }
     }
 }
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        for c in buf {
+            self.data.push_back(c.clone());
+        }
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {

@@ -67,6 +67,13 @@ impl CharVector {
     }
 
     #[inline]
+    pub fn reserve(&mut self, new_size: usize) {
+        unsafe {
+            char_vec_reserve(self as *mut _, new_size);
+        }
+    }
+
+    #[inline]
     pub fn pop_back(&mut self) {
         unsafe {
             char_vec_pop_back(self as *mut _);
@@ -465,6 +472,7 @@ pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 extern "C" {
     pub fn char_vec_push_back(this: *mut CharVector, _: u8);
     pub fn char_vec_push_front(this: *mut CharVector, _: u8);
+    pub fn char_vec_reserve(this: *mut CharVector, new_size: usize);
     pub fn char_vec_pop_back(this: *mut CharVector);
     pub fn char_vec_set(this: *mut CharVector, index: usize, val: u8);
     pub fn char_vec_get(this: *const CharVector, index: usize) -> u8;
@@ -821,5 +829,7 @@ mod tests {
         assert_eq!(1, vec.size());
         vec.pop_back();
         assert_eq!(0, vec.size());
+        vec.reserve(233);
+        assert_eq!(233, vec.capacity);
     }
 }
