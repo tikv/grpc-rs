@@ -19,7 +19,9 @@ use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 use std::ptr;
 
-#[derive(Clone, Copy)]
+/// A vector that exposes it's raw data
+/// which means we can take the raw data away and use elsewhere
+/// without getting deallocated by the destructor.
 #[repr(C)]
 pub struct CharVector {
     pub size: usize,
@@ -33,6 +35,14 @@ impl Default for CharVector {
             size: 0,
             capacity: 0,
             data: ptr::null_mut(),
+        }
+    }
+}
+
+impl Drop for CharVector {
+    fn drop(&mut self) {
+        unsafe {
+            char_vec_drop(self as *mut _);
         }
     }
 }
@@ -458,6 +468,7 @@ extern "C" {
     pub fn char_vec_pop_back(this: *mut CharVector);
     pub fn char_vec_set(this: *mut CharVector, index: usize, val: u8);
     pub fn char_vec_get(this: *const CharVector, index: usize) -> u8;
+    pub fn char_vec_drop(this: *const CharVector);
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
@@ -803,7 +814,7 @@ mod tests {
 
     #[test]
     fn vec_tests() {
-        let mut vec = CharVector::default();
+        let mut vec = CharVector::new();
         assert_eq!(0, vec.size());
         vec.push_back(233);
         assert_eq!(233, vec.get(0));

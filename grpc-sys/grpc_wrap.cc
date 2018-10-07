@@ -76,13 +76,12 @@
 #define GPR_CALLTYPE
 #endif
 
-
 #include <stdlib.h>
 #include <stddef.h>
 #include <memory.h>
 #include <assert.h>
 
-#define byte unsigned char
+#define byte uint8_t
 
 class CharVector {
 public:
@@ -164,7 +163,7 @@ public:
   inline void resize(size_t new_size, const value_type &v) {
     if (new_size > Capacity)reserve(_grow_capacity(new_size));
     if (new_size > Size)
-      for (size_t n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v));
+      for (size_t n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof v);
     Size = new_size;
   }
 
@@ -265,6 +264,19 @@ char_vec_set(CharVector* self, size_t index, byte val) {
 
 GPR_EXPORT byte GPR_CALLTYPE char_vec_get(CharVector* self, size_t index) {
   return self->operator[](index);
+}
+
+GPR_EXPORT void GPR_CALLTYPE char_vec_drop(CharVector* self) {
+  self->~CharVector();
+}
+
+grpc_byte_buffer*
+u8_vec_to_byte_buffer_no_copy(uint8_t* buffer, size_t len) {
+  auto slice = grpc_slice_new(buffer, len, gpr_free);
+  assert(slice.refcount);
+  grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);
+  grpc_slice_unref(slice);
+  return bb;
 }
 
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
