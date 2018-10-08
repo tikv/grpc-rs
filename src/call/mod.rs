@@ -16,7 +16,7 @@ pub mod server;
 
 use std::sync::Arc;
 use std::{ptr, slice, usize};
-use std::io::{self, Write, ErrorKind};
+use std::io::{self, Write};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -123,6 +123,10 @@ impl MessageWriter {
         MessageWriter {
             data: CharVector::new()
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.size
     }
 }
 
@@ -245,18 +249,19 @@ impl Call {
     /// Send a message asynchronously.
     pub fn start_send_message(
         &mut self,
-        msg: &[u8],
+        msg: &mut MessageWriter,
         write_flags: u32,
         initial_meta: bool,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            let msg_len = msg.len();
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
-                msg.as_ptr() as _,
-                msg.len(),
+                msg.data.take_raw_ptr_away() as _,
+                msg_len,
                 write_flags,
                 i,
                 tag,
@@ -581,7 +586,7 @@ impl WriteFlags {
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
     batch_f: Option<BatchFuture>,
-    buf: Vec<u8>,
+    buf: MessageWriter,
     send_metadata: bool,
 }
 
@@ -589,7 +594,7 @@ impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
-            buf: Vec::new(),
+            buf: MessageWriter::new(),
             send_metadata,
         }
     }
@@ -617,7 +622,7 @@ impl SinkBase {
         }
         let write_f = call.call(|c| {
             c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+                .start_send_message(&mut self.buf, flags.flags, self.send_metadata)
         })?;
         self.batch_f = Some(write_f);
         self.send_metadata = false;

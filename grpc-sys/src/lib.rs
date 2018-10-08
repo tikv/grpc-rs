@@ -94,19 +94,20 @@ impl CharVector {
         }
     }
 
-    #[inline]
-    pub fn size(&self) -> usize {
-        self.size
-    }
-
-    #[inline]
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
+    /// Get the ptr, doesn't do anything else
     #[inline]
     pub unsafe fn raw_ptr(&self) -> *mut u8 {
         self.data
+    }
+
+    /// Get the ptr, clear the current vector
+    #[inline]
+    pub unsafe fn take_raw_ptr_away(&mut self) -> *mut u8 {
+        let ret = self.data;
+        self.data = ptr::null_mut();
+        self.capacity = 0;
+        self.size = 0;
+        ret
     }
 }
 

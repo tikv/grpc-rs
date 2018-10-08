@@ -20,7 +20,7 @@ use grpc_sys;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
-use call::{check_run, Call, Method};
+use call::{check_run, Call, Method, MessageWriter};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
@@ -113,14 +113,15 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = MessageWriter::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            let len = payload.len();
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
-                payload.as_ptr() as *const _,
-                payload.len(),
+                payload.data.take_raw_ptr_away() as *const _,
+                len,
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()
@@ -167,14 +168,15 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = MessageWriter::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            let len = payload.len();
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
-                payload.as_ptr() as _,
-                payload.len(),
+                payload.data.take_raw_ptr_away() as _,
+                len,
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()

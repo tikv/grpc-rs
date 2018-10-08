@@ -43,7 +43,7 @@ pub mod pb_codec {
     use call::MessageWriter;
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, writer: MessageWriter) {
+    pub fn ser<T: Message>(t: &T, writer: &mut MessageWriter) {
         t.write_to_writer(writer).unwrap()
     }
 
