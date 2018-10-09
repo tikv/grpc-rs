@@ -113,7 +113,7 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = Vec::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(
@@ -167,7 +167,7 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = Vec::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(
