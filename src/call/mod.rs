@@ -21,7 +21,7 @@ use std::io::{self, Write};
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcCall, GrpcCallStatus};
-use libc::c_void;
+use libc::{c_void, size_t};
 
 use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
@@ -155,7 +155,7 @@ impl Drop for MessageWriter {
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let in_len = buf.len();
+        let in_len: size_t = size_t::from(buf.len());
         self.size += in_len;
         unsafe {
             self.data.push(grpc_sys::grpc_slice_from_copied_buffer(buf.as_ptr(), in_len));

@@ -382,8 +382,8 @@ pub enum GrpcRequestCallContext {}
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
-    pub fn grpc_slice_from_copied_buffer(source: *const u8, len: usize) -> GrpcSlice;
-    pub fn grpc_raw_byte_buffer_create(source: *const GrpcSlice, len: usize) -> *mut GrpcByteBuffer;
+    pub fn grpc_slice_from_copied_buffer(source: *const u8, len: size_t) -> GrpcSlice;
+    pub fn grpc_raw_byte_buffer_create(source: *const GrpcSlice, len: size_t) -> *mut GrpcByteBuffer;
     pub fn grpc_slice_unref(slice: GrpcSlice);
 
     pub fn grpc_init();
