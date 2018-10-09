@@ -16,11 +16,13 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::io::Write;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
     self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
     RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
+    MessageWriter,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;
@@ -110,8 +112,8 @@ impl Generic {
 
 #[inline]
 #[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
-pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
-    buf.extend_from_slice(t)
+pub fn bin_ser(t: &Vec<u8>, buf: &mut MessageWriter) {
+    buf.write(t.as_ref()).unwrap();
 }
 
 #[inline]
