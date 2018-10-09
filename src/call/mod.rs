@@ -274,15 +274,14 @@ impl Call {
     /// Send a message asynchronously.
     pub fn start_send_message(
         &mut self,
-        msg: &mut MessageWriter,
+        msg: &MessageWriter,
         write_flags: u32,
         initial_meta: bool,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let msg_len = msg.len();
-            let buffer = grpc_sys::string_to_byte_buffer(msg.data.as_ptr() as _, msg_len);
+            let buffer = msg.as_ptr();
             grpc_sys::grpcwrap_call_send_message(self.call, ctx, buffer, write_flags, i, tag)
         });
         Ok(f)
@@ -634,11 +633,9 @@ impl SinkBase {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
         }
-        let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&mut self.buf, flags.flags, self.send_metadata)
-        })?;
-        self.batch_f = Some(write_f);
+        self.batch_f = Some(call.call(|c| {
+            c.call.start_send_message(&self.buf, flags.flags, self.send_metadata)
+        })?);
         self.send_metadata = false;
         Ok(true)
     }
