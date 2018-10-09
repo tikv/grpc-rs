@@ -18,14 +18,6 @@ extern crate libc;
 use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
 
-pub fn string_to_byte_buffer(buffer: *const u8, len: usize) -> *mut GrpcByteBuffer {
-    unsafe {
-        let slice = grpc_slice_from_copied_buffer(buffer, len);
-        let byte_buffer = grpc_raw_byte_buffer_create(&slice, 1);
-        return byte_buffer;
-    }
-}
-
 /// The clocks gRPC supports.
 ///
 /// Based on `gpr_clock_type`.

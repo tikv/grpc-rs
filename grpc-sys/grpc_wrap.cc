@@ -62,7 +62,6 @@
 #endif
 
 #include <string.h>
-#include <assert.h>
 
 #ifdef GPR_WINDOWS
 #define GPR_EXPORT extern "C" __declspec(dllexport)
