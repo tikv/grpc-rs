@@ -47,10 +47,12 @@ exclude = [
 
 [dependencies]
 libc = "0.2"
+# openssl = { version = "*", optional = true }
 
 [features]
 default = []
 secure = []
+openssl = ["secure"]
 
 [build-dependencies]
 cc = "1.0"

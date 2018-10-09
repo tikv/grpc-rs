@@ -87,6 +87,10 @@ fn build_grpc(cc: &mut Build, library: &str) {
         config.define("gRPC_BUILD_CSHARP_EXT", "false");
         // We don't need to build codegen target.
         config.define("gRPC_BUILD_CODEGEN", "false");
+        if cfg!(feature = "openssl") {
+            config.define("gRPC_SSL_PROVIDER", "package");
+            config.define("EMBED_OPENSSL", "false");
+        }
         config.build_target(library).uses_cxx11().build()
     };
 
@@ -133,8 +137,13 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        println!("cargo:rustc-link-lib=static=ssl");
-        println!("cargo:rustc-link-lib=static=crypto");
+        if cfg!(feature = "openssl") {
+            println!("cargo:rustc-link-lib=ssl");
+            println!("cargo:rustc-link-lib=crypto");
+        } else {
+            println!("cargo:rustc-link-lib=static=ssl");
+            println!("cargo:rustc-link-lib=static=crypto");
+        }
     }
 
     cc.include("grpc/include");
