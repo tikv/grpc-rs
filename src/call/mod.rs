@@ -129,6 +129,11 @@ impl MessageWriter {
     }
 
     pub fn clear(&mut self) {
+        unsafe {
+            for slice in self.data.iter() {
+                grpc_sys::grpc_slice_unref(slice.clone());
+            }
+        }
         self.data.clear();
         self.size = 0;
     }
@@ -144,11 +149,7 @@ impl MessageWriter {
 
 impl Drop for MessageWriter {
     fn drop(&mut self) {
-        unsafe {
-            for slice in self.data.iter() {
-                grpc_sys::grpc_slice_unref(slice.clone());
-            }
-        }
+        self.clear();
     }
 }
 
