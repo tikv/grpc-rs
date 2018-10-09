@@ -1,4 +1,4 @@
-dist: bionic
+dist: trusty
 sudo: true
 language: rust
 cache:
