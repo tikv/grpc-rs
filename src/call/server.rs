@@ -20,7 +20,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
-use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{BatchContext, Call, MethodType, MessageWriter, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -323,7 +323,7 @@ macro_rules! impl_unary_sink {
 
             fn complete(mut self, status: RpcStatus, t: Option<T>) -> $rt {
                 let data = t.as_ref().map(|t| {
-                    let mut buf = vec![];
+                    let mut buf = MessageWriter::new();
                     (self.ser)(t, &mut buf);
                     buf
                 });

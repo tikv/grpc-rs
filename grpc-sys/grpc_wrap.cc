@@ -270,6 +270,10 @@ GPR_EXPORT void GPR_CALLTYPE char_vec_drop(CharVector* self) {
   self->~CharVector();
 }
 
+GPR_EXPORT void GPR_CALLTYPE char_vec_clear(CharVector* self) {
+  self->clear();
+}
+
 GPR_EXPORT void GPR_CALLTYPE char_vec_reserve(CharVector* self, size_t new_len) {
   self->reserve(new_len);
 }

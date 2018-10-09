@@ -125,6 +125,16 @@ impl MessageWriter {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
+    pub fn take_raw_ptr_away(&mut self) -> *mut u8 {
+        unsafe {
+            self.data.take_raw_ptr_away()
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.data.size
     }
@@ -304,14 +314,14 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: &Option<Vec<u8>>,
+        payload: &Option<MessageWriter>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let (payload_ptr, payload_len) = payload
             .as_ref()
-            .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
+            .map_or((ptr::null_mut(), 0), |b| (b.take_raw_ptr_away(), b.len()));
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let details_ptr = status
                 .details

@@ -53,6 +53,13 @@ impl CharVector {
     }
 
     #[inline]
+    pub fn clear(&mut self) {
+        unsafe {
+            char_vec_clear(self as *mut _);
+        }
+    }
+
+    #[inline]
     pub fn push_back(&mut self, val: u8) {
         unsafe {
             char_vec_push_back(self as *mut _, val);
@@ -478,6 +485,7 @@ extern "C" {
     pub fn char_vec_set(this: *mut CharVector, index: usize, val: u8);
     pub fn char_vec_get(this: *const CharVector, index: usize) -> u8;
     pub fn char_vec_drop(this: *const CharVector);
+    pub fn char_vec_clear(this: *const CharVector);
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
@@ -824,12 +832,12 @@ mod tests {
     #[test]
     fn vec_tests() {
         let mut vec = CharVector::new();
-        assert_eq!(0, vec.size());
+        assert_eq!(0, vec.size);
         vec.push_back(233);
         assert_eq!(233, vec.get(0));
-        assert_eq!(1, vec.size());
+        assert_eq!(1, vec.size);
         vec.pop_back();
-        assert_eq!(0, vec.size());
+        assert_eq!(0, vec.size);
         vec.reserve(233);
         assert_eq!(233, vec.capacity);
     }
