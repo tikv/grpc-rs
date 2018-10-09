@@ -28,6 +28,7 @@ use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
+use grpc_sys::GrpcByteBuffer;
 
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
@@ -132,8 +133,8 @@ impl MessageWriter {
         self.size = 0;
     }
 
-    pub fn as_ptr(&self) -> *mut u8 {
-        unimplemented!();
+    pub unsafe fn as_ptr(&self) -> *mut GrpcByteBuffer {
+        grpc_sys::grpc_raw_byte_buffer_create(self.data.as_ptr(), self.data.len())
     }
 
     pub fn len(&self) -> usize {
@@ -141,11 +142,24 @@ impl MessageWriter {
     }
 }
 
+impl Drop for MessageWriter {
+    fn drop(&mut self) {
+        unsafe {
+            for slice in self.data.iter() {
+                grpc_sys::grpc_slice_unref(slice.clone());
+            }
+        }
+    }
+}
+
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let in_len = buf.len();
         self.size += in_len;
-        unimplemented!();
+        unsafe {
+            self.data.push(grpc_sys::grpc_slice_from_copied_buffer(buf.as_ptr(), in_len));
+        }
+        Ok(in_len)
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -314,7 +328,7 @@ impl Call {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let buffer = payload
             .as_ref()
-            .map_or(ptr::null_mut(), |b| grpc_sys::string_to_byte_buffer(b.as_ptr(), b.len()));
+            .map_or_else(ptr::null_mut, |p| unsafe { p.as_ptr() });
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let (details_ptr, details_len) = status
                 .details

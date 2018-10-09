@@ -22,7 +22,6 @@ pub fn string_to_byte_buffer(buffer: *const u8, len: usize) -> *mut GrpcByteBuff
     unsafe {
         let slice = grpc_slice_from_copied_buffer(buffer, len);
         let byte_buffer = grpc_raw_byte_buffer_create(&slice, 1);
-        grpc_slice_unref(slice);
         return byte_buffer;
     }
 }
@@ -366,6 +365,8 @@ pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
 
+/// It's safe to derive `clone`, since [GrpcSlice] has value semantics
+#[derive(Clone)]
 pub enum GrpcSlice {}
 
 pub enum GrpcCallDetails {}
