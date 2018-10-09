@@ -117,11 +117,11 @@ impl Call {
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             let len = payload.len();
+            let send_buf = grpc_sys::string_to_byte_buffer(payload.as_ptr(), len);
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
-                payload.data.take_raw_ptr_away() as *const _,
-                len,
+                send_buf,
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()
@@ -172,11 +172,11 @@ impl Call {
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let len = payload.len();
+            let buffer = grpc_sys::string_to_byte_buffer(payload.as_ptr() as _, len);
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
-                payload.data.take_raw_ptr_away() as _,
-                len,
+                buffer,
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()

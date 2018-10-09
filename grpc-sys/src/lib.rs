@@ -17,104 +17,13 @@ extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
 use std::time::Duration;
-use std::ptr;
 
-/// A vector that exposes it's raw data
-/// which means we can take the raw data away and use elsewhere
-/// without getting deallocated by the destructor.
-#[repr(C)]
-pub struct CharVector {
-    pub size: usize,
-    pub capacity: usize,
-    pub data: *mut u8,
-}
-
-impl Default for CharVector {
-    fn default() -> CharVector {
-        CharVector {
-            size: 0,
-            capacity: 0,
-            data: ptr::null_mut(),
-        }
-    }
-}
-
-impl Drop for CharVector {
-    fn drop(&mut self) {
-        unsafe {
-            char_vec_drop(self as *mut _);
-        }
-    }
-}
-
-impl CharVector {
-    pub fn new() -> CharVector {
-        CharVector::default()
-    }
-
-    #[inline]
-    pub fn clear(&mut self) {
-        unsafe {
-            char_vec_clear(self as *mut _);
-        }
-    }
-
-    #[inline]
-    pub fn push_back(&mut self, val: u8) {
-        unsafe {
-            char_vec_push_back(self as *mut _, val);
-        }
-    }
-
-    #[inline]
-    pub fn push_front(&mut self, val: u8) {
-        unsafe {
-            char_vec_push_front(self as *mut _, val);
-        }
-    }
-
-    #[inline]
-    pub fn reserve(&mut self, new_size: usize) {
-        unsafe {
-            char_vec_reserve(self as *mut _, new_size);
-        }
-    }
-
-    #[inline]
-    pub fn pop_back(&mut self) {
-        unsafe {
-            char_vec_pop_back(self as *mut _);
-        }
-    }
-
-    #[inline]
-    pub fn set(&mut self, index: usize, val: u8) {
-        unsafe {
-            char_vec_set(self as *mut _, index, val);
-        }
-    }
-
-    #[inline]
-    pub fn get(&self, index: usize) -> u8 {
-        unsafe {
-            char_vec_get(self as *const _, index)
-        }
-    }
-
-    /// Get the ptr, doesn't do anything else
-    #[inline]
-    pub unsafe fn raw_ptr(&self) -> *mut u8 {
-        self.data
-    }
-
-    /// Get the ptr, clear the current vector
-    #[inline]
-    pub unsafe fn take_raw_ptr_away(&mut self) -> *mut u8 {
-        let ret = self.data;
-        self.data = ptr::null_mut();
-        self.capacity = 0;
-        self.size = 0;
-        ret
+pub fn string_to_byte_buffer(buffer: *const u8, len: usize) -> *mut GrpcByteBuffer {
+    unsafe {
+        let slice = grpc_slice_from_copied_buffer(buffer, len);
+        let byte_buffer = grpc_raw_byte_buffer_create(&slice, 1);
+        grpc_slice_unref(slice);
+        return byte_buffer;
     }
 }
 
@@ -473,19 +382,16 @@ pub enum GrpcBatchContext {}
 
 pub enum GrpcServer {}
 
+pub enum GrpcSliceBuffer {}
+
 pub enum GrpcRequestCallContext {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
-    pub fn char_vec_push_back(this: *mut CharVector, _: u8);
-    pub fn char_vec_push_front(this: *mut CharVector, _: u8);
-    pub fn char_vec_reserve(this: *mut CharVector, new_size: usize);
-    pub fn char_vec_pop_back(this: *mut CharVector);
-    pub fn char_vec_set(this: *mut CharVector, index: usize, val: u8);
-    pub fn char_vec_get(this: *const CharVector, index: usize) -> u8;
-    pub fn char_vec_drop(this: *const CharVector);
-    pub fn char_vec_clear(this: *const CharVector);
+    pub fn grpc_slice_from_copied_buffer(source: *const u8, len: usize) -> GrpcSlice;
+    pub fn grpc_raw_byte_buffer_create(source: *const GrpcSlice, len: usize) -> *mut GrpcByteBuffer;
+    pub fn grpc_slice_unref(slice: GrpcSlice);
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
@@ -594,8 +500,7 @@ extern "C" {
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
-        send_buffer_len: size_t,
+        send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
         initial_metadata_flags: uint32_t,
@@ -611,8 +516,7 @@ extern "C" {
     pub fn grpcwrap_call_start_server_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
-        send_buffer_len: size_t,
+        send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
         initial_metadata_flags: uint32_t,
@@ -633,8 +537,7 @@ extern "C" {
     pub fn grpcwrap_call_send_message(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
-        send_buffer_len: size_t,
+        send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         send_empty_initial_metadata: uint32_t,
         tag: *mut c_void,
@@ -651,8 +554,7 @@ extern "C" {
         status_details_len: size_t,
         trailing_metadata: *mut GrpcMetadataArray,
         send_empty_metadata: int32_t,
-        optional_send_buffer: *const c_char,
-        buffer_len: size_t,
+        optional_send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
@@ -817,7 +719,6 @@ pub use secure_component::*;
 #[cfg(test)]
 mod tests {
     use std::ptr;
-    use super::CharVector;
 
     #[test]
     fn smoke() {
@@ -827,18 +728,5 @@ mod tests {
             super::grpc_completion_queue_destroy(cq);
             super::grpc_shutdown();
         }
-    }
-
-    #[test]
-    fn vec_tests() {
-        let mut vec = CharVector::new();
-        assert_eq!(0, vec.size);
-        vec.push_back(233);
-        assert_eq!(233, vec.get(0));
-        assert_eq!(1, vec.size);
-        vec.pop_back();
-        assert_eq!(0, vec.size);
-        vec.reserve(233);
-        assert_eq!(233, vec.capacity);
     }
 }

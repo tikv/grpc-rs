@@ -62,6 +62,7 @@
 #endif
 
 #include <string.h>
+#include <assert.h>
 
 #ifdef GPR_WINDOWS
 #define GPR_EXPORT extern "C" __declspec(dllexport)
@@ -75,217 +76,6 @@
 #ifndef GPR_CALLTYPE
 #define GPR_CALLTYPE
 #endif
-
-#include <stdlib.h>
-#include <stddef.h>
-#include <memory.h>
-#include <assert.h>
-
-#define byte uint8_t
-
-class CharVector {
-public:
-  size_t Size, Capacity;
-  byte *Data;
-
-  typedef byte value_type;
-  typedef value_type *iterator;
-  typedef const value_type *const_iterator;
-
-  /// this means if we get Data's value and assign it to NULL
-  inline ~CharVector() { if (Data) free(Data); }
-  inline CharVector() { Size = Capacity = 0; Data = nullptr; }
-  inline CharVector(const CharVector &src) {
-    Size = Capacity = 0;
-    Data = nullptr;
-    operator=(src);
-  }
-
-  inline CharVector &operator=(const CharVector &src) {
-    clear();
-    resize(src.Size);
-    memcpy(Data, src.Data, Size * sizeof(value_type));
-    return *this;
-  }
-
-  inline bool empty() const { return Size == 0; }
-  inline size_t size() const { return Size; }
-  inline size_t capacity() const { return Capacity; }
-  inline value_type &operator[](size_t i) { assert(i < Size); return Data[i]; }
-  inline const value_type &operator[](size_t i) const {
-    assert(i < Size);
-    return Data[i];
-  }
-
-  inline void clear() {
-    if (!Data) return;
-    Size = Capacity = 0;
-    free(Data);
-    Data = nullptr;
-  }
-
-  inline iterator begin() { return Data; }
-  inline const_iterator begin() const { return Data; }
-  inline iterator end() { return Data + Size; }
-  inline const_iterator end() const { return Data + Size; }
-  inline value_type &front() { assert(Size > 0); return Data[0]; }
-  inline const value_type &front() const { assert(Size > 0); return Data[0]; }
-  inline value_type &back() { assert(Size > 0); return Data[Size - 1]; }
-  inline void pop_back() { assert(Size > 0); Size--; }
-
-  inline const value_type &back() const {
-    assert(Size > 0);
-    return Data[Size - 1];
-  }
-
-  inline void swap(CharVector &rhs) {
-    size_t rhs_size = rhs.Size;
-    rhs.Size = Size;
-    Size = rhs_size;
-    size_t rhs_cap = rhs.Capacity;
-    rhs.Capacity = Capacity;
-    Capacity = rhs_cap;
-    value_type *rhs_data = rhs.Data;
-    rhs.Data = Data;
-    Data = rhs_data;
-  }
-
-  inline size_t _grow_capacity(size_t sz) const {
-    size_t new_capacity = Capacity ? (Capacity + Capacity / 2) : 8;
-    return new_capacity > sz ? new_capacity : sz;
-  }
-
-  inline void resize(size_t new_size) {
-    if (new_size > Capacity) reserve(_grow_capacity(new_size));
-    Size = new_size;
-  }
-
-  inline void resize(size_t new_size, const value_type &v) {
-    if (new_size > Capacity)reserve(_grow_capacity(new_size));
-    if (new_size > Size)
-      for (size_t n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof v);
-    Size = new_size;
-  }
-
-  inline void reserve(size_t new_capacity) {
-    if (new_capacity <= Capacity) return;
-    auto *new_data = (value_type *) malloc(new_capacity * sizeof(value_type));
-    if (Data) {
-      memcpy(new_data, Data, Size * sizeof(value_type));
-      free(Data);
-    }
-    Data = new_data;
-    Capacity = new_capacity;
-  }
-
-  // NB: It is forbidden to call push_back/push_front/insert with a reference pointing inside the ImVector data itself! e.g. v.push_back(v[10]) is forbidden.
-  inline void push_back(const value_type &v) {
-    if (Size == Capacity) reserve(_grow_capacity(Size + 1));
-    memcpy(&Data[Size], &v, sizeof(v));
-    Size++;
-  }
-
-  inline void push_front(const value_type &v) {
-    if (Size == 0) push_back(v);
-    else insert(Data, v);
-  }
-
-  inline iterator erase(const_iterator it) {
-    assert(it >= Data && it < Data + Size);
-    const ptrdiff_t off = it - Data;
-    memmove(Data + off, Data + off + 1,
-            (Size - (size_t) off - 1) * sizeof(value_type));
-    Size--;
-    return Data + off;
-  }
-
-  inline iterator erase(const_iterator it, const_iterator it_last) {
-    assert(it >= Data && it < Data + Size && it_last > it &&
-           it_last <= Data + Size);
-    const ptrdiff_t count = it_last - it;
-    const ptrdiff_t off = it - Data;
-    memmove(Data + off, Data + off + count,
-            (Size - (size_t) off - count) * sizeof(value_type));
-    Size -= count;
-    return Data + off;
-  }
-
-  inline iterator erase_unsorted(const_iterator it) {
-    assert(it >= Data && it < Data + Size);
-    const ptrdiff_t off = it - Data;
-    if (it < Data + Size - 1)
-      memcpy(Data + off, Data + Size - 1, sizeof(value_type));
-    Size--;
-    return Data + off;
-  }
-
-  inline iterator insert(const_iterator it, const value_type &v) {
-    assert(it >= Data && it <= Data + Size);
-    const ptrdiff_t off = it - Data;
-    if (Size == Capacity) reserve(_grow_capacity(Size + 1));
-    if ((size_t) off < Size)
-      memmove(Data + off + 1, Data + off,
-        (Size - (size_t) off) * sizeof(value_type));
-    memcpy(&Data[off], &v, sizeof(v));
-    Size++;
-    return Data + off;
-  }
-
-  inline bool contains(const value_type &v) const {
-    const auto *data = Data;
-    const auto *data_end = Data + Size;
-    while (data < data_end) if (*data++ == v) return true;
-    return false;
-  }
-
-  inline size_t index_from_pointer(const_iterator it) const {
-    assert(it >= Data && it <= Data + Size);
-    const ptrdiff_t off = it - Data;
-    return (size_t) off;
-  }
-};
-
-GPR_EXPORT void GPR_CALLTYPE char_vec_push_back(CharVector* self, byte val) {
-  self->push_back(val);
-}
-
-GPR_EXPORT void GPR_CALLTYPE char_vec_push_front(CharVector* self, byte val) {
-  self->push_front(val);
-}
-
-GPR_EXPORT void GPR_CALLTYPE char_vec_pop_back(CharVector* self) {
-  self->pop_back();
-}
-
-GPR_EXPORT void GPR_CALLTYPE
-char_vec_set(CharVector* self, size_t index, byte val) {
-  self->operator[](index) = val;
-}
-
-GPR_EXPORT byte GPR_CALLTYPE char_vec_get(CharVector* self, size_t index) {
-  return self->operator[](index);
-}
-
-GPR_EXPORT void GPR_CALLTYPE char_vec_drop(CharVector* self) {
-  self->~CharVector();
-}
-
-GPR_EXPORT void GPR_CALLTYPE char_vec_clear(CharVector* self) {
-  self->clear();
-}
-
-GPR_EXPORT void GPR_CALLTYPE char_vec_reserve(CharVector* self, size_t new_len) {
-  self->reserve(new_len);
-}
-
-grpc_byte_buffer*
-u8_vec_to_byte_buffer_no_copy(uint8_t* buffer, size_t len) {
-  auto slice = grpc_slice_new(buffer, len, gpr_free);
-  assert(slice.refcount);
-  grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);
-  grpc_slice_unref(slice);
-  return bb;
-}
 
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
   grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
@@ -683,10 +473,9 @@ grpcwrap_channel_args_destroy(grpc_channel_args* args) {
 /* Call */
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_unary(
-    grpc_call* call, grpcwrap_batch_context* ctx, const char* send_buffer,
-    size_t send_buffer_len, uint32_t write_flags,
-    grpc_metadata_array* initial_metadata, uint32_t initial_metadata_flags,
-    void* tag) {
+    grpc_call* call, grpcwrap_batch_context* ctx, grpc_byte_buffer* buffer,
+    uint32_t write_flags, grpc_metadata_array* initial_metadata,
+    uint32_t initial_metadata_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[6];
   memset(ops, 0, sizeof(ops));
@@ -699,7 +488,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_unary(
   ops[0].reserved = NULL;
 
   ops[1].op = GRPC_OP_SEND_MESSAGE;
-  ctx->send_message = string_to_byte_buffer(send_buffer, send_buffer_len);
+  ctx->send_message = buffer;
   ops[1].data.send_message.send_message = ctx->send_message;
   ops[1].flags = write_flags;
   ops[1].reserved = NULL;
@@ -774,10 +563,9 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_client_streaming(
 }
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_server_streaming(
-    grpc_call* call, grpcwrap_batch_context* ctx, const char* send_buffer,
-    size_t send_buffer_len, uint32_t write_flags,
-    grpc_metadata_array* initial_metadata, uint32_t initial_metadata_flags,
-    void* tag) {
+    grpc_call* call, grpcwrap_batch_context* ctx, grpc_byte_buffer* send_buffer,
+    uint32_t write_flags, grpc_metadata_array* initial_metadata,
+    uint32_t initial_metadata_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[4];
   memset(ops, 0, sizeof(ops));
@@ -790,7 +578,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_server_streaming(
   ops[0].reserved = NULL;
 
   ops[1].op = GRPC_OP_SEND_MESSAGE;
-  ctx->send_message = string_to_byte_buffer(send_buffer, send_buffer_len);
+  ctx->send_message = send_buffer;
   ops[1].data.send_message.send_message = ctx->send_message;
   ops[1].flags = write_flags;
   ops[1].reserved = NULL;
@@ -857,15 +645,14 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_recv_initial_metadata(
 }
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_message(
-    grpc_call* call, grpcwrap_batch_context* ctx, const char* send_buffer,
-    size_t send_buffer_len, uint32_t write_flags,
-    int32_t send_empty_initial_metadata, void* tag) {
+    grpc_call* call, grpcwrap_batch_context* ctx, grpc_byte_buffer* send_buffer,
+    uint32_t write_flags, int32_t send_empty_initial_metadata, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[2];
   memset(ops, 0, sizeof(ops));
   size_t nops = send_empty_initial_metadata ? 2 : 1;
   ops[0].op = GRPC_OP_SEND_MESSAGE;
-  ctx->send_message = string_to_byte_buffer(send_buffer, send_buffer_len);
+  ctx->send_message = send_buffer;
   ops[0].data.send_message.send_message = ctx->send_message;
   ops[0].flags = write_flags;
   ops[0].reserved = NULL;
@@ -892,8 +679,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
     grpc_call* call, grpcwrap_batch_context* ctx, grpc_status_code status_code,
     const char* status_details, size_t status_details_len,
     grpc_metadata_array* trailing_metadata, int32_t send_empty_initial_metadata,
-    const char* optional_send_buffer, size_t optional_send_buffer_len,
-    uint32_t write_flags, void* tag) {
+    grpc_byte_buffer* optional_send_buffer, uint32_t write_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[3];
   memset(ops, 0, sizeof(ops));
@@ -913,8 +699,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
   ops[0].reserved = NULL;
   if (optional_send_buffer) {
     ops[nops].op = GRPC_OP_SEND_MESSAGE;
-    ctx->send_message =
-        string_to_byte_buffer(optional_send_buffer, optional_send_buffer_len);
+    ctx->send_message = optional_send_buffer;
     ops[nops].data.send_message.send_message = ctx->send_message;
     ops[nops].flags = write_flags;
     ops[nops].reserved = NULL;

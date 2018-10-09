@@ -20,7 +20,7 @@ use std::io::{self, Write};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, CharVector};
+use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcCall, GrpcCallStatus};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
@@ -115,37 +115,37 @@ pub struct BatchContext {
 }
 
 pub struct MessageWriter {
-    data: CharVector
+    data: Vec<GrpcSlice>,
+    size: usize,
 }
 
 impl MessageWriter {
     pub fn new() -> MessageWriter {
         MessageWriter {
-            data: CharVector::new()
+            data: Vec::new(),
+            size: 0,
         }
     }
 
     pub fn clear(&mut self) {
         self.data.clear();
+        self.size = 0;
     }
 
-    pub fn take_raw_ptr_away(&mut self) -> *mut u8 {
-        unsafe {
-            self.data.take_raw_ptr_away()
-        }
+    pub fn as_ptr(&self) -> *mut u8 {
+        unimplemented!();
     }
 
     pub fn len(&self) -> usize {
-        self.data.size
+        self.size
     }
 }
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        for c in buf {
-            self.data.push_back(c.clone());
-        }
-        Ok(buf.len())
+        let in_len = buf.len();
+        self.size += in_len;
+        unimplemented!();
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -267,15 +267,8 @@ impl Call {
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let msg_len = msg.len();
-            grpc_sys::grpcwrap_call_send_message(
-                self.call,
-                ctx,
-                msg.data.take_raw_ptr_away() as _,
-                msg_len,
-                write_flags,
-                i,
-                tag,
-            )
+            let buffer = grpc_sys::string_to_byte_buffer(msg.data.as_ptr() as _, msg_len);
+            grpc_sys::grpcwrap_call_send_message(self.call, ctx, buffer, write_flags, i, tag)
         });
         Ok(f)
     }
@@ -319,15 +312,14 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let (payload_ptr, payload_len) = payload
+        let buffer = payload
             .as_ref()
-            .map_or((ptr::null_mut(), 0), |b| (b.take_raw_ptr_away(), b.len()));
+            .map_or(ptr::null_mut(), |b| grpc_sys::string_to_byte_buffer(b.as_ptr(), b.len()));
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let details_ptr = status
+            let (details_ptr, details_len) = status
                 .details
                 .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
-            let details_len = status.details.as_ref().map_or(0, String::len);
+                .map_or_else(|| (ptr::null(), 0), |s| (s.as_ptr() as _, s.len()));
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
@@ -336,8 +328,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 send_empty_metadata,
-                payload_ptr as _,
-                payload_len,
+                buffer,
                 write_flags,
                 tag,
             )
@@ -358,11 +349,10 @@ impl Call {
         let (batch_ptr, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
-            let details_ptr = status
+            let (details_ptr, details_len) = status
                 .details
                 .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
-            let details_len = status.details.as_ref().map_or(0, String::len);
+                .map_or_else(|| (ptr::null(), 0), |s| (s.as_ptr() as _, s.len()));
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
                 batch_ptr,
@@ -371,8 +361,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 1,
-                ptr::null(),
-                0,
+                ptr::null_mut(),
                 0,
                 tag_ptr as *mut c_void,
             )
