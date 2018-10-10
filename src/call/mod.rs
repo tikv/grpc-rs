@@ -158,7 +158,7 @@ impl Write for MessageWriter {
         let in_len: size_t = size_t::from(buf.len());
         self.size += in_len;
         unsafe {
-            self.data.push(grpc_sys::grpc_slice_from_copied_buffer(buf.as_ptr(), in_len));
+            self.data.push(grpc_sys::grpc_slice_from_copied_buffer(buf.as_ptr() as _, in_len));
         }
         Ok(in_len)
     }

@@ -15,7 +15,7 @@
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint8_t, uint32_t};
 use std::time::Duration;
 
 /// The clocks gRPC supports.
@@ -357,9 +357,43 @@ pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
 
-/// It's safe to derive `clone`, since [GrpcSlice] has value semantics
-#[derive(Clone)]
-pub enum GrpcSlice {}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSliceRefCounted {
+    bytes: *mut uint8_t,
+    length: size_t,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSliceInlined {
+    length: uint8_t,
+    // TODO: use size_of when it becomes a const function.
+    #[cfg(target_pointer_width = "64")]
+    bytes: [uint8_t; 23],
+    #[cfg(target_pointer_width = "32")]
+    bytes: [uint8_t; 11],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union GrpcSliceData {
+    ref_counted: GrpcSliceRefCounted,
+    inlined: GrpcSliceInlined,
+}
+
+pub enum GrpcSliceRefCount {}
+
+/// It's safe to derive [Clone] and [Copy], since [GrpcSlice] has value semantics
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSlice {
+    ref_count: *mut GrpcSliceRefCount,
+    data: GrpcSliceData,
+}
+
+unsafe impl Sync for GrpcSlice {}
+unsafe impl Send for GrpcSlice {}
 
 pub enum GrpcCallDetails {}
 
@@ -382,7 +416,7 @@ pub enum GrpcRequestCallContext {}
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
-    pub fn grpc_slice_from_copied_buffer(source: *const u8, len: size_t) -> GrpcSlice;
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, len: size_t) -> GrpcSlice;
     pub fn grpc_raw_byte_buffer_create(source: *const GrpcSlice, len: size_t) -> *mut GrpcByteBuffer;
     pub fn grpc_slice_unref(slice: GrpcSlice);
 
