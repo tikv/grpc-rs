@@ -390,8 +390,8 @@ impl RequestCallContext {
     }
 }
 
-// Apprently, its life time is guaranteed by the ref count, hence is safe to be sent
-// to other thread. However it's not `Sync`, as `BoxHandler` is not neccessary `Sync`.
+// Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
+// to other thread. However it's not `Sync`, as `BoxHandler` is unnecessarily `Sync`.
 unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.
