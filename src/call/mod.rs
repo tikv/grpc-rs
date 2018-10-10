@@ -131,7 +131,7 @@ impl MessageWriter {
     pub fn clear(&mut self) {
         unsafe {
             for slice in self.data.iter() {
-                grpc_sys::grpc_slice_unref(slice.clone());
+                grpc_sys::grpc_slice_unref(*slice);
             }
         }
         self.data.clear();
@@ -142,8 +142,14 @@ impl MessageWriter {
         grpc_sys::grpc_raw_byte_buffer_create(self.data.as_ptr(), self.data.len())
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.size
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
     }
 }
 
@@ -155,7 +161,7 @@ impl Drop for MessageWriter {
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let in_len: size_t = size_t::from(buf.len());
+        let in_len: size_t = buf.len();
         self.size += in_len;
         unsafe {
             self.data.push(grpc_sys::grpc_slice_from_copied_buffer(buf.as_ptr() as _, in_len));
