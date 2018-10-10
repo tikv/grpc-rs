@@ -90,6 +90,10 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if cfg!(feature = "openssl") {
             config.define("gRPC_SSL_PROVIDER", "package");
             config.define("EMBED_OPENSSL", "false");
+            // Problem is: Ubuntu Trusty shipped with openssl 1.0.1f. Which doesn't
+            // support alpn. And Google's gRPC checks for support of ALPN in plane
+            // old Makefile, but not in CMake.
+            config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
         }
         config.build_target(library).uses_cxx11().build()
     };
