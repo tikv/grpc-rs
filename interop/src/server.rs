@@ -11,9 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{thread::sleep, time::Duration};
+use std::time::Duration;
 
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
+use futures_timer::Delay;
 use grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
     ServerStreamingSink, UnarySink, WriteFlags,
@@ -148,14 +149,18 @@ impl TestService for InteropTestService {
                     //
                     // Client timeout 1ms is too short for grpcio. The server
                     // can response in 1ms. To make the test stable, the server
-                    // sleeps 10ms explicitly.
-                    if req.get_payload().get_body().len() == 27182
+                    // sleeps 1s explicitly.
+                    let dur = if req.get_payload().get_body().len() == 27182
                         && req.get_response_parameters().is_empty()
                         && !req.has_response_status()
                     {
-                        sleep(Duration::from_millis(10));
-                    }
-                    send = Some(sink.send((resp, WriteFlags::default())));
+                        Duration::from_secs(1)
+                    } else {
+                        Duration::from_secs(0)
+                    };
+                    send = Some(
+                        Delay::new(dur).then(move |_| sink.send((resp, WriteFlags::default()))),
+                    );
                 }
                 future::poll_fn(
                     move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {

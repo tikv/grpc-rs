@@ -31,7 +31,12 @@ fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
         if b >= b'A' && b <= b'Z' {
             is_upper_case = true;
             continue;
-        } else if b >= b'a' && b <= b'z' || b >= b'0' && b <= b'9' || b == b'_' || b == b'-' {
+        } else if b >= b'a' && b <= b'z'
+            || b >= b'0' && b <= b'9'
+            || b == b'_'
+            || b == b'-'
+            || b == b'.'
+        {
             continue;
         }
         return Err(Error::InvalidMetadata(format!("key {:?} is invalid", key)));
@@ -263,7 +268,7 @@ mod tests {
         assert!(builder.add_bytes("key", b"value").is_err());
         // Key should not be empty.
         assert!(builder.add_str("", "value").is_err());
-        // Key should follow the rule ^[a-z0-9_-]+$
+        // Key should follow the rule ^[a-z0-9_-.]+$
         assert!(builder.add_str(":key", "value").is_err());
         assert!(builder.add_str("key~", "value").is_err());
         assert!(builder.add_str("ke+y", "value").is_err());
@@ -275,6 +280,7 @@ mod tests {
         builder.add_str("key", "value").unwrap();
         builder.add_str("_", "value").unwrap();
         builder.add_str("-", "value").unwrap();
+        builder.add_str(".", "value").unwrap();
         builder.add_bytes("key-bin", b"value").unwrap();
     }
 
