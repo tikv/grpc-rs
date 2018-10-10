@@ -137,6 +137,5 @@ pub fn create_generic_service(s: Generic) -> ::grpc::Service {
         .add_duplex_streaming_handler(
             &METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
             move |ctx, req, resp| s.streaming_call(&ctx, req, resp),
-        )
-        .build()
+        ).build()
 }

@@ -70,8 +70,7 @@ impl RouteGuide for RouteGuideService {
                 } else {
                     None
                 }
-            })
-            .collect();
+            }).collect();
         let f = resp
             .send_all(stream::iter_ok::<_, Error>(features))
             .map(|_| {})
@@ -105,14 +104,12 @@ impl RouteGuide for RouteGuideService {
                     }
                     Ok((Some(point), dis, summary)) as Result<_>
                 },
-            )
-            .and_then(move |(_, dis, mut s)| {
+            ).and_then(move |(_, dis, mut s)| {
                 s.set_distance(dis as i32);
                 let dur = timer.elapsed();
                 s.set_elapsed_time(dur.as_secs() as i32);
                 resp.success(s)
-            })
-            .map_err(|e| error!("failed to record route: {:?}", e));
+            }).map_err(|e| error!("failed to record route: {:?}", e));
         ctx.spawn(f)
     }
 
@@ -133,12 +130,10 @@ impl RouteGuide for RouteGuideService {
                         } else {
                             None
                         }
-                    })
-                    .collect();
+                    }).collect();
                 buffer.push(note);
                 stream::iter_ok::<_, Error>(to_prints)
-            })
-            .flatten();
+            }).flatten();
         let f = resp
             .send_all(to_send)
             .map(|_| {})
