@@ -28,6 +28,7 @@ before_script:
     fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
       brew update && brew install openssl;
+      export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
     else
       sudo apt-get update && sudo apt-get -y install libssl-dev;
     fi
