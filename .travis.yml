@@ -8,6 +8,12 @@ cache:
     - $TRAVIS_BUILD_DIR/target
 before_cache:
   - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
+
+env:
+  global:
+    - RUST_BACKTRACE=1
+    - RUSTFLAGS="--deny=warnings"
+
 os:
   - linux
 rust:
@@ -18,6 +24,7 @@ matrix:
   include:
   - os: osx
     rust: stable
+
 before_script:
   - export GRPC_VERSION=1.14.2
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
@@ -39,10 +46,10 @@ before_script:
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
+
 script:
-  - export RUST_BACKTRACE=1
-  - export RUSTFLAGS=-Dwarnings
-  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then rustup component add clippy-preview --toolchain nightly && cargo clippy --all; fi
+  - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy-preview && cargo clippy --all -- -D clippy; fi
+  - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add rustfmt-preview && cargo fmt --all -- --check; fi
   - cargo build --no-default-features
   - cargo build --no-default-features --features protobuf-codec
   - cargo build

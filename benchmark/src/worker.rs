@@ -66,12 +66,10 @@ impl WorkerService for Worker {
                             sink.send((status, WriteFlags::default()))
                                 .map(|sink| (sink, server))
                         })
-                    })
-                    .and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
+                    }).and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
                     .and_then(|mut sink| future::poll_fn(move || sink.close()))
                     .map_err(Error::from))
-            })
-            .flatten()
+            }).flatten()
             .map_err(|e| error!("run server failed: {:?}", e))
             .map(|_| info!("server shutdown."));
         ctx.spawn(f)
@@ -101,15 +99,13 @@ impl WorkerService for Worker {
                             sink.send((status, WriteFlags::default()))
                                 .map(|sink| (sink, client))
                         })
-                    })
-                    .map_err(Error::from)
+                    }).map_err(Error::from)
                     .and_then(|(mut sink, mut client)| {
                         client
                             .shutdown()
                             .join(future::poll_fn(move || sink.close().map_err(From::from)))
                     })
-            })
-            .map_err(|e| error!("run client failed: {:?}", e))
+            }).map_err(|e| error!("run client failed: {:?}", e))
             .map(|_| info!("client shutdown."));
         ctx.spawn(f)
     }
