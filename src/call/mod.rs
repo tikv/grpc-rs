@@ -14,9 +14,9 @@
 pub mod client;
 pub mod server;
 
+use std::io::{self, Write};
 use std::sync::Arc;
 use std::{ptr, slice, usize};
-use std::io::{self, Write};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
@@ -27,8 +27,8 @@ use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinL
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
-pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 use grpc_sys::GrpcByteBuffer;
+pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
@@ -130,7 +130,7 @@ impl MessageWriter {
 
     pub fn clear(&mut self) {
         unsafe {
-            for slice in self.data.iter() {
+            for slice in &self.data {
                 grpc_sys::grpc_slice_unref(*slice);
             }
         }
@@ -164,7 +164,10 @@ impl Write for MessageWriter {
         let in_len: size_t = buf.len();
         self.size += in_len;
         unsafe {
-            self.data.push(grpc_sys::grpc_slice_from_copied_buffer(buf.as_ptr() as _, in_len));
+            self.data.push(grpc_sys::grpc_slice_from_copied_buffer(
+                buf.as_ptr() as _,
+                in_len,
+            ));
         }
         Ok(in_len)
     }
@@ -639,9 +642,8 @@ impl SinkBase {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
         }
-        self.batch_f = Some(call.call(|c| {
-            c.call.start_send_message(&self.buf, flags.flags, self.send_metadata)
-        })?);
+        self.batch_f = Some(call.call(|c| c.call
+            .start_send_message(&self.buf, flags.flags, self.send_metadata))?);
         self.send_metadata = false;
         Ok(true)
     }

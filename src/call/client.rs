@@ -20,7 +20,7 @@ use grpc_sys;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
-use call::{check_run, Call, Method, MessageWriter};
+use call::{check_run, Call, MessageWriter, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};

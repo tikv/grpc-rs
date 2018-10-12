@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use error::Result;
 use call::MessageWriter;
+use error::Result;
 
 pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut MessageWriter);
@@ -39,8 +39,8 @@ pub struct Marshaller<T> {
 pub mod pb_codec {
     use protobuf::{self, Message};
 
-    use error::Result;
     use call::MessageWriter;
+    use error::Result;
 
     #[inline]
     pub fn ser<T: Message>(t: &T, writer: &mut MessageWriter) {
