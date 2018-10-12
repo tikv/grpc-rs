@@ -20,7 +20,7 @@ use grpc_sys;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use async::{BatchFuture, BatchType, SpinLock};
-use call::{check_run, Call, Method, MessageReader};
+use call::{check_run, Call, MessageReader, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};
 use error::{Error, Result};
@@ -233,15 +233,11 @@ pub struct ClientUnaryReceiver<T> {
 }
 
 impl<T> ClientUnaryReceiver<T> {
-    fn new(
-        call: Call,
-        resp_f: BatchFuture,
-        de: DeserializeFn<T>,
-    ) -> ClientUnaryReceiver<T> {
+    fn new(call: Call, resp_f: BatchFuture, resp_de: DeserializeFn<T>) -> ClientUnaryReceiver<T> {
         ClientUnaryReceiver {
             call,
             resp_f,
-            resp_de: de,
+            resp_de,
         }
     }
 

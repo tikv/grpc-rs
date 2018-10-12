@@ -14,14 +14,16 @@
 pub mod client;
 pub mod server;
 
+use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
-use std::io::{self, BufRead, Read, ErrorKind};
-use std::{ptr, slice, mem, cmp, usize};
+use std::{cmp, mem, ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcByteBuffer, GrpcByteBufferReader,
-               GrpcCall, GrpcCallStatus};
+use grpc_sys::{
+    self, GrpcBatchContext, GrpcByteBuffer, GrpcByteBufferReader, GrpcCall, GrpcCallStatus,
+    GrpcSlice,
+};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
@@ -724,4 +726,3 @@ impl SinkBase {
         Ok(Async::Ready(()))
     }
 }
-

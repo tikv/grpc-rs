@@ -14,15 +14,15 @@
 // TODO: Remove it once Rust's tool_lints is stabilized.
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
 
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::io::Read;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
-    self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
-    RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
-    MessageReader,
+    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
+    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
+    WriteFlags,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;

@@ -20,7 +20,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
-use call::{BatchContext, MessageReader, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
@@ -214,7 +214,7 @@ impl UnaryRequestContext {
         self,
         rc: &mut RequestCallContext,
         cq: &CompletionQueue,
-        reader: Option<MessageReader>
+        reader: Option<MessageReader>,
     ) {
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if reader.is_some() {
@@ -260,7 +260,7 @@ impl<T> Stream for RequestStream<T> {
         match try_ready!(self.base.poll(&mut self.call, false)).map(self.de) {
             None => Ok(Async::Ready(None)),
             Some(Ok(data)) => Ok(Async::Ready(Some(data))),
-            Some(Err(err)) => Err(err)
+            Some(Err(err)) => Err(err),
         }
     }
 }
@@ -743,7 +743,7 @@ fn execute(
     ctx: RequestContext,
     cq: &CompletionQueue,
     payload: Option<MessageReader>,
-    f: &mut BoxHandler
+    f: &mut BoxHandler,
 ) {
     let rpc_ctx = RpcContext::new(ctx, cq);
     f.handle(rpc_ctx, payload)

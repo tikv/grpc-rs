@@ -24,7 +24,7 @@ use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
 use async::{CallTag, CqFuture};
 use call::server::*;
-use call::{Method, MethodType, MessageReader};
+use call::{MessageReader, Method, MethodType};
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use env::Environment;
@@ -160,9 +160,9 @@ impl ServiceBuilder {
         F: FnMut(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h =
-            move |ctx: RpcContext, payload: Option<MessageReader>|
-                execute_unary(ctx, ser, de, payload.unwrap(), &mut handler);
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_unary(ctx, ser, de, payload.unwrap(), &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::Unary, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -183,8 +183,9 @@ impl ServiceBuilder {
             + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: Option<MessageReader>|
-            execute_client_streaming(ctx, ser, de, &mut handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_client_streaming(ctx, ser, de, &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -222,8 +223,9 @@ impl ServiceBuilder {
         F: FnMut(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: Option<MessageReader>|
-            execute_duplex_streaming(ctx, ser, de, &mut handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_duplex_streaming(ctx, ser, de, &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::Duplex, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
