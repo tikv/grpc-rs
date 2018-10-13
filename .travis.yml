@@ -33,6 +33,12 @@ before_script:
       export CC=clang;
       brew update && brew install autoconf libtool shtool;
     fi
+  - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
+      brew update && brew install openssl;
+      export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
+    else
+      sudo apt-get update && sudo apt-get -y install libssl-dev;
+    fi
   - if [[ ! -f "$GRPC_HEADER" ]] ; then
       (
         git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
@@ -55,3 +61,4 @@ script:
   - cargo build
   - cargo test --all
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
+  - cargo test --features "openssl" --all
