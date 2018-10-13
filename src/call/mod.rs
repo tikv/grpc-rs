@@ -199,6 +199,9 @@ impl BufRead for MessageReader {
                 debug_assert!(code != 0);
                 let ptr = grpc_sys::grpcwrap_slice_raw(slice, &mut len);
                 self.bytes = slice::from_raw_parts(ptr as _, len);
+                if slice.is_inlined() {
+                    self.bytes = self.bytes.clone();
+                }
             }
         }
         Ok(self.bytes)

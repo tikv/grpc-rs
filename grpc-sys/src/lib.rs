@@ -385,6 +385,12 @@ pub struct GrpcSlice {
     data: GrpcSliceData,
 }
 
+impl GrpcSlice {
+    pub fn is_inlined(&self) -> bool {
+        self.ref_count.is_null()
+    }
+}
+
 #[repr(C)]
 pub union GrpcByteBufferReaderCurrent {
     index: c_uint,
