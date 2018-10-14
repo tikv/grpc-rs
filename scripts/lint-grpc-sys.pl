@@ -3,8 +3,15 @@
 use strict;
 use warnings FATAL => 'all';
 use IPC::Open3;
+use File::Which;
 
 $|++;
+
+my $clangTidy = which 'clang-tidy';
+for my $ver (4 .. 6) {
+    $clangTidy = which "clang-tidy-$ver.0" if !defined $clangTidy;
+}
+die "Cannot find clang-tidy!" if !defined $clangTidy;
 
 my $grpcSysPath = './grpc-sys';
 my $grpcPath = "$grpcSysPath/grpc";
@@ -30,7 +37,7 @@ my $completeArgs = "-checks=clang-analyzer-*$extraArgFlag@{[ join $extraArgFlag,
 print "Running clang-tidy with: $completeArgs\n";
 
 no warnings 'once';
-my $pid = open3 \*WRITER, \*READER, \*ERROR, "clang-tidy-6.0 $completeArgs";
+my $pid = open3 \*WRITER, \*READER, \*ERROR, "$clangTidy $completeArgs";
 
 print "\nClang-Tidy stdout:\n";
 while ($_ = <READER>) {
