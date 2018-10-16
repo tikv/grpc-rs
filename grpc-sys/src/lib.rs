@@ -416,10 +416,7 @@ pub enum GrpcRequestCallContext {}
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
-    pub fn grpc_slice_from_copied_buffer(
-        source: *const c_char,
-        len: size_t,
-    ) -> GrpcSlice;
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, len: size_t) -> GrpcSlice;
     pub fn grpc_raw_byte_buffer_create(
         source: *const GrpcSlice,
         len: size_t,
@@ -445,9 +442,8 @@ extern "C" {
 
     pub fn gpr_cpu_num_cores() -> c_uint;
 
-    pub fn grpc_completion_queue_create_for_next(
-        reserved: *mut c_void,
-    ) -> *mut GrpcCompletionQueue;
+    pub fn grpc_completion_queue_create_for_next(reserved: *mut c_void)
+        -> *mut GrpcCompletionQueue;
     pub fn grpc_completion_queue_next(
         cq: *mut GrpcCompletionQueue,
         deadline: GprTimespec,

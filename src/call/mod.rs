@@ -20,7 +20,7 @@ use std::{ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcSlice, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::{c_void, size_t};
 
 use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
@@ -642,8 +642,10 @@ impl SinkBase {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
         }
-        self.batch_f = Some(call.call(|c| c.call
-            .start_send_message(&self.buf, flags.flags, self.send_metadata))?);
+        self.batch_f = Some(call.call(|c| {
+            c.call
+                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+        })?);
         self.send_metadata = false;
         Ok(true)
     }

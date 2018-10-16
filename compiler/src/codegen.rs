@@ -426,7 +426,8 @@ impl<'a> ServiceGen<'a> {
                     service_path.clone(),
                     root_scope,
                 )
-            }).collect();
+            })
+            .collect();
 
         ServiceGen { proto, methods }
     }
