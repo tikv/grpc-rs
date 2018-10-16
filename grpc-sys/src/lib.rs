@@ -17,7 +17,7 @@
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_uint, c_void, uint8_t, int32_t, int64_t, size_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
 use std::mem;
 use std::time::Duration;
 

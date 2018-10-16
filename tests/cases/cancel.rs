@@ -168,7 +168,8 @@ fn test_server_cancel_on_dropping() {
             .for_each(|_| Ok(()))
             .join(future::result(Ok(())).map(move |_| {
                 drop(sink);
-            })).then(|_| Ok(()));
+            }))
+            .then(|_| Ok(()));
         Box::new(f)
     }
 
