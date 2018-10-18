@@ -37,7 +37,7 @@ before_script:
       brew update && brew install openssl;
       export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
     else
-      sudo apt-get update && sudo apt-get -y install libssl-dev;
+      sudo apt-get update && sudo apt-get -y install libssl-dev clang-tidy-5.0;
     fi
   - if [[ ! -f "$GRPC_HEADER" ]] ; then
       (
@@ -54,6 +54,7 @@ before_script:
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
 script:
+  - bash scripts/lint-grpc-sys.sh
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy-preview && cargo clippy --all -- -D clippy; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add rustfmt-preview && cargo fmt --all -- --check; fi
   - cargo build --no-default-features
