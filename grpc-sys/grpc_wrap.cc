@@ -55,7 +55,7 @@
 #include <grpc/support/log.h>
 #include <grpc/support/port_platform.h>
 #include <grpc/support/string_util.h>
-#include <grpc/support/thd.h>
+#include <grpc/support/thd_id.h>
 
 #ifdef GRPC_SYS_SECURE
 #include <grpc/grpc_security.h>
@@ -64,12 +64,12 @@
 #include <string.h>
 
 #ifdef GPR_WINDOWS
-#define GPR_EXPORT __declspec(dllexport)
+#define GPR_EXPORT extern "C" __declspec(dllexport)
 #define GPR_CALLTYPE __cdecl
 #endif
 
 #ifndef GPR_EXPORT
-#define GPR_EXPORT
+#define GPR_EXPORT extern "C"
 #endif
 
 #ifndef GPR_CALLTYPE
@@ -104,7 +104,8 @@ typedef struct grpcwrap_batch_context {
 
 GPR_EXPORT grpcwrap_batch_context* GPR_CALLTYPE
 grpcwrap_batch_context_create() {
-  grpcwrap_batch_context* ctx = gpr_malloc(sizeof(grpcwrap_batch_context));
+  grpcwrap_batch_context* ctx =
+      (grpcwrap_batch_context*)gpr_malloc(sizeof(grpcwrap_batch_context));
   memset(ctx, 0, sizeof(grpcwrap_batch_context));
   return ctx;
 }
@@ -118,7 +119,8 @@ typedef struct {
 GPR_EXPORT grpcwrap_request_call_context* GPR_CALLTYPE
 grpcwrap_request_call_context_create() {
   grpcwrap_request_call_context* ctx =
-      gpr_malloc(sizeof(grpcwrap_request_call_context));
+      (grpcwrap_request_call_context*)gpr_malloc(
+          sizeof(grpcwrap_request_call_context));
   memset(ctx, 0, sizeof(grpcwrap_request_call_context));
   return ctx;
 }
@@ -184,8 +186,8 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_metadata_array_add(
   size_t i = array->count;
   if (i == array->capacity) {
     array->capacity = array->capacity ? array->capacity * 2 : 4;
-    array->metadata =
-        gpr_realloc(array->metadata, array->capacity * sizeof(grpc_metadata));
+    array->metadata = (grpc_metadata*)gpr_realloc(
+        array->metadata, array->capacity * sizeof(grpc_metadata));
     memset(array->metadata + i, 0,
            sizeof(grpc_metadata) * (array->capacity - i));
   }
@@ -220,8 +222,8 @@ grpcwrap_metadata_array_shrink_to_fit(grpc_metadata_array* array) {
     return;
   }
   if (array->count) {
-    array->metadata =
-        gpr_realloc(array->metadata, array->count * sizeof(grpc_metadata));
+    array->metadata = (grpc_metadata*)gpr_realloc(
+        array->metadata, array->count * sizeof(grpc_metadata));
     array->capacity = array->count;
   } else {
     grpcwrap_metadata_array_cleanup(array);
@@ -762,6 +764,16 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_initial_metadata(
                                NULL);
 }
 
+/** Kick call's completion queue, it should be called after there is an event
+    ready to poll.
+    THREAD SAFETY: grpcwrap_call_kick_completion_queue is thread-safe
+    because it does not change the call's state. */
+GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_kick_completion_queue(
+    grpc_call* call, void* tag) {
+  // Empty batch grpc_op kicks call's completion queue immediately.
+  return grpc_call_start_batch(call, NULL, 0, tag, NULL);
+}
+
 /* Server */
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE
@@ -807,11 +819,11 @@ grpcwrap_ssl_credentials_create(const char* pem_root_certs,
   if (key_cert_pair_cert_chain || key_cert_pair_private_key) {
     key_cert_pair.cert_chain = key_cert_pair_cert_chain;
     key_cert_pair.private_key = key_cert_pair_private_key;
-    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL);
+    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL, NULL);
   } else {
     GPR_ASSERT(!key_cert_pair_cert_chain);
     GPR_ASSERT(!key_cert_pair_private_key);
-    return grpc_ssl_credentials_create(pem_root_certs, NULL, NULL);
+    return grpc_ssl_credentials_create(pem_root_certs, NULL, NULL, NULL);
   }
 }
 
@@ -823,7 +835,8 @@ grpcwrap_ssl_server_credentials_create(
   size_t i;
   grpc_server_credentials* creds;
   grpc_ssl_pem_key_cert_pair* key_cert_pairs =
-      gpr_malloc(sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
+      (grpc_ssl_pem_key_cert_pair*)gpr_malloc(
+          sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
   memset(key_cert_pairs, 0,
          sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
 

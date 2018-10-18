@@ -1,3 +1,17 @@
+# 0.4.0 - 2018-09-15
+
+- Update gRPC from 1.7.2 to 1.14.2
+- Services accept mut reference
+- Cancel RPC when senders and receivers were dropped
+- Notify completion queue via call
+
+# 0.3.1 - 2018-08-27
+
+- Support configuring load balancing policy
+- Fix compilation failure when go is missing
+- Fix compilation issue under musl
+- Fix soundness of service handler
+
 # 0.3.0 - 2018-06-01
 
 - keep compatible with protobuf 2.0

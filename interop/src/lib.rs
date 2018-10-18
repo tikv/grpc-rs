@@ -19,6 +19,7 @@ extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 #[macro_use]
 extern crate log;
+extern crate futures_timer;
 
 mod client;
 mod server;

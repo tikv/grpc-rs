@@ -368,7 +368,7 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
         };
         let sig = format!(
-            "{}(&self, ctx: {}, {}: {}, sink: {}<{}>)",
+            "{}(&mut self, ctx: {}, {}: {}, sink: {}<{}>)",
             self.name(),
             fq_grpc("RpcContext"),
             req,
@@ -426,8 +426,7 @@ impl<'a> ServiceGen<'a> {
                     service_path.clone(),
                     root_scope,
                 )
-            })
-            .collect();
+            }).collect();
 
         ServiceGen { proto, methods }
     }
@@ -487,7 +486,7 @@ impl<'a> ServiceGen<'a> {
         w.pub_fn(&s, |w| {
             w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
             for method in &self.methods {
-                w.write_line("let instance = s.clone();");
+                w.write_line("let mut instance = s.clone();");
                 method.write_bind(w);
             }
             w.write_line("builder.build()");

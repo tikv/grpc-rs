@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "protobuf", "rpc", "tls", "http2"]
@@ -16,7 +16,7 @@ autoexamples = false
 all-features = true
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.2.1" }
+grpcio-sys = { path = "grpc-sys", version = "0.4.0" }
 libc = "0.2"
 futures = "^0.1.15"
 protobuf = { version = "~2.0", optional = true }
@@ -29,6 +29,7 @@ members = ["proto", "benchmark", "compiler", "interop"]
 default = ["protobuf-codec", "secure"]
 protobuf-codec = ["protobuf"]
 secure = ["grpcio-sys/secure"]
+openssl = ["secure", "grpcio-sys/openssl"]
 
 [[example]]
 name = "route_guide_client"
@@ -50,7 +51,7 @@ path = "examples/hello_world/server.rs"
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpcio-proto = { path = "proto", version = "0.3.0" }
+grpcio-proto = { path = "proto", version = "0.4.0" }
 rand = "0.4"
 slog = "2.0"
 slog-async = "2.1"

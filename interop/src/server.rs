@@ -11,7 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::time::Duration;
+
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
+use futures_timer::Delay;
 use grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
     ServerStreamingSink, UnarySink, WriteFlags,
@@ -40,7 +43,7 @@ impl From<grpc::Error> for Error {
 pub struct InteropTestService;
 
 impl TestService for InteropTestService {
-    fn empty_call(&self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
+    fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
         let res = Empty::new();
         let f = resp
             .success(res)
@@ -48,7 +51,12 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn unary_call(&self, ctx: RpcContext, mut req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(
+        &mut self,
+        ctx: RpcContext,
+        mut req: SimpleRequest,
+        sink: UnarySink<SimpleResponse>,
+    ) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
@@ -68,12 +76,17 @@ impl TestService for InteropTestService {
         ctx.spawn(f)
     }
 
-    fn cacheable_unary_call(&self, _: RpcContext, _: SimpleRequest, _: UnarySink<SimpleResponse>) {
+    fn cacheable_unary_call(
+        &mut self,
+        _: RpcContext,
+        _: SimpleRequest,
+        _: UnarySink<SimpleResponse>,
+    ) {
         unimplemented!()
     }
 
     fn streaming_output_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         mut req: StreamingOutputCallRequest,
         sink: ServerStreamingSink<StreamingOutputCallResponse>,
@@ -91,7 +104,7 @@ impl TestService for InteropTestService {
     }
 
     fn streaming_input_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<StreamingInputCallRequest>,
         sink: ClientStreamingSink<StreamingInputCallResponse>,
@@ -99,13 +112,11 @@ impl TestService for InteropTestService {
         let f = stream
             .fold(0, |s, req| {
                 Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>
-            })
-            .and_then(|s| {
+            }).and_then(|s| {
                 let mut resp = StreamingInputCallResponse::new();
                 resp.set_aggregated_payload_size(s as i32);
                 sink.success(resp)
-            })
-            .map_err(|e| match e {
+            }).map_err(|e| match e {
                 grpc::Error::RemoteStopped => {}
                 e => error!("failed to send streaming inptu: {:?}", e),
             });
@@ -113,7 +124,7 @@ impl TestService for InteropTestService {
     }
 
     fn full_duplex_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<StreamingOutputCallRequest>,
         sink: DuplexSink<StreamingOutputCallResponse>,
@@ -133,7 +144,23 @@ impl TestService for InteropTestService {
                     if let Some(param) = req.get_response_parameters().get(0) {
                         resp.set_payload(util::new_payload(param.get_size() as usize));
                     }
-                    send = Some(sink.send((resp, WriteFlags::default())));
+                    // A workaround for timeout_on_sleeping_server test.
+                    // The request only has 27182 bytes of zeros in payload.
+                    //
+                    // Client timeout 1ms is too short for grpcio. The server
+                    // can response in 1ms. To make the test stable, the server
+                    // sleeps 1s explicitly.
+                    let dur = if req.get_payload().get_body().len() == 27182
+                        && req.get_response_parameters().is_empty()
+                        && !req.has_response_status()
+                    {
+                        Duration::from_secs(1)
+                    } else {
+                        Duration::from_secs(0)
+                    };
+                    send = Some(
+                        Delay::new(dur).then(move |_| sink.send((resp, WriteFlags::default()))),
+                    );
                 }
                 future::poll_fn(
                     move || -> Poll<DuplexSink<StreamingOutputCallResponse>, Error> {
@@ -146,8 +173,7 @@ impl TestService for InteropTestService {
                         }
                     },
                 )
-            })
-            .and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
+            }).and_then(|mut sink| future::poll_fn(move || sink.close().map_err(Error::from)))
             .map_err(|e| match e {
                 Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
                 Error::Grpc(e) => error!("failed to handle duplex call: {:?}", e),
@@ -156,7 +182,7 @@ impl TestService for InteropTestService {
     }
 
     fn half_duplex_call(
-        &self,
+        &mut self,
         _: RpcContext,
         _: RequestStream<StreamingOutputCallRequest>,
         _: DuplexSink<StreamingOutputCallResponse>,
@@ -164,7 +190,7 @@ impl TestService for InteropTestService {
         unimplemented!()
     }
 
-    fn unimplemented_call(&self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
+    fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
         let f = sink
             .fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
             .map_err(|e| error!("failed to report unimplemented method: {:?}", e));

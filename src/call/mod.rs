@@ -204,8 +204,8 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    call: *mut GrpcCall,
-    cq: CompletionQueue,
+    pub call: *mut GrpcCall,
+    pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
@@ -499,6 +499,14 @@ impl StreamingBase {
             self.poll(call, true)
         } else {
             Ok(Async::Ready(bytes))
+        }
+    }
+
+    // Cancel the call if we still have some messages or did not
+    // receive status code.
+    fn on_drop<C: ShareCallHolder>(&self, call: &mut C) {
+        if !self.read_done || self.close_f.is_some() {
+            call.call(|c| c.call.cancel());
         }
     }
 }
