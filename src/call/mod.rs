@@ -112,6 +112,29 @@ impl RpcStatus {
     }
 }
 
+struct BufferSlice {
+    slice: GrpcSlice,
+    offset: usize,
+    length: usize,
+}
+
+impl BufferSlice {
+    pub fn reset(&mut self) {
+        self.length = grpc_sys::grpcwrap_slice_length(&mut self.slice);
+        self.offset = 0;
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.offset == self.length
+    }
+
+    pub unsafe fn as_slice(&mut self) -> &[u8] {
+        let mut len = 0;
+        let ptr = grpc_sys::grpcwrap_slice_raw_offset(&mut self.slice, self.offset, &mut len);
+        slice::from_raw_parts(ptr as _, len)
+    }
+}
+
 /// `MessageReader` is a zero-copy reader for the message payload.
 ///
 /// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
@@ -119,11 +142,7 @@ impl RpcStatus {
 pub struct MessageReader {
     buf: *mut GrpcByteBuffer,
     reader: GrpcByteBufferReader,
-    slice: Option<GrpcSlice>,
-    // Hack: apparently its lifetime depends on `self.slice`. However
-    // it's not going to be accessed by others directly, hence it's safe
-    // to mark it static here.
-    bytes: &'static [u8],
+    buffer_slice: Option<BufferSlice>,
     length: usize,
 }
 
@@ -184,32 +203,46 @@ impl Read for MessageReader {
 
 impl BufRead for MessageReader {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        if self.bytes.is_empty() {
-            if self.length == 0 {
-                return Ok(&[]);
-            }
-            let mut len = 0;
-            unsafe {
-                match self.slice {
-                    None => self.slice = Some(mem::zeroed()),
-                    Some(s) => grpc_sys::grpc_slice_unref(s),
-                }
-                let slice = self.slice.as_mut().unwrap();
-                let code = grpc_sys::grpc_byte_buffer_reader_next(&mut self.reader, slice);
-                debug_assert!(code != 0);
-                let ptr = grpc_sys::grpcwrap_slice_raw(slice, &mut len);
-                self.bytes = slice::from_raw_parts(ptr as _, len);
-                if slice.is_inlined() {
-                    self.bytes = self.bytes.clone();
-                }
-            }
+        if self.length == 0 {
+            return Ok(&[]);
         }
-        Ok(self.bytes)
+        unsafe {
+            let read_next = match self.buffer_slice {
+                Some(ref mut buffer_slice) => {
+                    if buffer_slice.is_finished() {
+                        grpc_sys::grpc_slice_unref(buffer_slice.slice);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                None => {
+                    self.buffer_slice = Some(mem::zeroed());
+                    true
+                }
+            };
+
+            let buffer_slice = self.buffer_slice.as_mut().unwrap();
+            if read_next {
+                let code = grpc_sys::grpc_byte_buffer_reader_next(
+                    &mut self.reader,
+                    &mut buffer_slice.slice,
+                );
+                debug_assert_ne!(code, 0);
+                buffer_slice.reset();
+            }
+
+            debug_assert!(buffer_slice.offset <= buffer_slice.length);
+            Ok(buffer_slice.as_slice())
+        }
     }
 
     fn consume(&mut self, amt: usize) {
         self.length -= amt;
-        self.bytes = &self.bytes[amt..];
+
+        if let Some(buffer_slice) = self.buffer_slice.as_mut() {
+            buffer_slice.offset += amt;
+        }
     }
 }
 
@@ -217,8 +250,8 @@ impl Drop for MessageReader {
     fn drop(&mut self) {
         unsafe {
             grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
-            if let Some(slice) = self.slice {
-                grpc_sys::grpc_slice_unref(slice);
+            if let Some(buffer_slice) = self.buffer_slice.take() {
+                grpc_sys::grpc_slice_unref(buffer_slice.slice);
             }
             grpc_sys::grpc_byte_buffer_destroy(self.buf);
         }
@@ -281,8 +314,7 @@ impl BatchContext {
         Some(MessageReader {
             buf,
             reader,
-            slice: None,
-            bytes: &[],
+            buffer_slice: None,
             length,
         })
     }

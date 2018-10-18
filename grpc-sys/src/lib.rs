@@ -385,12 +385,6 @@ pub struct GrpcSlice {
     data: GrpcSliceData,
 }
 
-impl GrpcSlice {
-    pub fn is_inlined(&self) -> bool {
-        self.ref_count.is_null()
-    }
-}
-
 #[repr(C)]
 pub union GrpcByteBufferReaderCurrent {
     index: c_uint,
@@ -499,7 +493,12 @@ extern "C" {
 
     pub fn grpc_slice_unref(slice: GrpcSlice);
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
-    pub fn grpcwrap_slice_raw(slice: *const GrpcSlice, len: *mut size_t) -> *const c_char;
+    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
+    pub fn grpcwrap_slice_raw_offset(
+        slice: *const GrpcSlice,
+        offset: size_t,
+        len: *mut size_t,
+    ) -> *const c_char;
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
         buf: *mut GrpcByteBuffer,

@@ -298,9 +298,14 @@ grpcwrap_batch_context_recv_initial_metadata(
 }
 
 GPR_EXPORT const char *GPR_CALLTYPE
-grpcwrap_slice_raw(const grpc_slice *slice, size_t *len) {
-  *len = GRPC_SLICE_LENGTH(*slice);
-  return (const char *)(GRPC_SLICE_START_PTR(*slice));
+grpcwrap_slice_raw_offset(const grpc_slice *slice, size_t offset, size_t *len) {
+  *len = GRPC_SLICE_LENGTH(*slice) - offset;
+  return (const char *)(GRPC_SLICE_START_PTR(*slice)) + offset;
+}
+
+GPR_EXPORT size_t GPR_CALLTYPE
+grpcwrap_slice_length(const grpc_slice *slice) {
+  return GRPC_SLICE_LENGTH(*slice);
 }
 
 GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
