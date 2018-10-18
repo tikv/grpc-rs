@@ -16,6 +16,12 @@ env:
 
 os:
   - linux
+  addons:
+    apt:
+      sources:
+        - llvm-toolchain-trusty-5.0
+      packages:
+        - clang-tidy-5.0
 rust:
   - stable
   - beta
@@ -37,7 +43,7 @@ before_script:
       brew update && brew install openssl;
       export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
     else
-      sudo apt-get update && sudo apt-get -y install libssl-dev clang-tidy-5.0;
+      sudo apt-get update && sudo apt-get -y install libssl-dev;
     fi
   - if [[ ! -f "$GRPC_HEADER" ]] ; then
       (
