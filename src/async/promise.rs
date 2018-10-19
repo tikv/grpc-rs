@@ -14,8 +14,8 @@
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use super::{BatchMessage, Inner};
-use call::{BatchContext, RpcStatusCode};
+use super::Inner;
+use call::{BatchContext, MessageReader, RpcStatusCode};
 use error::Error;
 
 /// Batch job type.
@@ -33,11 +33,11 @@ pub enum BatchType {
 pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
-    inner: Arc<Inner<BatchMessage>>,
+    inner: Arc<Inner<Option<MessageReader>>>,
 }
 
 impl Batch {
-    pub fn new(ty: BatchType, inner: Arc<Inner<BatchMessage>>) -> Batch {
+    pub fn new(ty: BatchType, inner: Arc<Inner<Option<MessageReader>>>) -> Batch {
         Batch {
             ty,
             ctx: BatchContext::new(),
