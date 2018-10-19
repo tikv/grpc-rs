@@ -120,7 +120,7 @@ struct BufferSlice {
 
 impl BufferSlice {
     pub unsafe fn reset(&mut self) {
-        self.length = grpc_sys::grpcwrap_slice_length(&mut self.slice);
+        self.length = grpc_sys::grpcwrap_slice_length(&self.slice);
         self.offset = 0;
     }
 
@@ -130,7 +130,7 @@ impl BufferSlice {
 
     pub unsafe fn as_slice(&mut self) -> &[u8] {
         let mut len = 0;
-        let ptr = grpc_sys::grpcwrap_slice_raw_offset(&mut self.slice, self.offset, &mut len);
+        let ptr = grpc_sys::grpcwrap_slice_raw_offset(&self.slice, self.offset, &mut len);
         slice::from_raw_parts(ptr as _, len)
     }
 }
