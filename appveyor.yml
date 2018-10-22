@@ -1,4 +1,4 @@
-branches:  
+branches:
   only:
     - master
 
@@ -19,10 +19,11 @@ install:
   - choco install yasm
   - rustc -V
   - cargo -V
-    
+
 build: false
 
 test_script:
   - SET RUSTFLAGS=-Dwarnings
+  - SET RUST_BACKTRACE=1
   - cargo build --target %TARGET%
   - cargo test --all --target %TARGET%

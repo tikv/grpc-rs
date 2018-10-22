@@ -11,13 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: Remove it once Rust's tool_lints is stabilized.
+#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
-    self, ClientStreamingSink, DuplexSink, Method, MethodType, RequestStream, RpcContext,
-    RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink, WriteFlags,
+    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
+    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
+    WriteFlags,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;
@@ -36,14 +41,14 @@ pub struct Benchmark {
 }
 
 impl BenchmarkService for Benchmark {
-    fn unary_call(&self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
+    fn unary_call(&mut self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
         let f = sink.success(gen_resp(&req));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "unary", f)
     }
 
     fn streaming_call(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
@@ -54,7 +59,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_from_client(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: RequestStream<SimpleRequest>,
         sink: ClientStreamingSink<SimpleResponse>,
@@ -65,7 +70,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_from_server(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: SimpleRequest,
         sink: ServerStreamingSink<SimpleResponse>,
@@ -76,7 +81,7 @@ impl BenchmarkService for Benchmark {
     }
 
     fn streaming_both_ways(
-        &self,
+        &mut self,
         ctx: RpcContext,
         _: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
@@ -112,8 +117,10 @@ pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
 }
 
 #[inline]
-pub fn bin_de(buf: &[u8]) -> grpc::Result<Vec<u8>> {
-    Ok(buf.to_vec())
+pub fn bin_de(mut reader: MessageReader) -> grpc::Result<Vec<u8>> {
+    let mut buf = vec![];
+    reader.read_to_end(&mut buf).unwrap();
+    Ok(buf)
 }
 
 pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Method {
@@ -134,6 +141,5 @@ pub fn create_generic_service(s: Generic) -> ::grpc::Service {
         .add_duplex_streaming_handler(
             &METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
             move |ctx, req, resp| s.streaming_call(&ctx, req, resp),
-        )
-        .build()
+        ).build()
 }

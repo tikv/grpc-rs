@@ -41,7 +41,7 @@ impl Worker {
 
 impl WorkerService for Worker {
     fn run_server(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<ServerArgs>,
         sink: DuplexSink<ServerStatus>,
@@ -66,19 +66,17 @@ impl WorkerService for Worker {
                             sink.send((status, WriteFlags::default()))
                                 .map(|sink| (sink, server))
                         })
-                    })
-                    .and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
+                    }).and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
                     .and_then(|mut sink| future::poll_fn(move || sink.close()))
                     .map_err(Error::from))
-            })
-            .flatten()
+            }).flatten()
             .map_err(|e| error!("run server failed: {:?}", e))
             .map(|_| info!("server shutdown."));
         ctx.spawn(f)
     }
 
     fn run_client(
-        &self,
+        &mut self,
         ctx: RpcContext,
         stream: RequestStream<ClientArgs>,
         sink: DuplexSink<ClientStatus>,
@@ -101,20 +99,18 @@ impl WorkerService for Worker {
                             sink.send((status, WriteFlags::default()))
                                 .map(|sink| (sink, client))
                         })
-                    })
-                    .map_err(Error::from)
+                    }).map_err(Error::from)
                     .and_then(|(mut sink, mut client)| {
                         client
                             .shutdown()
                             .join(future::poll_fn(move || sink.close().map_err(From::from)))
                     })
-            })
-            .map_err(|e| error!("run client failed: {:?}", e))
+            }).map_err(|e| error!("run client failed: {:?}", e))
             .map(|_| info!("client shutdown."));
         ctx.spawn(f)
     }
 
-    fn core_count(&self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
+    fn core_count(&mut self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
         let mut resp = CoreResponse::new();
         resp.set_cores(cpu_count as i32);
@@ -124,7 +120,7 @@ impl WorkerService for Worker {
         )
     }
 
-    fn quit_worker(&self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
+    fn quit_worker(&mut self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
         if let Some(notifier) = notifier {
             let _ = notifier.send(());

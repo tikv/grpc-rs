@@ -36,20 +36,17 @@ fn main() {
                 .long("host")
                 .help("The server host to listen to. For example, \"localhost\" or \"127.0.0.1\"")
                 .takes_value(true),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("port")
                 .long("port")
                 .help("The port to listen on. For example, \"8080\"")
                 .takes_value(true),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("use_tls")
                 .long("use_tls")
                 .help("Whether to use a plaintext or encrypted connection")
                 .takes_value(true),
-        )
-        .get_matches();
+        ).get_matches();
     let host = matches.value_of("host").unwrap_or("127.0.0.1");
     let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
     let use_tls: bool = matches

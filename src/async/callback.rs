@@ -31,13 +31,13 @@ impl Request {
     }
 
     pub fn resolve(mut self, cq: &CompletionQueue, success: bool) {
-        let rc = self.ctx.take_request_call_context().unwrap();
+        let mut rc = self.ctx.take_request_call_context().unwrap();
         if !success {
             server::request_call(rc, cq);
             return;
         }
 
-        match self.ctx.handle_stream_req(cq, &rc) {
+        match self.ctx.handle_stream_req(cq, &mut rc) {
             Ok(_) => server::request_call(rc, cq),
             Err(ctx) => ctx.handle_unary_req(rc, cq),
         }
@@ -63,15 +63,14 @@ impl UnaryRequest {
     }
 
     pub fn resolve(mut self, cq: &CompletionQueue, success: bool) {
-        let rc = self.ctx.take_request_call_context().unwrap();
+        let mut rc = self.ctx.take_request_call_context().unwrap();
         if !success {
             server::request_call(rc, cq);
             return;
         }
 
-        let data = self.ctx.batch_ctx().recv_message();
-        self.ctx
-            .handle(&rc, cq, data.as_ref().map(|v| v.as_slice()));
+        let reader = self.ctx.batch_ctx_mut().recv_message();
+        self.ctx.handle(&mut rc, cq, reader);
         server::request_call(rc, cq);
     }
 }

@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -23,7 +24,7 @@ use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
 use async::{CallTag, CqFuture};
 use call::server::*;
-use call::{Method, MethodType};
+use call::{MessageReader, Method, MethodType};
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use env::Environment;
@@ -46,17 +47,17 @@ impl<F> Handler<F> {
 }
 
 pub trait CloneableHandler: Send {
-    fn handle(&self, ctx: RpcContext, reqs: &[u8]);
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>);
     fn box_clone(&self) -> Box<CloneableHandler>;
     fn method_type(&self) -> MethodType;
 }
 
 impl<F: 'static> CloneableHandler for Handler<F>
 where
-    F: Fn(RpcContext, &[u8]) + Send + Clone,
+    F: FnMut(RpcContext, Option<MessageReader>) + Send + Clone,
 {
     #[inline]
-    fn handle(&self, ctx: RpcContext, reqs: &[u8]) {
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>) {
         (self.cb)(ctx, reqs)
     }
 
@@ -151,16 +152,17 @@ impl ServiceBuilder {
     pub fn add_unary_handler<Req, Resp, F>(
         mut self,
         method: &Method<Req, Resp>,
-        handler: F,
+        mut handler: F,
     ) -> ServiceBuilder
     where
         Req: 'static,
         Resp: 'static,
-        F: Fn(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h =
-            move |ctx: RpcContext, payload: &[u8]| execute_unary(ctx, ser, de, payload, &handler);
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_unary(ctx, ser, de, payload.unwrap(), &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::Unary, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -170,15 +172,20 @@ impl ServiceBuilder {
     pub fn add_client_streaming_handler<Req, Resp, F>(
         mut self,
         method: &Method<Req, Resp>,
-        handler: F,
+        mut handler: F,
     ) -> ServiceBuilder
     where
         Req: 'static,
         Resp: 'static,
-        F: Fn(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>)
+            + Send
+            + Clone
+            + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: &[u8]| execute_client_streaming(ctx, ser, de, &handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_client_streaming(ctx, ser, de, &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -188,16 +195,16 @@ impl ServiceBuilder {
     pub fn add_server_streaming_handler<Req, Resp, F>(
         mut self,
         method: &Method<Req, Resp>,
-        handler: F,
+        mut handler: F,
     ) -> ServiceBuilder
     where
         Req: 'static,
         Resp: 'static,
-        F: Fn(RpcContext, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: &[u8]| {
-            execute_server_streaming(ctx, ser, de, payload, &handler)
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_server_streaming(ctx, ser, de, payload.unwrap(), &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::ServerStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
@@ -208,15 +215,17 @@ impl ServiceBuilder {
     pub fn add_duplex_streaming_handler<Req, Resp, F>(
         mut self,
         method: &Method<Req, Resp>,
-        handler: F,
+        mut handler: F,
     ) -> ServiceBuilder
     where
         Req: 'static,
         Resp: 'static,
-        F: Fn(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: &[u8]| execute_duplex_streaming(ctx, ser, de, &handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_duplex_streaming(ctx, ser, de, &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::Duplex, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -370,20 +379,21 @@ pub type BoxHandler = Box<CloneableHandler>;
 #[derive(Clone)]
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
-    registry: Arc<HashMap<&'static [u8], BoxHandler>>,
+    registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
 }
 
 impl RequestCallContext {
     /// Users should guarantee the method is always called from the same thread.
     /// TODO: Is there a better way?
     #[inline]
-    pub unsafe fn get_handler(&self, path: &[u8]) -> Option<&BoxHandler> {
-        self.registry.get(path)
+    pub unsafe fn get_handler(&mut self, path: &[u8]) -> Option<&mut BoxHandler> {
+        let registry = &mut *self.registry.get();
+        registry.get_mut(path)
     }
 }
 
-// Apprently, its life time is guaranteed by the ref count, hence is safe to be sent
-// to other thread. However it's not `Sync`, as `BoxHandler` is neccessary not `Sync`.
+// Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
+// to other thread. However it's not `Sync`, as `BoxHandler` is not necessary `Sync`.
 unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.
@@ -481,7 +491,7 @@ impl Server {
                     .collect();
                 let rc = RequestCallContext {
                     server: self.core.clone(),
-                    registry: Arc::new(registry),
+                    registry: Arc::new(UnsafeCell::new(registry)),
                 };
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);

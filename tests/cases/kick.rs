@@ -26,7 +26,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(&self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(&mut self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
         let name = req.take_name();
@@ -35,8 +35,7 @@ impl Greeter for GreeterService {
             .join(lazy(move || {
                 *tx_lock.lock().unwrap() = Some(tx);
                 Ok(())
-            }))
-            .and_then(move |(greet, _)| {
+            })).and_then(move |(greet, _)| {
                 let mut resp = HelloReply::new();
                 resp.set_message(format!("{} {}", greet, name));
                 sink.success(resp)
@@ -47,7 +46,7 @@ impl Greeter for GreeterService {
 }
 
 #[test]
-fn test_alarm_notify() {
+fn test_kick() {
     let env = Arc::new(EnvBuilder::new().build());
     let tx = Arc::new(Mutex::new(None));
     let service = create_greeter(GreeterService { tx: tx.clone() });
@@ -74,4 +73,31 @@ fn test_alarm_notify() {
     }
     let reply = f.wait().expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
+
+    // Spawn a future in the client.
+    let (tx1, rx2) = spawn_chianed_channel(&client);
+    thread::sleep(Duration::from_millis(10));
+    let _ = tx1.send(77);
+    assert_eq!(rx2.wait().unwrap(), 77);
+
+    // Drop the client before a future is resloved.
+    let (tx1, rx2) = spawn_chianed_channel(&client);
+    drop(client);
+    thread::sleep(Duration::from_millis(10));
+    let _ = tx1.send(88);
+    assert_eq!(rx2.wait().unwrap(), 88);
+}
+
+fn spawn_chianed_channel(
+    client: &GreeterClient,
+) -> (oneshot::Sender<usize>, oneshot::Receiver<usize>) {
+    let (tx1, rx1) = oneshot::channel();
+    let (tx2, rx2) = oneshot::channel();
+    let f = rx1
+        .map(|n| {
+            let _ = tx2.send(n);
+        }).map_err(|_| ());
+    client.spawn(f);
+
+    (tx1, rx2)
 }
