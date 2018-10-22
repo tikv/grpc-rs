@@ -164,13 +164,15 @@ impl Read for MessageReader {
             if bytes.is_empty() {
                 return Ok(0);
             }
-            let amt = cmp::min(buf.len(), bytes.len());
-            if amt == 1 {
-                buf[0] = bytes[0];
+            let buf_len = buf.len();
+            let bytes_len = bytes.len();
+            if buf_len > bytes_len {
+                buf[..bytes_len].copy_from_slice(bytes);
+                bytes_len
             } else {
-                buf[..amt].copy_from_slice(bytes);
+                buf.copy_from_slice(bytes[..buf_len]);
+                buf_len
             }
-            amt
         };
         self.consume(amt);
         Ok(amt)
