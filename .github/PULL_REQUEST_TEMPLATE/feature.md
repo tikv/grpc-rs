@@ -10,7 +10,7 @@ This feature resolves issue #???.
 **Description of feature:**
 A short description of the feature implemented.
 
-**Implementation:
+**Implementation:**
 Describe any pieces of the implementation that deserve further explanation.
 Detail any gotchas, uncertainties, or open questions about the implementation.
 
