@@ -1,7 +1,6 @@
 ---
 name: Bug report
 about: Found a bug? Help us squash it!
-
 ---
 
 **Describe the bug**

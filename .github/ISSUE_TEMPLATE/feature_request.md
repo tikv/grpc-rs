@@ -1,7 +1,6 @@
 ---
 name: Feature request
 about: Help us develop our roadmap and direction.
-
 ---
 
 **Is your feature request related to a problem? Please describe.**
