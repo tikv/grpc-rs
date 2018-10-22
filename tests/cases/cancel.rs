@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use std::sync::mpsc as std_mpsc;
 
-use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use futures::sync::mpsc;
+use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::*;
@@ -68,11 +68,11 @@ impl RouteGuide for CancelService {
             thread::sleep(Duration::from_secs(5));
         });
 
-        let f = rx.map(|_| {
-            let f = Feature::new();
-            (f, WriteFlags::default())
-        })
-            .forward(sink.sink_map_err(|_| ()))
+        let f = rx
+            .map(|_| {
+                let f = Feature::new();
+                (f, WriteFlags::default())
+            }).forward(sink.sink_map_err(|_| ()))
             .map(|_| ())
             .map_err(|_| ())
             .then(move |_| {
@@ -265,7 +265,7 @@ fn test_early_exit() {
         let l = client.list_features(&rect).unwrap();
         let f = l.into_future();
         match f.wait() {
-            Ok((Some(_), _)) => {},
+            Ok((Some(_), _)) => {}
             Ok((None, _)) => panic!("should have result"),
             Err((e, _)) => panic!("unexpected error {:?}", e),
         };
