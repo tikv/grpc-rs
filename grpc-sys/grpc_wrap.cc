@@ -308,10 +308,10 @@ grpcwrap_slice_length(const grpc_slice *slice) {
 
 GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
 grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
-  grpc_byte_buffer *buf = NULL;
+  grpc_byte_buffer *buf = nullptr;
   if (ctx->recv_message) {
     buf = ctx->recv_message;
-    ctx->recv_message = NULL;
+    ctx->recv_message = nullptr;
   }
   return buf;
 }
