@@ -14,6 +14,7 @@
 pub mod client;
 pub mod server;
 
+use std::cmp;
 use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
 use std::{mem, ptr, slice, usize};
@@ -164,15 +165,13 @@ impl Read for MessageReader {
             if bytes.is_empty() {
                 return Ok(0);
             }
-            let buf_len = buf.len();
-            let bytes_len = bytes.len();
-            if buf_len > bytes_len {
-                buf[..bytes_len].copy_from_slice(bytes);
-                bytes_len
+            let amt = cmp::min(buf.len(), bytes.len());
+            if amt == 1 {
+                buf[0] = bytes[0];
             } else {
-                buf.copy_from_slice(&bytes[..buf_len]);
-                buf_len
+                buf[..amt].copy_from_slice(&bytes[..amt]);
             }
+            amt
         };
         self.consume(amt);
         Ok(amt)
