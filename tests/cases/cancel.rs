@@ -260,15 +260,15 @@ fn test_early_exit() {
     let (service, client, _server) = prepare_suite();
     let (tx, rx) = std_mpsc::channel();
     *service.list_feature_listener.lock().unwrap() = Some(tx);
+
     let rect = Rectangle::new();
-    {
-        let l = client.list_features(&rect).unwrap();
-        let f = l.into_future();
-        match f.wait() {
-            Ok((Some(_), _)) => {}
-            Ok((None, _)) => panic!("should have result"),
-            Err((e, _)) => panic!("unexpected error {:?}", e),
-        };
-    }
+    let l = client.list_features(&rect).unwrap();
+    let f = l.into_future();
+    match f.wait() {
+        Ok((Some(_), _)) => {}
+        Ok((None, _)) => panic!("should have result"),
+        Err((e, _)) => panic!("unexpected error {:?}", e),
+    };
+
     rx.recv_timeout(Duration::from_secs(1)).unwrap();
 }
