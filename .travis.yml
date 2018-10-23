@@ -16,12 +16,6 @@ env:
 
 os:
   - linux
-  addons:
-    apt:
-      sources:
-        - llvm-toolchain-trusty-5.0
-      packages:
-        - clang-tidy-5.0
 rust:
   - stable
   - beta
@@ -58,6 +52,13 @@ before_script:
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
+
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-trusty-5.0
+    packages:
+      - clang-tidy-5.0
 
 script:
   - bash scripts/lint-grpc-sys.sh
