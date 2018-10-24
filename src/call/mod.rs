@@ -168,7 +168,7 @@ impl Read for MessageReader {
             if amt == 1 {
                 buf[0] = bytes[0];
             } else {
-                buf[..amt].copy_from_slice(bytes);
+                buf[..amt].copy_from_slice(&bytes[..amt]);
             }
             amt
         };
@@ -759,5 +759,72 @@ impl SinkBase {
 
         self.batch_f.take();
         Ok(Async::Ready(()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use grpc_sys;
+    use std::mem;
+
+    use super::*;
+
+    unsafe fn make_message_reader(source: &[u8], nslice: usize) -> MessageReader {
+        let mut slices = Vec::with_capacity(nslice);
+        for _ in 0..nslice {
+            let len = source.len();
+            let mut slice = grpc_sys::grpc_slice_from_copied_buffer(source.as_ptr() as _, len);
+            slices.push(slice);
+        }
+        let buf = grpc_sys::grpc_raw_byte_buffer_create(slices.as_mut_ptr(), nslice);
+        let mut reader = mem::zeroed();
+        assert_eq!(grpc_sys::grpc_byte_buffer_reader_init(&mut reader, buf), 1);
+        let length = grpc_sys::grpc_byte_buffer_length(reader.buffer_out);
+
+        MessageReader {
+            buf,
+            reader,
+            buffer_slice: None,
+            length,
+        }
+    }
+
+    #[test]
+    fn test_message_reader() {
+        for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
+            for nslice in 1..4 {
+                let source = vec![len as u8; len];
+                let expect = vec![len as u8; len * nslice];
+                // Test read.
+                let mut reader = unsafe { make_message_reader(&source, nslice) };
+                let mut dest = [0; 7];
+                let amt = reader.read(&mut dest).unwrap();
+
+                assert_eq!(
+                    dest[..amt],
+                    expect[..amt],
+                    "len: {}, nslice: {}",
+                    len,
+                    nslice
+                );
+
+                // Read after move.
+                let mut box_reader = Box::new(reader);
+                let amt = box_reader.read(&mut dest).unwrap();
+                assert_eq!(
+                    dest[..amt],
+                    expect[..amt],
+                    "len: {}, nslice: {}",
+                    len,
+                    nslice
+                );
+
+                // Test read_to_end.
+                let mut reader = unsafe { make_message_reader(&source, nslice) };
+                let mut dest = vec![];
+                reader.read_to_end(&mut dest).unwrap();
+                assert_eq!(dest, expect, "len: {}, nslice: {}", len, nslice);
+            }
+        }
     }
 }
