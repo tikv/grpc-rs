@@ -14,10 +14,9 @@
 pub mod client;
 pub mod server;
 
-use std::cmp;
 use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
-use std::{mem, ptr, slice, usize};
+use std::{cmp, mem, ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
