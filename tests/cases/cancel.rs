@@ -11,8 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
+use futures::sync::mpsc;
 use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
@@ -27,6 +31,7 @@ type RouteChatHandler =
 
 #[derive(Clone)]
 struct CancelService {
+    list_feature_listener: Arc<Mutex<Option<std_mpsc::Sender<()>>>>,
     record_route_handler: RecordRouteHandler,
     route_chat_handler: RouteChatHandler,
 }
@@ -34,6 +39,7 @@ struct CancelService {
 impl CancelService {
     fn new() -> CancelService {
         CancelService {
+            list_feature_listener: Arc::default(),
             record_route_handler: Arc::new(Mutex::new(None)),
             route_chat_handler: Arc::new(Mutex::new(None)),
         }
@@ -46,9 +52,35 @@ impl RouteGuide for CancelService {
         drop(sink);
     }
 
-    fn list_features(&mut self, _: RpcContext, _: Rectangle, sink: ServerStreamingSink<Feature>) {
+    fn list_features(&mut self, ctx: RpcContext, _: Rectangle, sink: ServerStreamingSink<Feature>) {
         // Drop the sink, client should receive Cancelled.
-        drop(sink);
+        let listener = match self.list_feature_listener.lock().unwrap().take() {
+            Some(l) => l,
+            None => {
+                drop(sink);
+                return;
+            }
+        };
+        let (tx, rx) = mpsc::unbounded();
+
+        thread::spawn(move || loop {
+            tx.unbounded_send(1).unwrap();
+            thread::sleep(Duration::from_secs(5));
+        });
+
+        let f = rx
+            .map(|_| {
+                let f = Feature::new();
+                (f, WriteFlags::default())
+            }).forward(sink.sink_map_err(|_| ()))
+            .map(|_| ())
+            .map_err(|_| ())
+            .then(move |_| {
+                let _ = listener.send(());
+                Ok(())
+            });
+
+        ctx.spawn(f);
     }
 
     fn record_route(
@@ -221,4 +253,22 @@ fn test_server_cancel_on_dropping() {
         Some(Box::new(|stream, sink| drop_stream(stream, sink)));
     let (_tx, rx) = client.route_chat().unwrap();
     check_cancel(rx);
+}
+
+#[test]
+fn test_early_exit() {
+    let (service, client, _server) = prepare_suite();
+    let (tx, rx) = std_mpsc::channel();
+    *service.list_feature_listener.lock().unwrap() = Some(tx);
+
+    let rect = Rectangle::new();
+    let l = client.list_features(&rect).unwrap();
+    let f = l.into_future();
+    match f.wait() {
+        Ok((Some(_), _)) => {}
+        Ok((None, _)) => panic!("should have result"),
+        Err((e, _)) => panic!("unexpected error {:?}", e),
+    };
+
+    rx.recv_timeout(Duration::from_secs(1)).unwrap();
 }
