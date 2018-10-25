@@ -67,7 +67,7 @@ pub use call::server::{
     RequestStream, RpcContext, ServerStreamingSink, ServerStreamingSinkFailure, UnarySink,
     UnarySinkResult,
 };
-pub use call::{MessageWriter, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
+pub use call::{MessageReader, MessageWriter, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use channel::{
     Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
 };

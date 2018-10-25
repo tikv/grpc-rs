@@ -12,10 +12,13 @@
 // limitations under the License.
 
 #![allow(unknown_lints)]
+#![allow(renamed_and_removed_lints)]
+// remove this after Rust's tool_lints is stabilized
 
 extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
+use std::mem;
 use std::time::Duration;
 
 /// The clocks gRPC supports.
@@ -348,15 +351,6 @@ pub struct GrpcMetadataArray {
     pub metadata: *mut GrpcMetadata,
 }
 
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
-pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
-
-pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
-pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
-
-pub enum GrpcMetadata {}
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GrpcSliceRefCounted {
@@ -384,7 +378,6 @@ pub union GrpcSliceData {
 
 pub enum GrpcSliceRefCount {}
 
-/// It's safe to derive [Clone] and [Copy], since [GrpcSlice] has value semantics
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GrpcSlice {
@@ -392,9 +385,26 @@ pub struct GrpcSlice {
     data: GrpcSliceData,
 }
 
-unsafe impl Sync for GrpcSlice {}
-unsafe impl Send for GrpcSlice {}
+#[repr(C)]
+pub union GrpcByteBufferReaderCurrent {
+    index: c_uint,
+}
 
+#[repr(C)]
+pub struct GrpcByteBufferReader {
+    pub buffer_in: *mut GrpcByteBuffer,
+    pub buffer_out: *mut GrpcByteBuffer,
+    current: GrpcByteBufferReaderCurrent,
+}
+
+pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
+pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
+pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
+
+pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
+pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
+
+pub enum GrpcMetadata {}
 pub enum GrpcCallDetails {}
 
 pub enum GrpcCompletionQueue {}
@@ -497,17 +507,38 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
+    pub fn grpc_slice_unref(slice: GrpcSlice);
+    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
+    pub fn grpc_raw_byte_buffer_create(
+        slices: *mut GrpcSlice,
+        nslices: size_t,
+    ) -> *mut GrpcByteBuffer;
+    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
+    pub fn grpcwrap_slice_raw_offset(
+        slice: *const GrpcSlice,
+        offset: size_t,
+        len: *mut size_t,
+    ) -> *const c_char;
+    pub fn grpc_byte_buffer_reader_init(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcByteBuffer,
+    ) -> c_int;
+    pub fn grpc_byte_buffer_reader_next(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcSlice,
+    ) -> c_int;
+    pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
+
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
     pub fn grpcwrap_batch_context_recv_initial_metadata(
         ctx: *mut GrpcBatchContext,
     ) -> *const GrpcMetadataArray;
-    pub fn grpcwrap_batch_context_recv_message_length(ctx: *mut GrpcBatchContext) -> size_t;
-    pub fn grpcwrap_batch_context_recv_message_to_buffer(
+    pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut GrpcBatchContext,
-        buffer: *mut c_char,
-        buffer_len: size_t,
-    );
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_batch_context_recv_status_on_client_status(
         ctx: *mut GrpcBatchContext,
     ) -> GrpcStatusCode;
@@ -620,7 +651,7 @@ extern "C" {
         server: *mut GrpcServer,
         method: *const c_char,
         host: *const c_char,
-        paylod_handling: GrpcServerRegisterMethodPayloadHandling,
+        payload_handling: GrpcServerRegisterMethodPayloadHandling,
         flags: uint32_t,
     ) -> *mut c_void;
     pub fn grpc_server_create(
@@ -696,6 +727,19 @@ extern "C" {
     pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
 
     pub fn gpr_free(p: *mut c_void);
+
+    pub fn grpcwrap_sanity_check_slice(size: size_t, align: size_t);
+    pub fn grpcwrap_sanity_check_byte_buffer_reader(size: size_t, align: size_t);
+}
+
+/// Make sure the complicated struct written in rust is the same with
+/// its C one.
+pub unsafe fn sanity_check() {
+    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
+    grpcwrap_sanity_check_byte_buffer_reader(
+        mem::size_of::<GrpcByteBufferReader>(),
+        mem::align_of::<GrpcByteBufferReader>(),
+    );
 }
 
 #[cfg(feature = "secure")]
@@ -754,6 +798,7 @@ mod tests {
     fn smoke() {
         unsafe {
             super::grpc_init();
+            super::sanity_check();
             let cq = super::grpc_completion_queue_create_for_next(ptr::null_mut());
             super::grpc_completion_queue_destroy(cq);
             super::grpc_shutdown();

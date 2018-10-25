@@ -14,13 +14,13 @@
 // TODO: Remove it once Rust's tool_lints is stabilized.
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
-    self, ClientStreamingSink, DuplexSink, MessageWriter, Method, MethodType, RequestStream,
+    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
     WriteFlags,
 };
@@ -117,8 +117,10 @@ pub fn bin_ser(t: &Vec<u8>, buf: &mut MessageWriter) {
 }
 
 #[inline]
-pub fn bin_de(buf: &[u8]) -> grpc::Result<Vec<u8>> {
-    Ok(buf.to_vec())
+pub fn bin_de(mut reader: MessageReader) -> grpc::Result<Vec<u8>> {
+    let mut buf = vec![];
+    reader.read_to_end(&mut buf).unwrap();
+    Ok(buf)
 }
 
 pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Method {
