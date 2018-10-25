@@ -491,8 +491,13 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
     pub fn grpc_slice_unref(slice: GrpcSlice);
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
+    pub fn grpc_raw_byte_buffer_create(
+        slices: *mut GrpcSlice,
+        nslices: size_t,
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
     pub fn grpcwrap_slice_raw_offset(
         slice: *const GrpcSlice,
