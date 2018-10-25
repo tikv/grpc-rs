@@ -20,9 +20,9 @@ use std::sync::Arc;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
-    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
-    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
-    WriteFlags,
+    self, ClientStreamingSink, DuplexSink, MessageReader, MessageWriter, Method, MethodType,
+    RequestStream, RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder,
+    UnarySink, WriteFlags,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;

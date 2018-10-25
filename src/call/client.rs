@@ -19,7 +19,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use grpc_sys;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
-use async::{BatchFuture, BatchMessage, BatchType, CqFuture, SpinLock};
+use async::{BatchFuture, BatchType, SpinLock};
 use call::{check_run, Call, MessageReader, MessageWriter, Method};
 use channel::Channel;
 use codec::{DeserializeFn, SerializeFn};

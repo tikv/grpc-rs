@@ -30,7 +30,6 @@ use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
-use grpc_sys::GrpcByteBuffer;
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 
 /// Method types supported by gRPC.

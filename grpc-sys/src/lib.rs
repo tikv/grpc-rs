@@ -376,8 +376,6 @@ pub union GrpcSliceData {
     inlined: GrpcSliceInlined,
 }
 
-pub enum GrpcSliceRefCount {}
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GrpcSlice {
@@ -406,22 +404,17 @@ pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
 pub enum GrpcCallDetails {}
-
 pub enum GrpcCompletionQueue {}
-
 pub enum GrpcChannel {}
-
 pub enum GrpcCall {}
-
 pub enum GrpcByteBuffer {}
-
 pub enum GrpcBatchContext {}
-
 pub enum GrpcServer {}
-
 pub enum GrpcSliceBuffer {}
-
 pub enum GrpcRequestCallContext {}
+pub enum GrpcSliceRefCount {}
+unsafe impl Sync for GrpcSlice {}
+unsafe impl Send for GrpcSlice {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -507,13 +500,7 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
-    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
-    pub fn grpc_slice_unref(slice: GrpcSlice);
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
-    pub fn grpc_raw_byte_buffer_create(
-        slices: *mut GrpcSlice,
-        nslices: size_t,
-    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
     pub fn grpcwrap_slice_raw_offset(
         slice: *const GrpcSlice,
