@@ -41,8 +41,7 @@ fn main() {
                 .long("driver_port")
                 .help("The port the worker should listen on. For example, \"8080\"")
                 .takes_value(true),
-        )
-        .get_matches();
+        ).get_matches();
     let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
 
     let _log_guard = init_log(

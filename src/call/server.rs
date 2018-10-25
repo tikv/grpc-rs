@@ -20,7 +20,10 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
-use call::{BatchContext, Call, MessageReader, MessageWriter, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use call::{
+    BatchContext, Call, MessageReader, MessageWriter, MethodType, RpcStatusCode, SinkBase,
+    StreamingBase,
+};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
 use error::Error;
