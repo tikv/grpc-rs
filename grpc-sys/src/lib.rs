@@ -19,6 +19,7 @@ extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
 use std::mem;
+use std::ptr;
 use std::time::Duration;
 
 /// The clocks gRPC supports.
@@ -310,10 +311,13 @@ pub enum GrpcCompressionLevel {
 ///
 /// Based on `grpc_compression_algorithm`.
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub enum GrpcCompressionAlgorithms {
     None = 0,
     Deflate,
     Gzip,
+    /// Experimental: Stream compression is currently experimental
+    StreamGzip,
 }
 
 /// How to handle payloads for a registered method.
@@ -329,7 +333,7 @@ pub enum GrpcServerRegisterMethodPayloadHandling {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum GprLogSeverity {
     Debug,
     Info,
@@ -377,10 +381,22 @@ pub union GrpcSliceData {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct GrpcSlice {
     ref_count: *mut GrpcSliceRefCount,
     data: GrpcSliceData,
+}
+
+impl<'a> From<&'a [i8]> for GrpcSlice {
+    fn from(data: &'a [i8]) -> Self {
+        unsafe { grpc_slice_from_copied_buffer(data.as_ptr(), data.len()) }
+    }
+}
+
+impl<'a> From<&'a [u8]> for GrpcSlice {
+    fn from(data: &'a [u8]) -> Self {
+        unsafe { grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len()) }
+    }
 }
 
 #[repr(C)]
@@ -393,6 +409,58 @@ pub struct GrpcByteBufferReader {
     pub buffer_in: *mut GrpcByteBuffer,
     pub buffer_out: *mut GrpcByteBuffer,
     current: GrpcByteBufferReaderCurrent,
+}
+
+impl<'a> From<&'a mut GrpcByteBufferWrap> for GrpcByteBufferReader {
+    fn from(src: &'a mut GrpcByteBufferWrap) -> Self {
+        let mut reader;
+        unsafe {
+            reader = mem::zeroed();
+            let init_result = grpc_byte_buffer_reader_init(&mut reader, src.ptr);
+            assert_eq!(init_result, 1);
+        }
+        reader
+    }
+}
+
+pub struct GrpcByteBufferWrap {
+    pub ptr: *mut GrpcByteBuffer,
+}
+
+impl Default for GrpcByteBufferWrap {
+    fn default() -> Self {
+        unsafe {
+            GrpcByteBufferWrap {
+                ptr: grpc_raw_byte_buffer_create(ptr::null(), 0),
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a [GrpcSlice]> for GrpcByteBufferWrap {
+    fn from(slice: &'a [GrpcSlice]) -> Self {
+        unsafe {
+            GrpcByteBufferWrap {
+                ptr: grpc_raw_byte_buffer_create(slice.as_ptr(), slice.len()),
+            }
+        }
+    }
+}
+
+impl Clone for GrpcByteBufferWrap {
+    fn clone(&self) -> Self {
+        unsafe {
+            GrpcByteBufferWrap {
+                ptr: grpc_byte_buffer_copy(self.ptr),
+            }
+        }
+    }
+}
+
+impl Drop for GrpcByteBufferWrap {
+    fn drop(&mut self) {
+        unsafe { grpc_byte_buffer_destroy(self.ptr) }
+    }
 }
 
 pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
@@ -425,6 +493,7 @@ extern "C" {
         len: size_t,
     ) -> *mut GrpcByteBuffer;
     pub fn grpc_slice_unref(slice: GrpcSlice);
+    pub fn grpc_byte_buffer_copy(original: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
