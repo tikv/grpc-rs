@@ -481,6 +481,9 @@ macro_rules! impl_stream_sink {
             }
 
             fn poll_complete(&mut self) -> Poll<(), Error> {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish())? {
+                    return Err(Error::RemoteStopped);
+                }
                 self.base.poll_complete()
             }
 
