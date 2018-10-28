@@ -382,20 +382,24 @@ pub union GrpcSliceData {
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct GrpcSlice {
+pub struct GrpcSliceRaw {
     ref_count: *mut GrpcSliceRefCount,
     data: GrpcSliceData,
 }
 
-impl<'a> From<&'a [i8]> for GrpcSlice {
+impl<'a> From<&'a [i8]> for GrpcSliceRaw {
     fn from(data: &'a [i8]) -> Self {
-        unsafe { grpc_slice_from_copied_buffer(data.as_ptr(), data.len()) }
+        unsafe {
+            grpc_slice_from_copied_buffer(data.as_ptr(), data.len())
+        }
     }
 }
 
-impl<'a> From<&'a [u8]> for GrpcSlice {
+impl<'a> From<&'a [u8]> for GrpcSliceRaw {
     fn from(data: &'a [u8]) -> Self {
-        unsafe { grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len()) }
+        unsafe {
+            grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len())
+        }
     }
 }
 
@@ -406,60 +410,62 @@ pub union GrpcByteBufferReaderCurrent {
 
 #[repr(C)]
 pub struct GrpcByteBufferReader {
-    pub buffer_in: *mut GrpcByteBuffer,
-    pub buffer_out: *mut GrpcByteBuffer,
+    pub buffer_in: *mut GrpcByteBufferRaw,
+    pub buffer_out: *mut GrpcByteBufferRaw,
     current: GrpcByteBufferReaderCurrent,
 }
 
-impl<'a> From<&'a mut GrpcByteBufferWrap> for GrpcByteBufferReader {
-    fn from(src: &'a mut GrpcByteBufferWrap) -> Self {
+impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
+    fn from(src: &'a mut GrpcByteBuffer) -> Self {
         let mut reader;
         unsafe {
             reader = mem::zeroed();
-            let init_result = grpc_byte_buffer_reader_init(&mut reader, src.ptr);
+            let init_result = grpc_byte_buffer_reader_init(&mut reader, src.raw);
             assert_eq!(init_result, 1);
         }
         reader
     }
 }
 
-pub struct GrpcByteBufferWrap {
-    pub ptr: *mut GrpcByteBuffer,
+/// A light wrapper with constructor, destructor for
+/// [GrpcByteBufferRaw]
+pub struct GrpcByteBuffer {
+    pub raw: *mut GrpcByteBufferRaw,
 }
 
-impl Default for GrpcByteBufferWrap {
+impl Default for GrpcByteBuffer {
     fn default() -> Self {
         unsafe {
-            GrpcByteBufferWrap {
-                ptr: grpc_raw_byte_buffer_create(ptr::null(), 0),
+            GrpcByteBuffer {
+                raw: grpc_raw_byte_buffer_create(ptr::null(), 0),
             }
         }
     }
 }
 
-impl<'a> From<&'a [GrpcSlice]> for GrpcByteBufferWrap {
-    fn from(slice: &'a [GrpcSlice]) -> Self {
+impl<'a> From<&'a [GrpcSliceRaw]> for GrpcByteBuffer {
+    fn from(slice: &'a [GrpcSliceRaw]) -> Self {
         unsafe {
-            GrpcByteBufferWrap {
-                ptr: grpc_raw_byte_buffer_create(slice.as_ptr(), slice.len()),
+            GrpcByteBuffer {
+                raw: grpc_raw_byte_buffer_create(slice.as_ptr(), slice.len()),
             }
         }
     }
 }
 
-impl Clone for GrpcByteBufferWrap {
+impl Clone for GrpcByteBuffer {
     fn clone(&self) -> Self {
         unsafe {
-            GrpcByteBufferWrap {
-                ptr: grpc_byte_buffer_copy(self.ptr),
+            GrpcByteBuffer {
+                raw: grpc_byte_buffer_copy(self.raw),
             }
         }
     }
 }
 
-impl Drop for GrpcByteBufferWrap {
+impl Drop for GrpcByteBuffer {
     fn drop(&mut self) {
-        unsafe { grpc_byte_buffer_destroy(self.ptr) }
+        unsafe { grpc_byte_buffer_destroy(self.raw) }
     }
 }
 
@@ -475,25 +481,25 @@ pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
 pub enum GrpcCall {}
-pub enum GrpcByteBuffer {}
+pub enum GrpcByteBufferRaw {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcSliceBuffer {}
 pub enum GrpcRequestCallContext {}
 pub enum GrpcSliceRefCount {}
-unsafe impl Sync for GrpcSlice {}
-unsafe impl Send for GrpcSlice {}
+unsafe impl Sync for GrpcSliceRaw {}
+unsafe impl Send for GrpcSliceRaw {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
-    pub fn grpc_slice_from_copied_buffer(source: *const c_char, len: size_t) -> GrpcSlice;
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, len: size_t) -> GrpcSliceRaw;
     pub fn grpc_raw_byte_buffer_create(
-        source: *const GrpcSlice,
+        source: *const GrpcSliceRaw,
         len: size_t,
-    ) -> *mut GrpcByteBuffer;
-    pub fn grpc_slice_unref(slice: GrpcSlice);
-    pub fn grpc_byte_buffer_copy(original: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
+    ) -> *mut GrpcByteBufferRaw;
+    pub fn grpc_slice_unref(slice: GrpcSliceRaw);
+    pub fn grpc_byte_buffer_copy(original: *const GrpcByteBufferRaw) -> *mut GrpcByteBufferRaw;
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
@@ -569,23 +575,23 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
-    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
-    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
+    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBufferRaw) -> size_t;
+    pub fn grpcwrap_slice_length(slice: *const GrpcSliceRaw) -> size_t;
     pub fn grpcwrap_slice_raw_offset(
-        slice: *const GrpcSlice,
+        slice: *const GrpcSliceRaw,
         offset: size_t,
         len: *mut size_t,
     ) -> *const c_char;
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcByteBuffer,
+        buf: *mut GrpcByteBufferRaw,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_next(
         reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcSlice,
+        buf: *mut GrpcSliceRaw,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
-    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBufferRaw);
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
@@ -594,7 +600,7 @@ extern "C" {
     ) -> *const GrpcMetadataArray;
     pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut GrpcBatchContext,
-    ) -> *mut GrpcByteBuffer;
+    ) -> *mut GrpcByteBufferRaw;
     pub fn grpcwrap_batch_context_recv_status_on_client_status(
         ctx: *mut GrpcBatchContext,
     ) -> GrpcStatusCode;
@@ -617,7 +623,7 @@ extern "C" {
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_buffer: *mut GrpcByteBuffer,
+        send_buffer: *mut GrpcByteBufferRaw,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
         initial_metadata_flags: uint32_t,
@@ -633,7 +639,7 @@ extern "C" {
     pub fn grpcwrap_call_start_server_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_buffer: *mut GrpcByteBuffer,
+        send_buffer: *mut GrpcByteBufferRaw,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
         initial_metadata_flags: uint32_t,
@@ -654,7 +660,7 @@ extern "C" {
     pub fn grpcwrap_call_send_message(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_buffer: *mut GrpcByteBuffer,
+        send_buffer: *mut GrpcByteBufferRaw,
         write_flags: uint32_t,
         send_empty_initial_metadata: uint32_t,
         tag: *mut c_void,
@@ -671,7 +677,7 @@ extern "C" {
         status_details_len: size_t,
         trailing_metadata: *mut GrpcMetadataArray,
         send_empty_metadata: int32_t,
-        optional_send_buffer: *mut GrpcByteBuffer,
+        optional_send_buffer: *mut GrpcByteBufferRaw,
         write_flags: uint32_t,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
@@ -791,7 +797,7 @@ extern "C" {
 /// Make sure the complicated struct written in rust is the same with
 /// its C one.
 pub unsafe fn sanity_check() {
-    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
+    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSliceRaw>(), mem::align_of::<GrpcSliceRaw>());
     grpcwrap_sanity_check_byte_buffer_reader(
         mem::size_of::<GrpcByteBufferReader>(),
         mem::align_of::<GrpcByteBufferReader>(),

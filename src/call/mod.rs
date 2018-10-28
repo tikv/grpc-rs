@@ -21,8 +21,8 @@ use std::{cmp, mem, ptr, slice, usize};
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
 use grpc_sys::{
-    self, GrpcBatchContext, GrpcByteBuffer, GrpcByteBufferReader, GrpcByteBufferWrap, GrpcCall,
-    GrpcCallStatus, GrpcSlice,
+    self, GrpcBatchContext, GrpcByteBufferRaw, GrpcByteBufferReader, GrpcByteBuffer, GrpcCall,
+    GrpcCallStatus, GrpcSliceRaw,
 };
 use libc::{c_void, size_t};
 
@@ -113,7 +113,7 @@ impl RpcStatus {
 }
 
 struct BufferSlice {
-    slice: GrpcSlice,
+    slice: GrpcSliceRaw,
     offset: usize,
     length: usize,
 }
@@ -140,7 +140,7 @@ impl BufferSlice {
 /// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
 /// to operate the reader.
 pub struct MessageReader {
-    _buf: GrpcByteBufferWrap,
+    _buf: GrpcByteBuffer,
     reader: GrpcByteBufferReader,
     buffer_slice: Option<BufferSlice>,
     length: usize,
@@ -264,7 +264,7 @@ pub struct BatchContext {
 }
 
 pub struct MessageWriter {
-    data: Vec<GrpcSlice>,
+    data: Vec<GrpcSliceRaw>,
     size: usize,
 }
 
@@ -287,7 +287,7 @@ impl MessageWriter {
         self.size = 0;
     }
 
-    pub unsafe fn as_ptr(&mut self) -> *mut GrpcByteBuffer {
+    pub unsafe fn as_ptr(&mut self) -> *mut GrpcByteBufferRaw {
         grpc_sys::grpc_raw_byte_buffer_create(self.data.as_mut_ptr(), self.data.len())
     }
 
@@ -326,12 +326,12 @@ impl BatchContext {
         self.ctx
     }
 
-    pub fn take_recv_message(&self) -> Option<GrpcByteBufferWrap> {
+    pub fn take_recv_message(&self) -> Option<GrpcByteBuffer> {
         let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
         if ptr.is_null() {
             None
         } else {
-            Some(GrpcByteBufferWrap { ptr })
+            Some(GrpcByteBuffer { raw: ptr })
         }
     }
 
@@ -815,7 +815,7 @@ mod tests {
         for _ in 0..n_slice {
             slices.push(From::from(source));
         }
-        let mut buf = GrpcByteBufferWrap::from(slices.as_ref());
+        let mut buf = GrpcByteBuffer::from(slices.as_ref());
         let reader = GrpcByteBufferReader::from(&mut buf);
         let length = grpc_sys::grpc_byte_buffer_length(reader.buffer_out);
 
