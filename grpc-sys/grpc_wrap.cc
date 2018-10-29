@@ -301,6 +301,11 @@ grpcwrap_slice_raw_offset(const grpc_slice *slice, size_t offset, size_t *len) {
   return (const char *)(GRPC_SLICE_START_PTR(*slice)) + offset;
 }
 
+GPR_EXPORT grpc_slice GPR_CALLTYPE
+grpcwrap_slice_copy(const grpc_slice *slice) {
+  return grpc_slice_copy(*slice);
+}
+
 GPR_EXPORT size_t GPR_CALLTYPE
 grpcwrap_slice_length(const grpc_slice *slice) {
   return GRPC_SLICE_LENGTH(*slice);
