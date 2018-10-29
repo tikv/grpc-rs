@@ -21,8 +21,8 @@ use std::{cmp, ptr, slice, usize};
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
 use grpc_sys::{
-    self, GrpcBatchContext, GrpcByteBufferReader, GrpcByteBufferWrap, GrpcCall,
-    GrpcCallStatus, GrpcSlice,
+    self, GrpcBatchContext, GrpcByteBuffer, GrpcByteBufferReader, GrpcCall, GrpcCallStatus,
+    GrpcSlice,
 };
 use libc::c_void;
 
@@ -117,7 +117,7 @@ impl RpcStatus {
 /// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
 /// to operate the reader.
 pub struct MessageReader {
-    _buf: GrpcByteBufferWrap,
+    _buf: GrpcByteBuffer,
     reader: GrpcByteBufferReader,
     buffer_slice: GrpcSlice,
     buffer_len: usize,
@@ -224,12 +224,12 @@ impl BatchContext {
         self.ctx
     }
 
-    pub fn take_recv_message(&self) -> Option<GrpcByteBufferWrap> {
+    pub fn take_recv_message(&self) -> Option<GrpcByteBuffer> {
         let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
         if ptr.is_null() {
             None
         } else {
-            Some(GrpcByteBufferWrap { raw: ptr })
+            Some(GrpcByteBuffer { raw: ptr })
         }
     }
 
@@ -722,7 +722,7 @@ mod tests {
         for _ in 0..n_slice {
             slices.push(From::from(source));
         }
-        let mut buf = GrpcByteBufferWrap::from(slices.as_mut_slice());
+        let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
         let reader = GrpcByteBufferReader::from(&mut buf);
         let length = reader.len();
 
