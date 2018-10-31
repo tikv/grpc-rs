@@ -191,7 +191,7 @@ impl BufRead for MessageReader {
         }
 
         debug_assert!(self.buffer_offset <= self.buffer_len);
-        Ok(self.buffer_slice.as_slice(self.buffer_offset))
+        Ok(self.buffer_slice.range_from(self.buffer_offset))
     }
 
     fn consume(&mut self, amt: usize) {
@@ -718,10 +718,7 @@ mod tests {
     use super::*;
 
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
-        let mut slices = Vec::with_capacity(n_slice);
-        for _ in 0..n_slice {
-            slices.push(From::from(source));
-        }
+        let mut slices = vec![From::from(source); n_slice];
         let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
         let reader = GrpcByteBufferReader::from(&mut buf);
         let length = reader.len();

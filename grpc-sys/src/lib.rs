@@ -384,9 +384,9 @@ pub struct GrpcSliceRaw {
     data: GrpcSliceData,
 }
 
-/// Trivial copy. We need to copy the inlined-array, which means we can't
-/// Simply `#[derive(Clone)]`.
-/// Here we use the API provided by gRPC.
+// Trivial copy. We need to copy the inlined-array, which means we can't
+// Simply `#[derive(Clone)]`.
+// Here we use the API provided by gRPC.
 impl Clone for GrpcSliceRaw {
     fn clone(&self) -> Self {
         unsafe { grpcwrap_slice_copy(self as _) }
@@ -412,7 +412,7 @@ pub struct GrpcSlice {
 }
 
 impl GrpcSlice {
-    pub fn new(len: usize) -> Self {
+    pub fn with_capacity(len: usize) -> Self {
         unsafe { From::from(grpc_slice_malloc(len)) }
     }
 
@@ -420,7 +420,7 @@ impl GrpcSlice {
         unsafe { grpcwrap_slice_length(&self.raw) }
     }
 
-    pub fn as_slice(&self, offset: usize) -> &[u8] {
+    pub fn range_from(&self, offset: usize) -> &[u8] {
         unsafe {
             let mut len = 0;
             let ptr = grpcwrap_slice_raw_offset(&self.raw, offset, &mut len);
@@ -428,7 +428,7 @@ impl GrpcSlice {
         }
     }
 
-    pub unsafe fn as_ptr(&self) -> GrpcSliceRaw {
+    pub unsafe fn as_raw(&self) -> GrpcSliceRaw {
         self.raw.clone()
     }
 }
@@ -437,7 +437,7 @@ impl GrpcSlice {
 impl Clone for GrpcSlice {
     fn clone(&self) -> Self {
         unsafe {
-            grpc_slice_ref(self.raw.clone());
+            grpcwrap_slice_ref(&self.raw);
         }
         GrpcSlice {
             raw: self.raw.clone(),
@@ -578,6 +578,7 @@ pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
     pub fn grpcwrap_slice_copy(slice: *const GrpcSliceRaw) -> GrpcSliceRaw;
+    pub fn grpcwrap_slice_ref(slice: *const GrpcSliceRaw) -> GrpcSliceRaw;
     pub fn grpc_empty_slice() -> GrpcSliceRaw;
     pub fn grpc_slice_malloc(len: usize) -> GrpcSliceRaw;
     pub fn grpc_slice_ref(slice: GrpcSliceRaw) -> GrpcSliceRaw;
