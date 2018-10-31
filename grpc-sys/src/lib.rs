@@ -393,12 +393,6 @@ impl Clone for GrpcSliceRaw {
     }
 }
 
-impl<'a> From<&'a [i8]> for GrpcSliceRaw {
-    fn from(data: &'a [i8]) -> Self {
-        unsafe { grpc_slice_from_copied_buffer(data.as_ptr(), data.len()) }
-    }
-}
-
 impl<'a> From<&'a [u8]> for GrpcSliceRaw {
     fn from(data: &'a [u8]) -> Self {
         unsafe { grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len()) }
@@ -468,12 +462,6 @@ impl From<GrpcSliceRaw> for GrpcSlice {
 
 impl<'a> From<&'a [u8]> for GrpcSlice {
     fn from(data: &'a [u8]) -> Self {
-        From::from(GrpcSliceRaw::from(data))
-    }
-}
-
-impl<'a> From<&'a [i8]> for GrpcSlice {
-    fn from(data: &'a [i8]) -> Self {
         From::from(GrpcSliceRaw::from(data))
     }
 }
