@@ -409,16 +409,13 @@ impl GrpcSlice {
 /// Increase the ref count of the slice when cloning
 impl Clone for GrpcSlice {
     fn clone(&self) -> Self {
-        unsafe {
-            grpcwrap_slice_ref(self);
-            grpcwrap_slice_copy(self)
-        }
+        unsafe { grpcwrap_slice_ref(self) }
     }
 }
 
 impl Default for GrpcSlice {
     fn default() -> Self {
-        unsafe { From::from(grpc_empty_slice()) }
+        unsafe { grpc_empty_slice() }
     }
 }
 
@@ -457,12 +454,8 @@ impl GrpcByteBufferReader {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-}
 
-impl Iterator for GrpcByteBufferReader {
-    type Item = GrpcSlice;
-
-    fn next(&mut self) -> GrpcSlice {
+    pub fn next_slice(&mut self) -> GrpcSlice {
         unsafe {
             let mut slice = Default::default();
             let code = grpc_byte_buffer_reader_next(self, &mut slice);
@@ -544,14 +537,17 @@ pub enum GrpcRequestCallContext {}
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
+    // for slice
     pub fn grpcwrap_slice_copy(slice: *const GrpcSlice) -> GrpcSlice;
     pub fn grpcwrap_slice_ref(slice: *const GrpcSlice) -> GrpcSlice;
+    pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
+
     pub fn grpc_empty_slice() -> GrpcSlice;
     pub fn grpc_slice_malloc(len: usize) -> GrpcSlice;
     pub fn grpc_slice_ref(slice: GrpcSlice) -> GrpcSlice;
     pub fn grpc_slice_unref(slice: GrpcSlice);
-    pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
     pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBufferRaw) -> *mut GrpcByteBufferRaw;
+    // end for slice
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
