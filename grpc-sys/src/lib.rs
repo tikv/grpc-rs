@@ -379,51 +379,26 @@ pub union GrpcSliceData {
 pub enum GrpcSliceRefCount {}
 
 #[repr(C)]
-pub struct GrpcSliceRaw {
+pub struct GrpcSlice {
     ref_count: *mut GrpcSliceRefCount,
     data: GrpcSliceData,
 }
 
-// Trivial copy. We need to copy the inlined-array, which means we can't
-// Simply `#[derive(Clone)]`.
-// Here we use the API provided by gRPC.
-impl Clone for GrpcSliceRaw {
-    fn clone(&self) -> Self {
-        unsafe { grpcwrap_slice_copy(self as _) }
-    }
-}
-
-impl<'a> From<&'a [u8]> for GrpcSliceRaw {
-    fn from(data: &'a [u8]) -> Self {
-        unsafe { grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len()) }
-    }
-}
-
-/// A light wrapper with constructor, destructor for
-/// [GrpcSliceRaw]
-pub struct GrpcSlice {
-    raw: GrpcSliceRaw,
-}
-
 impl GrpcSlice {
     pub fn with_capacity(len: usize) -> Self {
-        unsafe { From::from(grpc_slice_malloc(len)) }
+        unsafe { grpc_slice_malloc(len) }
     }
 
     pub fn len(&self) -> usize {
-        unsafe { grpcwrap_slice_length(&self.raw) }
+        unsafe { grpcwrap_slice_length(self) }
     }
 
     pub fn range_from(&self, offset: usize) -> &[u8] {
         unsafe {
             let mut len = 0;
-            let ptr = grpcwrap_slice_raw_offset(&self.raw, offset, &mut len);
+            let ptr = grpcwrap_slice_raw_offset(self, offset, &mut len);
             slice::from_raw_parts(ptr as _, len)
         }
-    }
-
-    pub unsafe fn as_raw(&self) -> GrpcSliceRaw {
-        self.raw.clone()
     }
 }
 
@@ -431,10 +406,8 @@ impl GrpcSlice {
 impl Clone for GrpcSlice {
     fn clone(&self) -> Self {
         unsafe {
-            grpcwrap_slice_ref(&self.raw);
-        }
-        GrpcSlice {
-            raw: self.raw.clone(),
+            grpcwrap_slice_ref(self);
+            grpcwrap_slice_copy(self)
         }
     }
 }
@@ -449,20 +422,14 @@ impl Default for GrpcSlice {
 impl Drop for GrpcSlice {
     fn drop(&mut self) {
         unsafe {
-            grpc_slice_unref(self.raw.clone());
+            grpcwrap_slice_unref(self);
         }
-    }
-}
-
-impl From<GrpcSliceRaw> for GrpcSlice {
-    fn from(raw: GrpcSliceRaw) -> Self {
-        GrpcSlice { raw }
     }
 }
 
 impl<'a> From<&'a [u8]> for GrpcSlice {
     fn from(data: &'a [u8]) -> Self {
-        From::from(GrpcSliceRaw::from(data))
+        unsafe { grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len()) }
     }
 }
 
@@ -485,10 +452,10 @@ impl GrpcByteBufferReader {
 
     pub fn next(&mut self) -> GrpcSlice {
         unsafe {
-            let mut raw: GrpcSliceRaw = mem::zeroed();
-            let code = grpc_byte_buffer_reader_next(self, &mut raw);
+            let mut slice = Default::default();
+            let code = grpc_byte_buffer_reader_next(self, &mut slice);
             debug_assert_ne!(code, 0);
-            From::from(raw)
+            slice
         }
     }
 }
@@ -519,8 +486,8 @@ impl Default for GrpcByteBuffer {
     }
 }
 
-impl<'a> From<&'a mut [GrpcSliceRaw]> for GrpcByteBuffer {
-    fn from(slice: &'a mut [GrpcSliceRaw]) -> Self {
+impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
+    fn from(slice: &'a mut [GrpcSlice]) -> Self {
         unsafe {
             GrpcByteBuffer {
                 raw: grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
@@ -565,12 +532,13 @@ pub enum GrpcRequestCallContext {}
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
-    pub fn grpcwrap_slice_copy(slice: *const GrpcSliceRaw) -> GrpcSliceRaw;
-    pub fn grpcwrap_slice_ref(slice: *const GrpcSliceRaw) -> GrpcSliceRaw;
-    pub fn grpc_empty_slice() -> GrpcSliceRaw;
-    pub fn grpc_slice_malloc(len: usize) -> GrpcSliceRaw;
-    pub fn grpc_slice_ref(slice: GrpcSliceRaw) -> GrpcSliceRaw;
-    pub fn grpc_slice_unref(slice: GrpcSliceRaw);
+    pub fn grpcwrap_slice_copy(slice: *const GrpcSlice) -> GrpcSlice;
+    pub fn grpcwrap_slice_ref(slice: *const GrpcSlice) -> GrpcSlice;
+    pub fn grpc_empty_slice() -> GrpcSlice;
+    pub fn grpc_slice_malloc(len: usize) -> GrpcSlice;
+    pub fn grpc_slice_ref(slice: GrpcSlice) -> GrpcSlice;
+    pub fn grpc_slice_unref(slice: GrpcSlice);
+    pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
     pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBufferRaw) -> *mut GrpcByteBufferRaw;
 
     pub fn grpc_init();
@@ -647,15 +615,15 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
-    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSliceRaw;
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBufferRaw) -> size_t;
     pub fn grpc_raw_byte_buffer_create(
-        slices: *mut GrpcSliceRaw,
+        slices: *mut GrpcSlice,
         nslices: size_t,
     ) -> *mut GrpcByteBufferRaw;
-    pub fn grpcwrap_slice_length(slice: *const GrpcSliceRaw) -> size_t;
+    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
     pub fn grpcwrap_slice_raw_offset(
-        slice: *const GrpcSliceRaw,
+        slice: *const GrpcSlice,
         offset: size_t,
         len: *mut size_t,
     ) -> *const c_char;
@@ -665,7 +633,7 @@ extern "C" {
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_next(
         reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcSliceRaw,
+        buf: *mut GrpcSlice,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
     pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBufferRaw);
@@ -878,10 +846,7 @@ extern "C" {
 /// Make sure the complicated struct written in rust is the same with
 /// its C one.
 pub unsafe fn sanity_check() {
-    grpcwrap_sanity_check_slice(
-        mem::size_of::<GrpcSliceRaw>(),
-        mem::align_of::<GrpcSliceRaw>(),
-    );
+    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
     grpcwrap_sanity_check_byte_buffer_reader(
         mem::size_of::<GrpcByteBufferReader>(),
         mem::align_of::<GrpcByteBufferReader>(),

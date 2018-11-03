@@ -306,6 +306,11 @@ grpcwrap_slice_copy(const grpc_slice *slice) {
   return grpc_slice_copy(*slice);
 }
 
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_slice_unref(const grpc_slice *slice) {
+  grpc_slice_unref(*slice);
+}
+
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_slice_ref(const grpc_slice *slice) {
   return grpc_slice_ref(*slice);
