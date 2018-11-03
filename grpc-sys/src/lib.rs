@@ -393,6 +393,10 @@ impl GrpcSlice {
         unsafe { grpcwrap_slice_length(self) }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn range_from(&self, offset: usize) -> &[u8] {
         unsafe {
             let mut len = 0;
@@ -450,7 +454,15 @@ impl GrpcByteBufferReader {
         unsafe { grpc_byte_buffer_length(self.buffer_out) }
     }
 
-    pub fn next(&mut self) -> GrpcSlice {
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl Iterator for GrpcByteBufferReader {
+    type Item = GrpcSlice;
+
+    fn next(&mut self) -> GrpcSlice {
         unsafe {
             let mut slice = Default::default();
             let code = grpc_byte_buffer_reader_next(self, &mut slice);
