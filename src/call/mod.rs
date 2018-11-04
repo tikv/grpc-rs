@@ -185,7 +185,7 @@ impl BufRead for MessageReader {
         if self.length == 0 {
             return Ok(&[]);
         }
-        if self.buffer_slice.len() == 0 || self.buffer_offset == self.buffer_len {
+        if self.buffer_slice.is_empty() || self.buffer_offset == self.buffer_len {
             self.buffer_slice = self.reader.next_slice();
             self.buffer_offset = 0;
         }
