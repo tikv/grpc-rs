@@ -19,7 +19,7 @@ extern crate libc;
 
 use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
 use std::time::Duration;
-use std::{mem, ptr, slice};
+use std::{mem, slice};
 
 /// The clocks gRPC supports.
 ///
@@ -441,8 +441,8 @@ pub union GrpcByteBufferReaderCurrent {
 
 #[repr(C)]
 pub struct GrpcByteBufferReader {
-    pub buffer_in: *mut GrpcByteBufferRaw,
-    pub buffer_out: *mut GrpcByteBufferRaw,
+    pub buffer_in: *mut GrpcByteBuffer,
+    pub buffer_out: *mut GrpcByteBuffer,
     current: GrpcByteBufferReaderCurrent,
 }
 
@@ -465,58 +465,6 @@ impl GrpcByteBufferReader {
     }
 }
 
-impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
-    fn from(src: &'a mut GrpcByteBuffer) -> Self {
-        let mut reader;
-        unsafe {
-            reader = mem::zeroed();
-            let init_result = grpc_byte_buffer_reader_init(&mut reader, src.raw);
-            assert_eq!(init_result, 1);
-        }
-        reader
-    }
-}
-
-pub struct GrpcByteBuffer {
-    pub raw: *mut GrpcByteBufferRaw,
-}
-
-impl Default for GrpcByteBuffer {
-    fn default() -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
-            }
-        }
-    }
-}
-
-impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
-    fn from(slice: &'a mut [GrpcSlice]) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
-            }
-        }
-    }
-}
-
-impl Clone for GrpcByteBuffer {
-    fn clone(&self) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_byte_buffer_copy(self.raw),
-            }
-        }
-    }
-}
-
-impl Drop for GrpcByteBuffer {
-    fn drop(&mut self) {
-        unsafe { grpc_byte_buffer_destroy(self.raw) }
-    }
-}
-
 pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
 pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
@@ -529,7 +477,7 @@ pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
 pub enum GrpcCall {}
-pub enum GrpcByteBufferRaw {}
+pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
@@ -546,7 +494,7 @@ extern "C" {
     pub fn grpc_slice_malloc(len: usize) -> GrpcSlice;
     pub fn grpc_slice_ref(slice: GrpcSlice) -> GrpcSlice;
     pub fn grpc_slice_unref(slice: GrpcSlice);
-    pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBufferRaw) -> *mut GrpcByteBufferRaw;
+    pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
     // end for slice
 
     pub fn grpc_init();
@@ -624,11 +572,11 @@ extern "C" {
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
     pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
-    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBufferRaw) -> size_t;
+    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
     pub fn grpc_raw_byte_buffer_create(
         slices: *mut GrpcSlice,
         nslices: size_t,
-    ) -> *mut GrpcByteBufferRaw;
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
     pub fn grpcwrap_slice_raw_offset(
         slice: *const GrpcSlice,
@@ -637,14 +585,14 @@ extern "C" {
     ) -> *const c_char;
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcByteBufferRaw,
+        buf: *mut GrpcByteBuffer,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_next(
         reader: *mut GrpcByteBufferReader,
         buf: *mut GrpcSlice,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
-    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBufferRaw);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
@@ -653,7 +601,7 @@ extern "C" {
     ) -> *const GrpcMetadataArray;
     pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut GrpcBatchContext,
-    ) -> *mut GrpcByteBufferRaw;
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_batch_context_recv_status_on_client_status(
         ctx: *mut GrpcBatchContext,
     ) -> GrpcStatusCode;

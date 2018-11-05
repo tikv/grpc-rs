@@ -16,14 +16,11 @@ pub mod server;
 
 use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
-use std::{cmp, ptr, slice, usize};
+use std::{cmp, mem, ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{
-    self, GrpcBatchContext, GrpcByteBuffer, GrpcByteBufferReader, GrpcCall, GrpcCallStatus,
-    GrpcSlice,
-};
+use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
 use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
@@ -31,6 +28,58 @@ use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
+
+impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
+    fn from(src: &'a mut GrpcByteBuffer) -> Self {
+        let mut reader;
+        unsafe {
+            reader = mem::zeroed();
+            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, src.raw);
+            assert_eq!(init_result, 1);
+        }
+        reader
+    }
+}
+
+pub struct GrpcByteBuffer {
+    pub raw: *mut grpc_sys::GrpcByteBuffer,
+}
+
+impl Default for GrpcByteBuffer {
+    fn default() -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
+    fn from(slice: &'a mut [GrpcSlice]) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
+            }
+        }
+    }
+}
+
+impl Clone for GrpcByteBuffer {
+    fn clone(&self) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
+            }
+        }
+    }
+}
+
+impl Drop for GrpcByteBuffer {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpc_byte_buffer_destroy(self.raw) }
+    }
+}
 
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
