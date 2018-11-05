@@ -442,8 +442,8 @@ pub union GrpcByteBufferReaderCurrent {
 
 #[repr(C)]
 pub struct GrpcByteBufferReader {
-    pub buffer_in: *mut GrpcByteBufferRaw,
-    pub buffer_out: *mut GrpcByteBufferRaw,
+    pub buffer_in: *mut GrpcByteBuffer,
+    pub buffer_out: *mut GrpcByteBuffer,
     current: GrpcByteBufferReaderCurrent,
 }
 
@@ -478,14 +478,14 @@ pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
 pub enum GrpcCall {}
-pub enum GrpcByteBufferRaw {}
+pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcSliceBuffer {}
 pub enum GrpcRequestCallContext {}
 pub enum GrpcSliceRefCount {}
-unsafe impl Sync for GrpcSliceRaw {}
-unsafe impl Send for GrpcSliceRaw {}
+unsafe impl Sync for GrpcSlice {}
+unsafe impl Send for GrpcSlice {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -584,20 +584,20 @@ extern "C" {
     ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
     pub fn grpcwrap_slice_raw_offset(
-        slice: *const GrpcSliceRaw,
+        slice: *const GrpcSlice,
         offset: size_t,
         len: *mut size_t,
     ) -> *const c_char;
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcByteBufferRaw,
+        buf: *mut GrpcByteBuffer,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_next(
         reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcSliceRaw,
+        buf: *mut GrpcSlice,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
-    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBufferRaw);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
@@ -606,7 +606,7 @@ extern "C" {
     ) -> *const GrpcMetadataArray;
     pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut GrpcBatchContext,
-    ) -> *mut GrpcByteBufferRaw;
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_batch_context_recv_status_on_client_status(
         ctx: *mut GrpcBatchContext,
     ) -> GrpcStatusCode;
@@ -629,7 +629,7 @@ extern "C" {
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_buffer: *mut GrpcByteBufferRaw,
+        send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
         initial_metadata_flags: uint32_t,
@@ -645,7 +645,7 @@ extern "C" {
     pub fn grpcwrap_call_start_server_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_buffer: *mut GrpcByteBufferRaw,
+        send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
         initial_metadata_flags: uint32_t,
@@ -666,7 +666,7 @@ extern "C" {
     pub fn grpcwrap_call_send_message(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_buffer: *mut GrpcByteBufferRaw,
+        send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         send_empty_initial_metadata: uint32_t,
         tag: *mut c_void,
@@ -683,7 +683,7 @@ extern "C" {
         status_details_len: size_t,
         trailing_metadata: *mut GrpcMetadataArray,
         send_empty_metadata: int32_t,
-        optional_send_buffer: *mut GrpcByteBufferRaw,
+        optional_send_buffer: *mut GrpcByteBuffer,
         write_flags: uint32_t,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
@@ -803,7 +803,7 @@ extern "C" {
 /// Make sure the complicated struct written in rust is the same with
 /// its C one.
 pub unsafe fn sanity_check() {
-    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSliceRaw>(), mem::align_of::<GrpcSliceRaw>());
+    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
     grpcwrap_sanity_check_byte_buffer_reader(
         mem::size_of::<GrpcByteBufferReader>(),
         mem::align_of::<GrpcByteBufferReader>(),

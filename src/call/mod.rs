@@ -21,7 +21,7 @@ use std::{cmp, mem, ptr, slice, usize};
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
-use libc::c_void;
+use libc::{c_void, size_t};
 
 use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
@@ -263,7 +263,7 @@ pub struct BatchContext {
 }
 
 pub struct MessageWriter {
-    data: Vec<GrpcSliceRaw>,
+    data: Vec<GrpcSlice>,
     size: usize,
 }
 
@@ -303,7 +303,7 @@ impl MessageWriter {
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let in_len: size_t = buf.len();
+        let in_len = buf.len() as size_t;
         self.size += in_len;
         self.data.push(From::from(buf));
         Ok(in_len)
