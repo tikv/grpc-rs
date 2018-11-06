@@ -320,6 +320,11 @@ grpcwrap_byte_buffer_add(grpc_byte_buffer *buf, grpc_slice *slice) {
 }
 
 GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_byte_buffer_reset_and_unref(grpc_byte_buffer *buf) {
+  return grpc_slice_buffer_reset_and_unref(&buf->data.raw.slice_buffer);
+}
+
+GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_byte_buffer_pop(grpc_byte_buffer *buf) {
   return grpc_slice_buffer_pop(&buf->data.raw.slice_buffer);
 }

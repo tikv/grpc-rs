@@ -516,11 +516,13 @@ extern "C" {
     pub fn grpc_slice_buffer_pop(slice_buffer: *mut GrpcSliceBuffer);
     pub fn grpc_slice_buffer_swap(a: *mut GrpcSliceBuffer, b: *mut GrpcSliceBuffer);
     pub fn grpc_slice_buffer_move_into(src: *mut GrpcSliceBuffer, dest: *mut GrpcSliceBuffer);
+    pub fn grpc_slice_buffer_reset_and_unref(buf: *mut GrpcByteBuffer);
     // end for slice buffer
 
     // for byte buffer
     pub fn grpcwrap_byte_buffer_add(buf: *mut GrpcByteBuffer, slice: *mut GrpcSlice);
     pub fn grpcwrap_byte_buffer_pop(buf: *mut GrpcByteBuffer);
+    pub fn grpcwrap_byte_buffer_reset_and_unref(buf: *mut GrpcByteBuffer);
 
     pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;

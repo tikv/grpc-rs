@@ -55,6 +55,10 @@ impl GrpcByteBuffer {
         unsafe { grpc_sys::grpcwrap_byte_buffer_pop(self.raw as _) }
     }
 
+    pub fn clear(&mut self) {
+        unsafe { grpc_sys::grpcwrap_byte_buffer_reset_and_unref(self.raw as _) }
+    }
+
     pub fn len(&self) -> usize {
         unsafe { grpc_sys::grpc_byte_buffer_length(self.raw) }
     }
@@ -101,6 +105,9 @@ impl Clone for GrpcByteBuffer {
 
 impl Drop for GrpcByteBuffer {
     fn drop(&mut self) {
+        if self.raw.is_null() {
+            return;
+        }
         unsafe { grpc_sys::grpc_byte_buffer_destroy(self.raw) }
     }
 }
@@ -300,7 +307,8 @@ impl MessageWriter {
     }
 
     pub fn clear(&mut self) {
-        self.data = Default::default();
+        if self.is_empty() { return; }
+        self.data.clear();
         self.size = 0;
     }
 
