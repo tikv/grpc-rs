@@ -486,6 +486,8 @@ pub enum GrpcRequestCallContext {}
 pub enum GrpcSliceRefCount {}
 unsafe impl Sync for GrpcSlice {}
 unsafe impl Send for GrpcSlice {}
+unsafe impl Sync for GrpcByteBuffer {}
+unsafe impl Send for GrpcByteBuffer {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -522,7 +524,11 @@ extern "C" {
 
     pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
     pub fn grpc_raw_byte_buffer_create(slices: *mut GrpcSlice, n: size_t) -> *mut GrpcByteBuffer;
+    // end for byte buffer
+
+    // for byte buffer reader
     pub fn grpc_byte_buffer_reader_init(
         reader: *mut GrpcByteBufferReader,
         buf: *mut GrpcByteBuffer,
@@ -532,8 +538,7 @@ extern "C" {
         buf: *mut GrpcSlice,
     ) -> c_int;
     pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
-    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
-    // end for byte buffer
+    // end for byte buffer reader
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
@@ -871,6 +876,11 @@ pub use secure_component::*;
 #[cfg(test)]
 mod tests {
     use std::ptr;
+
+    #[test]
+    fn destroy_null() {
+        unsafe { super::grpc_byte_buffer_destroy(ptr::null_mut()) }
+    }
 
     #[test]
     fn smoke() {

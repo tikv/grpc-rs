@@ -21,7 +21,7 @@ use std::{cmp, mem, ptr, slice, usize};
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
-use libc::{c_void, size_t};
+use libc::c_void;
 
 use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
@@ -44,6 +44,30 @@ impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
 pub struct GrpcByteBuffer {
     pub raw: *mut grpc_sys::GrpcByteBuffer,
 }
+
+impl GrpcByteBuffer {
+    /// Both parameters marked as mutable since the ref count increases.
+    pub fn push(&mut self, slice: &mut GrpcSlice) {
+        unsafe { grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, slice) }
+    }
+
+    pub fn pop(&mut self) {
+        unsafe { grpc_sys::grpcwrap_byte_buffer_pop(self.raw as _) }
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { grpc_sys::grpc_byte_buffer_length(self.raw) }
+    }
+
+    pub unsafe fn take_raw(&mut self) -> *mut grpc_sys::GrpcByteBuffer {
+        let ret = self.raw;
+        self.raw = ptr::null_mut();
+        ret
+    }
+}
+
+unsafe impl Sync for GrpcByteBuffer {}
+unsafe impl Send for GrpcByteBuffer {}
 
 impl Default for GrpcByteBuffer {
     fn default() -> Self {
@@ -263,31 +287,29 @@ pub struct BatchContext {
 }
 
 pub struct MessageWriter {
-    data: Vec<GrpcSlice>,
+    data: GrpcByteBuffer,
     size: usize,
 }
 
 impl MessageWriter {
     pub fn new() -> MessageWriter {
         MessageWriter {
-            data: Vec::new(),
+            data: Default::default(),
             size: 0,
         }
     }
 
     pub fn clear(&mut self) {
-        unsafe {
-            // TODO remove after we add `slice`'s own drop
-            for slice in &self.data {
-                grpc_sys::grpc_slice_unref(slice.clone());
-            }
-        }
-        self.data.clear();
+        self.data = Default::default();
         self.size = 0;
     }
 
-    pub unsafe fn as_ptr(&mut self) -> *mut grpc_sys::GrpcByteBuffer {
-        grpc_sys::grpc_raw_byte_buffer_create(self.data.as_mut_ptr(), self.data.len())
+    pub fn into_buffer(self) -> GrpcByteBuffer {
+        self.data
+    }
+
+    pub fn as_buffer(&mut self) -> &mut GrpcByteBuffer {
+        &mut self.data
     }
 
     #[inline]
@@ -297,16 +319,15 @@ impl MessageWriter {
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.size == 0
+        self.len() == 0
     }
 }
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let in_len = buf.len() as size_t;
-        self.size += in_len;
-        self.data.push(From::from(buf));
-        Ok(in_len)
+        self.size += buf.len();
+        self.data.push(&mut From::from(buf));
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -432,7 +453,7 @@ impl Call {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let buffer = msg.as_ptr();
+            let buffer = msg.as_buffer().clone().take_raw();
             grpc_sys::grpcwrap_call_send_message(self.call, ctx, buffer, write_flags, i, tag)
         });
         Ok(f)
@@ -479,7 +500,7 @@ impl Call {
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let buffer = payload
             .as_mut()
-            .map_or_else(ptr::null_mut, |p| unsafe { p.as_ptr() });
+            .map_or_else(ptr::null_mut, |p| unsafe { p.as_buffer().take_raw() });
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let (details_ptr, details_len) = status
                 .details
@@ -805,6 +826,18 @@ impl SinkBase {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn byte_buffer_simple() {
+        let mut buf = GrpcByteBuffer::default();
+        assert_eq!(0, buf.len());
+        let data = "2333".as_bytes();
+        buf.push(&mut From::from(data));
+        assert_eq!(data.len(), buf.len());
+        let data1 = "666".as_bytes();
+        buf.push(&mut From::from(data1));
+        assert_eq!(data.len() + data1.len(), buf.len());
+    }
 
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
         let mut slices = vec![From::from(source); n_slice];
