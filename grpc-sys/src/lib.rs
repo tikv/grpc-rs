@@ -494,13 +494,46 @@ extern "C" {
     pub fn grpcwrap_slice_copy(slice: *const GrpcSlice) -> GrpcSlice;
     pub fn grpcwrap_slice_ref(slice: *const GrpcSlice) -> GrpcSlice;
     pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
+    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
+    pub fn grpcwrap_slice_raw_offset(
+        slice: *const GrpcSlice,
+        offset: size_t,
+        len: *mut size_t,
+    ) -> *const c_char;
 
     pub fn grpc_empty_slice() -> GrpcSlice;
     pub fn grpc_slice_malloc(len: usize) -> GrpcSlice;
     pub fn grpc_slice_ref(slice: GrpcSlice) -> GrpcSlice;
     pub fn grpc_slice_unref(slice: GrpcSlice);
-    pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
     // end for slice
+
+    // for slice buffer
+    pub fn grpc_slice_buffer_init(slice_buffer: *mut GrpcSliceBuffer);
+    pub fn grpc_slice_buffer_destroy(slice_buffer: *mut GrpcSliceBuffer);
+    pub fn grpc_slice_buffer_pop(slice_buffer: *mut GrpcSliceBuffer);
+    pub fn grpc_slice_buffer_swap(a: *mut GrpcSliceBuffer, b: *mut GrpcSliceBuffer);
+    pub fn grpc_slice_buffer_move_into(src: *mut GrpcSliceBuffer, dest: *mut GrpcSliceBuffer);
+    // end for slice buffer
+
+    // for byte buffer
+    pub fn grpcwrap_byte_buffer_add(buf: *mut GrpcByteBuffer, slice: *mut GrpcSlice);
+    pub fn grpcwrap_byte_buffer_pop(buf: *mut GrpcByteBuffer);
+
+    pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
+    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
+    pub fn grpc_raw_byte_buffer_create(slices: *mut GrpcSlice, n: size_t) -> *mut GrpcByteBuffer;
+    pub fn grpc_byte_buffer_reader_init(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcByteBuffer,
+    ) -> c_int;
+    pub fn grpc_byte_buffer_reader_next(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcSlice,
+    ) -> c_int;
+    pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
+    // end for byte buffer
 
     pub fn grpc_init();
     pub fn grpc_shutdown();
@@ -575,29 +608,6 @@ extern "C" {
         reserved: *mut c_void,
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
-
-    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
-    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
-    pub fn grpc_raw_byte_buffer_create(
-        slices: *mut GrpcSlice,
-        nslices: size_t,
-    ) -> *mut GrpcByteBuffer;
-    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
-    pub fn grpcwrap_slice_raw_offset(
-        slice: *const GrpcSlice,
-        offset: size_t,
-        len: *mut size_t,
-    ) -> *const c_char;
-    pub fn grpc_byte_buffer_reader_init(
-        reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcByteBuffer,
-    ) -> c_int;
-    pub fn grpc_byte_buffer_reader_next(
-        reader: *mut GrpcByteBufferReader,
-        buf: *mut GrpcSlice,
-    ) -> c_int;
-    pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
-    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
 
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);

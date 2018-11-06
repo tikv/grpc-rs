@@ -314,6 +314,16 @@ grpcwrap_slice_length(const grpc_slice *slice) {
   return GRPC_SLICE_LENGTH(*slice);
 }
 
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_byte_buffer_add(grpc_byte_buffer *buf, grpc_slice *slice) {
+  return grpc_slice_buffer_add(&buf->data.raw.slice_buffer, *slice);
+}
+
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_byte_buffer_pop(grpc_byte_buffer *buf) {
+  return grpc_slice_buffer_pop(&buf->data.raw.slice_buffer);
+}
+
 GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
 grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
   grpc_byte_buffer *buf = nullptr;
