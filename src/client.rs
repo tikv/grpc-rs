@@ -31,6 +31,12 @@ pub struct Client {
     kicker: Kicker,
 }
 
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Client::new(self.channel.clone())
+    }
+}
+
 impl Client {
     /// Initialize a new [`Client`].
     pub fn new(channel: Channel) -> Client {
