@@ -440,7 +440,7 @@ impl<'a> ServiceGen<'a> {
     }
 
     fn write_client(&self, w: &mut CodeWriter) {
-        w.derive(&["Clone"]);
+        w.write_line("#[derive(Clone)]");
         w.pub_struct(&self.client_name(), |w| {
             w.field_decl("client", "::grpcio::Client");
         });
