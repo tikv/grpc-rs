@@ -524,7 +524,7 @@ extern "C" {
     pub fn grpcwrap_byte_buffer_pop(buf: *mut GrpcByteBuffer);
     pub fn grpcwrap_byte_buffer_reset_and_unref(buf: *mut GrpcByteBuffer);
 
-    pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
+    pub fn grpc_byte_buffer_copy(slice: *mut GrpcByteBuffer) -> *mut GrpcByteBuffer;
     pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
     pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
     pub fn grpc_raw_byte_buffer_create(slices: *mut GrpcSlice, n: size_t) -> *mut GrpcByteBuffer;

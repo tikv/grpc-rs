@@ -316,7 +316,7 @@ grpcwrap_slice_length(const grpc_slice *slice) {
 
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_byte_buffer_add(grpc_byte_buffer *buf, grpc_slice *slice) {
-  return grpc_slice_buffer_add(&buf->data.raw.slice_buffer, *slice);
+  return grpc_slice_buffer_add(&buf->data.raw.slice_buffer, grpc_slice_ref(*slice));
 }
 
 GPR_EXPORT void GPR_CALLTYPE

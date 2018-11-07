@@ -67,6 +67,19 @@ impl GrpcByteBuffer {
         self.len() == 0
     }
 
+    pub unsafe fn increase_ref(&mut self) {
+        grpc_sys::grpc_byte_buffer_copy(self.raw);
+    }
+
+    /// Increase the ref count, so it's mutated.
+    pub fn clone(&mut self) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
+            }
+        }
+    }
+
     pub unsafe fn take_raw(&mut self) -> *mut grpc_sys::GrpcByteBuffer {
         let ret = self.raw;
         self.raw = grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0);
@@ -92,16 +105,6 @@ impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
         unsafe {
             GrpcByteBuffer {
                 raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
-            }
-        }
-    }
-}
-
-impl Clone for GrpcByteBuffer {
-    fn clone(&self) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
             }
         }
     }
@@ -464,7 +467,7 @@ impl Call {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let buffer = msg.as_buffer().clone().take_raw();
+            let buffer = msg.as_buffer().take_raw();
             grpc_sys::grpcwrap_call_send_message(self.call, ctx, buffer, write_flags, i, tag)
         });
         Ok(f)
