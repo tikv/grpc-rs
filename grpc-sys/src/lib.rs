@@ -880,11 +880,6 @@ mod tests {
     use std::ptr;
 
     #[test]
-    fn destroy_null() {
-        unsafe { super::grpc_byte_buffer_destroy(ptr::null_mut()) }
-    }
-
-    #[test]
     fn smoke() {
         unsafe {
             super::grpc_init();
