@@ -113,7 +113,7 @@ impl Generic {
 #[inline]
 #[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
 pub fn bin_ser(t: &Vec<u8>, buf: &mut MessageWriter) {
-    buf.write(t.as_ref()).unwrap();
+    buf.write_all(t.as_ref()).unwrap();
 }
 
 #[inline]
