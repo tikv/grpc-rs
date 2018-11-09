@@ -11,48 +11,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
-use std::ptr;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::ptr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
-use RpcContext;
 use async::{CallTag, CqFuture};
-use call::{Method, MethodType};
 use call::server::*;
+use call::{MessageReader, Method, MethodType};
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use env::Environment;
 use error::{Error, Result};
+use RpcContext;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
-pub type CallBack = Box<Fn(RpcContext, &[u8])>;
-
-/// Handler is an rpc call holder.
-pub struct Handler {
+/// An RPC call holder.
+#[derive(Clone)]
+pub struct Handler<F> {
     method_type: MethodType,
-    cb: CallBack,
+    cb: F,
 }
 
-impl Handler {
-    pub fn new(method_type: MethodType, cb: CallBack) -> Handler {
-        Handler {
-            method_type: method_type,
-            cb: cb,
-        }
+impl<F> Handler<F> {
+    pub fn new(method_type: MethodType, cb: F) -> Handler<F> {
+        Handler { method_type, cb }
+    }
+}
+
+pub trait CloneableHandler: Send {
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>);
+    fn box_clone(&self) -> Box<CloneableHandler>;
+    fn method_type(&self) -> MethodType;
+}
+
+impl<F: 'static> CloneableHandler for Handler<F>
+where
+    F: FnMut(RpcContext, Option<MessageReader>) + Send + Clone,
+{
+    #[inline]
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>) {
+        (self.cb)(ctx, reqs)
     }
 
-    pub fn cb(&self) -> &CallBack {
-        &self.cb
+    #[inline]
+    fn box_clone(&self) -> Box<CloneableHandler> {
+        Box::new(self.clone())
     }
 
-    pub fn method_type(&self) -> MethodType {
+    #[inline]
+    fn method_type(&self) -> MethodType {
         self.method_type
     }
 }
@@ -118,100 +133,105 @@ mod imp {
 
 use self::imp::Binder;
 
-/// Service configuration struct.
+/// [`Service`] factory in order to configure the properties.
 ///
 /// Use it to build a service which can be registered to a server.
 pub struct ServiceBuilder {
-    handlers: HashMap<&'static [u8], Handler>,
+    handlers: HashMap<&'static [u8], BoxHandler>,
 }
 
 impl ServiceBuilder {
+    /// Initialize a new [`ServiceBuilder`].
     pub fn new() -> ServiceBuilder {
         ServiceBuilder {
             handlers: HashMap::new(),
         }
     }
 
-    /// Add a unary rpc call handler.
-    pub fn add_unary_handler<P, Q, F>(mut self, method: &Method<P, Q>, handler: F) -> ServiceBuilder
-    where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, P, UnarySink<Q>) + 'static,
-    {
-        let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
-            execute_unary(ctx, ser, de, payload, &handler)
-        });
-        self.handlers
-            .insert(method.name.as_bytes(), Handler::new(MethodType::Unary, h));
-        self
-    }
-
-    /// Add a client streaming rpc call handler.
-    pub fn add_client_streaming_handler<P, Q, F>(
+    /// Add a unary RPC call handler.
+    pub fn add_unary_handler<Req, Resp, F>(
         mut self,
-        method: &Method<P, Q>,
-        handler: F,
+        method: &Method<Req, Resp>,
+        mut handler: F,
     ) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, RequestStream<P>, ClientStreamingSink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: FnMut(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
-            execute_client_streaming(ctx, ser, de, &handler)
-        });
-        self.handlers.insert(
-            method.name.as_bytes(),
-            Handler::new(MethodType::ClientStreaming, h),
-        );
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_unary(ctx, ser, de, payload.unwrap(), &mut handler)
+        };
+        let ch = Box::new(Handler::new(MethodType::Unary, h));
+        self.handlers.insert(method.name.as_bytes(), ch);
         self
     }
 
-    /// Add a server streaming rpc call handler.
-    pub fn add_server_streaming_handler<P, Q, F>(
+    /// Add a client streaming RPC call handler.
+    pub fn add_client_streaming_handler<Req, Resp, F>(
         mut self,
-        method: &Method<P, Q>,
-        handler: F,
+        method: &Method<Req, Resp>,
+        mut handler: F,
     ) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, P, ServerStreamingSink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: FnMut(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>)
+            + Send
+            + Clone
+            + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, payload: &[u8]| {
-            execute_server_streaming(ctx, ser, de, payload, &handler)
-        });
-        self.handlers.insert(
-            method.name.as_bytes(),
-            Handler::new(MethodType::ServerStreaming, h),
-        );
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_client_streaming(ctx, ser, de, &mut handler)
+        };
+        let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
+        self.handlers.insert(method.name.as_bytes(), ch);
         self
     }
 
-    /// Add a duplex streaming rpc call handler.
-    pub fn add_duplex_streaming_handler<P, Q, F>(
+    /// Add a server streaming RPC call handler.
+    pub fn add_server_streaming_handler<Req, Resp, F>(
         mut self,
-        method: &Method<P, Q>,
-        handler: F,
+        method: &Method<Req, Resp>,
+        mut handler: F,
     ) -> ServiceBuilder
     where
-        P: 'static,
-        Q: 'static,
-        F: Fn(RpcContext, RequestStream<P>, DuplexSink<Q>) + 'static,
+        Req: 'static,
+        Resp: 'static,
+        F: FnMut(RpcContext, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = Box::new(move |ctx: RpcContext, _: &[u8]| {
-            execute_duplex_streaming(ctx, ser, de, &handler)
-        });
-        self.handlers
-            .insert(method.name.as_bytes(), Handler::new(MethodType::Duplex, h));
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_server_streaming(ctx, ser, de, payload.unwrap(), &mut handler)
+        };
+        let ch = Box::new(Handler::new(MethodType::ServerStreaming, h));
+        self.handlers.insert(method.name.as_bytes(), ch);
         self
     }
 
+    /// Add a duplex streaming RPC call handler.
+    pub fn add_duplex_streaming_handler<Req, Resp, F>(
+        mut self,
+        method: &Method<Req, Resp>,
+        mut handler: F,
+    ) -> ServiceBuilder
+    where
+        Req: 'static,
+        Resp: 'static,
+        F: FnMut(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
+    {
+        let (ser, de) = (method.resp_ser(), method.req_de());
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_duplex_streaming(ctx, ser, de, &mut handler)
+        };
+        let ch = Box::new(Handler::new(MethodType::Duplex, h));
+        self.handlers.insert(method.name.as_bytes(), ch);
+        self
+    }
+
+    /// Finalize the [`ServiceBuilder`] and build the [`Service`].
     pub fn build(self) -> Service {
         Service {
             handlers: self.handlers,
@@ -219,23 +239,27 @@ impl ServiceBuilder {
     }
 }
 
+/// A gRPC service.
+///
+/// Use [`ServiceBuilder`] to build a [`Service`].
 pub struct Service {
-    handlers: HashMap<&'static [u8], Handler>,
+    handlers: HashMap<&'static [u8], BoxHandler>,
 }
 
-/// Server configuration struct.
+/// [`Server`] factory in order to configure the properties.
 pub struct ServerBuilder {
     env: Arc<Environment>,
     binders: Vec<Binder>,
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
-    handlers: HashMap<&'static [u8], Handler>,
+    handlers: HashMap<&'static [u8], BoxHandler>,
 }
 
 impl ServerBuilder {
+    /// Initialize a new [`ServerBuilder`].
     pub fn new(env: Arc<Environment>) -> ServerBuilder {
         ServerBuilder {
-            env: env,
+            env,
             binders: Vec::new(),
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
@@ -245,13 +269,14 @@ impl ServerBuilder {
 
     /// Bind to an address.
     ///
-    /// This function can be called multiple times.
+    /// This function can be called multiple times to bind to multiple ports.
     pub fn bind<S: Into<String>>(mut self, host: S, port: u16) -> ServerBuilder {
         self.binders.push(Binder::new(host.into(), port));
         self
     }
 
     /// Add additional configuration for each incoming channel.
+    #[doc(hidden)]
     pub fn channel_args(mut self, args: ChannelArgs) -> ServerBuilder {
         self.args = Some(args);
         self
@@ -269,8 +294,10 @@ impl ServerBuilder {
         self
     }
 
+    /// Finalize the [`ServerBuilder`] and build the [`Server`].
     pub fn build(mut self) -> Result<Server> {
-        let args = self.args
+        let args = self
+            .args
             .as_ref()
             .map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
@@ -296,14 +323,14 @@ impl ServerBuilder {
             }
 
             Ok(Server {
-                inner: Arc::new(Inner {
-                    env: self.env,
-                    server: server,
+                env: self.env,
+                core: Arc::new(ServerCore {
+                    server,
                     shutdown: AtomicBool::new(false),
-                    bind_addrs: bind_addrs,
+                    bind_addrs,
                     slots_per_cq: self.slots_per_cq,
-                    handlers: self.handlers,
                 }),
+                handlers: self.handlers,
             })
         }
     }
@@ -318,7 +345,7 @@ mod secure_server {
     impl ServerBuilder {
         /// Bind to an address for secure connection.
         ///
-        /// This function can be called multiple times.
+        /// This function can be called multiple times to bind to multiple ports.
         pub fn bind_secure<S: Into<String>>(
             mut self,
             host: S,
@@ -331,37 +358,47 @@ mod secure_server {
     }
 }
 
-pub struct Inner {
-    env: Arc<Environment>,
+struct ServerCore {
     server: *mut GrpcServer,
     bind_addrs: Vec<(String, u16)>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
-    handlers: HashMap<&'static [u8], Handler>,
 }
 
-impl Inner {
-    /// Get the handler for the requested method path.
-    pub fn get_handler(&self, method: &[u8]) -> Option<&Handler> {
-        self.handlers.get(method)
-    }
-}
-
-impl Debug for Inner {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Server {:?}", self.bind_addrs)
-    }
-}
-
-impl Drop for Inner {
+impl Drop for ServerCore {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_server_destroy(self.server) }
     }
 }
 
+unsafe impl Send for ServerCore {}
+unsafe impl Sync for ServerCore {}
+
+pub type BoxHandler = Box<CloneableHandler>;
+
+#[derive(Clone)]
+pub struct RequestCallContext {
+    server: Arc<ServerCore>,
+    registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
+}
+
+impl RequestCallContext {
+    /// Users should guarantee the method is always called from the same thread.
+    /// TODO: Is there a better way?
+    #[inline]
+    pub unsafe fn get_handler(&mut self, path: &[u8]) -> Option<&mut BoxHandler> {
+        let registry = &mut *self.registry.get();
+        registry.get_mut(path)
+    }
+}
+
+// Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
+// to other thread. However it's not `Sync`, as `BoxHandler` is unnecessarily `Sync`.
+unsafe impl Send for RequestCallContext {}
+
 /// Request notification of a new call.
-pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
-    if inner.shutdown.load(Ordering::Relaxed) {
+pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
+    if ctx.server.shutdown.load(Ordering::Relaxed) {
         return;
     }
     let cq_ref = match cq.borrow() {
@@ -369,8 +406,8 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
         Err(_) => return,
         Ok(c) => c,
     };
-    let server_ptr = inner.server;
-    let prom = CallTag::request(inner);
+    let server_ptr = ctx.server.server;
+    let prom = CallTag::request(ctx);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);
@@ -388,7 +425,7 @@ pub fn request_call(inner: Arc<Inner>, cq: &CompletionQueue) {
     }
 }
 
-/// An asynchronize shutdown future.
+/// A `Future` that will resolve when shutdown completes.
 pub struct ShutdownFuture {
     cq_f: CqFuture<()>,
 }
@@ -403,12 +440,15 @@ impl Future for ShutdownFuture {
     }
 }
 
-// It's safe to request call simultaneously.
-unsafe impl Sync for Inner {}
-unsafe impl Send for Inner {}
-
+/// A gRPC server.
+///
+/// A single server can serve arbitrary number of services and can listen on more than one port.
+///
+/// Use [`ServerBuilder`] to build a [`Server`].
 pub struct Server {
-    inner: Arc<Inner>,
+    env: Arc<Environment>,
+    core: Arc<ServerCore>,
+    handlers: HashMap<&'static [u8], BoxHandler>,
 }
 
 impl Server {
@@ -419,41 +459,50 @@ impl Server {
         let tag = Box::into_raw(prom_box);
         unsafe {
             // Since env still exists, no way can cq been shutdown.
-            let cq_ref = self.inner.env.completion_queues()[0].borrow().unwrap();
+            let cq_ref = self.env.completion_queues()[0].borrow().unwrap();
             grpc_sys::grpc_server_shutdown_and_notify(
-                self.inner.server,
+                self.core.server,
                 cq_ref.as_ptr(),
                 tag as *mut _,
             )
         }
-        self.inner.shutdown.store(true, Ordering::SeqCst);
-        ShutdownFuture { cq_f: cq_f }
+        self.core.shutdown.store(true, Ordering::SeqCst);
+        ShutdownFuture { cq_f }
     }
 
     /// Cancel all in-progress calls.
     ///
     /// Only usable after shutdown.
     pub fn cancel_all_calls(&mut self) {
-        unsafe { grpc_sys::grpc_server_cancel_all_calls(self.inner.server) }
+        unsafe { grpc_sys::grpc_server_cancel_all_calls(self.core.server) }
     }
 
-    /// Start a server.
-    ///
-    /// Tells all listeners to start listening.
+    /// Start the server.
     pub fn start(&mut self) {
         unsafe {
-            grpc_sys::grpc_server_start(self.inner.server);
-            for cq in self.inner.env.completion_queues() {
-                for _ in 0..self.inner.slots_per_cq {
-                    request_call(self.inner.clone(), cq);
+            grpc_sys::grpc_server_start(self.core.server);
+            for cq in self.env.completion_queues() {
+                // Handlers are Send and Clone, but not Sync. So we need to
+                // provide a replica for each completion queue.
+                let registry = self
+                    .handlers
+                    .iter()
+                    .map(|(k, v)| (k.to_owned(), v.box_clone()))
+                    .collect();
+                let rc = RequestCallContext {
+                    server: self.core.clone(),
+                    registry: Arc::new(UnsafeCell::new(registry)),
+                };
+                for _ in 0..self.core.slots_per_cq {
+                    request_call(rc.clone(), cq);
                 }
             }
         }
     }
 
-    /// Get the binded addresses.
+    /// Get binded addresses.
     pub fn bind_addrs(&self) -> &[(String, u16)] {
-        &self.inner.bind_addrs
+        &self.core.bind_addrs
     }
 }
 
@@ -469,6 +518,6 @@ impl Drop for Server {
 
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.inner)
+        write!(f, "Server {:?}", self.core.bind_addrs)
     }
 }

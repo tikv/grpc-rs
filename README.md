@@ -11,7 +11,7 @@
 
 This project is still under development. The following features with the check marks are supported:
 
-- [x] Basic asynchronous unary/steaming call 
+- [x] Basic asynchronous unary/steaming call
 - [x] SSL
 - [x] Generic call
 - [x] Connection level compression
@@ -27,19 +27,20 @@ This project is still under development. The following features with the check m
 
 - CMake >= 3.8.0
 - Rust >= 1.19.0
-- If you want to enable [secure feature](#feature-secure), Go (>=1.7) is required.
+- By default, the [secure feature](#feature-secure) is enabled, therefore Go (>=1.7) is required.
 
 For Linux and MacOS, you also need to install gcc (or clang) too.
 
 For Windows, you also need to install following software:
 
-- Active State Perl 
+- Active State Perl
 - yasm
 - Visual Studio 2015+
 
 ## Build
 
 ```
+$ git submodule update --init --recursive # if you just cloned the repository
 $ cargo build
 ```
 
@@ -80,7 +81,7 @@ To include this project as a dependency:
 
 ```
 [dependencies]
-grpcio = "0.3"
+grpcio = "0.4"
 ```
 
 ### Feature `secure`
@@ -90,7 +91,7 @@ mechanism. When you do not need it, for example when working in intranet,
 you can disable it by using the following configuration:
 ```
 [dependencies]
-grpcio = { version = "0.3", default-features = false, features = ["protobuf-codec"] }
+grpcio = { version = "0.4", default-features = false, features = ["protobuf-codec"] }
 ```
 
 ## Performance

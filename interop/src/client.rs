@@ -14,13 +14,14 @@
 use std::thread;
 use std::time::Duration;
 
-use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{future, stream, Future, Sink, Stream};
+use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 
-use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::testing::empty::Empty;
-use grpc_proto::testing::messages::{EchoStatus, SimpleRequest, StreamingInputCallRequest,
-                                    StreamingOutputCallRequest};
+use grpc_proto::testing::messages::{
+    EchoStatus, SimpleRequest, StreamingInputCallRequest, StreamingOutputCallRequest,
+};
+use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::util;
 
 pub struct Client {
@@ -47,10 +48,10 @@ impl Client {
     pub fn large_unary(&self) {
         print!("testing large unary ... ");
         let mut req = SimpleRequest::new();
-        req.set_response_size(314159);
-        req.set_payload(util::new_payload(271828));
+        req.set_response_size(314_159);
+        req.set_payload(util::new_payload(271_828));
         let resp = self.client.unary_call(&req).unwrap();
-        assert_eq!(314159, resp.get_payload().get_body().len());
+        assert_eq!(314_159, resp.get_payload().get_body().len());
         println!("pass");
     }
 
@@ -62,7 +63,8 @@ impl Client {
             (req, WriteFlags::default())
         });
         let (sender, receiver) = self.client.streaming_input_call().unwrap();
-        sender
+        // Keep the sender, so that receiver will not receive Cancelled error.
+        let _sender = sender
             .send_all(stream::iter_ok::<_, grpc::Error>(reqs))
             .wait()
             .unwrap();
@@ -80,7 +82,8 @@ impl Client {
                 .push(util::new_parameters(*size));
         }
         let resp = self.client.streaming_output_call(&req).unwrap();
-        let resp_sizes = resp.map(|r| r.get_payload().get_body().len() as i32)
+        let resp_sizes = resp
+            .map(|r| r.get_payload().get_body().len() as i32)
             .collect()
             .wait()
             .unwrap();
@@ -165,11 +168,12 @@ impl Client {
 
     pub fn timeout_on_sleeping_server(&self) {
         print!("testing timeout_of_sleeping_server ... ");
-        let opt = CallOption::default().timeout(Duration::new(0, 10_000));
+        let opt = CallOption::default().timeout(Duration::from_millis(1));
         let (sender, receiver) = self.client.full_duplex_call_opt(opt).unwrap();
         let mut req = StreamingOutputCallRequest::new();
         req.set_payload(util::new_payload(27182));
-        let _ = sender.send((req, WriteFlags::default())).wait();
+        // Keep the sender, so that receiver will not receive Cancelled error.
+        let _sender = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
@@ -198,7 +202,8 @@ impl Client {
         let mut req = StreamingOutputCallRequest::new();
         req.set_response_status(status);
         let (sender, receiver) = self.client.full_duplex_call().unwrap();
-        let _ = sender.send((req, WriteFlags::default())).wait();
+        // Keep the sender, so that receiver will not receive Cancelled error.
+        let _sender = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
                 assert_eq!(s.status, RpcStatusCode::Unknown);

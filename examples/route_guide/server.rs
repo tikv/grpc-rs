@@ -11,9 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(unknown_lints)]
-#![allow(unreadable_literal)]
-
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
@@ -23,22 +20,22 @@ extern crate log;
 extern crate serde_derive;
 extern crate serde_json;
 
-mod util;
 #[path = "../log_util.rs"]
 mod log_util;
+mod util;
 
-use std::sync::Arc;
 use std::io::Read;
+use std::sync::Arc;
 use std::time::Instant;
 use std::{io, thread};
 
-use grpcio::*;
-use futures::*;
 use futures::sync::oneshot;
+use futures::*;
+use grpcio::*;
 
-use util::*;
 use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::{self, RouteGuide};
+use util::*;
 
 #[derive(Clone)]
 struct RouteGuideService {
@@ -46,35 +43,43 @@ struct RouteGuideService {
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&mut self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
         let data = self.data.clone();
-        let resp = data.iter()
+        let resp = data
+            .iter()
             .find(|f| same_point(f.get_location(), &point))
             .map_or_else(Feature::new, ToOwned::to_owned);
-        let f = sink.success(resp)
+        let f = sink
+            .success(resp)
             .map_err(|e| error!("failed to handle getfeature request: {:?}", e));
         ctx.spawn(f)
     }
 
-    fn list_features(&self, ctx: RpcContext, rect: Rectangle, resp: ServerStreamingSink<Feature>) {
+    fn list_features(
+        &mut self,
+        ctx: RpcContext,
+        rect: Rectangle,
+        resp: ServerStreamingSink<Feature>,
+    ) {
         let data = self.data.clone();
-        let features: Vec<_> = data.iter()
+        let features: Vec<_> = data
+            .iter()
             .filter_map(move |f| {
                 if fit_in(f.get_location(), &rect) {
                     Some((f.to_owned(), WriteFlags::default()))
                 } else {
                     None
                 }
-            })
-            .collect();
-        let f = resp.send_all(stream::iter_ok::<_, Error>(features))
+            }).collect();
+        let f = resp
+            .send_all(stream::iter_ok::<_, Error>(features))
             .map(|_| {})
             .map_err(|e| error!("failed to handle listfeatures request: {:?}", e));
         ctx.spawn(f)
     }
 
     fn record_route(
-        &self,
+        &mut self,
         ctx: RpcContext,
         points: RequestStream<Point>,
         resp: ClientStreamingSink<RouteSummary>,
@@ -87,7 +92,8 @@ impl RouteGuide for RouteGuideService {
                 move |(last, mut dis, mut summary), point| {
                     let total_count = summary.get_point_count();
                     summary.set_point_count(total_count + 1);
-                    let valid_point = data.iter()
+                    let valid_point = data
+                        .iter()
                         .any(|f| !f.get_name().is_empty() && same_point(f.get_location(), &point));
                     if valid_point {
                         let feature_count = summary.get_feature_count();
@@ -98,19 +104,17 @@ impl RouteGuide for RouteGuideService {
                     }
                     Ok((Some(point), dis, summary)) as Result<_>
                 },
-            )
-            .and_then(move |(_, dis, mut s)| {
+            ).and_then(move |(_, dis, mut s)| {
                 s.set_distance(dis as i32);
                 let dur = timer.elapsed();
                 s.set_elapsed_time(dur.as_secs() as i32);
                 resp.success(s)
-            })
-            .map_err(|e| error!("failed to record route: {:?}", e));
+            }).map_err(|e| error!("failed to record route: {:?}", e));
         ctx.spawn(f)
     }
 
     fn route_chat(
-        &self,
+        &mut self,
         ctx: RpcContext,
         notes: RequestStream<RouteNote>,
         resp: DuplexSink<RouteNote>,
@@ -126,13 +130,12 @@ impl RouteGuide for RouteGuideService {
                         } else {
                             None
                         }
-                    })
-                    .collect();
+                    }).collect();
                 buffer.push(note);
                 stream::iter_ok::<_, Error>(to_prints)
-            })
-            .flatten();
-        let f = resp.send_all(to_send)
+            }).flatten();
+        let f = resp
+            .send_all(to_send)
             .map(|_| {})
             .map_err(|e| error!("failed to route chat: {:?}", e));
         ctx.spawn(f)
@@ -148,7 +151,7 @@ fn main() {
     let service = route_guide_grpc::create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
-        .bind("127.0.0.1", 50051)
+        .bind("127.0.0.1", 50_051)
         .build()
         .unwrap();
     server.start();

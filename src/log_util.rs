@@ -37,13 +37,15 @@ extern "C" fn delegate(c_args: *mut GprLogFuncArgs) {
     let line = args.line as u32;
 
     let msg = unsafe { CStr::from_ptr(args.message).to_string_lossy() };
-    log::logger().log(&Record::builder()
-        .args(format_args!("{}", msg))
-        .level(level)
-        .file(file_str.into())
-        .line(line.into())
-        .module_path(module_path!().into())
-        .build());
+    log::logger().log(
+        &Record::builder()
+            .args(format_args!("{}", msg))
+            .level(level)
+            .file(file_str.into())
+            .line(line.into())
+            .module_path(module_path!().into())
+            .build(),
+    );
 }
 
 /// Redirect grpc log to rust's log implementation.

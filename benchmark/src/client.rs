@@ -12,21 +12,22 @@
 // limitations under the License.
 
 use std::ffi::CString;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use grpc::{CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment,
-           WriteFlags};
+use futures::future::Loop;
+use futures::sync::oneshot::{self, Receiver, Sender};
+use futures::{future, Async, Future, Sink, Stream};
+use grpc::{
+    CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
+};
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
 use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
-use futures::{future, Async, Future, Sink, Stream};
-use futures::sync::oneshot::{self, Receiver, Sender};
-use futures::future::Loop;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
@@ -42,8 +43,9 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
-    req.set_payload(proto_util::new_payload(simple_params.get_req_size()
-        as usize));
+    req.set_payload(proto_util::new_payload(
+        simple_params.get_req_size() as usize
+    ));
     req.set_response_size(simple_params.get_resp_size());
     req
 }
@@ -82,7 +84,7 @@ impl Backoff for Poisson {
         let backoff_time = self.exp.sample(&mut self.r);
         let sec = backoff_time as u64;
         let ns = (backoff_time.fract() * 1_000_000_000f64) as u32;
-        self.last_time = self.last_time + Duration::new(sec, ns);
+        self.last_time += Duration::new(sec, ns);
         let now = Instant::now();
         if self.last_time > now {
             Some(self.last_time - now)
@@ -110,10 +112,10 @@ impl<B: Backoff> ExecutorContext<B> {
         let (tx, rx) = oneshot::channel();
         (
             ExecutorContext {
-                keep_running: keep_running,
-                histogram: histogram,
-                backoff: backoff,
-                timer: timer,
+                keep_running,
+                histogram,
+                backoff,
+                timer,
                 _trace: tx,
             },
             rx,
@@ -153,21 +155,21 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         let cap = cfg.get_payload_config().get_bytebuf_params().get_req_size();
         let req = vec![0; cap as usize];
         GenericExecutor {
-            ctx: ctx,
+            ctx,
             client: Arc::new(GrpcClient::new(channel)),
-            req: req,
+            req,
         }
     }
 
     fn execute_stream(self) {
         let client = self.client.clone();
         let keep_running = self.ctx.keep_running.clone();
-        let (sender, receiver) = self.client
+        let (sender, receiver) = self
+            .client
             .duplex_streaming(
                 &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
                 CallOption::default(),
-            )
-            .unwrap();
+            ).unwrap();
         let f = future::loop_fn(
             (sender, self, receiver),
             move |(sender, mut executor, receiver)| {
@@ -199,8 +201,7 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
             },
         ).and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
-        })
-            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        }).and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f)
     }
 }
@@ -215,7 +216,7 @@ struct RequestExecutor<B> {
 impl<B: Backoff + Send + 'static> RequestExecutor<B> {
     fn new(ctx: ExecutorContext<B>, channel: Channel, cfg: &ClientConfig) -> RequestExecutor<B> {
         RequestExecutor {
-            ctx: ctx,
+            ctx,
             client: Arc::new(BenchmarkServiceClient::new(channel)),
             req: gen_req(cfg),
         }
@@ -299,8 +300,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
             },
         ).and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
-        })
-            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        }).and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f);
     }
 }
@@ -325,11 +325,13 @@ fn execute<B: Backoff + Send + 'static>(
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-            RpcType::STREAMING => if cfg.get_payload_config().has_bytebuf_params() {
-                GenericExecutor::new(ctx, ch, cfg).execute_stream()
-            } else {
-                RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
-            },
+            RpcType::STREAMING => {
+                if cfg.get_payload_config().has_bytebuf_params() {
+                    GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                } else {
+                    RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                }
+            }
             _ => unimplemented!(),
         },
         _ => unimplemented!(),
@@ -421,8 +423,8 @@ impl Client {
         }
 
         Client {
-            keep_running: keep_running,
-            recorder: recorder,
+            keep_running,
+            recorder,
             histogram: his,
             _env: env,
             running_reqs: Some(running_reqs),

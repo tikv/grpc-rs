@@ -12,7 +12,6 @@
 // limitations under the License.
 
 #![allow(unknown_lints)]
-
 // client and server share different parts of utils.
 #![allow(dead_code)]
 #![allow(cast_lossless)]
@@ -58,8 +57,10 @@ pub fn same_point(lhs: &Point, rhs: &Point) -> bool {
 pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
     let hi = rhs.get_hi();
     let lo = rhs.get_lo();
-    lhs.get_longitude() <= hi.get_longitude() && lhs.get_longitude() >= lo.get_longitude()
-        && lhs.get_latitude() <= hi.get_latitude() && lhs.get_latitude() >= lo.get_latitude()
+    lhs.get_longitude() <= hi.get_longitude()
+        && lhs.get_longitude() >= lo.get_longitude()
+        && lhs.get_latitude() <= hi.get_latitude()
+        && lhs.get_latitude() >= lo.get_latitude()
 }
 
 const COORD_FACTOR: f64 = 10000000.0;

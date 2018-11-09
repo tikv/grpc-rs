@@ -21,13 +21,13 @@ extern crate rand;
 extern crate serde_derive;
 extern crate serde_json;
 
-mod util;
 #[path = "../log_util.rs"]
 mod log_util;
+mod util;
 
 use std::sync::Arc;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use futures::{future, Future, Sink, Stream};
 use grpcio::*;
@@ -109,7 +109,8 @@ fn record_route(client: &RouteGuideClient) {
         let f = rng.choose(&features).unwrap();
         let point = f.get_location();
         info!("Visiting {}", util::format_point(point));
-        sink = sink.send((point.to_owned(), WriteFlags::default()))
+        sink = sink
+            .send((point.to_owned(), WriteFlags::default()))
             .wait()
             .unwrap();
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));

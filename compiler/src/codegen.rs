@@ -36,9 +36,9 @@ use std::collections::HashMap;
 
 use protobuf;
 use protobuf::compiler_plugin;
-use protobuf_codegen::code_writer::CodeWriter;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
+use protobuf_codegen::code_writer::CodeWriter;
 
 use super::util::{self, fq_grpc, to_snake_case, MethodType};
 
@@ -57,10 +57,10 @@ impl<'a> MethodGen<'a> {
         root_scope: &'a RootScope<'a>,
     ) -> MethodGen<'a> {
         MethodGen {
-            proto: proto,
-            service_name: service_name,
-            service_path: service_path,
-            root_scope: root_scope,
+            proto,
+            service_name,
+            service_path,
+            root_scope,
         }
     }
 
@@ -368,7 +368,7 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
         };
         let sig = format!(
-            "{}(&self, ctx: {}, {}: {}, sink: {}<{}>)",
+            "{}(&mut self, ctx: {}, {}: {}, sink: {}<{}>)",
             self.name(),
             fq_grpc("RpcContext"),
             req,
@@ -426,13 +426,9 @@ impl<'a> ServiceGen<'a> {
                     service_path.clone(),
                     root_scope,
                 )
-            })
-            .collect();
+            }).collect();
 
-        ServiceGen {
-            proto: proto,
-            methods: methods,
-        }
+        ServiceGen { proto, methods }
     }
 
     fn service_name(&self) -> String {
@@ -444,6 +440,7 @@ impl<'a> ServiceGen<'a> {
     }
 
     fn write_client(&self, w: &mut CodeWriter) {
+        w.write_line("#[derive(Clone)]");
         w.pub_struct(&self.client_name(), |w| {
             w.field_decl("client", "::grpcio::Client");
         });
@@ -490,7 +487,7 @@ impl<'a> ServiceGen<'a> {
         w.pub_fn(&s, |w| {
             w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
             for method in &self.methods {
-                w.write_line("let instance = s.clone();");
+                w.write_line("let mut instance = s.clone();");
                 method.write_bind(w);
             }
             w.write_line("builder.build()");
@@ -550,9 +547,7 @@ pub fn gen(
     let files_map: HashMap<&str, &FileDescriptorProto> =
         file_descriptors.iter().map(|f| (f.get_name(), f)).collect();
 
-    let root_scope = RootScope {
-        file_descriptors: file_descriptors,
-    };
+    let root_scope = RootScope { file_descriptors };
 
     let mut results = Vec::new();
 

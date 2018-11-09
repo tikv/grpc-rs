@@ -12,10 +12,10 @@
 // limitations under the License.
 
 use futures::*;
-use std::sync::mpsc::{self, Sender};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
+use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
 
@@ -25,7 +25,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(&self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(&mut self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
         for (key, value) in ctx.request_headers() {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
         }

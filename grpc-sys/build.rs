@@ -15,24 +15,23 @@ extern crate cc;
 extern crate cmake;
 extern crate pkg_config;
 
+use std::env::VarError;
 use std::path::Path;
 use std::{env, fs, io};
-use std::env::VarError;
 
-use cmake::Config;
 use cc::Build;
-use pkg_config::Config as PkgConfig;
+use cmake::Config;
+use pkg_config::{Config as PkgConfig, Library};
 
-const GRPC_VERSION: &'static str = "1.6.1";
+const GRPC_VERSION: &'static str = "1.14.2";
 
-fn link_grpc(cc: &mut Build, library: &str) {
+fn probe_library(library: &str, cargo_metadata: bool) -> Library {
     match PkgConfig::new()
         .atleast_version(GRPC_VERSION)
+        .cargo_metadata(cargo_metadata)
         .probe(library)
     {
-        Ok(lib) => for inc_path in lib.include_paths {
-            cc.include(inc_path);
-        },
+        Ok(lib) => lib,
         Err(e) => panic!("can't find library {} via pkg-config: {:?}", library, e),
     }
 }
@@ -42,6 +41,7 @@ fn prepare_grpc() {
         "grpc",
         "grpc/third_party/zlib",
         "grpc/third_party/cares/cares",
+        "grpc/third_party/address_sorting",
     ];
 
     if cfg!(feature = "secure") {
@@ -69,8 +69,31 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let dst = {
         let mut config = Config::new("grpc");
+        if !cfg!(feature = "secure") {
+            // boringssl's configuration is still included, but targets
+            // will never be built, hence specify a fake go to get rid of
+            // the unnecessary dependency.
+            config.define("GO_EXECUTABLE", "fake-go-nonexist");
+        }
         if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
+        }
+        if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
+            config.define("CMAKE_CXX_COMPILER", "g++");
+        }
+        // We don't need to generate install targets.
+        config.define("gRPC_INSTALL", "false");
+        // We don't need to build csharp target.
+        config.define("gRPC_BUILD_CSHARP_EXT", "false");
+        // We don't need to build codegen target.
+        config.define("gRPC_BUILD_CODEGEN", "false");
+        if cfg!(feature = "openssl") {
+            config.define("gRPC_SSL_PROVIDER", "package");
+            config.define("EMBED_OPENSSL", "false");
+            // Problem is: Ubuntu Trusty shipped with openssl 1.0.1f. Which doesn't
+            // support alpn. And Google's gRPC checks for support of ALPN in plane
+            // old Makefile, but not in CMake.
+            config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
         }
         config.build_target(library).uses_cxx11().build()
     };
@@ -114,11 +137,17 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", zlib);
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
+    println!("cargo:rustc-link-lib=static=address_sorting");
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        println!("cargo:rustc-link-lib=static=ssl");
-        println!("cargo:rustc-link-lib=static=crypto");
+        if cfg!(feature = "openssl") {
+            println!("cargo:rustc-link-lib=ssl");
+            println!("cargo:rustc-link-lib=crypto");
+        } else {
+            println!("cargo:rustc-link-lib=static=ssl");
+            println!("cargo:rustc-link-lib=static=crypto");
+        }
     }
 
     cc.include("grpc/include");
@@ -138,7 +167,7 @@ fn get_env(name: &str) -> Option<String> {
 fn main() {
     let mut cc = Build::new();
 
-    println!("cargo:rerun-if-changed=grpc_wrap.c");
+    println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
 
     let library = if cfg!(feature = "secure") {
@@ -149,17 +178,26 @@ fn main() {
     };
 
     if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
-        link_grpc(&mut cc, library);
+        // Print cargo metadata.
+        let lib_core = probe_library(library, true);
+        for inc_path in lib_core.include_paths {
+            cc.include(inc_path);
+        }
     } else {
         build_grpc(&mut cc, library);
     }
 
-    cc.file("grpc_wrap.c");
+    cc.cpp(true);
+    if !cfg!(target_env = "msvc") {
+        cc.flag("-std=c++11");
+    }
+    cc.file("grpc_wrap.cc");
 
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
     }
 
-    cc.warnings_into_errors(true).compile("libgrpc_wrap.a");
+    cc.warnings_into_errors(true);
+    cc.compile("libgrpc_wrap.a");
 }

@@ -14,76 +14,246 @@
 pub mod client;
 pub mod server;
 
-use std::{ptr, slice, usize};
+use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
+use std::{cmp, mem, ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
+use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 
+impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
+    fn from(src: &'a mut GrpcByteBuffer) -> Self {
+        let mut reader;
+        unsafe {
+            reader = mem::zeroed();
+            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, src.raw);
+            assert_eq!(init_result, 1);
+        }
+        reader
+    }
+}
+
+pub struct GrpcByteBuffer {
+    pub raw: *mut grpc_sys::GrpcByteBuffer,
+}
+
+impl Default for GrpcByteBuffer {
+    fn default() -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
+    fn from(slice: &'a mut [GrpcSlice]) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
+            }
+        }
+    }
+}
+
+impl Clone for GrpcByteBuffer {
+    fn clone(&self) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
+            }
+        }
+    }
+}
+
+impl Drop for GrpcByteBuffer {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpc_byte_buffer_destroy(self.raw) }
+    }
+}
+
+/// Method types supported by gRPC.
 #[derive(Clone, Copy)]
 pub enum MethodType {
+    /// Single request sent from client, single response received from server.
     Unary,
+
+    /// Stream of requests sent from client, single response received from server.
     ClientStreaming,
+
+    /// Single request sent from client, stream of responses received from server.
     ServerStreaming,
+
+    /// Both server and client can stream arbitrary number of requests and responses simultaneously.
     Duplex,
 }
 
+/// A description of a remote method.
 // TODO: add serializer and deserializer.
-pub struct Method<P, Q> {
+pub struct Method<Req, Resp> {
+    /// Type of method.
     pub ty: MethodType,
+
+    /// Full qualified name of the method.
     pub name: &'static str,
-    pub req_mar: Marshaller<P>,
-    pub resp_mar: Marshaller<Q>,
+
+    /// The marshaller used for request messages.
+    pub req_mar: Marshaller<Req>,
+
+    /// The marshaller used for response messages.
+    pub resp_mar: Marshaller<Resp>,
 }
 
-impl<P, Q> Method<P, Q> {
+impl<Req, Resp> Method<Req, Resp> {
+    /// Get the request serializer.
     #[inline]
-    pub fn req_ser(&self) -> SerializeFn<P> {
+    pub fn req_ser(&self) -> SerializeFn<Req> {
         self.req_mar.ser
     }
 
+    /// Get the request deserializer.
     #[inline]
-    pub fn req_de(&self) -> DeserializeFn<P> {
+    pub fn req_de(&self) -> DeserializeFn<Req> {
         self.req_mar.de
     }
 
+    /// Get the response serializer.
     #[inline]
-    pub fn resp_ser(&self) -> SerializeFn<Q> {
+    pub fn resp_ser(&self) -> SerializeFn<Resp> {
         self.resp_mar.ser
     }
 
+    /// Get the response deserializer.
     #[inline]
-    pub fn resp_de(&self) -> DeserializeFn<Q> {
+    pub fn resp_de(&self) -> DeserializeFn<Resp> {
         self.resp_mar.de
     }
 }
 
-/// Status return from server.
+/// RPC result returned from the server.
 #[derive(Debug, Clone)]
 pub struct RpcStatus {
+    /// gRPC status code. `Ok` indicates success, all other values indicate an error.
     pub status: RpcStatusCode,
+
+    /// Optional detail string.
     pub details: Option<String>,
 }
 
 impl RpcStatus {
+    /// Create a new [`RpcStatus`].
     pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
-        RpcStatus {
-            status: status,
-            details: details,
-        }
+        RpcStatus { status, details }
     }
 
-    /// Generate an Ok status.
+    /// Create a new [`RpcStatus`] that status code is Ok.
     pub fn ok() -> RpcStatus {
         RpcStatus::new(RpcStatusCode::Ok, None)
+    }
+}
+
+/// `MessageReader` is a zero-copy reader for the message payload.
+///
+/// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
+/// to operate the reader.
+pub struct MessageReader {
+    _buf: GrpcByteBuffer,
+    reader: GrpcByteBufferReader,
+    buffer_slice: GrpcSlice,
+    buffer_len: usize,
+    buffer_offset: usize,
+    length: usize,
+}
+
+impl MessageReader {
+    /// Get the available bytes count of the reader.
+    #[inline]
+    pub fn pending_bytes_count(&self) -> usize {
+        self.length
+    }
+}
+
+unsafe impl Sync for MessageReader {}
+unsafe impl Send for MessageReader {}
+
+impl Read for MessageReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let amt = {
+            let bytes = self.fill_buf()?;
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+            let amt = cmp::min(buf.len(), bytes.len());
+            if amt == 1 {
+                buf[0] = bytes[0];
+            } else {
+                buf[..amt].copy_from_slice(&bytes[..amt]);
+            }
+            amt
+        };
+        self.consume(amt);
+        Ok(amt)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        if self.length == 0 {
+            return Ok(0);
+        }
+        buf.reserve(self.length);
+        let start = buf.len();
+        let mut len = start;
+        unsafe {
+            buf.set_len(start + self.length);
+        }
+        let ret = loop {
+            match self.read(&mut buf[len..]) {
+                Ok(0) => break Ok(len - start),
+                Ok(n) => len += n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => break Err(e),
+            }
+        };
+        unsafe {
+            buf.set_len(len);
+        }
+        ret
+    }
+}
+
+impl BufRead for MessageReader {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.length == 0 {
+            return Ok(&[]);
+        }
+        if self.buffer_slice.is_empty() || self.buffer_offset == self.buffer_len {
+            self.buffer_slice = self.reader.next_slice();
+            self.buffer_offset = 0;
+        }
+
+        debug_assert!(self.buffer_offset <= self.buffer_len);
+        Ok(self.buffer_slice.range_from(self.buffer_offset))
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.length -= amt;
+        self.buffer_len += amt;
+    }
+}
+
+impl Drop for MessageReader {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
+        }
     }
 }
 
@@ -101,6 +271,15 @@ impl BatchContext {
 
     pub fn as_ptr(&self) -> *mut GrpcBatchContext {
         self.ctx
+    }
+
+    pub fn take_recv_message(&self) -> Option<GrpcByteBuffer> {
+        let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(GrpcByteBuffer { raw: ptr })
+        }
     }
 
     /// Get the status of the rpc call.
@@ -121,30 +300,23 @@ impl BatchContext {
             }
         };
 
-        RpcStatus {
-            status: status,
-            details: details,
-        }
+        RpcStatus { status, details }
     }
 
     /// Fetch the response bytes of the rpc call.
-    // TODO: return Read instead.
-    pub fn recv_message(&self) -> Option<Vec<u8>> {
-        // TODO: avoid copy
-        let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };
-        if len == usize::MAX {
-            return None;
-        }
-        let mut buffer = Vec::with_capacity(len);
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(
-                self.ctx,
-                buffer.as_mut_ptr() as *mut _,
-                len,
-            );
-            buffer.set_len(len);
-        }
-        Some(buffer)
+    pub fn recv_message(&mut self) -> Option<MessageReader> {
+        let mut buf = self.take_recv_message()?;
+        let reader = GrpcByteBufferReader::from(&mut buf);
+        let length = reader.len();
+
+        Some(MessageReader {
+            _buf: buf,
+            reader,
+            buffer_slice: Default::default(),
+            buffer_offset: 0,
+            buffer_len: 0,
+            length,
+        })
     }
 }
 
@@ -170,7 +342,7 @@ where
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr as *mut c_void);
+    let code = f(batch_ptr, tag_ptr);
     if code != GrpcCallStatus::Ok {
         unsafe {
             Box::from_raw(tag_ptr);
@@ -186,8 +358,8 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    call: *mut GrpcCall,
-    cq: CompletionQueue,
+    pub call: *mut GrpcCall,
+    pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
@@ -255,7 +427,7 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: Option<Vec<u8>>,
+        payload: &Option<Vec<u8>>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
@@ -287,7 +459,7 @@ impl Call {
     }
 
     /// Abort an rpc call before handler is called.
-    pub fn abort(self, status: RpcStatus) {
+    pub fn abort(self, status: &RpcStatus) {
         match self.cq.borrow() {
             // Queue is shutdown, ignore.
             Err(Error::QueueShutdown) => return,
@@ -353,16 +525,16 @@ impl Drop for Call {
 /// once the call is canceled or finished early.
 struct ShareCall {
     call: Call,
-    close_f: CqFuture<BatchMessage>,
+    close_f: BatchFuture,
     finished: bool,
     status: Option<RpcStatus>,
 }
 
 impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+    fn new(call: Call, close_f: BatchFuture) -> ShareCall {
         ShareCall {
-            call: call,
-            close_f: close_f,
+            call,
+            close_f,
             finished: false,
             status: None,
         }
@@ -371,7 +543,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+    fn poll_finish(&mut self) -> Poll<Option<MessageReader>, Error> {
         let res = match self.close_f.poll() {
             Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
@@ -428,7 +600,7 @@ struct StreamingBase {
 impl StreamingBase {
     fn new(close_f: Option<BatchFuture>) -> StreamingBase {
         StreamingBase {
-            close_f: close_f,
+            close_f,
             msg_f: None,
             read_done: false,
         }
@@ -438,7 +610,7 @@ impl StreamingBase {
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<Option<Vec<u8>>, Error> {
+    ) -> Poll<Option<MessageReader>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -468,7 +640,7 @@ impl StreamingBase {
 
         if self.read_done {
             if self.close_f.is_none() {
-                return Ok(Async::Ready(None));
+                return Ok(Async::Ready(bytes));
             }
             return Ok(Async::NotReady);
         }
@@ -483,8 +655,17 @@ impl StreamingBase {
             Ok(Async::Ready(bytes))
         }
     }
+
+    // Cancel the call if we still have some messages or did not
+    // receive status code.
+    fn on_drop<C: ShareCallHolder>(&self, call: &mut C) {
+        if !self.read_done || self.close_f.is_some() {
+            call.call(|c| c.call.cancel());
+        }
+    }
 }
 
+/// Flags for write operations.
 #[derive(Default, Clone, Copy)]
 pub struct WriteFlags {
     flags: u32,
@@ -492,6 +673,9 @@ pub struct WriteFlags {
 
 impl WriteFlags {
     /// Hint that the write may be buffered and need not go out on the wire immediately.
+    ///
+    /// gRPC is free to buffer the message until the next non-buffered write, or until write stream
+    /// completion, but it need not buffer completely or at all.
     pub fn buffer_hint(mut self, need_buffered: bool) -> WriteFlags {
         client::change_flag(
             &mut self.flags,
@@ -511,13 +695,13 @@ impl WriteFlags {
         self
     }
 
-    /// Get if buffer hint is enabled.
-    pub fn get_buffer_hint(&self) -> bool {
+    /// Get whether buffer hint is enabled.
+    pub fn get_buffer_hint(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
-    /// Get if compression is disabled.
-    pub fn get_force_no_compress(&self) -> bool {
+    /// Get whether compression is disabled.
+    pub fn get_force_no_compress(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }
@@ -534,7 +718,7 @@ impl SinkBase {
         SinkBase {
             batch_f: None,
             buf: Vec::new(),
-            send_metadata: send_metadata,
+            send_metadata,
         }
     }
 
@@ -575,5 +759,65 @@ impl SinkBase {
 
         self.batch_f.take();
         Ok(Async::Ready(()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
+        let mut slices = vec![From::from(source); n_slice];
+        let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
+        let reader = GrpcByteBufferReader::from(&mut buf);
+        let length = reader.len();
+
+        MessageReader {
+            _buf: buf,
+            reader,
+            buffer_slice: Default::default(),
+            buffer_offset: 0,
+            buffer_len: 0,
+            length,
+        }
+    }
+
+    #[test]
+    fn test_message_reader() {
+        for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
+            for nslice in 1..4 {
+                let source = vec![len as u8; len];
+                let expect = vec![len as u8; len * nslice];
+                // Test read.
+                let mut reader = make_message_reader(&source, nslice);
+                let mut dest = [0; 7];
+                let amt = reader.read(&mut dest).unwrap();
+
+                assert_eq!(
+                    dest[..amt],
+                    expect[..amt],
+                    "len: {}, nslice: {}",
+                    len,
+                    nslice
+                );
+
+                // Read after move.
+                let mut box_reader = Box::new(reader);
+                let amt = box_reader.read(&mut dest).unwrap();
+                assert_eq!(
+                    dest[..amt],
+                    expect[..amt],
+                    "len: {}, nslice: {}",
+                    len,
+                    nslice
+                );
+
+                // Test read_to_end.
+                let mut reader = make_message_reader(&source, nslice);
+                let mut dest = vec![];
+                reader.read_to_end(&mut dest).unwrap();
+                assert_eq!(dest, expect, "len: {}, nslice: {}", len, nslice);
+            }
+        }
     }
 }

@@ -12,26 +12,47 @@
 // limitations under the License.
 
 #![allow(unknown_lints)]
+#![allow(renamed_and_removed_lints)]
+// remove this after Rust's tool_lints is stabilized
 
 extern crate libc;
 
-use libc::{c_char, c_int, c_uint, c_void, size_t, int32_t, int64_t, uint32_t};
+use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
 use std::time::Duration;
+use std::{mem, slice};
 
+/// The clocks gRPC supports.
+///
+/// Based on `gpr_clock_type`.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub enum GprClockType {
+    /// Monotonic clock. Epoch undefined. Always moves forward.
     Monotonic = 0,
+
+    /// Realtime clock. May jump forwards or backwards. Settable by the system administrator.
+    /// Has its epoch at 0:00:00 UTC 1 Jan 1970.
     Realtime,
+
+    /// CPU cycle time obtained by rdtsc instruction on x86 platforms. Epoch undefined. Degrades
+    /// to [`GprClockType::Realtime`] on other platforms.
     Precise,
+
+    /// Unmeasurable clock type: no base, created by taking the difference between two times.
     Timespan,
 }
 
+/// Analogous to struct `timespec`. On some machines, absolute times may be in local time.
+///
+/// Based on `gpr_timespec`.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct GprTimespec {
     pub tv_sec: int64_t,
     pub tv_nsec: int32_t,
+
+    /// Against which clock was this time measured? (or [`GprClockType::Timespan`] if this is a
+    /// relative time measure)
     pub clock_type: GprClockType,
 }
 
@@ -51,25 +72,79 @@ impl From<Duration> for GprTimespec {
     }
 }
 
+/// Result of a remote procedure call.
+///
+/// Based on `grpc_status_code`.
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum GrpcStatusCode {
+    /// Not an error; returned on success.
     Ok = 0,
+
+    /// The operation was cancelled (typically by the caller).
     Cancelled = 1,
+
+    /// Unknown error. An example of where this error may be returned is if a Status value received
+    /// from another address space belongs to an error-space that is not known in this address
+    /// space. Also errors raised by APIs that do not return enough error information may be
+    /// converted to this error.
     Unknown = 2,
+
+    /// Client specified an invalid argument. Note that this differs from `FailedPrecondition`.
+    /// `InvalidArgument` indicates arguments that are problematic regardless of the state of the
+    /// system (e.g., a malformed file name).
     InvalidArgument = 3,
+
+    /// Deadline expired before operation could complete. For operations that change the state of
+    /// the system, this error may be returned even if the operation has completed successfully.
+    /// For example, a successful response from a server could have been delayed long enough for
+    /// the deadline to expire.
     DeadlineExceeded = 4,
+
+    /// Some requested entity (e.g., file or directory) was not found.
     NotFound = 5,
+
+    /// Some entity that we attempted to create (e.g., file or directory) already exists.
     AlreadyExists = 6,
+
+    /// The caller does not have permission to execute the specified operation.
+    /// `PermissionDenied` must not be used for rejections caused by exhausting
+    /// some resource (use `ResourceExhausted` instead for those errors).
+    /// `PermissionDenied` must not be used if the caller can not be
+    /// identified (use `Unauthenticated` instead for those errors).
     PermissionDenied = 7,
+
+    /// The request does not have valid authentication credentials for the operation.
     Unauthenticated = 16,
+
+    /// Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file
+    /// system is out of space.
     ResourceExhausted = 8,
+
+    /// Operation was rejected because the system is not in a state required for the operation's
+    /// execution. For example, directory to be deleted may be non-empty, an rmdir operation is
+    /// applied to a non-directory, etc.
     FailedPrecondition = 9,
+
+    /// The operation was aborted, typically due to a concurrency issue like sequencer check
+    /// failures, transaction aborts, etc.
     Aborted = 10,
+
+    /// Operation was attempted past the valid range. E.g., seeking or reading past end of file.
     OutOfRange = 11,
+
+    /// Operation is not implemented or not supported/enabled in this service.
     Unimplemented = 12,
+
+    /// Internal errors. Means some invariants expected by underlying system has been broken. If
+    /// you see one of these errors, something is very broken.
     Internal = 13,
+
+    /// The service is currently unavailable. This is a most likely a transient condition and may
+    /// be corrected by retrying with a backoff.
     Unavailable = 14,
+
+    /// Unrecoverable data loss or corruption.
     DataLoss = 15,
 }
 
@@ -97,33 +172,83 @@ impl From<i32> for GrpcStatusCode {
     }
 }
 
+/// Result of a gRPC call.
+///
+/// If the caller satisfies the prerequisites of a
+/// particular operation, the `GrpcCallStatus` returned will be `Ok`.
+/// Receiving any other value listed here is an indication of a bug in the caller.
+///
+/// Based on `grpc_call_error`.
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub enum GrpcCallStatus {
+    /// Everything went ok.
     Ok = 0,
+
+    /// Something failed, we don't know what.
     Error,
+
+    /// This method is not available on the server.
     ErrorNotOnServer,
+
+    /// This method is not available on the client.
     ErrorNotOnClient,
+
+    /// This method must be called before server_accept.
     ErrorAlreadyAccepted,
+
+    /// This method must be called before invoke.
     ErrorAlreadyInvoked,
+
+    /// This method must be called after invoke.
     ErrorNotInvoked,
+
+    /// This call is already finished (writes_done or write_status has already been called).
     ErrorAlreadyFinished,
+
+    /// There is already an outstanding read/write operation on the call.
     ErrorTooManyOperations,
+
+    /// The flags value was illegal for this call.
     ErrorInvalidFlags,
+
+    /// Invalid metadata was passed to this call.
     ErrorInvalidMetadata,
+
+    /// Invalid message was passed to this call.
     ErrorInvalidMessage,
+
+    /// Completion queue for notification has not been registered with the server.
     ErrorNotServerCompletionQueue,
+
+    /// This batch of operations leads to more operations than allowed.
     ErrorBatchTooBig,
+
+    /// Payload type requested is not the type registered.
     ErrorPayloadTypeMismatch,
+
+    /// Completion queue has been shut down.
+    ErrorCompletionQueueShutdown,
 }
 
+/// The type of completion.
+///
+/// Based on `grpc_completion_type`.
 #[repr(C)]
 pub enum GrpcCompletionType {
+    /// Shutting down.
     QueueShutdown,
+
+    /// No event before timeout.
     QueueTimeout,
+
+    /// Operation completion.
     OpComplete,
 }
 
+/// The result of an operation.
+///
+/// Returned by a completion queue when the operation started with tag.
 #[repr(C)]
 pub struct GrpcEvent {
     pub event_type: GrpcCompletionType,
@@ -133,24 +258,57 @@ pub struct GrpcEvent {
 
 pub enum GrpcChannelArgs {}
 
+/// Connectivity state of a channel.
+///
+/// Based on `grpc_connectivity_state`.
 #[repr(C)]
 pub enum GrpcConnectivityState {
+    /// Channel has just been initialized.
     Init = -1,
+
+    /// Channel is idle.
     Idle,
+
+    /// Channel is connecting.
     Connecting,
+
+    /// Channel is ready for work.
     Ready,
+
+    /// Channel has seen a failure but expects to recover.
     TransientFailure,
+
+    /// Channel has seen a failure that it cannot recover from.
     Shutdown,
 }
 
+/// Compression levels supported by gRPC.
+///
+/// Compression levels allow a party with knowledge of its peer's accepted
+/// encodings to request compression in an abstract way. The level-algorithm
+/// mapping is performed internally and depends on the peer's supported
+/// compression algorithms.
+///
+/// Based on `grpc_compression_level`.
 #[repr(C)]
 pub enum GrpcCompressionLevel {
+    /// No compression.
     None = 0,
+
+    /// Low compression.
     Low,
+
+    /// Medium compression.
+    // TODO: Change to `Medium`.
     Med,
+
+    /// High compression.
     High,
 }
 
+/// Various compression algorithms supported by gRPC.
+///
+/// Based on `grpc_compression_algorithm`.
 #[repr(C)]
 pub enum GrpcCompressionAlgorithms {
     None = 0,
@@ -158,9 +316,15 @@ pub enum GrpcCompressionAlgorithms {
     Gzip,
 }
 
+/// How to handle payloads for a registered method.
+///
+/// Based on `grpc_server_register_method_payload_handling`.
 #[repr(C)]
 pub enum GrpcServerRegisterMethodPayloadHandling {
+    /// Don't try to read the payload.
     None,
+
+    /// Read the initial payload as a byte buffer.
     ReadInitialByteBuffer,
 }
 
@@ -187,15 +351,128 @@ pub struct GrpcMetadataArray {
     pub metadata: *mut GrpcMetadata,
 }
 
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x00000010;
-pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x00000020;
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x00000040;
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSliceRefCounted {
+    bytes: *mut uint8_t,
+    length: size_t,
+}
 
-pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x00000001;
-pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x00000002;
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GrpcSliceInlined {
+    length: uint8_t,
+    // TODO: use size_of when it becomes a const function.
+    #[cfg(target_pointer_width = "64")]
+    bytes: [uint8_t; 23],
+    #[cfg(target_pointer_width = "32")]
+    bytes: [uint8_t; 11],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union GrpcSliceData {
+    ref_counted: GrpcSliceRefCounted,
+    inlined: GrpcSliceInlined,
+}
+
+pub enum GrpcSliceRefCount {}
+
+#[repr(C)]
+pub struct GrpcSlice {
+    ref_count: *mut GrpcSliceRefCount,
+    data: GrpcSliceData,
+}
+
+impl GrpcSlice {
+    pub fn with_capacity(len: usize) -> Self {
+        unsafe { grpc_slice_malloc(len) }
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { grpcwrap_slice_length(self) }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn range_from(&self, offset: usize) -> &[u8] {
+        unsafe {
+            let mut len = 0;
+            let ptr = grpcwrap_slice_raw_offset(self, offset, &mut len);
+            slice::from_raw_parts(ptr as _, len)
+        }
+    }
+}
+
+/// Increase the ref count of the slice when cloning
+impl Clone for GrpcSlice {
+    fn clone(&self) -> Self {
+        unsafe { grpcwrap_slice_ref(self) }
+    }
+}
+
+impl Default for GrpcSlice {
+    fn default() -> Self {
+        unsafe { grpc_empty_slice() }
+    }
+}
+
+/// Decrease the ref count of the slice when dropping
+impl Drop for GrpcSlice {
+    fn drop(&mut self) {
+        unsafe {
+            grpcwrap_slice_unref(self);
+        }
+    }
+}
+
+impl<'a> From<&'a [u8]> for GrpcSlice {
+    fn from(data: &'a [u8]) -> Self {
+        unsafe { grpc_slice_from_copied_buffer(data.as_ptr() as _, data.len()) }
+    }
+}
+
+#[repr(C)]
+pub union GrpcByteBufferReaderCurrent {
+    index: c_uint,
+}
+
+#[repr(C)]
+pub struct GrpcByteBufferReader {
+    pub buffer_in: *mut GrpcByteBuffer,
+    pub buffer_out: *mut GrpcByteBuffer,
+    current: GrpcByteBufferReaderCurrent,
+}
+
+impl GrpcByteBufferReader {
+    pub fn len(&self) -> usize {
+        unsafe { grpc_byte_buffer_length(self.buffer_out) }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn next_slice(&mut self) -> GrpcSlice {
+        unsafe {
+            let mut slice = Default::default();
+            let code = grpc_byte_buffer_reader_next(self, &mut slice);
+            debug_assert_ne!(code, 0);
+            slice
+        }
+    }
+}
+
+pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
+pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
+pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
+
+pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
+pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
 
 pub enum GrpcMetadata {}
-pub enum GrpcSlice {}
 pub enum GrpcCallDetails {}
 pub enum GrpcCompletionQueue {}
 pub enum GrpcChannel {}
@@ -204,11 +481,22 @@ pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
-pub enum GrpcAlarm {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
 extern "C" {
+    // for slice
+    pub fn grpcwrap_slice_copy(slice: *const GrpcSlice) -> GrpcSlice;
+    pub fn grpcwrap_slice_ref(slice: *const GrpcSlice) -> GrpcSlice;
+    pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
+
+    pub fn grpc_empty_slice() -> GrpcSlice;
+    pub fn grpc_slice_malloc(len: usize) -> GrpcSlice;
+    pub fn grpc_slice_ref(slice: GrpcSlice) -> GrpcSlice;
+    pub fn grpc_slice_unref(slice: GrpcSlice);
+    pub fn grpc_byte_buffer_copy(slice: *const GrpcByteBuffer) -> *mut GrpcByteBuffer;
+    // end for slice
+
     pub fn grpc_init();
     pub fn grpc_shutdown();
     pub fn grpc_version_string() -> *const c_char;
@@ -283,17 +571,37 @@ extern "C" {
     ) -> *mut GrpcChannel;
     pub fn grpc_channel_destroy(channel: *mut GrpcChannel);
 
+    pub fn grpc_slice_from_copied_buffer(source: *const c_char, length: size_t) -> GrpcSlice;
+    pub fn grpc_byte_buffer_length(buf: *const GrpcByteBuffer) -> size_t;
+    pub fn grpc_raw_byte_buffer_create(
+        slices: *mut GrpcSlice,
+        nslices: size_t,
+    ) -> *mut GrpcByteBuffer;
+    pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
+    pub fn grpcwrap_slice_raw_offset(
+        slice: *const GrpcSlice,
+        offset: size_t,
+        len: *mut size_t,
+    ) -> *const c_char;
+    pub fn grpc_byte_buffer_reader_init(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcByteBuffer,
+    ) -> c_int;
+    pub fn grpc_byte_buffer_reader_next(
+        reader: *mut GrpcByteBufferReader,
+        buf: *mut GrpcSlice,
+    ) -> c_int;
+    pub fn grpc_byte_buffer_reader_destroy(reader: *mut GrpcByteBufferReader);
+    pub fn grpc_byte_buffer_destroy(buf: *mut GrpcByteBuffer);
+
     pub fn grpcwrap_batch_context_create() -> *mut GrpcBatchContext;
     pub fn grpcwrap_batch_context_destroy(ctx: *mut GrpcBatchContext);
     pub fn grpcwrap_batch_context_recv_initial_metadata(
         ctx: *mut GrpcBatchContext,
     ) -> *const GrpcMetadataArray;
-    pub fn grpcwrap_batch_context_recv_message_length(ctx: *mut GrpcBatchContext) -> size_t;
-    pub fn grpcwrap_batch_context_recv_message_to_buffer(
+    pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut GrpcBatchContext,
-        buffer: *mut c_char,
-        buffer_len: size_t,
-    );
+    ) -> *mut GrpcByteBuffer;
     pub fn grpcwrap_batch_context_recv_status_on_client_status(
         ctx: *mut GrpcBatchContext,
     ) -> GrpcStatusCode;
@@ -308,10 +616,15 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
     ) -> int32_t;
 
+    pub fn grpcwrap_call_kick_completion_queue(
+        call: *mut GrpcCall,
+        tag: *mut c_void,
+    ) -> GrpcCallStatus;
+
     pub fn grpcwrap_call_start_unary(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
+        send_buffer: *const c_char,
         send_buffer_len: size_t,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
@@ -328,7 +641,7 @@ extern "C" {
     pub fn grpcwrap_call_start_server_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
+        send_buffer: *const c_char,
         send_buffer_len: size_t,
         write_flags: uint32_t,
         initial_metadata: *mut GrpcMetadataArray,
@@ -350,7 +663,7 @@ extern "C" {
     pub fn grpcwrap_call_send_message(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
-        send_bufer: *const c_char,
+        send_buffer: *const c_char,
         send_buffer_len: size_t,
         write_flags: uint32_t,
         send_empty_initial_metadata: uint32_t,
@@ -398,13 +711,14 @@ extern "C" {
         description: *const c_char,
         reserved: *mut c_void,
     );
+    pub fn grpc_call_ref(call: *mut GrpcCall);
     pub fn grpc_call_unref(call: *mut GrpcCall);
 
     pub fn grpc_server_register_method(
         server: *mut GrpcServer,
         method: *const c_char,
         host: *const c_char,
-        paylod_handling: GrpcServerRegisterMethodPayloadHandling,
+        payload_handling: GrpcServerRegisterMethodPayloadHandling,
         flags: uint32_t,
     ) -> *mut c_void;
     pub fn grpc_server_create(
@@ -458,17 +772,6 @@ extern "C" {
         tag: *mut c_void,
     ) -> GrpcCallStatus;
 
-    pub fn grpc_alarm_create(reserved: *mut c_void) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_set(
-        alarm: *mut GrpcAlarm,
-        cq: *mut GrpcCompletionQueue,
-        deadline: GprTimespec,
-        tag: *mut c_void,
-        reserved: *mut c_void,
-    ) -> *mut GrpcAlarm;
-    pub fn grpc_alarm_cancel(alarm: *mut GrpcAlarm);
-    pub fn grpc_alarm_destroy(alarm: *mut GrpcAlarm);
-
     pub fn grpcwrap_metadata_array_init(array: *mut GrpcMetadataArray, capacity: size_t);
     pub fn grpcwrap_metadata_array_add(
         array: *mut GrpcMetadataArray,
@@ -491,6 +794,19 @@ extern "C" {
     pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
 
     pub fn gpr_free(p: *mut c_void);
+
+    pub fn grpcwrap_sanity_check_slice(size: size_t, align: size_t);
+    pub fn grpcwrap_sanity_check_byte_buffer_reader(size: size_t, align: size_t);
+}
+
+/// Make sure the complicated struct written in rust is the same with
+/// its C one.
+pub unsafe fn sanity_check() {
+    grpcwrap_sanity_check_slice(mem::size_of::<GrpcSlice>(), mem::align_of::<GrpcSlice>());
+    grpcwrap_sanity_check_byte_buffer_reader(
+        mem::size_of::<GrpcByteBufferReader>(),
+        mem::align_of::<GrpcByteBufferReader>(),
+    );
 }
 
 #[cfg(feature = "secure")]
@@ -500,6 +816,7 @@ mod secure_component {
     use super::{GrpcChannel, GrpcChannelArgs, GrpcServer};
 
     pub enum GrpcChannelCredentials {}
+
     pub enum GrpcServerCredentials {}
 
     extern "C" {
@@ -548,6 +865,7 @@ mod tests {
     fn smoke() {
         unsafe {
             super::grpc_init();
+            super::sanity_check();
             let cq = super::grpc_completion_queue_create_for_next(ptr::null_mut());
             super::grpc_completion_queue_destroy(cq);
             super::grpc_shutdown();

@@ -11,30 +11,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use call::MessageReader;
 use error::Result;
 
-pub type DeserializeFn<T> = fn(&[u8]) -> Result<T>;
+pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
 
-/// Marshaller defines how to serialize and deserialize between T and byte slice.
+/// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
     // Use function pointer here to simplify the signature.
     // Compiler will probably inline the function so performance
     // impact can be omitted.
     //
-    // Use trait will require trait object or Generic which will
+    // Using trait will require a trait object or generic, which will
     // either have performance impact or make signature complicated.
     //
     // const function is not stable yet (rust-lang/rust#24111), hence
     // make all fields public.
+    /// The serialize function.
     pub ser: SerializeFn<T>,
+
+    /// The deserialize function.
     pub de: DeserializeFn<T>,
 }
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
-    use protobuf::{self, Message};
+    use protobuf::{CodedInputStream, Message};
 
+    use super::MessageReader;
     use error::Result;
 
     #[inline]
@@ -43,7 +48,10 @@ pub mod pb_codec {
     }
 
     #[inline]
-    pub fn de<T: Message>(buf: &[u8]) -> Result<T> {
-        protobuf::parse_from_bytes(buf).map_err(From::from)
+    pub fn de<T: Message>(mut reader: MessageReader) -> Result<T> {
+        let mut s = CodedInputStream::from_buffered_reader(&mut reader);
+        let mut m = T::new();
+        m.merge_from(&mut s)?;
+        Ok(m)
     }
 }
