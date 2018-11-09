@@ -46,9 +46,11 @@ pub struct GrpcByteBuffer {
 }
 
 impl GrpcByteBuffer {
-    /// Both parameters marked as mutable since the ref count increases.
-    pub fn push(&mut self, slice: &mut GrpcSlice) {
-        unsafe { grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, slice) }
+    pub fn push(&mut self, mut slice: GrpcSlice) {
+        unsafe {
+            grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, &mut slice as _);
+            grpc_sys::grpcwrap_slice_drop_without_unref(slice);
+        }
     }
 
     pub fn pop(&mut self) {
@@ -67,10 +69,6 @@ impl GrpcByteBuffer {
         self.len() == 0
     }
 
-    pub unsafe fn increase_ref(&mut self) {
-        grpc_sys::grpc_byte_buffer_copy(self.raw);
-    }
-
     /// Increase the ref count, so it's mutated.
     pub fn clone(&mut self) -> Self {
         unsafe {
@@ -87,7 +85,6 @@ impl GrpcByteBuffer {
     }
 }
 
-unsafe impl Sync for GrpcByteBuffer {}
 unsafe impl Send for GrpcByteBuffer {}
 
 impl Default for GrpcByteBuffer {
@@ -340,7 +337,7 @@ impl MessageWriter {
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.size += buf.len();
-        self.data.push(&mut From::from(buf));
+        self.data.push(From::from(buf));
         Ok(buf.len())
     }
 
@@ -846,7 +843,7 @@ mod tests {
         let mut buf = GrpcByteBuffer::default();
         unsafe {
             GrpcByteBuffer {
-                raw: buf.take_raw()
+                raw: buf.take_raw(),
             }.len();
         }
         buf.len();
@@ -855,14 +852,15 @@ mod tests {
     #[test]
     fn byte_buffer_clear_after_taken_away() {
         let mut buf = GrpcByteBuffer::default();
-        buf.push(&mut From::from("oh my god!".as_bytes()));
+        let data = "oh my god!".as_bytes();
+        buf.push(From::from(data));
         unsafe {
-            GrpcByteBuffer {
-                raw: buf.take_raw()
-            }.len();
+            assert_eq!(data.len(), GrpcByteBuffer {
+                raw: buf.take_raw(),
+            }.len());
         }
         buf.clear();
-        buf.len();
+        assert_eq!(0, buf.len());
     }
 
     #[test]
@@ -870,12 +868,12 @@ mod tests {
         let mut buf = GrpcByteBuffer::default();
         buf.clear();
         buf.clear();
-        buf.push(&mut From::from("bla".as_bytes()));
-        buf.push(&mut From::from("bla".as_bytes()));
+        buf.push(From::from("bla".as_bytes()));
+        buf.push(From::from("bla".as_bytes()));
         buf.clear();
         buf.clear();
-        buf.push(&mut From::from("bla".as_bytes()));
-        buf.push(&mut From::from("bla".as_bytes()));
+        buf.push(From::from("bla".as_bytes()));
+        buf.push(From::from("bla".as_bytes()));
         buf.clear();
         buf.clear();
     }
@@ -885,16 +883,16 @@ mod tests {
         let mut buf = GrpcByteBuffer::default();
         assert_eq!(0, buf.len());
         let data = "2333".as_bytes();
-        buf.push(&mut From::from(data));
+        buf.push(From::from(data));
         assert_eq!(data.len(), buf.len());
         let data1 = "666".as_bytes();
-        buf.push(&mut From::from(data1));
+        buf.push(From::from(data1));
         assert_eq!(data.len() + data1.len(), buf.len());
         buf.clear();
         assert_eq!(0, buf.len());
-        buf.push(&mut From::from(data));
+        buf.push(From::from(data));
         assert_eq!(data.len(), buf.len());
-        buf.push(&mut From::from(data1));
+        buf.push(From::from(data1));
         assert_eq!(data.len() + data1.len(), buf.len());
     }
 

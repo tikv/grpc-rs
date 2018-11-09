@@ -497,6 +497,7 @@ extern "C" {
     pub fn grpcwrap_slice_ref(slice: *const GrpcSlice) -> GrpcSlice;
     pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
     pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
+    pub fn grpcwrap_slice_drop_without_unref(slice: GrpcSlice);
     pub fn grpcwrap_slice_raw_offset(
         slice: *const GrpcSlice,
         offset: size_t,

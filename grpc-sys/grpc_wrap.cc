@@ -315,8 +315,13 @@ grpcwrap_slice_length(const grpc_slice *slice) {
 }
 
 GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_slice_drop_without_unref(const grpc_slice) {
+  // Leave blank as intended
+}
+
+GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_byte_buffer_add(grpc_byte_buffer *buf, grpc_slice *slice) {
-  return grpc_slice_buffer_add(&buf->data.raw.slice_buffer, grpc_slice_ref(*slice));
+  return grpc_slice_buffer_add(&buf->data.raw.slice_buffer, *slice);
 }
 
 GPR_EXPORT void GPR_CALLTYPE
