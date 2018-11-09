@@ -75,7 +75,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
             // the unnecessary dependency.
             config.define("GO_EXECUTABLE", "fake-go-nonexist");
         }
-        if cfg!(target_os = "macos") {
+        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
         }
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
@@ -106,7 +106,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
         "boringssl/ssl",
         "boringssl/crypto",
     ];
-    if cfg!(target_os = "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {
                 zlib = "zlibstatic";
@@ -193,7 +193,7 @@ fn main() {
     }
     cc.file("grpc_wrap.cc");
 
-    if cfg!(target_os = "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
     }
