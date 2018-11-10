@@ -53,7 +53,15 @@ before_script:
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-trusty-5.0
+    packages:
+      - clang-tidy-5.0
+
 script:
+  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy-preview && cargo clippy --all -- -D clippy; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add rustfmt-preview && cargo fmt --all -- --check; fi
   - cargo build --no-default-features
