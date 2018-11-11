@@ -497,7 +497,6 @@ extern "C" {
     pub fn grpcwrap_slice_ref(slice: *const GrpcSlice) -> GrpcSlice;
     pub fn grpcwrap_slice_unref(slice: *const GrpcSlice);
     pub fn grpcwrap_slice_length(slice: *const GrpcSlice) -> size_t;
-    pub fn grpcwrap_slice_drop_without_unref(slice: GrpcSlice);
     pub fn grpcwrap_slice_raw_offset(
         slice: *const GrpcSlice,
         offset: size_t,
@@ -521,7 +520,7 @@ extern "C" {
     // end for slice buffer
 
     // for byte buffer
-    pub fn grpcwrap_byte_buffer_add(buf: *mut GrpcByteBuffer, slice: *mut GrpcSlice);
+    pub fn grpcwrap_byte_buffer_add(buf: *mut GrpcByteBuffer, slice: GrpcSlice);
     pub fn grpcwrap_byte_buffer_pop(buf: *mut GrpcByteBuffer);
     pub fn grpcwrap_byte_buffer_reset_and_unref(buf: *mut GrpcByteBuffer);
 

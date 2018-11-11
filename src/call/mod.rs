@@ -46,10 +46,9 @@ pub struct GrpcByteBuffer {
 }
 
 impl GrpcByteBuffer {
-    pub fn push(&mut self, mut slice: GrpcSlice) {
+    pub fn push(&mut self, slice: GrpcSlice) {
         unsafe {
-            grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, &mut slice as _);
-            grpc_sys::grpcwrap_slice_drop_without_unref(slice);
+            grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, slice);
         }
     }
 
@@ -842,11 +841,14 @@ mod tests {
     fn byte_buffer_empty() {
         let mut buf = GrpcByteBuffer::default();
         unsafe {
-            GrpcByteBuffer {
-                raw: buf.take_raw(),
-            }.len();
+            assert_eq!(
+                0,
+                GrpcByteBuffer {
+                    raw: buf.take_raw(),
+                }.len()
+            );
         }
-        buf.len();
+        assert_eq!(0, buf.len());
     }
 
     #[test]
@@ -855,9 +857,12 @@ mod tests {
         let data = "oh my god!".as_bytes();
         buf.push(From::from(data));
         unsafe {
-            assert_eq!(data.len(), GrpcByteBuffer {
-                raw: buf.take_raw(),
-            }.len());
+            assert_eq!(
+                data.len(),
+                GrpcByteBuffer {
+                    raw: buf.take_raw(),
+                }.len()
+            );
         }
         buf.clear();
         assert_eq!(0, buf.len());
