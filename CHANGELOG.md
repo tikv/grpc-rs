@@ -3,6 +3,7 @@
 - `Client` now is clonable
 - Allow '.'s when validate metadata key
 - Fix call validation issue when connection is closed
+- Optionally use openssl instead of boring ssl
 
 # 0.4.0 - 2018-09-15
 
