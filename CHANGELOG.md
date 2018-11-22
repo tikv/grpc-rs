@@ -1,3 +1,10 @@
+# 0.4.1 - 2018-11-15
+
+- `Client` now is clonable
+- Allow '.'s when validate metadata key
+- Fix call validation issue when connection is closed
+- Optionally use openssl instead of boring ssl
+
 # 0.4.0 - 2018-09-15
 
 - Update gRPC from 1.7.2 to 1.14.2
