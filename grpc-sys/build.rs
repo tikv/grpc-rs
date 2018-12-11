@@ -160,18 +160,13 @@ fn build_grpc(cc: &mut Build, library: &str) {
 fn setup_openssl(config: &mut Config) {
     use openssl_src;
     let artifacts = openssl_src::Build::new().build();
-    config.define(
-        "OPENSSL_INCLUDE_DIR",
-        artifacts.include_dir().to_path_buf().as_os_str(),
-    );
+    let include_dir = artifacts.include_dir().to_path_buf();
+    config.define("OPENSSL_INCLUDE_DIR", include_dir.as_os_str());
     println!(
         "cargo:rustc-link-search=native={}",
         artifacts.lib_dir().to_path_buf().to_string_lossy()
     );
-    println!(
-        "cargo:include={}",
-        artifacts.include_dir().to_path_buf().to_string_lossy()
-    );
+    println!("cargo:include={}", include_dir.to_string_lossy());
 }
 
 #[cfg(not(feature = "openssl-vendored"))]
