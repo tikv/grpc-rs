@@ -13,6 +13,8 @@
 
 extern crate cc;
 extern crate cmake;
+#[cfg(feature = "openssl-vendored")]
+extern crate openssl_src;
 extern crate pkg_config;
 
 use std::env::VarError;
@@ -94,6 +96,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
             // support alpn. And Google's gRPC checks for support of ALPN in plane
             // old Makefile, but not in CMake.
             config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
+            setup_openssl(&mut config)
         }
         config.build_target(library).uses_cxx11().build()
     };
@@ -141,7 +144,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        if cfg!(feature = "openssl") {
+        if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
             println!("cargo:rustc-link-lib=ssl");
             println!("cargo:rustc-link-lib=crypto");
         } else {
@@ -152,6 +155,27 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     cc.include("grpc/include");
 }
+
+#[cfg(feature = "openssl-vendored")]
+fn setup_openssl(config: &mut Config) {
+    use openssl_src;
+    let artifacts = openssl_src::Build::new().build();
+    config.define(
+        "OPENSSL_INCLUDE_DIR",
+        artifacts.include_dir().to_path_buf().as_os_str(),
+    );
+    println!(
+        "cargo:rustc-link-search=native={}",
+        artifacts.lib_dir().to_path_buf().to_string_lossy()
+    );
+    println!(
+        "cargo:include={}",
+        artifacts.include_dir().to_path_buf().to_string_lossy()
+    );
+}
+
+#[cfg(not(feature = "openssl-vendored"))]
+fn setup_openssl(_config: &mut Config) {}
 
 fn get_env(name: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={}", name);

@@ -30,6 +30,7 @@ default = ["protobuf-codec", "secure"]
 protobuf-codec = ["protobuf"]
 secure = ["grpcio-sys/secure"]
 openssl = ["secure", "grpcio-sys/openssl"]
+openssl-vendored = ["secure", "grpcio-sys/openssl-vendored"]
 
 [[example]]
 name = "route_guide_client"
