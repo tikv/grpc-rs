@@ -19,7 +19,7 @@ matrix:
   - os: osx
     rust: stable
 before_script:
-  - export GRPC_VERSION=1.14.2
+  - export GRPC_VERSION=1.17.0
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
