@@ -103,6 +103,7 @@ struct ExecutorContext<B> {
 }
 
 impl<B: Backoff> ExecutorContext<B> {
+    #[allow(clippy::new_ret_no_self)]
     fn new(
         histogram: Arc<Mutex<Histogram>>,
         keep_running: Arc<AtomicBool>,
