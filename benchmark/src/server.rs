@@ -32,6 +32,7 @@ pub struct Server {
 }
 
 impl Server {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(cfg: &ServerConfig) -> Result<Server> {
         let mut builder = EnvBuilder::new();
         let thd_cnt = cfg.get_async_server_threads() as usize;

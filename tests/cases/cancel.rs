@@ -72,7 +72,8 @@ impl RouteGuide for CancelService {
             .map(|_| {
                 let f = Feature::new();
                 (f, WriteFlags::default())
-            }).forward(sink.sink_map_err(|_| ()))
+            })
+            .forward(sink.sink_map_err(|_| ()))
             .map(|_| ())
             .map_err(|_| ())
             .then(move |_| {
@@ -200,7 +201,8 @@ fn test_server_cancel_on_dropping() {
             .for_each(|_| Ok(()))
             .join(future::result(Ok(())).map(move |_| {
                 drop(sink);
-            })).then(|_| Ok(()));
+            }))
+            .then(|_| Ok(()));
         Box::new(f)
     }
 
