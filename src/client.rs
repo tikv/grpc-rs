@@ -25,6 +25,7 @@ use channel::Channel;
 use error::Result;
 
 /// A generic client for making RPC calls.
+#[derive(Clone)]
 pub struct Client {
     channel: Channel,
     // Used to kick its completion queue.

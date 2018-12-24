@@ -75,7 +75,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
             // the unnecessary dependency.
             config.define("GO_EXECUTABLE", "fake-go-nonexist");
         }
-        if cfg!(target_os = "macos") {
+        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
         }
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
@@ -87,6 +87,14 @@ fn build_grpc(cc: &mut Build, library: &str) {
         config.define("gRPC_BUILD_CSHARP_EXT", "false");
         // We don't need to build codegen target.
         config.define("gRPC_BUILD_CODEGEN", "false");
+        if cfg!(feature = "openssl") {
+            config.define("gRPC_SSL_PROVIDER", "package");
+            config.define("EMBED_OPENSSL", "false");
+            // Problem is: Ubuntu Trusty shipped with openssl 1.0.1f. Which doesn't
+            // support alpn. And Google's gRPC checks for support of ALPN in plane
+            // old Makefile, but not in CMake.
+            config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
+        }
         config.build_target(library).uses_cxx11().build()
     };
 
@@ -98,7 +106,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
         "boringssl/ssl",
         "boringssl/crypto",
     ];
-    if cfg!(target_os = "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {
                 zlib = "zlibstatic";
@@ -133,8 +141,13 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        println!("cargo:rustc-link-lib=static=ssl");
-        println!("cargo:rustc-link-lib=static=crypto");
+        if cfg!(feature = "openssl") {
+            println!("cargo:rustc-link-lib=ssl");
+            println!("cargo:rustc-link-lib=crypto");
+        } else {
+            println!("cargo:rustc-link-lib=static=ssl");
+            println!("cargo:rustc-link-lib=static=crypto");
+        }
     }
 
     cc.include("grpc/include");
@@ -180,7 +193,7 @@ fn main() {
     }
     cc.file("grpc_wrap.cc");
 
-    if cfg!(target_os = "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         // At lease win7
         cc.define("_WIN32_WINNT", Some("0x0700"));
     }

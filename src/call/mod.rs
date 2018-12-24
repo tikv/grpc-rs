@@ -14,19 +14,72 @@
 pub mod client;
 pub mod server;
 
+use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
-use std::{ptr, slice, usize};
+use std::{cmp, mem, ptr, slice, usize};
 
 use cq::CompletionQueue;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcCall, GrpcCallStatus};
+use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchMessage, BatchType, CallTag, CqFuture, SpinLock};
+use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use codec::{DeserializeFn, Marshaller, SerializeFn};
 use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
+
+impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
+    fn from(src: &'a mut GrpcByteBuffer) -> Self {
+        let mut reader;
+        unsafe {
+            reader = mem::zeroed();
+            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, src.raw);
+            assert_eq!(init_result, 1);
+        }
+        reader
+    }
+}
+
+pub struct GrpcByteBuffer {
+    pub raw: *mut grpc_sys::GrpcByteBuffer,
+}
+
+impl Default for GrpcByteBuffer {
+    fn default() -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
+    fn from(slice: &'a mut [GrpcSlice]) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
+            }
+        }
+    }
+}
+
+impl Clone for GrpcByteBuffer {
+    fn clone(&self) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
+            }
+        }
+    }
+}
+
+impl Drop for GrpcByteBuffer {
+    fn drop(&mut self) {
+        unsafe { grpc_sys::grpc_byte_buffer_destroy(self.raw) }
+    }
+}
 
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
@@ -108,6 +161,102 @@ impl RpcStatus {
     }
 }
 
+/// `MessageReader` is a zero-copy reader for the message payload.
+///
+/// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
+/// to operate the reader.
+pub struct MessageReader {
+    _buf: GrpcByteBuffer,
+    reader: GrpcByteBufferReader,
+    buffer_slice: GrpcSlice,
+    buffer_len: usize,
+    buffer_offset: usize,
+    length: usize,
+}
+
+impl MessageReader {
+    /// Get the available bytes count of the reader.
+    #[inline]
+    pub fn pending_bytes_count(&self) -> usize {
+        self.length
+    }
+}
+
+unsafe impl Sync for MessageReader {}
+unsafe impl Send for MessageReader {}
+
+impl Read for MessageReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let amt = {
+            let bytes = self.fill_buf()?;
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+            let amt = cmp::min(buf.len(), bytes.len());
+            if amt == 1 {
+                buf[0] = bytes[0];
+            } else {
+                buf[..amt].copy_from_slice(&bytes[..amt]);
+            }
+            amt
+        };
+        self.consume(amt);
+        Ok(amt)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        if self.length == 0 {
+            return Ok(0);
+        }
+        buf.reserve(self.length);
+        let start = buf.len();
+        let mut len = start;
+        unsafe {
+            buf.set_len(start + self.length);
+        }
+        let ret = loop {
+            match self.read(&mut buf[len..]) {
+                Ok(0) => break Ok(len - start),
+                Ok(n) => len += n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => break Err(e),
+            }
+        };
+        unsafe {
+            buf.set_len(len);
+        }
+        ret
+    }
+}
+
+impl BufRead for MessageReader {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        if self.length == 0 {
+            return Ok(&[]);
+        }
+        if self.buffer_slice.is_empty() || self.buffer_offset == self.buffer_len {
+            self.buffer_slice = self.reader.next_slice();
+            self.buffer_offset = 0;
+        }
+
+        debug_assert!(self.buffer_offset <= self.buffer_len);
+        Ok(self.buffer_slice.range_from(self.buffer_offset))
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.length -= amt;
+        self.buffer_len += amt;
+    }
+}
+
+impl Drop for MessageReader {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
+        }
+    }
+}
+
 /// Context for batch request.
 pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
@@ -122,6 +271,15 @@ impl BatchContext {
 
     pub fn as_ptr(&self) -> *mut GrpcBatchContext {
         self.ctx
+    }
+
+    pub fn take_recv_message(&self) -> Option<GrpcByteBuffer> {
+        let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(GrpcByteBuffer { raw: ptr })
+        }
     }
 
     /// Get the status of the rpc call.
@@ -146,23 +304,19 @@ impl BatchContext {
     }
 
     /// Fetch the response bytes of the rpc call.
-    // TODO: return Read instead.
-    pub fn recv_message(&self) -> Option<Vec<u8>> {
-        // TODO: avoid copy
-        let len = unsafe { grpc_sys::grpcwrap_batch_context_recv_message_length(self.ctx) };
-        if len == usize::MAX {
-            return None;
-        }
-        let mut buffer = Vec::with_capacity(len);
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_message_to_buffer(
-                self.ctx,
-                buffer.as_mut_ptr() as *mut _,
-                len,
-            );
-            buffer.set_len(len);
-        }
-        Some(buffer)
+    pub fn recv_message(&mut self) -> Option<MessageReader> {
+        let mut buf = self.take_recv_message()?;
+        let reader = GrpcByteBufferReader::from(&mut buf);
+        let length = reader.len();
+
+        Some(MessageReader {
+            _buf: buf,
+            reader,
+            buffer_slice: Default::default(),
+            buffer_offset: 0,
+            buffer_len: 0,
+            length,
+        })
     }
 }
 
@@ -188,7 +342,7 @@ where
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr as *mut c_void);
+    let code = f(batch_ptr, tag_ptr);
     if code != GrpcCallStatus::Ok {
         unsafe {
             Box::from_raw(tag_ptr);
@@ -371,13 +525,13 @@ impl Drop for Call {
 /// once the call is canceled or finished early.
 struct ShareCall {
     call: Call,
-    close_f: CqFuture<BatchMessage>,
+    close_f: BatchFuture,
     finished: bool,
     status: Option<RpcStatus>,
 }
 
 impl ShareCall {
-    fn new(call: Call, close_f: CqFuture<BatchMessage>) -> ShareCall {
+    fn new(call: Call, close_f: BatchFuture) -> ShareCall {
         ShareCall {
             call,
             close_f,
@@ -389,7 +543,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self) -> Poll<BatchMessage, Error> {
+    fn poll_finish(&mut self) -> Poll<Option<MessageReader>, Error> {
         let res = match self.close_f.poll() {
             Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
@@ -456,7 +610,7 @@ impl StreamingBase {
         &mut self,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<Option<Vec<u8>>, Error> {
+    ) -> Poll<Option<MessageReader>, Error> {
         if !skip_finish_check {
             let mut finished = false;
             if let Some(ref mut close_f) = self.close_f {
@@ -486,7 +640,7 @@ impl StreamingBase {
 
         if self.read_done {
             if self.close_f.is_none() {
-                return Ok(Async::Ready(None));
+                return Ok(Async::Ready(bytes));
             }
             return Ok(Async::NotReady);
         }
@@ -605,5 +759,65 @@ impl SinkBase {
 
         self.batch_f.take();
         Ok(Async::Ready(()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
+        let mut slices = vec![From::from(source); n_slice];
+        let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
+        let reader = GrpcByteBufferReader::from(&mut buf);
+        let length = reader.len();
+
+        MessageReader {
+            _buf: buf,
+            reader,
+            buffer_slice: Default::default(),
+            buffer_offset: 0,
+            buffer_len: 0,
+            length,
+        }
+    }
+
+    #[test]
+    fn test_message_reader() {
+        for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
+            for nslice in 1..4 {
+                let source = vec![len as u8; len];
+                let expect = vec![len as u8; len * nslice];
+                // Test read.
+                let mut reader = make_message_reader(&source, nslice);
+                let mut dest = [0; 7];
+                let amt = reader.read(&mut dest).unwrap();
+
+                assert_eq!(
+                    dest[..amt],
+                    expect[..amt],
+                    "len: {}, nslice: {}",
+                    len,
+                    nslice
+                );
+
+                // Read after move.
+                let mut box_reader = Box::new(reader);
+                let amt = box_reader.read(&mut dest).unwrap();
+                assert_eq!(
+                    dest[..amt],
+                    expect[..amt],
+                    "len: {}, nslice: {}",
+                    len,
+                    nslice
+                );
+
+                // Test read_to_end.
+                let mut reader = make_message_reader(&source, nslice);
+                let mut dest = vec![];
+                reader.read_to_end(&mut dest).unwrap();
+                assert_eq!(dest, expect, "len: {}, nslice: {}", len, nslice);
+            }
+        }
     }
 }

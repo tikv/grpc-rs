@@ -103,6 +103,7 @@ struct ExecutorContext<B> {
 }
 
 impl<B: Backoff> ExecutorContext<B> {
+    #[allow(clippy::new_ret_no_self)]
     fn new(
         histogram: Arc<Mutex<Histogram>>,
         keep_running: Arc<AtomicBool>,
@@ -200,10 +201,11 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
                         })
                 })
             },
-        ).and_then(|(mut s, e, r)| {
+        )
+        .and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
         })
-            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f)
     }
 }
@@ -300,10 +302,11 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                         })
                 })
             },
-        ).and_then(|(mut s, e, r)| {
+        )
+        .and_then(|(mut s, e, r)| {
             future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
         })
-            .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f);
     }
 }
@@ -328,11 +331,13 @@ fn execute<B: Backoff + Send + 'static>(
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-            RpcType::STREAMING => if cfg.get_payload_config().has_bytebuf_params() {
-                GenericExecutor::new(ctx, ch, cfg).execute_stream()
-            } else {
-                RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
-            },
+            RpcType::STREAMING => {
+                if cfg.get_payload_config().has_bytebuf_params() {
+                    GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                } else {
+                    RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                }
+            }
             _ => unimplemented!(),
         },
         _ => unimplemented!(),

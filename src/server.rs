@@ -24,7 +24,7 @@ use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
 use async::{CallTag, CqFuture};
 use call::server::*;
-use call::{Method, MethodType};
+use call::{MessageReader, Method, MethodType};
 use channel::ChannelArgs;
 use cq::CompletionQueue;
 use env::Environment;
@@ -47,17 +47,17 @@ impl<F> Handler<F> {
 }
 
 pub trait CloneableHandler: Send {
-    fn handle(&mut self, ctx: RpcContext, reqs: &[u8]);
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>);
     fn box_clone(&self) -> Box<CloneableHandler>;
     fn method_type(&self) -> MethodType;
 }
 
 impl<F: 'static> CloneableHandler for Handler<F>
 where
-    F: FnMut(RpcContext, &[u8]) + Send + Clone + 'static,
+    F: FnMut(RpcContext, Option<MessageReader>) + Send + Clone,
 {
     #[inline]
-    fn handle(&mut self, ctx: RpcContext, reqs: &[u8]) {
+    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>) {
         (self.cb)(ctx, reqs)
     }
 
@@ -160,8 +160,8 @@ impl ServiceBuilder {
         F: FnMut(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: &[u8]| {
-            execute_unary(ctx, ser, de, payload, &mut handler)
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_unary(ctx, ser, de, payload.unwrap(), &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::Unary, h));
         self.handlers.insert(method.name.as_bytes(), ch);
@@ -183,8 +183,9 @@ impl ServiceBuilder {
             + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h =
-            move |ctx: RpcContext, _: &[u8]| execute_client_streaming(ctx, ser, de, &mut handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_client_streaming(ctx, ser, de, &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -202,8 +203,8 @@ impl ServiceBuilder {
         F: FnMut(RpcContext, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: &[u8]| {
-            execute_server_streaming(ctx, ser, de, payload, &mut handler)
+        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+            execute_server_streaming(ctx, ser, de, payload.unwrap(), &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::ServerStreaming, h));
         self.handlers.insert(method.name.as_bytes(), ch);
@@ -222,8 +223,9 @@ impl ServiceBuilder {
         F: FnMut(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h =
-            move |ctx: RpcContext, _: &[u8]| execute_duplex_streaming(ctx, ser, de, &mut handler);
+        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+            execute_duplex_streaming(ctx, ser, de, &mut handler)
+        };
         let ch = Box::new(Handler::new(MethodType::Duplex, h));
         self.handlers.insert(method.name.as_bytes(), ch);
         self
@@ -390,8 +392,8 @@ impl RequestCallContext {
     }
 }
 
-// Apprently, its life time is guaranteed by the ref count, hence is safe to be sent
-// to other thread. However it's not `Sync`, as `BoxHandler` is not neccessary `Sync`.
+// Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
+// to other thread. However it's not `Sync`, as `BoxHandler` is unnecessarily `Sync`.
 unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.

@@ -94,10 +94,11 @@ fn spawn_chianed_channel(
 ) -> (oneshot::Sender<usize>, oneshot::Receiver<usize>) {
     let (tx1, rx1) = oneshot::channel();
     let (tx2, rx2) = oneshot::channel();
-    let f =
-        rx1.map(|n| {
+    let f = rx1
+        .map(|n| {
             let _ = tx2.send(n);
-        }).map_err(|_| ());
+        })
+        .map_err(|_| ());
     client.spawn(f);
 
     (tx1, rx2)
