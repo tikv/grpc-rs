@@ -99,6 +99,6 @@ mod tests {
         let error = ProtobufError::WireError(WireError::UnexpectedEof);
         let e: Error = error.into();
         assert_eq!(e.description(), "gRPC Codec Error");
-        assert!(e.cause().is_some());
+        assert!(e.source().is_some());
     }
 }
