@@ -73,6 +73,9 @@ impl error::Error for Error {
             _ => None,
         }
     }
+
+    // TODO: impl `Error::source`, but it may break backward compatibility,
+    // Eg. TiKV still uses nightly-2018-07-18, which does not compile.
 }
 
 #[cfg(feature = "protobuf-codec")]
@@ -94,11 +97,12 @@ mod tests {
 
     use super::Error;
 
+    #[allow(deprecated)]
     #[test]
     fn test_convert() {
         let error = ProtobufError::WireError(WireError::UnexpectedEof);
         let e: Error = error.into();
         assert_eq!(e.description(), "gRPC Codec Error");
-        assert!(e.source().is_some());
+        assert!(e.cause().is_some());
     }
 }
