@@ -779,7 +779,7 @@ mod tests {
     #[test]
     // Old code crashes under a very weird circumstance
     fn test_tikv_2262() {
-        let data = vec![1, 9, 2, 6, 0, 8, 1, 7];
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         // half of the size of `data`
         const HALF_SIZE: usize = 4;
         let mut reader = make_message_reader(&data, 1);
