@@ -777,8 +777,8 @@ mod tests {
     }
 
     #[test]
-    // Old code crashes under a very weird circumstance
-    fn test_tikv_2262() {
+    // Old code crashes under a very weird circumstance, due to a typo in `MessageReader::consume`
+    fn test_typo_len_offset() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         // half of the size of `data`
         const HALF_SIZE: usize = 4;
