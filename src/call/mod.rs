@@ -777,6 +777,22 @@ mod tests {
     }
 
     #[test]
+    // Old code crashes under a very weird circumstance
+    fn test_tikv_2262() {
+        let data = vec![1, 9, 2, 6, 0, 8, 1, 7];
+        // half of the size of `data`
+        const HALF_SIZE: usize = 4;
+        let mut reader = make_message_reader(&data, 1);
+        assert_eq!(reader.pending_bytes_count(), data.len());
+        // first 3 elements of `data`
+        let mut buf = [0; HALF_SIZE];
+        reader.read(&mut buf).unwrap();
+        assert_eq!(data[..HALF_SIZE], buf);
+        reader.read(&mut buf).unwrap();
+        assert_eq!(data[HALF_SIZE..], buf);
+    }
+
+    #[test]
     fn test_message_reader() {
         for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
             for n_slice in 1..4 {
