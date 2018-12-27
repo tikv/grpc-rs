@@ -456,18 +456,12 @@ impl GrpcByteBufferReader {
     }
 
     pub fn next_slice(&mut self) -> GrpcSlice {
-        self.try_next_slice().expect("No next slice!")
-    }
-
-    pub fn try_next_slice(&mut self) -> Option<GrpcSlice> {
-        let mut slice = Default::default();
         unsafe {
+            let mut slice = Default::default();
             let code = grpc_byte_buffer_reader_next(self, &mut slice);
-            if code == 0 {
-                return None;
-            }
+            debug_assert_ne!(code, 0);
+            slice
         }
-        Some(slice)
     }
 }
 
