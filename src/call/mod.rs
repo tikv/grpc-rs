@@ -797,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_message_reader() {
-        for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
+        for len in vec![0..=1024 + 1] {
             for n_slice in 1..4 {
                 let source = vec![len as u8; len];
                 let expect = vec![len as u8; len * n_slice];
