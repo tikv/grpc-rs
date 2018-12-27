@@ -779,11 +779,11 @@ mod tests {
     #[test]
     fn test_message_reader() {
         for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
-            for nslice in 1..4 {
+            for n_slice in 1..4 {
                 let source = vec![len as u8; len];
-                let expect = vec![len as u8; len * nslice];
+                let expect = vec![len as u8; len * n_slice];
                 // Test read.
-                let mut reader = make_message_reader(&source, nslice);
+                let mut reader = make_message_reader(&source, n_slice);
                 let mut dest = [0; 7];
                 let amt = reader.read(&mut dest).unwrap();
 
@@ -792,7 +792,7 @@ mod tests {
                     expect[..amt],
                     "len: {}, nslice: {}",
                     len,
-                    nslice
+                    n_slice
                 );
 
                 // Read after move.
@@ -803,14 +803,17 @@ mod tests {
                     expect[..amt],
                     "len: {}, nslice: {}",
                     len,
-                    nslice
+                    n_slice
                 );
 
                 // Test read_to_end.
-                let mut reader = make_message_reader(&source, nslice);
+                let mut reader = make_message_reader(&source, n_slice);
                 let mut dest = vec![];
                 reader.read_to_end(&mut dest).unwrap();
-                assert_eq!(dest, expect, "len: {}, nslice: {}", len, nslice);
+                assert_eq!(dest, expect, "len: {}, nslice: {}", len, n_slice);
+
+                assert_eq!(0, reader.pending_bytes_count());
+                assert_eq!(0, reader.read(&mut [1]).unwrap())
             }
         }
     }
