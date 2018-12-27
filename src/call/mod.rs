@@ -169,7 +169,6 @@ pub struct MessageReader {
     _buf: GrpcByteBuffer,
     reader: GrpcByteBufferReader,
     buffer_slice: GrpcSlice,
-    buffer_len: usize,
     buffer_offset: usize,
     length: usize,
 }
@@ -193,11 +192,7 @@ impl Read for MessageReader {
                 return Ok(0);
             }
             let amt = cmp::min(buf.len(), bytes.len());
-            if amt == 1 {
-                buf[0] = bytes[0];
-            } else {
-                buf[..amt].copy_from_slice(&bytes[..amt]);
-            }
+            buf[..amt].copy_from_slice(&bytes[..amt]);
             amt
         };
         self.consume(amt);
@@ -231,21 +226,41 @@ impl Read for MessageReader {
 
 impl BufRead for MessageReader {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        if self.length == 0 {
+        // Optimization for empty slice
+        if self.pending_bytes_count() == 0 {
             return Ok(&[]);
         }
-        if self.buffer_slice.is_empty() || self.buffer_offset == self.buffer_len {
+
+        // When finished reading current `buffer_slice`, start reading next slice
+        let buffer_len = self.buffer_slice.len();
+        if buffer_len == 0 || self.buffer_offset == buffer_len {
             self.buffer_slice = self.reader.next_slice();
             self.buffer_offset = 0;
         }
 
-        debug_assert!(self.buffer_offset <= self.buffer_len);
+        debug_assert!(self.buffer_offset <= buffer_len);
         Ok(self.buffer_slice.range_from(self.buffer_offset))
     }
 
     fn consume(&mut self, amt: usize) {
         self.length -= amt;
-        self.buffer_len += amt;
+        self.buffer_offset += amt;
+    }
+}
+
+impl From<GrpcByteBuffer> for MessageReader {
+    fn from(buf: GrpcByteBuffer) -> Self {
+        let mut buf = buf;
+        let reader = GrpcByteBufferReader::from(&mut buf);
+        let length = reader.len();
+
+        MessageReader {
+            _buf: buf,
+            reader,
+            buffer_slice: Default::default(),
+            buffer_offset: 0,
+            length,
+        }
     }
 }
 
@@ -305,18 +320,7 @@ impl BatchContext {
 
     /// Fetch the response bytes of the rpc call.
     pub fn recv_message(&mut self) -> Option<MessageReader> {
-        let mut buf = self.take_recv_message()?;
-        let reader = GrpcByteBufferReader::from(&mut buf);
-        let length = reader.len();
-
-        Some(MessageReader {
-            _buf: buf,
-            reader,
-            buffer_slice: Default::default(),
-            buffer_offset: 0,
-            buffer_len: 0,
-            length,
-        })
+        self.take_recv_message().map(MessageReader::from)
     }
 }
 
@@ -768,18 +772,8 @@ mod tests {
 
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
         let mut slices = vec![From::from(source); n_slice];
-        let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
-        let reader = GrpcByteBufferReader::from(&mut buf);
-        let length = reader.len();
-
-        MessageReader {
-            _buf: buf,
-            reader,
-            buffer_slice: Default::default(),
-            buffer_offset: 0,
-            buffer_len: 0,
-            length,
-        }
+        let buf = GrpcByteBuffer::from(slices.as_mut_slice());
+        MessageReader::from(buf)
     }
 
     #[test]
