@@ -73,6 +73,9 @@ impl error::Error for Error {
             _ => None,
         }
     }
+
+    // TODO: impl `Error::source`, but it may break backward compatibility,
+    // Eg. TiKV still uses nightly-2018-07-18, which does not compile.
 }
 
 #[cfg(feature = "protobuf-codec")]
@@ -94,6 +97,7 @@ mod tests {
 
     use super::Error;
 
+    #[allow(deprecated)]
     #[test]
     fn test_convert() {
         let error = ProtobufError::WireError(WireError::UnexpectedEof);
