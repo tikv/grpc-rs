@@ -12,11 +12,11 @@ categories = ["network-programming"]
 build = "build.rs"
 
 [dependencies]
-protobuf = "~2.1"
+protobuf = "~2.2"
 futures = "0.1"
 grpcio = { path = "..", version = "0.4.0" }
 
 [build-dependencies]
-protobuf = "~2.1"
-protobuf-codegen = "~2.1"
+protobuf = "~2.2"
+protobuf-codegen = "~2.2"
 grpcio-compiler = { path = "../compiler", version = "0.4.0" }
