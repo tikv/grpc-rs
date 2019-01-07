@@ -331,11 +331,13 @@ fn execute<B: Backoff + Send + 'static>(
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-            RpcType::STREAMING => if cfg.get_payload_config().has_bytebuf_params() {
-                GenericExecutor::new(ctx, ch, cfg).execute_stream()
-            } else {
-                RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
-            },
+            RpcType::STREAMING => {
+                if cfg.get_payload_config().has_bytebuf_params() {
+                    GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                } else {
+                    RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                }
+            }
             _ => unimplemented!(),
         },
         _ => unimplemented!(),
