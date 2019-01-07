@@ -200,7 +200,6 @@ pub struct MessageReader {
     _buf: GrpcByteBuffer,
     reader: GrpcByteBufferReader,
     buffer_slice: GrpcSlice,
-    buffer_len: usize,
     buffer_offset: usize,
     length: usize,
 }
@@ -224,11 +223,7 @@ impl Read for MessageReader {
                 return Ok(0);
             }
             let amt = cmp::min(buf.len(), bytes.len());
-            if amt == 1 {
-                buf[0] = bytes[0];
-            } else {
-                buf[..amt].copy_from_slice(&bytes[..amt]);
-            }
+            buf[..amt].copy_from_slice(&bytes[..amt]);
             amt
         };
         self.consume(amt);
@@ -262,21 +257,25 @@ impl Read for MessageReader {
 
 impl BufRead for MessageReader {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        if self.length == 0 {
+        // Optimization for empty slice
+        if self.pending_bytes_count() == 0 {
             return Ok(&[]);
         }
-        if self.buffer_slice.is_empty() || self.buffer_offset == self.buffer_len {
+
+        // When finished reading current `buffer_slice`, start reading next slice
+        let buffer_len = self.buffer_slice.len();
+        if buffer_len == 0 || self.buffer_offset == buffer_len {
             self.buffer_slice = self.reader.next_slice();
             self.buffer_offset = 0;
         }
 
-        debug_assert!(self.buffer_offset <= self.buffer_len);
+        debug_assert!(self.buffer_offset <= buffer_len);
         Ok(self.buffer_slice.range_from(self.buffer_offset))
     }
 
     fn consume(&mut self, amt: usize) {
         self.length -= amt;
-        self.buffer_len += amt;
+        self.buffer_offset += amt;
     }
 }
 
@@ -397,7 +396,6 @@ impl BatchContext {
             reader,
             buffer_slice: Default::default(),
             buffer_offset: 0,
-            buffer_len: 0,
             length,
         })
     }
@@ -912,19 +910,34 @@ mod tests {
             reader,
             buffer_slice: Default::default(),
             buffer_offset: 0,
-            buffer_len: 0,
             length,
         }
     }
 
     #[test]
+    // Old code crashes under a very weird circumstance, due to a typo in `MessageReader::consume`
+    fn test_typo_len_offset() {
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        // half of the size of `data`
+        const HALF_SIZE: usize = 4;
+        let mut reader = make_message_reader(&data, 1);
+        assert_eq!(reader.pending_bytes_count(), data.len());
+        // first 3 elements of `data`
+        let mut buf = [0; HALF_SIZE];
+        reader.read(&mut buf).unwrap();
+        assert_eq!(data[..HALF_SIZE], buf);
+        reader.read(&mut buf).unwrap();
+        assert_eq!(data[HALF_SIZE..], buf);
+    }
+
+    #[test]
     fn test_message_reader() {
-        for len in vec![0, 1, 2, 16, 32, 64, 128, 256, 512, 1024] {
-            for nslice in 1..4 {
+        for len in 0..1024 + 1 {
+            for n_slice in 1..4 {
                 let source = vec![len as u8; len];
-                let expect = vec![len as u8; len * nslice];
+                let expect = vec![len as u8; len * n_slice];
                 // Test read.
-                let mut reader = make_message_reader(&source, nslice);
+                let mut reader = make_message_reader(&source, n_slice);
                 let mut dest = [0; 7];
                 let amt = reader.read(&mut dest).unwrap();
 
@@ -933,7 +946,7 @@ mod tests {
                     expect[..amt],
                     "len: {}, nslice: {}",
                     len,
-                    nslice
+                    n_slice
                 );
 
                 // Read after move.
@@ -944,14 +957,17 @@ mod tests {
                     expect[..amt],
                     "len: {}, nslice: {}",
                     len,
-                    nslice
+                    n_slice
                 );
 
                 // Test read_to_end.
-                let mut reader = make_message_reader(&source, nslice);
+                let mut reader = make_message_reader(&source, n_slice);
                 let mut dest = vec![];
                 reader.read_to_end(&mut dest).unwrap();
-                assert_eq!(dest, expect, "len: {}, nslice: {}", len, nslice);
+                assert_eq!(dest, expect, "len: {}, nslice: {}", len, n_slice);
+
+                assert_eq!(0, reader.pending_bytes_count());
+                assert_eq!(0, reader.read(&mut [1]).unwrap())
             }
         }
     }
