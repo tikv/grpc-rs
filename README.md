@@ -97,3 +97,7 @@ grpcio = { version = "0.4", default-features = false, features = ["protobuf-code
 ## Performance
 
 See [benchmark](https://github.com/pingcap/grpc-rs/tree/master/benchmark) to find out how to run a benchmark by yourself.
+
+Cross Compile
+-------------
+See [cross_compile](cross_compile.md)

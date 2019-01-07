@@ -1,3 +1,7 @@
+# 0.4.2 - 2019-01-07
+
+- Update gRPC from 1.14.2 to 1.17.2
+
 # 0.4.1 - 2018-11-15
 
 - `Client` now is clonable
