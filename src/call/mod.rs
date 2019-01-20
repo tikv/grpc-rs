@@ -292,8 +292,14 @@ pub struct BatchContext {
     ctx: *mut GrpcBatchContext,
 }
 
+struct GrpcSliceBuffer {
+    buffer: GrpcSlice,
+    buffer_len: usize,
+}
+
 pub struct MessageWriter {
     data: GrpcByteBuffer,
+    reserved_buffer: Option<GrpcSliceBuffer>,
     size: usize,
 }
 
@@ -301,6 +307,7 @@ impl MessageWriter {
     pub fn new() -> MessageWriter {
         MessageWriter {
             data: Default::default(),
+            reserved_buffer: None,
             size: 0,
         }
     }
@@ -313,6 +320,21 @@ impl MessageWriter {
         self.size = 0;
     }
 
+    pub fn reserve(&mut self, size: usize) {
+        if size <= self.size {
+            return;
+        }
+        self.flush().unwrap();
+        // `self.reserved_buffer` is supposed to be None after `self.flush()`
+        debug_assert!(self.reserved_buffer.is_none());
+        let new_size = size - self.size;
+        let buffer = GrpcSlice::with_capacity(new_size);
+        self.reserved_buffer = Some(GrpcSliceBuffer {
+            buffer,
+            buffer_len: 0
+        })
+    }
+
     pub fn into_buffer(self) -> GrpcByteBuffer {
         self.data
     }
@@ -323,23 +345,41 @@ impl MessageWriter {
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.size
+        self.size + self.reserved_buffer.as_ref().map_or(0, |buf| buf.buffer_len)
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    pub fn write_safe(&mut self, buf: &[u8]) {
+        self.size += buf.len();
+        self.data.push(From::from(buf));
+    }
 }
 
 impl Write for MessageWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.size += buf.len();
-        self.data.push(From::from(buf));
+        self.write_safe(buf);
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        use std::mem::swap;
+        let mut dummy_buffer = None;
+        swap(&mut dummy_buffer, &mut self.reserved_buffer);
+
+        if let Some(buffer) = dummy_buffer {
+            // 0-sized buffers shouldn't haven been created
+            debug_assert!(buffer.buffer_len > 0);
+            self.data.push(if buffer.buffer_len == buffer.buffer.len() {
+                // Current buffer is filled
+                buffer.buffer
+            } else {
+                From::from(buffer.buffer.range_to(buffer.buffer_len))
+            });
+        }
         Ok(())
     }
 }
@@ -970,5 +1010,25 @@ mod tests {
                 assert_eq!(0, reader.read(&mut [1]).unwrap())
             }
         }
+    }
+
+    #[test]
+    fn test_message_writer() {
+        let mut writer = MessageWriter::new();
+        assert_eq!(writer.len(), 0);
+        writer.write_safe("114".as_bytes());
+        assert_eq!(writer.len(), 3);
+        writer.write("514".as_bytes()).unwrap();
+        assert_eq!(writer.len(), 6);
+        assert_eq!(writer.as_buffer().len(), 6);
+    }
+
+    #[test]
+    fn test_message_writer_reserve() {
+        let mut writer = MessageWriter::new();
+        writer.reserve(8);
+        let text = "TiDB will rule the world!".as_bytes();
+        writer.write(text).unwrap();
+        assert_eq!(writer.as_buffer().len(), text.len());
     }
 }
