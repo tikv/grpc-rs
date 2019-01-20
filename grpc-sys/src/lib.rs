@@ -413,6 +413,12 @@ impl GrpcSlice {
             slice::from_raw_parts(ptr as _, len)
         }
     }
+
+    pub unsafe fn range_from_unsafe(&self, offset: usize) -> &mut [u8] {
+        let mut len = 0;
+        let ptr = grpcwrap_slice_raw_offset(self, offset, &mut len);
+        slice::from_raw_parts_mut(ptr as _, len)
+    }
 }
 
 /// Increase the ref count of the slice when cloning

@@ -213,6 +213,7 @@ impl MessageReader {
 }
 
 unsafe impl Sync for MessageReader {}
+
 unsafe impl Send for MessageReader {}
 
 impl Read for MessageReader {
@@ -297,6 +298,28 @@ struct GrpcSliceBuffer {
     buffer_len: usize,
 }
 
+impl GrpcSliceBuffer {
+    pub fn is_full(&self) -> bool {
+        self.buffer_len == self.buffer.len()
+    }
+
+    /// Returns the remaining slice, `None` means fully consumed
+    pub fn append<'a>(&mut self, data: &'a [u8]) -> Option<&'a [u8]> {
+        let internal_slice = unsafe { self.buffer.range_from_unsafe(self.buffer_len) };
+        let data_len = data.len();
+        let internal_len = internal_slice.len();
+        if data_len > internal_len {
+            self.buffer_len += internal_len;
+            internal_slice.copy_from_slice(&data[..internal_len]);
+            return Some(&data[internal_len..]);
+        } else {
+            self.buffer_len += data_len;
+            internal_slice[..data_len].copy_from_slice(data);
+            None
+        }
+    }
+}
+
 pub struct MessageWriter {
     data: GrpcByteBuffer,
     reserved_buffer: Option<GrpcSliceBuffer>,
@@ -331,7 +354,7 @@ impl MessageWriter {
         let buffer = GrpcSlice::with_capacity(new_size);
         self.reserved_buffer = Some(GrpcSliceBuffer {
             buffer,
-            buffer_len: 0
+            buffer_len: 0,
         })
     }
 
@@ -345,7 +368,11 @@ impl MessageWriter {
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.size + self.reserved_buffer.as_ref().map_or(0, |buf| buf.buffer_len)
+        self.size
+            + self
+            .reserved_buffer
+            .as_ref()
+            .map_or(0, |buf| buf.buffer_len)
     }
 
     #[inline]
@@ -353,9 +380,36 @@ impl MessageWriter {
         self.len() == 0
     }
 
+    fn append_slice_to_data(&mut self, slice: GrpcSlice) {
+        self.size += slice.len();
+        self.data.push(slice);
+    }
+
+    fn append_buf_to_reserved<'a>(&mut self, buf: &'a [u8]) -> Option<&'a [u8]> {
+        use std::mem::swap;
+        let mut dummy_buffer = None;
+        swap(&mut dummy_buffer, &mut self.reserved_buffer);
+        match dummy_buffer {
+            Some(mut buffer) => {
+                let rest = buffer.append(buf);
+                if buffer.is_full() {
+                    // Full, push it into the buffer
+                    self.append_slice_to_data(buffer.buffer);
+                } else {
+                    // Not full, put it back to `self`
+                    self.reserved_buffer = Some(buffer);
+                }
+                rest
+            }
+            None => Some(buf),
+        }
+    }
+
+    /// Returns the rest
     pub fn write_safe(&mut self, buf: &[u8]) {
-        self.size += buf.len();
-        self.data.push(From::from(buf));
+        if let Some(rest) = self.append_buf_to_reserved(buf) {
+            self.append_slice_to_data(From::from(rest));
+        }
     }
 }
 
@@ -373,7 +427,7 @@ impl Write for MessageWriter {
         if let Some(buffer) = dummy_buffer {
             // 0-sized buffers shouldn't haven been created
             debug_assert!(buffer.buffer_len > 0);
-            self.data.push(if buffer.buffer_len == buffer.buffer.len() {
+            self.append_slice_to_data(if buffer.is_full() {
                 // Current buffer is filled
                 buffer.buffer
             } else {
@@ -458,8 +512,8 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
-where
-    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+    where
+        F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
@@ -883,7 +937,8 @@ mod tests {
                 0,
                 GrpcByteBuffer {
                     raw: buf.take_raw(),
-                }.len()
+                }
+                    .len()
             );
         }
         assert_eq!(0, buf.len());
@@ -899,7 +954,8 @@ mod tests {
                 data.len(),
                 GrpcByteBuffer {
                     raw: buf.take_raw(),
-                }.len()
+                }
+                    .len()
             );
         }
         buf.clear();
@@ -1013,6 +1069,18 @@ mod tests {
     }
 
     #[test]
+    fn test_slice_buffer() {
+        let mut buffer = GrpcSliceBuffer {
+            buffer: GrpcSlice::with_capacity(5),
+            buffer_len: 0,
+        };
+        let should_be_none = buffer.append("Ping".as_bytes());
+        assert_eq!(should_be_none, None);
+        let should_be_ap = buffer.append("CAP".as_bytes());
+        assert_eq!(should_be_ap, Some("AP".as_bytes()));
+    }
+
+    #[test]
     fn test_message_writer() {
         let mut writer = MessageWriter::new();
         assert_eq!(writer.len(), 0);
@@ -1026,9 +1094,11 @@ mod tests {
     #[test]
     fn test_message_writer_reserve() {
         let mut writer = MessageWriter::new();
-        writer.reserve(8);
+        writer.reserve(3);
+        writer.write_safe(&[1]);
+        // Longer than 2
         let text = "TiDB will rule the world!".as_bytes();
         writer.write(text).unwrap();
-        assert_eq!(writer.as_buffer().len(), text.len());
+        assert_eq!(writer.as_buffer().len(), text.len() + 1);
     }
 }
