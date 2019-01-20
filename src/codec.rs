@@ -37,8 +37,8 @@ pub struct Marshaller<T> {
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
-    use protobuf::{CodedInputStream, Message};
     use protobuf::stream::CodedOutputStream;
+    use protobuf::{CodedInputStream, Message};
 
     use call::{MessageReader, MessageWriter};
     use error::Result;

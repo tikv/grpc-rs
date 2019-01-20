@@ -368,11 +368,10 @@ impl MessageWriter {
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.size
-            + self
-            .reserved_buffer
+        self.reserved_buffer
             .as_ref()
             .map_or(0, |buf| buf.buffer_len)
+            + self.size
     }
 
     #[inline]
@@ -512,8 +511,8 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
-    where
-        F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+where
+    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
@@ -938,7 +937,7 @@ mod tests {
                 GrpcByteBuffer {
                     raw: buf.take_raw(),
                 }
-                    .len()
+                .len()
             );
         }
         assert_eq!(0, buf.len());
@@ -955,7 +954,7 @@ mod tests {
                 GrpcByteBuffer {
                     raw: buf.take_raw(),
                 }
-                    .len()
+                .len()
             );
         }
         buf.clear();
