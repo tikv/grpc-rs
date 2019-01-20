@@ -38,13 +38,19 @@ pub struct Marshaller<T> {
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
     use protobuf::{CodedInputStream, Message};
+    use protobuf::stream::CodedOutputStream;
 
     use call::{MessageReader, MessageWriter};
     use error::Result;
 
     #[inline]
     pub fn ser<T: Message>(t: &T, writer: &mut MessageWriter) {
-        t.write_to_writer(writer).unwrap()
+        let size = t.compute_size();
+        writer.reserve(size as usize);
+        let mut cos = CodedOutputStream::new(writer);
+        t.check_initialized().unwrap();
+        t.write_to_with_cached_sizes(&mut cos).unwrap();
+        cos.flush().unwrap();
     }
 
     #[inline]
