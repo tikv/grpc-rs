@@ -1,3 +1,7 @@
+# 0.4.3 - 2019-01-21
+
+- Remove tilde requirements `~2.0` of protobuf
+
 # 0.4.2 - 2019-01-07
 
 - Update gRPC from 1.14.2 to 1.17.2
