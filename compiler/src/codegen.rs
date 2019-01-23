@@ -418,7 +418,7 @@ impl<'a> ServiceGen<'a> {
         };
         let methods = proto
             .get_method()
-            .into_iter()
+            .iter()
             .map(|m| {
                 MethodGen::new(
                     m,
