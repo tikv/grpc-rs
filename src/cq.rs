@@ -151,7 +151,7 @@ impl CompletionQueue {
         }
     }
 
-    pub fn borrow(&self) -> Result<CompletionQueueRef> {
+    pub fn borrow(&self) -> Result<CompletionQueueRef<'_>> {
         self.handle.add_ref()?;
         Ok(CompletionQueueRef { queue: self })
     }

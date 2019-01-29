@@ -11,14 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
+use serde_json;
 
 #[path = "../log_util.rs"]
 mod log_util;
@@ -43,7 +40,7 @@ struct RouteGuideService {
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&mut self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&mut self, ctx: RpcContext<'_>, point: Point, sink: UnarySink<Feature>) {
         let data = self.data.clone();
         let resp = data
             .iter()
@@ -57,7 +54,7 @@ impl RouteGuide for RouteGuideService {
 
     fn list_features(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         rect: Rectangle,
         resp: ServerStreamingSink<Feature>,
     ) {
@@ -81,7 +78,7 @@ impl RouteGuide for RouteGuideService {
 
     fn record_route(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         points: RequestStream<Point>,
         resp: ClientStreamingSink<RouteSummary>,
     ) {
@@ -118,7 +115,7 @@ impl RouteGuide for RouteGuideService {
 
     fn route_chat(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         notes: RequestStream<RouteNote>,
         resp: DuplexSink<RouteNote>,
     ) {

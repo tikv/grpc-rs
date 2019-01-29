@@ -12,6 +12,7 @@ documentation = "https://docs.rs/grpcio"
 description = "The rust language implementation of gRPC, base on the gRPC c core library."
 categories = ["asynchronous", "network-programming"]
 autoexamples = false
+edition = "2018"
 
 [package.metadata.docs.rs]
 all-features = true

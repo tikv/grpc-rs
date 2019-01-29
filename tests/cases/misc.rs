@@ -26,7 +26,7 @@ fn test_peer() {
     struct PeerService;
 
     impl Greeter for PeerService {
-        fn say_hello(&mut self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             let peer = ctx.peer();
             let mut resp = HelloReply::new();
             resp.set_message(peer);
@@ -86,7 +86,7 @@ fn test_soundness() {
     }
 
     impl Greeter for CounterService {
-        fn say_hello(&mut self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             self.c.incr();
             let resp = HelloReply::new();
             ctx.spawn(

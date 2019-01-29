@@ -578,7 +578,7 @@ pub struct RpcContext<'a> {
 }
 
 impl<'a> RpcContext<'a> {
-    fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext {
+    fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext<'_> {
         RpcContext {
             deadline: ctx.deadline(),
             ctx,
@@ -642,13 +642,13 @@ macro_rules! accept_call {
 
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: MessageReader,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, P, UnarySink<Q>),
+    F: FnMut(RpcContext<'_>, P, UnarySink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -669,12 +669,12 @@ pub fn execute_unary<P, Q, F>(
 
 // Helper function to call client streaming handler.
 pub fn execute_client_streaming<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
+    F: FnMut(RpcContext<'_>, RequestStream<P>, ClientStreamingSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -687,13 +687,13 @@ pub fn execute_client_streaming<P, Q, F>(
 
 // Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: MessageReader,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, P, ServerStreamingSink<Q>),
+    F: FnMut(RpcContext<'_>, P, ServerStreamingSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -716,12 +716,12 @@ pub fn execute_server_streaming<P, Q, F>(
 
 // Helper function to call duplex streaming handler.
 pub fn execute_duplex_streaming<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, RequestStream<P>, DuplexSink<Q>),
+    F: FnMut(RpcContext<'_>, RequestStream<P>, DuplexSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);

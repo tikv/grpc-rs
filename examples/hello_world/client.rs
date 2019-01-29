@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
 

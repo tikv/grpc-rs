@@ -23,11 +23,11 @@ use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::*;
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
-type BoxFuture = Box<Future<Item = (), Error = ()> + Send + 'static>;
+type BoxFuture = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
 type RecordRouteHandler =
-    Handler<Fn(RequestStream<Point>, ClientStreamingSink<RouteSummary>) -> BoxFuture + Send>;
+    Handler<dyn Fn(RequestStream<Point>, ClientStreamingSink<RouteSummary>) -> BoxFuture + Send>;
 type RouteChatHandler =
-    Handler<Fn(RequestStream<RouteNote>, DuplexSink<RouteNote>) -> BoxFuture + Send>;
+    Handler<dyn Fn(RequestStream<RouteNote>, DuplexSink<RouteNote>) -> BoxFuture + Send>;
 
 #[derive(Clone)]
 struct CancelService {
@@ -47,12 +47,17 @@ impl CancelService {
 }
 
 impl RouteGuide for CancelService {
-    fn get_feature(&mut self, _: RpcContext, _: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&mut self, _: RpcContext<'_>, _: Point, sink: UnarySink<Feature>) {
         // Drop the sink, client should receive Cancelled.
         drop(sink);
     }
 
-    fn list_features(&mut self, ctx: RpcContext, _: Rectangle, sink: ServerStreamingSink<Feature>) {
+    fn list_features(
+        &mut self,
+        ctx: RpcContext<'_>,
+        _: Rectangle,
+        sink: ServerStreamingSink<Feature>,
+    ) {
         // Drop the sink, client should receive Cancelled.
         let listener = match self.list_feature_listener.lock().unwrap().take() {
             Some(l) => l,
@@ -86,7 +91,7 @@ impl RouteGuide for CancelService {
 
     fn record_route(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         stream: RequestStream<Point>,
         sink: ClientStreamingSink<RouteSummary>,
     ) {
@@ -99,7 +104,7 @@ impl RouteGuide for CancelService {
 
     fn route_chat(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         stream: RequestStream<RouteNote>,
         sink: DuplexSink<RouteNote>,
     ) {

@@ -28,7 +28,7 @@ struct HealthService {
 impl Health for HealthService {
     fn check(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         req: HealthCheckRequest,
         sink: UnarySink<HealthCheckResponse>,
     ) {

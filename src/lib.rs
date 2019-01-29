@@ -28,20 +28,16 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 
 */
 
-#![allow(renamed_and_removed_lints)]
-#![allow(clippy::new_without_default_derive)]
+#![allow(clippy::new_without_default)]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::cast_lossless)]
 #![allow(clippy::option_map_unit_fn)]
 
 #[macro_use]
 extern crate futures;
-extern crate grpcio_sys as grpc_sys;
-extern crate libc;
+use grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate log;
-#[cfg(feature = "protobuf-codec")]
-extern crate protobuf;
 
 mod call;
 mod channel;

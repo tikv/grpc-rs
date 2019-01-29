@@ -26,7 +26,12 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(&mut self, ctx: RpcContext, mut req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(
+        &mut self,
+        ctx: RpcContext<'_>,
+        mut req: HelloRequest,
+        sink: UnarySink<HelloReply>,
+    ) {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
         let name = req.take_name();

@@ -11,15 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
-extern crate rand;
+use rand;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 
 #[path = "../log_util.rs"]
 mod log_util;
