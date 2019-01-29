@@ -14,11 +14,13 @@
 use std::fmt::{self, Display, Formatter};
 use std::{error, result};
 
+use crate::call::RpcStatus;
 use crate::grpc_sys::GrpcCallStatus;
+
+#[cfg(feature = "prost-codec")]
+use prost::DecodeError;
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
-
-use crate::call::RpcStatus;
 
 /// Errors generated from this library.
 #[derive(Debug)]
@@ -81,6 +83,13 @@ impl error::Error for Error {
 #[cfg(feature = "protobuf-codec")]
 impl From<ProtobufError> for Error {
     fn from(e: ProtobufError) -> Error {
+        Error::Codec(Box::new(e))
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl From<DecodeError> for Error {
+    fn from(e: DecodeError) -> Error {
         Error::Codec(Box::new(e))
     }
 }

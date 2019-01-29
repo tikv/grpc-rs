@@ -22,6 +22,9 @@ grpcio-sys = { path = "grpc-sys", version = "0.4.0" }
 libc = "0.2"
 futures = "^0.1.15"
 protobuf = { version = "2.0", optional = true }
+prost = { version = "0.4", optional = true }
+prost-derive = { version = "0.4", optional = true }
+bytes = { version = "0.4.11", optional = true }
 log = "0.4"
 
 [workspace]
@@ -30,6 +33,7 @@ members = ["proto", "benchmark", "compiler", "interop"]
 [features]
 default = ["protobuf-codec", "secure"]
 protobuf-codec = ["protobuf"]
+prost-codec = ["prost", "prost-derive", "bytes"]
 secure = ["grpcio-sys/secure"]
 openssl = ["secure", "grpcio-sys/openssl"]
 

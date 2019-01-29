@@ -68,8 +68,12 @@ pub use crate::channel::{
     OptTarget,
 };
 pub use crate::client::Client;
+
 #[cfg(feature = "protobuf-codec")]
 pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
+#[cfg(feature = "prost-codec")]
+pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};
+
 pub use crate::codec::Marshaller;
 #[cfg(feature = "secure")]
 pub use crate::credentials::{

@@ -15,7 +15,6 @@
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-use serde_json;
 
 #[path = "../log_util.rs"]
 mod log_util;

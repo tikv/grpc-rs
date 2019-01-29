@@ -55,3 +55,22 @@ pub mod pb_codec {
         Ok(m)
     }
 }
+
+#[cfg(feature = "prost-codec")]
+pub mod pr_codec {
+    use bytes::buf::BufMut;
+    use prost::Message;
+
+    use super::MessageReader;
+    use crate::error::Result;
+
+    #[inline]
+    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
+        msg.encode(buf).expect("Writing message to buffer failed");
+    }
+
+    #[inline]
+    pub fn de<M: Message + Default>(reader: MessageReader) -> Result<M> {
+        M::decode(reader).map_err(|e| e.into())
+    }
+}
