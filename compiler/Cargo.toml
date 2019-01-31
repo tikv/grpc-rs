@@ -15,6 +15,8 @@ categories = ["network-programming"]
 protobuf = "2.0"
 protobuf-codegen = "2.0"
 prost-build = "0.4"
+derive-new = "0.5"
+
 
 [[bin]]
 name = "grpc_rust_plugin"

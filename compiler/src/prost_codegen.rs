@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use super::util::{self, fq_grpc, to_snake_case, MethodType};
+use derive_new::new;
 use prost_build::{Config, Method, Service, ServiceGenerator};
 use std::fmt::Write;
 use std::io;
@@ -64,7 +65,7 @@ fn generate_method(service_name: &str, service_path: &str, method: &Method, buf:
         method.output_type
     );
 
-    buf.push_str(" const ");
+    buf.push_str("const ");
     buf.push_str(&name);
     buf.push_str(": ");
     buf.push_str(&ty);
@@ -73,12 +74,7 @@ fn generate_method(service_name: &str, service_path: &str, method: &Method, buf:
 }
 
 fn generate_method_body(service_path: &str, method: &Method, buf: &mut String) {
-    let ty = match (method.client_streaming, method.server_streaming) {
-        (false, false) => fq_grpc("MethodType::Unary"),
-        (true, false) => fq_grpc("MethodType::ClientStreaming"),
-        (false, true) => fq_grpc("MethodType::ServerStreaming"),
-        (true, true) => fq_grpc("MethodType::Duplex"),
-    };
+    let ty = MethodType::from_method(method).to_string();
     let pr_mar = format!(
         "{} {{ ser: {}, de: {} }}",
         fq_grpc("Marshaller"),
@@ -95,7 +91,19 @@ fn generate_method_body(service_path: &str, method: &Method, buf: &mut String) {
     );
     generate_field_init("req_ma", &pr_mar, buf);
     generate_field_init("res_ma", &pr_mar, buf);
-    buf.push('}');
+    buf.push_str("}\n");
+}
+
+// TODO share this code with protobuf codegen
+impl MethodType {
+    fn from_method(method: &Method) -> MethodType {
+        match (method.client_streaming, method.server_streaming) {
+            (false, false) => MethodType::Unary,
+            (true, false) => MethodType::ClientStreaming,
+            (false, true) => MethodType::ServerStreaming,
+            (true, true) => MethodType::Duplex,
+        }
+    }
 }
 
 fn generate_field_init(name: &str, value: &str, buf: &mut String) {
@@ -106,7 +114,283 @@ fn generate_field_init(name: &str, value: &str, buf: &mut String) {
 }
 
 fn generate_client(service: &Service, buf: &mut String) {
-    // TODO
+    let client_name = format!("{}Client", service.name);
+    buf.push_str("#[derive(Clone)]\n");
+    buf.push_str("pub struct ");
+    buf.push_str(&client_name);
+    buf.push_str(" { client: ::grpcio::Client }\n");
+
+    buf.push_str("impl ");
+    buf.push_str(&client_name);
+    buf.push_str(" {\n");
+    generate_ctor(&client_name, buf);
+    generate_client_methods(service, buf);
+    generate_spawn(buf);
+    buf.push_str("}\n")
+}
+
+fn generate_ctor(client_name: &str, buf: &mut String) {
+    buf.push_str("pub fn new(channel: ::grpcio::Channel) -> Self { ");
+    buf.push_str(client_name);
+    buf.push_str(" { client: ::grpcio::Client::new(channel) }");
+    buf.push_str("}\n");
+}
+
+fn generate_client_methods(service: &Service, buf: &mut String) {
+    for method in &service.methods {
+        generate_client_method(&service.name, method, buf);
+    }
+}
+
+fn generate_client_method(service_name: &str, method: &Method, buf: &mut String) {
+    let name = &format!(
+        "METHOD_{}_{}",
+        to_snake_case(service_name).to_uppercase(),
+        method.name.to_uppercase()
+    );
+    match MethodType::from_method(method) {
+        MethodType::Unary => {
+            ClientMethod::new(
+                &method.name,
+                true,
+                Some(&method.input_type),
+                false,
+                vec![&method.output_type],
+                "unary_call",
+                name,
+            )
+            .generate(buf);
+            ClientMethod::new(
+                &method.name,
+                false,
+                Some(&method.input_type),
+                false,
+                vec![&method.output_type],
+                "unary_call",
+                name,
+            )
+            .generate(buf);
+            ClientMethod::new(
+                &method.name,
+                true,
+                Some(&method.input_type),
+                true,
+                vec![&format!(
+                    "{}<{}>",
+                    fq_grpc("ClientUnaryReceiver"),
+                    method.output_type
+                )],
+                "unary_call",
+                name,
+            )
+            .generate(buf);
+            ClientMethod::new(
+                &method.name,
+                false,
+                Some(&method.input_type),
+                true,
+                vec![&format!(
+                    "{}<{}>",
+                    fq_grpc("ClientUnaryReceiver"),
+                    method.output_type
+                )],
+                "unary_call",
+                name,
+            )
+            .generate(buf);
+        }
+        MethodType::ClientStreaming => {
+            ClientMethod::new(
+                &method.name,
+                true,
+                None,
+                false,
+                vec![
+                    &format!("{}<{}>", fq_grpc("ClientCStreamSender"), method.input_type),
+                    &format!(
+                        "{}<{}>",
+                        fq_grpc("ClientCStreamReceiver"),
+                        method.output_type
+                    ),
+                ],
+                "client_streaming",
+                name,
+            )
+            .generate(buf);
+            ClientMethod::new(
+                &method.name,
+                false,
+                None,
+                false,
+                vec![
+                    &format!("{}<{}>", fq_grpc("ClientCStreamSender"), method.input_type),
+                    &format!(
+                        "{}<{}>",
+                        fq_grpc("ClientCStreamReceiver"),
+                        method.output_type
+                    ),
+                ],
+                "client_streaming",
+                name,
+            )
+            .generate(buf);
+        }
+        MethodType::ServerStreaming => {
+            ClientMethod::new(
+                &method.name,
+                true,
+                Some(&method.input_type),
+                false,
+                vec![&format!(
+                    "{}<{}>",
+                    fq_grpc("ClientSStreamReceiver"),
+                    method.output_type
+                )],
+                "server_streaming",
+                name,
+            )
+            .generate(buf);
+            ClientMethod::new(
+                &method.name,
+                false,
+                Some(&method.input_type),
+                false,
+                vec![&format!(
+                    "{}<{}>",
+                    fq_grpc("ClientSStreamReceiver"),
+                    method.output_type
+                )],
+                "server_streaming",
+                name,
+            )
+            .generate(buf);
+        }
+        MethodType::Duplex => {
+            ClientMethod::new(
+                &method.name,
+                true,
+                None,
+                false,
+                vec![
+                    &format!("{}<{}>", fq_grpc("ClientDuplexSender"), method.input_type),
+                    &format!(
+                        "{}<{}>",
+                        fq_grpc("ClientDuplexReceiver"),
+                        method.output_type
+                    ),
+                ],
+                "duplex_streaming",
+                name,
+            )
+            .generate(buf);
+            ClientMethod::new(
+                &method.name,
+                false,
+                None,
+                false,
+                vec![
+                    &format!("{}<{}>", fq_grpc("ClientDuplexSender"), method.input_type),
+                    &format!(
+                        "{}<{}>",
+                        fq_grpc("ClientDuplexReceiver"),
+                        method.output_type
+                    ),
+                ],
+                "duplex_streaming",
+                name,
+            )
+            .generate(buf);
+        }
+    }
+}
+
+#[derive(new)]
+struct ClientMethod<'a> {
+    method_name: &'a str,
+    opt: bool,
+    request: Option<&'a str>,
+    r#async: bool,
+    result_types: Vec<&'a str>,
+    inner_method_name: &'a str,
+    data_name: &'a str,
+}
+
+impl<'a> ClientMethod<'a> {
+    fn generate(&self, buf: &mut String) {
+        buf.push_str("fn ");
+
+        buf.push_str(self.method_name);
+        if self.r#async {
+            buf.push_str("_async");
+        }
+        if self.opt {
+            buf.push_str("_opt");
+        }
+
+        buf.push_str("(&self");
+        if let Some(req) = self.request {
+            buf.push_str(", req: ");
+            buf.push_str(req);
+        }
+        if self.opt {
+            buf.push_str(", opt: ");
+            buf.push_str(&fq_grpc("CallOption"));
+        }
+        buf.push_str(") -> ");
+
+        buf.push_str(&fq_grpc("Result"));
+        buf.push('<');
+        for rt in &self.result_types {
+            buf.push_str(rt);
+            buf.push(',');
+        }
+        buf.push_str("> { ");
+        if self.opt {
+            self.generate_inner_body(buf);
+        } else {
+            self.generate_opt_body(buf);
+        }
+        buf.push_str(" }\n");
+    }
+
+    // Method delegates to the `_opt` version of the method.
+    fn generate_opt_body(&self, buf: &mut String) {
+        buf.push_str("self.");
+        buf.push_str(self.method_name);
+        if self.r#async {
+            buf.push_str("_async");
+        }
+        buf.push_str("_opt(");
+        if self.request.is_some() {
+            buf.push_str("req, ");
+        }
+        buf.push_str(&fq_grpc("CallOption::default()"));
+        buf.push(')');
+    }
+
+    // Method delegates to the inner client.
+    fn generate_inner_body(&self, buf: &mut String) {
+        buf.push_str("self.client.");
+        buf.push_str(self.inner_method_name);
+        if self.r#async {
+            buf.push_str("_async");
+        }
+        buf.push_str("(&");
+        buf.push_str(self.data_name);
+        if self.request.is_some() {
+            buf.push_str(", req");
+        }
+        buf.push_str(", opt)");
+    }
+}
+
+fn generate_spawn(buf: &mut String) {
+    buf.push_str(
+        "pub fn spawn<F>(&self, f: F) \
+         where F: ::futures::Future<Item = (), Error = ()> + Send + 'static {\
+         self.client.spawn(f)\
+         }\n",
+    );
 }
 
 fn generate_server(service: &Service, buf: &mut String) {
