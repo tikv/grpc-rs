@@ -11,26 +11,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::util::{self, fq_grpc, to_snake_case, MethodType};
+use super::util::{fq_grpc, to_snake_case, MethodType};
 use derive_new::new;
-use prost_build::{Config, Method, Service, ServiceGenerator};
+use prost_build::{Config, Edition, Method, Service, ServiceGenerator};
 use std::fmt::Write;
 use std::io;
 use std::path::Path;
 
-// TODO might move this to lib.rs
 pub fn compile_protos<P>(protos: &[P], includes: &[P]) -> io::Result<()>
 where
     P: AsRef<Path>,
 {
     let mut prost_config = Config::new();
-    prost_config.service_generator(Box::new(Generator {}));
+    prost_config.service_generator(Box::new(Generator));
+    prost_config.edition(Edition::Rust2018);
     prost_config.compile_protos(protos, includes)
 }
 
-struct Generator {
-    // TODO
-}
+struct Generator;
 
 impl ServiceGenerator for Generator {
     fn generate(&mut self, service: Service, buf: &mut String) {
@@ -52,12 +50,16 @@ fn generate_methods(service: &Service, buf: &mut String) {
     }
 }
 
-fn generate_method(service_name: &str, service_path: &str, method: &Method, buf: &mut String) {
-    let name = format!(
+fn const_method_name(service_name: &str, method: &Method) -> String {
+    format!(
         "METHOD_{}_{}",
         to_snake_case(service_name).to_uppercase(),
         method.name.to_uppercase()
-    );
+    )
+}
+
+fn generate_method(service_name: &str, service_path: &str, method: &Method, buf: &mut String) {
+    let name = const_method_name(service_name, method);
     let ty = format!(
         "{}<{}, {}>",
         fq_grpc("Method"),
@@ -74,7 +76,7 @@ fn generate_method(service_name: &str, service_path: &str, method: &Method, buf:
 }
 
 fn generate_method_body(service_path: &str, method: &Method, buf: &mut String) {
-    let ty = MethodType::from_method(method).to_string();
+    let ty = fq_grpc(&MethodType::from_method(method).to_string());
     let pr_mar = format!(
         "{} {{ ser: {}, de: {} }}",
         fq_grpc("Marshaller"),
@@ -82,6 +84,7 @@ fn generate_method_body(service_path: &str, method: &Method, buf: &mut String) {
         fq_grpc("pr_de")
     );
 
+    buf.push_str(&fq_grpc("Method"));
     buf.push('{');
     generate_field_init("ty", &ty, buf);
     generate_field_init(
@@ -89,9 +92,9 @@ fn generate_method_body(service_path: &str, method: &Method, buf: &mut String) {
         &format!("\"{}/{}\"", service_path, method.proto_name),
         buf,
     );
-    generate_field_init("req_ma", &pr_mar, buf);
-    generate_field_init("res_ma", &pr_mar, buf);
-    buf.push_str("}\n");
+    generate_field_init("req_mar", &pr_mar, buf);
+    generate_field_init("resp_mar", &pr_mar, buf);
+    buf.push_str("};\n");
 }
 
 // TODO share this code with protobuf codegen
@@ -108,7 +111,7 @@ impl MethodType {
 
 fn generate_field_init(name: &str, value: &str, buf: &mut String) {
     buf.push_str(name);
-    buf.push(':');
+    buf.push_str(": ");
     buf.push_str(value);
     buf.push_str(", ");
 }
@@ -317,7 +320,7 @@ struct ClientMethod<'a> {
 
 impl<'a> ClientMethod<'a> {
     fn generate(&self, buf: &mut String) {
-        buf.push_str("fn ");
+        buf.push_str("pub fn ");
 
         buf.push_str(self.method_name);
         if self.r#async {
@@ -329,7 +332,7 @@ impl<'a> ClientMethod<'a> {
 
         buf.push_str("(&self");
         if let Some(req) = self.request {
-            buf.push_str(", req: ");
+            buf.push_str(", req: &");
             buf.push_str(req);
         }
         if self.opt {
@@ -340,9 +343,15 @@ impl<'a> ClientMethod<'a> {
 
         buf.push_str(&fq_grpc("Result"));
         buf.push('<');
+        if self.result_types.len() != 1 {
+            buf.push('(');
+        }
         for rt in &self.result_types {
             buf.push_str(rt);
             buf.push(',');
+        }
+        if self.result_types.len() != 1 {
+            buf.push(')');
         }
         buf.push_str("> { ");
         if self.opt {
@@ -394,5 +403,84 @@ fn generate_spawn(buf: &mut String) {
 }
 
 fn generate_server(service: &Service, buf: &mut String) {
-    // TODO
+    buf.push_str("pub trait ");
+    buf.push_str(&service.name);
+    buf.push_str(" {\n");
+    generate_server_methods(service, buf);
+    buf.push_str("}\n");
+
+    buf.push_str("pub fn create_");
+    buf.push_str(&to_snake_case(&service.name));
+    buf.push_str("<S: ");
+    buf.push_str(&service.name);
+    buf.push_str(" + Send + Clone + 'static>(s: S) -> ");
+    buf.push_str(&fq_grpc("Service"));
+    buf.push_str(" {\n");
+    buf.push_str("let mut builder = ::grpcio::ServiceBuilder::new();\n");
+    for method in &service.methods {
+        buf.push_str("let mut instance = s.clone();\n");
+        generate_method_bind(&service.name, method, buf);
+    }
+    buf.push_str("builder.build()\n");
+    buf.push_str("}\n");
+}
+
+fn generate_server_methods(service: &Service, buf: &mut String) {
+    for method in &service.methods {
+        let method_type = MethodType::from_method(method);
+        let request_arg = match method_type {
+            MethodType::Unary | MethodType::ServerStreaming => {
+                format!("req: {}", method.input_type)
+            }
+            MethodType::ClientStreaming | MethodType::Duplex => format!(
+                "stream: {}<{}>",
+                fq_grpc("RequestStream"),
+                method.input_type
+            ),
+        };
+        let response_type = match method_type {
+            MethodType::Unary => "UnarySink",
+            MethodType::ClientStreaming => "ClientStreamingSink",
+            MethodType::ServerStreaming => "ServerStreamingSink",
+            MethodType::Duplex => "DuplexSink",
+        };
+        generate_server_method(method, &request_arg, response_type, buf);
+    }
+}
+
+fn generate_server_method(
+    method: &Method,
+    request_arg: &str,
+    response_type: &str,
+    buf: &mut String,
+) {
+    buf.push_str("fn ");
+    buf.push_str(&method.name);
+    buf.push_str("(&mut self, ctx: ");
+    buf.push_str(&fq_grpc("RpcContext"));
+    buf.push_str(", ");
+    buf.push_str(request_arg);
+    buf.push_str(", sink: ");
+    buf.push_str(&fq_grpc(response_type));
+    buf.push('<');
+    buf.push_str(&method.output_type);
+    buf.push('>');
+    buf.push_str(");\n");
+}
+
+fn generate_method_bind(service_name: &str, method: &Method, buf: &mut String) {
+    let add_name = match MethodType::from_method(method) {
+        MethodType::Unary => "add_unary_handler",
+        MethodType::ClientStreaming => "add_client_streaming_handler",
+        MethodType::ServerStreaming => "add_server_streaming_handler",
+        MethodType::Duplex => "add_duplex_streaming_handler",
+    };
+
+    buf.push_str("builder = builder.");
+    buf.push_str(add_name);
+    buf.push_str("(&");
+    buf.push_str(&const_method_name(service_name, method));
+    buf.push_str(", move |ctx, req, resp| instance.");
+    buf.push_str(&method.name);
+    buf.push_str("(ctx, req, resp));\n");
 }

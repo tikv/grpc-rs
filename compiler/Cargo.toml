@@ -14,9 +14,8 @@ categories = ["network-programming"]
 [dependencies]
 protobuf = "2.0"
 protobuf-codegen = "2.0"
-prost-build = "0.4"
+prost-build = { path = "../../prost/prost-build", version = "0.4.0" }
 derive-new = "0.5"
-
 
 [[bin]]
 name = "grpc_rust_plugin"
