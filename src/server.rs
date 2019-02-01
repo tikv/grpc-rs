@@ -15,7 +15,7 @@ use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::net::Ipv6Addr;
+use std::net::{IpAddr, SocketAddr};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -76,9 +76,8 @@ where
 /// Given a host and port, creates a string of the form "host:port" or
 /// "[ho:st]:port", depending on whether the host is an IPv6 literal.
 fn join_host_port(host: &str, port: u16) -> String {
-    let is_ipv6 = host.parse::<Ipv6Addr>().is_ok();
-    if is_ipv6 {
-        format!("[{}]:{}\0", host, port)
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        format!("{}\0", SocketAddr::new(ip, port))
     } else {
         format!("{}:{}\0", host, port)
     }
