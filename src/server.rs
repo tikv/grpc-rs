@@ -15,6 +15,7 @@ use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::net::Ipv6Addr;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -72,11 +73,22 @@ where
     }
 }
 
+/// Given a host and port, creates a string of the form "host:port" or
+/// "[ho:st]:port", depending on whether the host is an IPv6 literal.
+fn join_host_port(host: &str, port: u16) -> String {
+    let is_ipv6 = host.parse::<Ipv6Addr>().is_ok();
+    if is_ipv6 {
+        format!("[{}]:{}\0", host, port)
+    } else {
+        format!("{}:{}\0", host, port)
+    }
+}
+
 #[cfg(feature = "secure")]
 mod imp {
-    use grpc_sys::{self, GrpcServer};
-
+    use super::join_host_port;
     use credentials::ServerCredentials;
+    use grpc_sys::{self, GrpcServer};
 
     pub struct Binder {
         pub host: String,
@@ -96,7 +108,7 @@ mod imp {
         }
 
         pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
-            let addr = format!("{}:{}\0", self.host, self.port);
+            let addr = join_host_port(&self.host, self.port);
             let port = match self.cred.take() {
                 None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
                 Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(
@@ -112,6 +124,7 @@ mod imp {
 
 #[cfg(not(feature = "secure"))]
 mod imp {
+    use super::join_host_port;
     use grpc_sys::{self, GrpcServer};
 
     pub struct Binder {
@@ -125,7 +138,7 @@ mod imp {
         }
 
         pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
-            let addr = format!("{}:{}\0", self.host, self.port);
+            let addr = join_host_port(&self.host, self.port);
             grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _) as u16
         }
     }
@@ -519,5 +532,28 @@ impl Drop for Server {
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Server {:?}", self.core.bind_addrs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::join_host_port;
+
+    #[test]
+    fn test_join_host_port() {
+        let tbl = vec![
+            ("localhost", 0u16, "localhost:0\0"),
+            ("127.0.0.1", 100u16, "127.0.0.1:100\0"),
+            ("::1", 0u16, "[::1]:0\0"),
+            (
+                "fe80::7376:45d5:fb08:61e3",
+                10028u16,
+                "[fe80::7376:45d5:fb08:61e3]:10028\0",
+            ),
+        ];
+
+        for (h, p, e) in &tbl {
+            assert_eq!(join_host_port(h, *p), e.to_owned());
+        }
     }
 }
