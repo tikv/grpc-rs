@@ -366,7 +366,7 @@ impl Client {
 
         let ch_env = env.clone();
         let channels = (0..cfg.get_client_channels())
-            .zip(cfg.get_server_targets().into_iter().cycle())
+            .zip(cfg.get_server_targets().iter().cycle())
             .map(|(_, addr)| {
                 let mut builder = ChannelBuilder::new(ch_env.clone());
                 for arg in cfg.get_channel_args() {
