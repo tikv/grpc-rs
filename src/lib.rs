@@ -70,6 +70,7 @@ pub use call::server::{
 pub use call::{MessageReader, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use channel::{
     Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
+    ConnectivityState,
 };
 pub use client::Client;
 #[cfg(feature = "protobuf-codec")]

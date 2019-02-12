@@ -30,7 +30,9 @@ use error::Result;
 use CallOption;
 
 pub use grpc_sys::{
-    GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
+    GrpcCompressionAlgorithms as CompressionAlgorithms,
+    GrpcCompressionLevel as CompressionLevel,
+    GrpcConnectivityState as ConnectivityState,
 };
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
@@ -531,6 +533,15 @@ struct ChannelInner {
     channel: *mut GrpcChannel,
 }
 
+impl ChannelInner{
+    pub(crate) fn check_connectivity_state(&self, try_to_connect: bool) -> ConnectivityState {
+        let should_try = if try_to_connect {1} else {0};
+        unsafe {
+            grpc_sys::grpc_channel_check_connectivity_state(self.channel, should_try)
+        }
+    }
+}
+
 impl Drop for ChannelInner {
     fn drop(&mut self) {
         unsafe {
@@ -560,6 +571,10 @@ impl Channel {
             inner: Arc::new(ChannelInner { _env: env, channel }),
             cq,
         }
+    }
+
+    pub fn check_connectivity_state(&self, try_to_connect: bool) -> ConnectivityState {
+        self.inner.check_connectivity_state(try_to_connect)
     }
 
     /// Create a Kicker.
