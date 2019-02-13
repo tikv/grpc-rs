@@ -84,18 +84,40 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
         // Cross-compile support for iOS
         match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
-            "aarch64-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphoneos").define("CMAKE_OSX_ARCHITECTURES", "arm64"); }
-            "armv7-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphoneos").define("CMAKE_OSX_ARCHITECTURES", "armv7"); }
-            "armv7s-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphoneos").define("CMAKE_OSX_ARCHITECTURES", "armv7s"); }
-            "i386-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphonesimulator").define("CMAKE_OSX_ARCHITECTURES", "i386"); }
-            "x86_64-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphonesimulator").define("CMAKE_OSX_ARCHITECTURES", "x86_64"); }
-            _ => {},
+            "aarch64-apple-ios" => {
+                config
+                    .define("CMAKE_OSX_SYSROOT", "iphoneos")
+                    .define("CMAKE_OSX_ARCHITECTURES", "arm64");
+            }
+            "armv7-apple-ios" => {
+                config
+                    .define("CMAKE_OSX_SYSROOT", "iphoneos")
+                    .define("CMAKE_OSX_ARCHITECTURES", "armv7");
+            }
+            "armv7s-apple-ios" => {
+                config
+                    .define("CMAKE_OSX_SYSROOT", "iphoneos")
+                    .define("CMAKE_OSX_ARCHITECTURES", "armv7s");
+            }
+            "i386-apple-ios" => {
+                config
+                    .define("CMAKE_OSX_SYSROOT", "iphonesimulator")
+                    .define("CMAKE_OSX_ARCHITECTURES", "i386");
+            }
+            "x86_64-apple-ios" => {
+                config
+                    .define("CMAKE_OSX_SYSROOT", "iphonesimulator")
+                    .define("CMAKE_OSX_ARCHITECTURES", "x86_64");
+            }
+            _ => {}
         };
 
         // Allow overriding of the target passed to cmake
         // (needed for Android crosscompile)
         match env::var("CMAKE_TARGET_OVERRIDE") {
-            Ok(val) => { config.target(&val); }
+            Ok(val) => {
+                config.target(&val);
+            }
             Err(_) => {}
         };
 
