@@ -47,20 +47,6 @@ yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-stati
     let mut zlib = "zlibstaticd";
 ```
 
-## Fix try_run
-
-```
-# grpc-rs/grpc-sys/grpc/third_party/benchmark/cmake/CXXFeatureCheck.cmake
-# add these code to fix try_run
-SET( RUN_HAVE_STD_REGEX
-     0
-     CACHE STRING "Result from TRY_RUN" FORCE)
-
-SET( RUN_HAVE_STEADY_CLOCK
-     0
-     CACHE STRING "Result from TRY_RUN" FORCE)
-```
-
 ## Fix WIN32 API
 
 ```
