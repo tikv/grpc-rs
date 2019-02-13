@@ -81,12 +81,32 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
+
+        // Cross-compile support for iOS
+        match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
+            "aarch64-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphoneos").define("CMAKE_OSX_ARCHITECTURES", "arm64"); }
+            "armv7-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphoneos").define("CMAKE_OSX_ARCHITECTURES", "armv7"); }
+            "armv7s-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphoneos").define("CMAKE_OSX_ARCHITECTURES", "armv7s"); }
+            "i386-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphonesimulator").define("CMAKE_OSX_ARCHITECTURES", "i386"); }
+            "x86_64-apple-ios" => { config.define("CMAKE_OSX_SYSROOT", "iphonesimulator").define("CMAKE_OSX_ARCHITECTURES", "x86_64"); }
+            _ => {},
+        };
+
+        // Allow overriding of the target passed to cmake
+        // (needed for Android crosscompile)
+        match env::var("CMAKE_TARGET_OVERRIDE") {
+            Ok(val) => { config.target(&val); }
+            Err(_) => {}
+        };
+
         // We don't need to generate install targets.
         config.define("gRPC_INSTALL", "false");
         // We don't need to build csharp target.
         config.define("gRPC_BUILD_CSHARP_EXT", "false");
         // We don't need to build codegen target.
         config.define("gRPC_BUILD_CODEGEN", "false");
+        // We don't need to build benchmarks.
+        config.define("gRPC_BENCHMARK_PROVIDER", "none");
         if cfg!(feature = "openssl") {
             config.define("gRPC_SSL_PROVIDER", "package");
             config.define("EMBED_OPENSSL", "false");
