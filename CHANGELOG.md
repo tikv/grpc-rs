@@ -1,3 +1,8 @@
+# 0.4.4 - 2019-02-15
+
+- Support cross-compile for iOS and Android targets
+- Support ipv6 host
+
 # 0.4.3 - 2019-01-21
 
 - Remove tilde requirements `~2.0` of protobuf
