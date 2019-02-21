@@ -30,8 +30,7 @@ use error::Result;
 use CallOption;
 
 pub use grpc_sys::{
-    GrpcCompressionAlgorithms as CompressionAlgorithms,
-    GrpcCompressionLevel as CompressionLevel,
+    GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
     GrpcConnectivityState as ConnectivityState,
 };
 
@@ -533,14 +532,12 @@ struct ChannelInner {
     channel: *mut GrpcChannel,
 }
 
-impl ChannelInner{
+impl ChannelInner {
     // If try_to_connect is true, the channel will try to establish a connection, potentially
     // changing the state.
     fn check_connectivity_state(&self, try_to_connect: bool) -> ConnectivityState {
-        let should_try = if try_to_connect {1} else {0};
-        unsafe {
-            grpc_sys::grpc_channel_check_connectivity_state(self.channel, should_try)
-        }
+        let should_try = if try_to_connect { 1 } else { 0 };
+        unsafe { grpc_sys::grpc_channel_check_connectivity_state(self.channel, should_try) }
     }
 }
 
