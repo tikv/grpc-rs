@@ -28,12 +28,11 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 
 */
 
-// TODO: Remove it once Rust's tool_lints is stabilized.
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", allow(new_without_default_derive))]
-#![cfg_attr(feature = "cargo-clippy", allow(new_without_default))]
-#![cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
-#![cfg_attr(feature = "cargo-clippy", allow(option_map_unit_fn))]
+#![allow(renamed_and_removed_lints)]
+#![allow(clippy::new_without_default_derive)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::option_map_unit_fn)]
 
 #[macro_use]
 extern crate futures;

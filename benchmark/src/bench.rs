@@ -11,8 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Remove it once Rust's tool_lints is stabilized.
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+#![allow(renamed_and_removed_lints)]
 
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -111,7 +110,7 @@ impl Generic {
 }
 
 #[inline]
-#[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
+#[allow(clippy::ptr_arg)]
 pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
     buf.extend_from_slice(t)
 }
