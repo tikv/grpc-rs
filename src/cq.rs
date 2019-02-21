@@ -16,12 +16,12 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 use std::thread::ThreadId;
 
-use grpc_sys::{self, GprClockType, GrpcCompletionQueue};
+use crate::grpc_sys::{self, GprClockType, GrpcCompletionQueue};
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
-pub use grpc_sys::GrpcCompletionType as EventType;
-pub use grpc_sys::GrpcEvent as Event;
+pub use crate::grpc_sys::GrpcCompletionType as EventType;
+pub use crate::grpc_sys::GrpcEvent as Event;
 
 /// `CompletionQueueHandle` enable notification of the completion of asynchronous actions.
 pub struct CompletionQueueHandle {

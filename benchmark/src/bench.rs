@@ -19,14 +19,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::{Future, Sink, Stream};
-use grpc::{
+use crate::grpc::{
     self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
     WriteFlags,
 };
-use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use grpc_proto::testing::services_grpc::BenchmarkService;
-use grpc_proto::util;
+use crate::grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use crate::grpc_proto::testing::services_grpc::BenchmarkService;
+use crate::grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
@@ -126,17 +126,17 @@ pub fn bin_de(mut reader: MessageReader) -> grpc::Result<Vec<u8>> {
 pub const METHOD_BENCHMARK_SERVICE_GENERIC_CALL: Method<Vec<u8>, Vec<u8>> = Method {
     ty: MethodType::Duplex,
     name: "/grpc.testing.BenchmarkService/StreamingCall",
-    req_mar: ::grpc::Marshaller {
+    req_mar: crate::grpc::Marshaller {
         ser: bin_ser,
         de: bin_de,
     },
-    resp_mar: ::grpc::Marshaller {
+    resp_mar: crate::grpc::Marshaller {
         ser: bin_ser,
         de: bin_de,
     },
 };
 
-pub fn create_generic_service(s: Generic) -> ::grpc::Service {
+pub fn create_generic_service(s: Generic) -> crate::grpc::Service {
     ServiceBuilder::new()
         .add_duplex_streaming_handler(
             &METHOD_BENCHMARK_SERVICE_GENERIC_CALL,

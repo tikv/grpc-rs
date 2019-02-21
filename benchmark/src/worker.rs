@@ -13,18 +13,18 @@
 
 use std::sync::{Arc, Mutex};
 
-use error::Error;
+use crate::error::Error;
 use futures::sync::oneshot::Sender;
 use futures::{future, Future, Sink, Stream};
-use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
-use grpc_proto::testing::control::{
+use crate::grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
+use crate::grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
-use grpc_proto::testing::services_grpc::WorkerService;
+use crate::grpc_proto::testing::services_grpc::WorkerService;
 
-use client::Client;
-use server::Server;
-use util;
+use crate::client::Client;
+use crate::server::Server;
+use crate::util;
 
 #[derive(Clone)]
 pub struct Worker {
@@ -124,7 +124,7 @@ impl WorkerService for Worker {
         )
     }
 
-    fn quit_worker(&mut self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
+    fn quit_worker(&mut self, ctx: RpcContext, _: Void, sink: crate::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
         if let Some(notifier) = notifier {
             let _ = notifier.send(());

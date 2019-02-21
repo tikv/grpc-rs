@@ -15,8 +15,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use super::Inner;
-use call::{BatchContext, MessageReader, RpcStatusCode};
-use error::Error;
+use crate::call::{BatchContext, MessageReader, RpcStatusCode};
+use crate::error::Error;
 
 /// Batch job type.
 #[derive(PartialEq, Debug)]

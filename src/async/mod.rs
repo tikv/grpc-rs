@@ -25,11 +25,11 @@ use futures::{Async, Future, Poll};
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnNotify;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
-use call::server::RequestContext;
-use call::{BatchContext, Call, MessageReader};
-use cq::CompletionQueue;
-use error::{Error, Result};
-use server::RequestCallContext;
+use crate::call::server::RequestContext;
+use crate::call::{BatchContext, Call, MessageReader};
+use crate::cq::CompletionQueue;
+use crate::error::{Error, Result};
+use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker};
 pub use self::lock::SpinLock;
@@ -213,7 +213,7 @@ mod tests {
     use std::thread;
 
     use super::*;
-    use env::Environment;
+    use crate::env::Environment;
 
     #[test]
     fn test_resolve() {

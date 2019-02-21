@@ -35,7 +35,7 @@ use grpcio::*;
 
 use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::{self, RouteGuide};
-use util::*;
+use crate::util::*;
 
 #[derive(Clone)]
 struct RouteGuideService {

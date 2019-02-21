@@ -19,17 +19,17 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
 
-use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
+use crate::grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
-use async::Kicker;
-use call::{Call, Method};
-use cq::CompletionQueue;
-use env::Environment;
-use error::Result;
-use CallOption;
+use crate::r#async::Kicker;
+use crate::call::{Call, Method};
+use crate::cq::CompletionQueue;
+use crate::env::Environment;
+use crate::error::Result;
+use crate::CallOption;
 
-pub use grpc_sys::{
+pub use crate::grpc_sys::{
     GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
 };
 
@@ -468,9 +468,9 @@ mod secure_channel {
     use std::ffi::CString;
     use std::ptr;
 
-    use grpc_sys;
+    use crate::grpc_sys;
 
-    use credentials::ChannelCredentials;
+    use crate::credentials::ChannelCredentials;
 
     use super::{Channel, ChannelBuilder, Options};
 

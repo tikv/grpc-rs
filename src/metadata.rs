@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use grpc_sys::{self, GrpcMetadataArray};
+use crate::grpc_sys::{self, GrpcMetadataArray};
 use std::borrow::Cow;
 use std::{mem, slice, str};
 
 use libc;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
     if key.is_empty() {

@@ -15,10 +15,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 
-use grpc_sys;
+use crate::grpc_sys;
 
-use async::CallTag;
-use cq::{CompletionQueue, CompletionQueueHandle, EventType};
+use crate::r#async::CallTag;
+use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType};
 
 // event loop
 fn poll_queue(cq: Arc<CompletionQueueHandle>) {

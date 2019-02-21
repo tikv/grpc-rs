@@ -44,7 +44,7 @@ extern crate log;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 
-mod async;
+mod r#async;
 mod call;
 mod channel;
 mod client;
@@ -58,29 +58,29 @@ mod log_util;
 mod metadata;
 mod server;
 
-pub use call::client::{
+pub use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver, StreamingCallSink,
 };
-pub use call::server::{
+pub use crate::call::server::{
     ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink, DuplexSinkFailure,
     RequestStream, RpcContext, ServerStreamingSink, ServerStreamingSinkFailure, UnarySink,
     UnarySinkResult,
 };
-pub use call::{MessageReader, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
-pub use channel::{
+pub use crate::call::{MessageReader, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
+pub use crate::channel::{
     Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
 };
-pub use client::Client;
+pub use crate::client::Client;
 #[cfg(feature = "protobuf-codec")]
-pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
-pub use codec::Marshaller;
+pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
+pub use crate::codec::Marshaller;
 #[cfg(feature = "secure")]
-pub use credentials::{
+pub use crate::credentials::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
-pub use env::{EnvBuilder, Environment};
-pub use error::{Error, Result};
-pub use log_util::redirect_log;
-pub use metadata::{Metadata, MetadataBuilder, MetadataIter};
-pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
+pub use crate::env::{EnvBuilder, Environment};
+pub use crate::error::{Error, Result};
+pub use crate::log_util::redirect_log;
+pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
+pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
