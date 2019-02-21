@@ -23,7 +23,7 @@ use futures::{Async, Future, Poll};
 use crate::grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
-use crate::r#async::{self, BatchFuture, BatchType, CallTag, SpinLock};
+use crate::not_sync::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 
@@ -566,7 +566,7 @@ impl ShareCall {
             return Err(Error::RpcFinished(self.status.clone()));
         }
 
-        r#async::check_alive(&self.close_f)
+        not_sync::check_alive(&self.close_f)
     }
 }
 

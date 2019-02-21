@@ -44,7 +44,7 @@ extern crate log;
 #[cfg(feature = "protobuf-codec")]
 extern crate protobuf;
 
-mod r#async;
+mod not_sync;
 mod call;
 mod channel;
 mod client;

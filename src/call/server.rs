@@ -19,7 +19,7 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use crate::grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use crate::r#async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
+use crate::not_sync::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 use crate::call::{BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;

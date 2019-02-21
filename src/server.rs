@@ -23,7 +23,7 @@ use std::sync::Arc;
 use futures::{Async, Future, Poll};
 use crate::grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
-use crate::r#async::{CallTag, CqFuture};
+use crate::not_sync::{CallTag, CqFuture};
 use crate::call::server::*;
 use crate::call::{MessageReader, Method, MethodType};
 use crate::channel::ChannelArgs;

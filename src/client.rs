@@ -13,8 +13,8 @@
 
 use futures::Future;
 
-use crate::r#async::Executor;
-use crate::r#async::Kicker;
+use crate::not_sync::Executor;
+use crate::not_sync::Kicker;
 use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,

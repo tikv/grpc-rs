@@ -22,7 +22,7 @@ use std::{cmp, i32, ptr};
 use crate::grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
-use crate::r#async::Kicker;
+use crate::not_sync::Kicker;
 use crate::call::{Call, Method};
 use crate::cq::CompletionQueue;
 use crate::env::Environment;

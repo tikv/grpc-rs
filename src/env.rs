@@ -17,7 +17,7 @@ use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 
 use crate::grpc_sys;
 
-use crate::r#async::CallTag;
+use crate::not_sync::CallTag;
 use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType};
 
 // event loop
