@@ -13,12 +13,12 @@
 
 use std::time::Duration;
 
-use futures::{future, stream, Async, Future, Poll, Sink, Stream};
-use futures_timer::Delay;
 use crate::grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
     ServerStreamingSink, UnarySink, WriteFlags,
 };
+use futures::{future, stream, Async, Future, Poll, Sink, Stream};
+use futures_timer::Delay;
 
 use crate::grpc_proto::testing::empty::Empty;
 use crate::grpc_proto::testing::messages::{

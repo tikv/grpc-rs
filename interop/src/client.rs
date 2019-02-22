@@ -14,8 +14,8 @@
 use std::thread;
 use std::time::Duration;
 
-use futures::{future, stream, Future, Sink, Stream};
 use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
+use futures::{future, stream, Future, Sink, Stream};
 
 use crate::grpc_proto::testing::empty::Empty;
 use crate::grpc_proto::testing::messages::{

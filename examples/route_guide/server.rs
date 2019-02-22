@@ -33,9 +33,9 @@ use futures::sync::oneshot;
 use futures::*;
 use grpcio::*;
 
+use crate::util::*;
 use grpcio_proto::example::route_guide::*;
 use grpcio_proto::example::route_guide_grpc::{self, RouteGuide};
-use crate::util::*;
 
 #[derive(Clone)]
 struct RouteGuideService {

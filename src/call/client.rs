@@ -15,16 +15,16 @@ use std::ptr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use crate::grpc_sys;
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
-use crate::not_sync::{BatchFuture, BatchType, SpinLock};
 use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
+use crate::not_sync::{BatchFuture, BatchType, SpinLock};
 
 /// Update the flag bit in res.
 #[inline]

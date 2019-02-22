@@ -15,16 +15,18 @@ use std::ffi::CStr;
 use std::sync::Arc;
 use std::{result, slice};
 
-use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 use crate::grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use crate::not_sync::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
-use crate::call::{BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase};
+use crate::call::{
+    BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
+};
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
 use crate::error::Error;
 use crate::metadata::Metadata;
+use crate::not_sync::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 use crate::server::{BoxHandler, RequestCallContext};
 
 pub struct Deadline {

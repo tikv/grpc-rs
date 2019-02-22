@@ -20,16 +20,16 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use futures::{Async, Future, Poll};
 use crate::grpc_sys::{self, GrpcCallStatus, GrpcServer};
+use futures::{Async, Future, Poll};
 
-use crate::not_sync::{CallTag, CqFuture};
 use crate::call::server::*;
 use crate::call::{MessageReader, Method, MethodType};
 use crate::channel::ChannelArgs;
 use crate::cq::CompletionQueue;
 use crate::env::Environment;
 use crate::error::{Error, Result};
+use crate::not_sync::{CallTag, CqFuture};
 use crate::RpcContext;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;

@@ -18,9 +18,9 @@ extern crate interop;
 
 use std::sync::Arc;
 
-use clap::{App, Arg};
 use crate::grpc::{ChannelBuilder, ChannelCredentialsBuilder, Environment};
 use crate::grpc_proto::util;
+use clap::{App, Arg};
 
 use interop::Client;
 

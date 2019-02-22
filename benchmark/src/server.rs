@@ -16,7 +16,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use crate::error::Result;
-use crate::grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
+use crate::grpc::{
+    ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture,
+};
 use crate::grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use crate::grpc_proto::testing::services_grpc;
 use crate::grpc_proto::testing::stats::ServerStats;

@@ -14,13 +14,13 @@
 use std::sync::{Arc, Mutex};
 
 use crate::error::Error;
-use futures::sync::oneshot::Sender;
-use futures::{future, Future, Sink, Stream};
 use crate::grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 use crate::grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
 use crate::grpc_proto::testing::services_grpc::WorkerService;
+use futures::sync::oneshot::Sender;
+use futures::{future, Future, Sink, Stream};
 
 use crate::client::Client;
 use crate::server::Server;

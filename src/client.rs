@@ -13,14 +13,14 @@
 
 use futures::Future;
 
-use crate::not_sync::Executor;
-use crate::not_sync::Kicker;
 use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
 };
 use crate::call::{Call, Method};
 use crate::channel::Channel;
+use crate::not_sync::Executor;
+use crate::not_sync::Kicker;
 
 use crate::error::Result;
 

@@ -17,9 +17,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use futures::future::Loop;
-use futures::sync::oneshot::{self, Receiver, Sender};
-use futures::{future, Async, Future, Sink, Stream};
 use crate::grpc::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
@@ -28,6 +25,9 @@ use crate::grpc_proto::testing::messages::SimpleRequest;
 use crate::grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use crate::grpc_proto::testing::stats::ClientStats;
 use crate::grpc_proto::util as proto_util;
+use futures::future::Loop;
+use futures::sync::oneshot::{self, Receiver, Sender};
+use futures::{future, Async, Future, Sink, Stream};
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};

@@ -21,11 +21,11 @@ extern crate log;
 
 use std::sync::Arc;
 
-use clap::{App, Arg};
-use futures::{future, Future};
 use crate::grpc::{Environment, ServerBuilder};
 use crate::grpc_proto::testing::test_grpc;
 use crate::grpc_proto::util;
+use clap::{App, Arg};
+use futures::{future, Future};
 use interop::InteropTestService;
 
 fn main() {

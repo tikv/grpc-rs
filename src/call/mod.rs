@@ -19,13 +19,15 @@ use std::sync::Arc;
 use std::{cmp, mem, ptr, slice, usize};
 
 use crate::cq::CompletionQueue;
+use crate::grpc_sys::{
+    self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice,
+};
 use futures::{Async, Future, Poll};
-use crate::grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
-use crate::not_sync::{self, BatchFuture, BatchType, CallTag, SpinLock};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
+use crate::not_sync::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
 pub use crate::grpc_sys::GrpcStatusCode as RpcStatusCode;
 
