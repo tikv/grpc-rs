@@ -27,7 +27,7 @@ use libc::c_void;
 
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
-use crate::not_sync::{self, BatchFuture, BatchType, CallTag, SpinLock};
+use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
 pub use crate::grpc_sys::GrpcStatusCode as RpcStatusCode;
 
@@ -568,7 +568,7 @@ impl ShareCall {
             return Err(Error::RpcFinished(self.status.clone()));
         }
 
-        not_sync::check_alive(&self.close_f)
+        task::check_alive(&self.close_f)
     }
 }
 

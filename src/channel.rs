@@ -26,7 +26,7 @@ use crate::call::{Call, Method};
 use crate::cq::CompletionQueue;
 use crate::env::Environment;
 use crate::error::Result;
-use crate::not_sync::Kicker;
+use crate::task::Kicker;
 use crate::CallOption;
 
 pub use crate::grpc_sys::{

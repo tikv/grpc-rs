@@ -19,8 +19,8 @@ use crate::call::client::{
 };
 use crate::call::{Call, Method};
 use crate::channel::Channel;
-use crate::not_sync::Executor;
-use crate::not_sync::Kicker;
+use crate::task::Executor;
+use crate::task::Kicker;
 
 use crate::error::Result;
 

@@ -18,7 +18,7 @@ use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 use crate::grpc_sys;
 
 use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType};
-use crate::not_sync::CallTag;
+use crate::task::CallTag;
 
 // event loop
 fn poll_queue(cq: Arc<CompletionQueueHandle>) {

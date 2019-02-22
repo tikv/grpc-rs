@@ -24,7 +24,7 @@ use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::not_sync::{BatchFuture, BatchType, SpinLock};
+use crate::task::{BatchFuture, BatchType, SpinLock};
 
 /// Update the flag bit in res.
 #[inline]
