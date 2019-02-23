@@ -54,8 +54,8 @@ mod env;
 mod error;
 mod log_util;
 mod metadata;
-mod task;
 mod server;
+mod task;
 
 pub use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,

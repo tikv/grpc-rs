@@ -26,8 +26,8 @@ use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
 use crate::error::Error;
 use crate::metadata::Metadata;
-use crate::task::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 use crate::server::{BoxHandler, RequestCallContext};
+use crate::task::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 
 pub struct Deadline {
     spec: GprTimespec,
