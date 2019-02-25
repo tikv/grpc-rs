@@ -55,9 +55,9 @@ macro_rules! mk_test {
         mod $func {
             use std::sync::Arc;
 
-            use grpc::{ChannelBuilder, Environment, ServerBuilder};
-            use grpc_proto::testing::test_grpc;
-            use grpc_proto::util;
+            use crate::grpc::{ChannelBuilder, Environment, ServerBuilder};
+            use crate::grpc_proto::testing::test_grpc;
+            use crate::grpc_proto::util;
             use interop::{Client, InteropTestService};
 
             mk_test!(test_insecure, $func, false);

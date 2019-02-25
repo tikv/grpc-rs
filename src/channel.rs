@@ -19,17 +19,17 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
 
-use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
+use crate::grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
-use async::Kicker;
-use call::{Call, Method};
-use cq::CompletionQueue;
-use env::Environment;
-use error::Result;
-use CallOption;
+use crate::call::{Call, Method};
+use crate::cq::CompletionQueue;
+use crate::env::Environment;
+use crate::error::Result;
+use crate::task::Kicker;
+use crate::CallOption;
 
-pub use grpc_sys::{
+pub use crate::grpc_sys::{
     GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
 };
 
@@ -418,7 +418,7 @@ impl ChannelBuilder {
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
     #[doc(hidden)]
-    #[cfg_attr(feature = "cargo-clippy", allow(identity_conversion))]
+    #[allow(clippy::identity_conversion)]
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
@@ -468,9 +468,9 @@ mod secure_channel {
     use std::ffi::CString;
     use std::ptr;
 
-    use grpc_sys;
+    use crate::grpc_sys;
 
-    use credentials::ChannelCredentials;
+    use crate::credentials::ChannelCredentials;
 
     use super::{Channel, ChannelBuilder, Options};
 

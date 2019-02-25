@@ -14,11 +14,11 @@
 use std::fmt::{self, Display, Formatter};
 use std::{error, result};
 
-use grpc_sys::GrpcCallStatus;
+use crate::grpc_sys::GrpcCallStatus;
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
 
-use call::RpcStatus;
+use crate::call::RpcStatus;
 
 /// Errors generated from this library.
 #[derive(Debug)]
