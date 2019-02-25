@@ -17,25 +17,25 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::grpc::{
+    CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
+};
+use crate::grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
+use crate::grpc_proto::testing::messages::SimpleRequest;
+use crate::grpc_proto::testing::services_grpc::BenchmarkServiceClient;
+use crate::grpc_proto::testing::stats::ClientStats;
+use crate::grpc_proto::util as proto_util;
 use futures::future::Loop;
 use futures::sync::oneshot::{self, Receiver, Sender};
 use futures::{future, Async, Future, Sink, Stream};
-use grpc::{
-    CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
-};
-use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
-use grpc_proto::testing::messages::SimpleRequest;
-use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
-use grpc_proto::testing::stats::ClientStats;
-use grpc_proto::util as proto_util;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
 use tokio_timer::{Sleep, Timer};
 
-use bench;
-use error::Error;
-use util::{self, CpuRecorder, Histogram};
+use crate::bench;
+use crate::error::Error;
+use crate::util::{self, CpuRecorder, Histogram};
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 

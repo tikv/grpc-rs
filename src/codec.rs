@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use call::MessageReader;
-use error::Result;
+use crate::call::MessageReader;
+use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
@@ -40,7 +40,7 @@ pub mod pb_codec {
     use protobuf::{CodedInputStream, Message};
 
     use super::MessageReader;
-    use error::Result;
+    use crate::error::Result;
 
     #[inline]
     pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {

@@ -18,16 +18,18 @@ use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
 use std::{cmp, mem, ptr, slice, usize};
 
-use cq::CompletionQueue;
+use crate::cq::CompletionQueue;
+use crate::grpc_sys::{
+    self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice,
+};
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
-use codec::{DeserializeFn, Marshaller, SerializeFn};
-use error::{Error, Result};
+use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
+use crate::error::{Error, Result};
+use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
-pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
+pub use crate::grpc_sys::GrpcStatusCode as RpcStatusCode;
 
 impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
     fn from(src: &'a mut GrpcByteBuffer) -> Self {
@@ -566,7 +568,7 @@ impl ShareCall {
             return Err(Error::RpcFinished(self.status.clone()));
         }
 
-        async::check_alive(&self.close_f)
+        task::check_alive(&self.close_f)
     }
 }
 
