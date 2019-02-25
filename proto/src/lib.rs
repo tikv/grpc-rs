@@ -11,11 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(renamed_and_removed_lints)]
-
-extern crate futures;
-extern crate grpcio;
-extern crate protobuf;
+// There are some clippy lints in the generated protobuf files.
+#![allow(clippy::renamed_and_removed_lints)]
 
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
@@ -28,6 +25,32 @@ pub mod example {
 pub mod health {
     pub mod v1 {
         include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
+    }
+}
+
+#[allow(dead_code)]
+pub mod testing_prost {
+    include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
+}
+
+#[allow(dead_code)]
+pub mod example_prost {
+    pub mod helloworld {
+        include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
+    }
+    pub mod helloworld_grpc {}
+    pub mod route_guide {
+        include!(concat!(env!("OUT_DIR"), "/routeguide.rs"));
+    }
+    pub mod route_guide_grpc {}
+}
+
+#[allow(dead_code)]
+pub mod health_prost {
+    pub mod v1 {
+        pub mod health {
+            include!(concat!(env!("OUT_DIR"), "/grpc.health.v1.rs"));
+        }
     }
 }
 

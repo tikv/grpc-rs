@@ -14,18 +14,28 @@
 use super::util::{fq_grpc, to_snake_case, MethodType};
 use derive_new::new;
 use prost_build::{Config, Edition, Method, Service, ServiceGenerator};
-use std::fmt::Write;
 use std::io;
 use std::path::Path;
 
-pub fn compile_protos<P>(protos: &[P], includes: &[P]) -> io::Result<()>
+/// Returns the names of all packages compiled.
+pub fn compile_protos<P>(protos: &[P], includes: &[P], out_dir: &str) -> io::Result<Vec<String>>
 where
     P: AsRef<Path>,
 {
     let mut prost_config = Config::new();
     prost_config.service_generator(Box::new(Generator));
     prost_config.edition(Edition::Rust2018);
-    prost_config.compile_protos(protos, includes)
+    prost_config.out_dir(out_dir);
+    let descriptor_set = prost_config.generate_descriptor_set(protos, includes)?;
+    let mut packages: Vec<_> = descriptor_set
+        .file
+        .iter()
+        .filter_map(|f| f.package.clone())
+        .collect();
+    packages.sort();
+    packages.dedup();
+    prost_config.compile_descriptor_set(descriptor_set)?;
+    Ok(packages)
 }
 
 struct Generator;

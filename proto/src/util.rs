@@ -16,6 +16,7 @@ use grpcio::{
 };
 
 use crate::testing::messages::{Payload, ResponseParameters};
+use crate::testing_prost::{Payload as ProstPayload, ResponseParameters as ProstResponseParams};
 
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
@@ -23,11 +24,24 @@ pub fn new_payload(size: usize) -> Payload {
     payload.set_body(vec![0; size]);
     payload
 }
+pub fn new_payload_prost(size: usize) -> ProstPayload {
+    ProstPayload {
+        r#type: 0,
+        body: vec![0; size],
+    }
+}
 
 pub fn new_parameters(size: i32) -> ResponseParameters {
     let mut parameter = ResponseParameters::new();
     parameter.set_size(size);
     parameter
+}
+pub fn new_parameters_prost(size: i32) -> ProstResponseParams {
+    ProstResponseParams {
+        size,
+        interval_us: 0,
+        compressed: None,
+    }
 }
 
 pub fn create_test_server_credentials() -> ServerCredentials {

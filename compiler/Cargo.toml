@@ -10,11 +10,12 @@ homepage = "https://github.com/pingcap/grpc-rs"
 documentation = "https://docs.rs/grpcio-compiler"
 description = "gRPC compiler for grpcio"
 categories = ["network-programming"]
+edition = "2018"
 
 [dependencies]
 protobuf = "2.0"
 protobuf-codegen = "2.0"
-prost-build = { path = "../../prost/prost-build", version = "0.4.0" }
+prost-build = { path = "../../prost/prost-build", version = "0.5.0" }
 derive-new = "0.5"
 
 [[bin]]
