@@ -11,9 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Remove it once Rust's tool_lints is stabilized.
-// There are some clippy lints in the generated protobuf files.
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+#![allow(renamed_and_removed_lints)]
 
 extern crate futures;
 extern crate grpcio;

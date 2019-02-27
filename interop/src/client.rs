@@ -14,15 +14,15 @@
 use std::thread;
 use std::time::Duration;
 
+use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{future, stream, Future, Sink, Stream};
-use grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 
-use grpc_proto::testing::empty::Empty;
-use grpc_proto::testing::messages::{
+use crate::grpc_proto::testing::empty::Empty;
+use crate::grpc_proto::testing::messages::{
     EchoStatus, SimpleRequest, StreamingInputCallRequest, StreamingOutputCallRequest,
 };
-use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
-use grpc_proto::util;
+use crate::grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
+use crate::grpc_proto::util;
 
 pub struct Client {
     channel: Channel,

@@ -19,10 +19,10 @@ use futures::{Async, Future};
 
 use super::lock::SpinLock;
 use super::CallTag;
-use call::Call;
-use cq::CompletionQueue;
-use error::{Error, Result};
-use grpc_sys::{self, GrpcCallStatus};
+use crate::call::Call;
+use crate::cq::CompletionQueue;
+use crate::error::{Error, Result};
+use crate::grpc_sys::{self, GrpcCallStatus};
 
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 

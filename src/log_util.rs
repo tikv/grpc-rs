@@ -13,7 +13,7 @@
 
 use std::ffi::CStr;
 
-use grpc_sys::{self, GprLogFuncArgs, GprLogSeverity};
+use crate::grpc_sys::{self, GprLogFuncArgs, GprLogSeverity};
 use log::{self, Level, LevelFilter, Record};
 
 #[inline]

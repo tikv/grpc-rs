@@ -14,8 +14,8 @@
 use std::ffi::CString;
 use std::ptr;
 
-use error::{Error, Result};
-use grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
+use crate::error::{Error, Result};
+use crate::grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
 use libc::c_char;
 
 fn clear_key_securely(key: &mut [u8]) {
