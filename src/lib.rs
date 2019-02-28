@@ -68,7 +68,8 @@ pub use crate::call::server::{
 };
 pub use crate::call::{MessageReader, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
 pub use crate::channel::{
-    Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
+    Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, ConnectivityState, LbPolicy,
+    OptTarget,
 };
 pub use crate::client::Client;
 #[cfg(feature = "protobuf-codec")]
