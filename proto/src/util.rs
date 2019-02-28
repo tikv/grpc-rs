@@ -15,12 +15,12 @@ use grpcio::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
 
-use crate::testing::messages::{Payload, ResponseParameters};
-use crate::testing_prost::{Payload as ProstPayload, ResponseParameters as ProstResponseParams};
+use crate::testing::{Payload, ResponseParameters};
+use crate::testing::{Payload as ProstPayload, ResponseParameters as ProstResponseParams};
 
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
-    let mut payload = Payload::new();
+    let mut payload = Payload::new_();
     payload.set_body(vec![0; size]);
     payload
 }
@@ -32,7 +32,7 @@ pub fn new_payload_prost(size: usize) -> ProstPayload {
 }
 
 pub fn new_parameters(size: i32) -> ResponseParameters {
-    let mut parameter = ResponseParameters::new();
+    let mut parameter = ResponseParameters::new_();
     parameter.set_size(size);
     parameter
 }

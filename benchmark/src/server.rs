@@ -15,14 +15,12 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::error::Result;
-use crate::grpc::{
-    ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture,
-};
-use crate::grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
-use crate::grpc_proto::testing::services_grpc;
-use crate::grpc_proto::testing::stats::ServerStats;
-use crate::grpc_proto::util as proto_util;
+use error::Result;
+use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
+use grpc_proto::testing::create_benchmark_service;
+use grpc_proto::testing::ServerStats;
+use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
+use grpc_proto::util as proto_util;
 
 use crate::bench::{self, Benchmark, Generic};
 use crate::util::{self, CpuRecorder};
@@ -48,11 +46,11 @@ impl Server {
         let keep_running = Arc::new(AtomicBool::new(true));
         let keep_running1 = keep_running.clone();
         let service = match cfg.get_server_type() {
-            ServerType::ASYNC_SERVER => {
+            ServerType::AsyncServer => {
                 let b = Benchmark { keep_running };
-                services_grpc::create_benchmark_service(b)
+                create_benchmark_service(b)
             }
-            ServerType::ASYNC_GENERIC_SERVER => {
+            ServerType::AsyncGenericServer => {
                 let g = Generic { keep_running };
                 bench::create_generic_service(g)
             }
@@ -94,7 +92,7 @@ impl Server {
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
         let sample = self.recorder.cpu_time(reset);
 
-        let mut stats = ServerStats::new();
+        let mut stats = ServerStats::new_();
         stats.set_time_elapsed(sample.real_time);
         stats.set_time_user(sample.user_time);
         stats.set_time_system(sample.sys_time);
@@ -109,7 +107,7 @@ impl Server {
     }
 
     pub fn get_status(&self) -> ServerStatus {
-        let mut status = ServerStatus::new();
+        let mut status = ServerStatus::new_();
         status.set_port(i32::from(self.server.bind_addrs()[0].1));
         status.set_cores(util::cpu_num_cores() as i32);
         status

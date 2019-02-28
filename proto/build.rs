@@ -85,10 +85,7 @@ fn desc_to_module_prost(descriptor: &Path) {
         })
         .collect();
 
-    let packages = protobuf_build::generate_prost_files(
-        &files,
-        &env::var("OUT_DIR").unwrap(),
-    );
+    let packages = protobuf_build::generate_prost_files(&files, &env::var("OUT_DIR").unwrap());
     assert!(!packages.is_empty());
     protobuf_build::generate_wrappers(
         &packages

@@ -70,7 +70,9 @@ pub mod pr_codec {
     }
 
     #[inline]
-    pub fn de<M: Message + Default>(reader: MessageReader) -> Result<M> {
+    pub fn de<M: Message + Default>(mut reader: MessageReader) -> Result<M> {
+        use bytes::buf::Buf;
+        reader.advance(0);
         M::decode(reader).map_err(|e| e.into())
     }
 }

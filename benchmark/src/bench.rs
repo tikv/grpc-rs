@@ -17,19 +17,13 @@ use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::grpc::{
-    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
-    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
-    WriteFlags,
-};
-use crate::grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use crate::grpc_proto::testing::services_grpc::BenchmarkService;
-use crate::grpc_proto::util;
-use futures::{Future, Sink, Stream};
+use grpc_proto::testing::BenchmarkService;
+use grpc_proto::testing::{SimpleRequest, SimpleResponse};
+use grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
-    let mut resp = SimpleResponse::new();
+    let mut resp = SimpleResponse::new_();
     resp.set_payload(payload);
     resp
 }
