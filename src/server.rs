@@ -47,6 +47,11 @@ impl<F> Handler<F> {
     }
 }
 
+pub trait ServerInstrumenter {
+    fn before(&self);
+    fn after(&self);
+}
+
 pub trait CloneableHandler: Send {
     fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>);
     fn box_clone(&self) -> Box<CloneableHandler>;

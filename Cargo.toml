@@ -48,6 +48,14 @@ path = "examples/hello_world/client.rs"
 name = "greeter_server"
 path = "examples/hello_world/server.rs"
 
+[[example]]
+name = "greeter_client_instrument"
+path = "examples/hello_world_instrument/client.rs"
+
+[[example]]
+name = "greeter_server_instrument"
+path = "examples/hello_world_instrument/server.rs"
+
 [dev-dependencies]
 serde_json = "1.0"
 serde = "1.0"
