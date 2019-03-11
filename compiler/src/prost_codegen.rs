@@ -13,9 +13,12 @@
 
 use super::util::{fq_grpc, to_snake_case, MethodType};
 use derive_new::new;
-use prost_build::{Config, Edition, Method, Service, ServiceGenerator};
-use std::io;
+use prost::Message;
+use prost_build::{protoc, protoc_include, Config, Method, Service, ServiceGenerator};
+use prost_types::FileDescriptorSet;
+use std::io::{Error, ErrorKind, Read};
 use std::path::Path;
+use std::{fs, io, process::Command};
 
 /// Returns the names of all packages compiled.
 pub fn compile_protos<P>(protos: &[P], includes: &[P], out_dir: &str) -> io::Result<Vec<String>>
@@ -24,9 +27,43 @@ where
 {
     let mut prost_config = Config::new();
     prost_config.service_generator(Box::new(Generator));
-    prost_config.edition(Edition::Rust2018);
     prost_config.out_dir(out_dir);
-    let descriptor_set = prost_config.generate_descriptor_set(protos, includes)?;
+
+    // Create a file descriptor set for the protocol files.
+    let tmp = tempfile::Builder::new().prefix("prost-build").tempdir()?;
+    let descriptor_set = tmp.path().join("prost-descriptor-set");
+
+    let mut cmd = Command::new(protoc());
+    cmd.arg("--include_imports")
+        .arg("--include_source_info")
+        .arg("-o")
+        .arg(&descriptor_set);
+
+    for include in includes {
+        cmd.arg("-I").arg(include.as_ref());
+    }
+
+    // Set the protoc include after the user includes in case the user wants to
+    // override one of the built-in .protos.
+    cmd.arg("-I").arg(protoc_include());
+
+    for proto in protos {
+        cmd.arg(proto.as_ref());
+    }
+
+    let output = cmd.output()?;
+    if !output.status.success() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("protoc failed: {}", String::from_utf8_lossy(&output.stderr)),
+        ));
+    }
+
+    let mut buf = Vec::new();
+    fs::File::open(descriptor_set)?.read_to_end(&mut buf)?;
+    let descriptor_set = FileDescriptorSet::decode(&buf)?;
+
+    // Get the package names from the descriptor set.
     let mut packages: Vec<_> = descriptor_set
         .file
         .iter()
@@ -34,7 +71,12 @@ where
         .collect();
     packages.sort();
     packages.dedup();
-    prost_config.compile_descriptor_set(descriptor_set)?;
+
+    // FIXME(https://github.com/danburkert/prost/pull/155)
+    // Unfortunately we have to forget the above work and use `compile_protos` to
+    // actually generate the Rust code.
+    prost_config.compile_protos(protos, includes)?;
+
     Ok(packages)
 }
 

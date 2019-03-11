@@ -15,8 +15,11 @@ edition = "2018"
 [dependencies]
 protobuf = "2.0"
 protobuf-codegen = "2.0"
-prost-build = { path = "../../prost/prost-build", version = "0.5.0" }
+prost = "0.5"
+prost-build = "0.5"
+prost-types = "0.5"
 derive-new = "0.5"
+tempfile = "3.0"
 
 [[bin]]
 name = "grpc_rust_plugin"
