@@ -27,7 +27,7 @@ bytes = { version = "0.4.11", optional = true }
 log = "0.4"
 
 [workspace]
-members = ["proto", "benchmark", "compiler", "interop"]
+members = ["proto", "benchmark", "compiler", "interop", "protobuf-build"]
 
 [features]
 default = ["protobuf-codec", "secure"]

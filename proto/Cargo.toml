@@ -22,8 +22,13 @@ prost-derive = "0.5"
 protobuf = { version = "~2.2" }
 
 [build-dependencies]
+<<<<<<< HEAD
 grpcio-compiler = { path = "../compiler", version = "0.5.0" }
 protobuf-build = { path = "../../kvproto-build" }
+=======
+grpcio-compiler = { path = "../compiler" }
+protobuf-build = { path = "../protobuf-build" }
+>>>>>>> Vendor protobuf-build
 prost = "0.5"
 prost-types = "0.5"
 protobuf = "~2.2"
