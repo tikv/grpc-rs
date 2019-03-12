@@ -86,9 +86,10 @@ pub fn generate_prost_files(file_names: &[String], out_dir: &str) -> Vec<String>
 fn rustfmt(file_path: &Path) {
     let output = Command::new("rustfmt")
         .arg(file_path.to_str().unwrap())
-        .output()
-        .unwrap();
-    assert!(output.status.success());
+        .output();
+    if !output.map(|o| o.status.success()).unwrap_or(false) {
+        eprintln!("Rustfmt failed");
+    }
 }
 
 pub fn generate_wrappers(file_names: &[String], out_dir: &str) {
