@@ -311,7 +311,7 @@ impl ServerBuilder {
         let args = self
             .args
             .as_ref()
-            .map_or_else(ptr::null, |args| args.as_ptr());
+            .map_or_else(ptr::null, ChannelArgs::as_ptr);
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let mut bind_addrs = Vec::with_capacity(self.binders.len());

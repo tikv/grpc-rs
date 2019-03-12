@@ -13,12 +13,12 @@
 
 use std::sync::{Arc, Mutex};
 
-use error::Error;
+use crate::error::Error;
 use futures::sync::oneshot::Sender;
 use futures::{future, Future, Sink, Stream};
 use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 use grpc_proto::testing::WorkerService;
-use grpc_proto::testing::control::{
+use grpc_proto::testing::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
 

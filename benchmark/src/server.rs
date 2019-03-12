@@ -15,14 +15,14 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use error::Result;
 use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::create_benchmark_service;
 use grpc_proto::testing::ServerStats;
-use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
+use grpc_proto::testing::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::util as proto_util;
 
 use crate::bench::{self, Benchmark, Generic};
+use crate::error::Result;
 use crate::util::{self, CpuRecorder};
 
 pub struct Server {

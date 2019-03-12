@@ -17,6 +17,12 @@ use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use futures::{Future, Sink, Stream};
+use grpc::{
+    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
+    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
+    WriteFlags,
+};
 use grpc_proto::testing::BenchmarkService;
 use grpc_proto::testing::{SimpleRequest, SimpleResponse};
 use grpc_proto::util;

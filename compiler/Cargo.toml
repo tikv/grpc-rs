@@ -10,7 +10,6 @@ homepage = "https://github.com/pingcap/grpc-rs"
 documentation = "https://docs.rs/grpcio-compiler"
 description = "gRPC compiler for grpcio"
 categories = ["network-programming"]
-edition = "2018"
 
 [dependencies]
 protobuf = "2.0"

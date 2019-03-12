@@ -11,7 +11,6 @@ documentation = "https://docs.rs/grpcio-sys"
 description = "Public proto files for grpcio."
 categories = ["network-programming"]
 build = "build.rs"
-edition = "2018"
 
 [dependencies]
 futures = "0.1"
@@ -22,13 +21,8 @@ prost-derive = "0.5"
 protobuf = { version = "~2.2" }
 
 [build-dependencies]
-<<<<<<< HEAD
-grpcio-compiler = { path = "../compiler", version = "0.5.0" }
-protobuf-build = { path = "../../kvproto-build" }
-=======
 grpcio-compiler = { path = "../compiler" }
 protobuf-build = { path = "../protobuf-build" }
->>>>>>> Vendor protobuf-build
 prost = "0.5"
 prost-types = "0.5"
 protobuf = "~2.2"

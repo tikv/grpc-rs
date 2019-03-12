@@ -300,7 +300,7 @@ macro_rules! impl_unary_sink {
                     self.cq_f.take();
                 }
 
-                try_ready!(self.call.call(|c| c.poll_finish()));
+                try_ready!(self.call.call(ShareCall::poll_finish));
                 Ok(Async::Ready(()))
             }
         }
@@ -465,7 +465,7 @@ macro_rules! impl_stream_sink {
             type SinkError = Error;
 
             fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
-                if let Async::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish())? {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(ShareCall::poll_finish)? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base
@@ -480,7 +480,7 @@ macro_rules! impl_stream_sink {
             }
 
             fn poll_complete(&mut self) -> Poll<(), Error> {
-                if let Async::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish())? {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(ShareCall::poll_finish)? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base.poll_complete()
@@ -504,7 +504,7 @@ macro_rules! impl_stream_sink {
                     self.flushed = true;
                 }
 
-                try_ready!(self.call.as_mut().unwrap().call(|c| c.poll_finish()));
+                try_ready!(self.call.as_mut().unwrap().call(ShareCall::poll_finish));
                 self.closed = true;
                 Ok(Async::Ready(()))
             }
