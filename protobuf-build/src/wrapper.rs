@@ -14,9 +14,10 @@ pub struct WrapperGen {
 
 impl WrapperGen {
     pub fn new(file_name: &str) -> WrapperGen {
-        let input =
-            String::from_utf8(fs::read(file_name).expect(&format!("Could not read {}", file_name)))
-                .unwrap();
+        let input = String::from_utf8(
+            fs::read(file_name).unwrap_or_else(|_| panic!("Could not read {}", file_name)),
+        )
+        .expect("File not utf8");
         WrapperGen {
             input,
             name: format!(
@@ -282,7 +283,7 @@ impl FieldKind {
                 let init_val = match &**fk {
                     FieldKind::Message => {
                         result.take = Some(format!(
-                            "self.{}.take().unwrap_or_else(|| {}::default())",
+                            "self.{}.take().unwrap_or_else({}::default)",
                             result.name, unwrapped_type,
                         ));
                         format!(
@@ -292,14 +293,14 @@ impl FieldKind {
                     }
                     FieldKind::Bytes => {
                         result.take = Some(format!(
-                            "self.{}.take().unwrap_or_else(|| ::std::vec::Vec::new())",
+                            "self.{}.take().unwrap_or_else(::std::vec::Vec::new)",
                             result.name,
                         ));
                         "&[]".to_owned()
                     }
                     FieldKind::String => {
                         result.take = Some(format!(
-                            "self.{}.take().unwrap_or_else(|| ::std::string::String::new())",
+                            "self.{}.take().unwrap_or_else(::std::string::String::new)",
                             result.name,
                         ));
                         "\"\"".to_owned()

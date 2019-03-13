@@ -116,7 +116,7 @@ pub fn module_names_for_dir(directory_name: &str) -> Vec<String> {
                 .split(".rs")
                 .next()
                 .filter(|n| !n.starts_with("wrapper_"))
-                .map(|n| n.to_owned())
+                .map(ToOwned::to_owned)
         })
         .collect();
 

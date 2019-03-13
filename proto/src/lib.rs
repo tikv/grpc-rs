@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #[allow(dead_code)]
+#[allow(clippy::all)]
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
     include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.testing.rs"));
