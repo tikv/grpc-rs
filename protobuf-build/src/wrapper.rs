@@ -259,15 +259,20 @@ impl FieldKind {
                     None => unwrapped_type.clone(),
                 });
                 result.ref_ty = nested_methods.ref_ty;
+                result.enum_set = nested_methods.enum_set;
                 result.has = true;
                 result.clear = Some("::std::option::Option::None".to_owned());
                 result.set = Some(match &**fk {
                     FieldKind::Enumeration(t) => format!("::std::option::Option::Some(unsafe {{ ::std::mem::transmute::<{}, i32>(v) }})", t),
-                    _ => "::std::option::Option::Some(v);".to_owned(),
+                    _ => "::std::option::Option::Some(v)".to_owned(),
                 });
 
                 let as_ref = match &result.ref_ty {
                     RefType::Ref | RefType::Deref(_) => {
+                        let unwrapped_type = match &**fk {
+                            FieldKind::Bytes | FieldKind::Repeated => "::std::vec::Vec",
+                            _ => &unwrapped_type,
+                        };
                         result.mt = MethodKind::Custom(format!(
                             "if self.{}.is_none() {{
                                 self.{0} = ::std::option::Option::Some({1}::default());
@@ -288,7 +293,7 @@ impl FieldKind {
                         ));
                         format!(
                             "<{} as ::protobuf::Message>::default_instance()",
-                            unwrapped_type
+                            unwrapped_type,
                         )
                     }
                     FieldKind::Bytes => {
@@ -469,6 +474,7 @@ impl FieldMethods {
                 buf,
                 "pub fn set_{}{}(&mut self, v: {}) {{ self.{} = {}; }}",
                 self.unesc_name,
+                // enums already have a different `set` method defined.
                 if self.enum_set { "_" } else { "" },
                 ty,
                 self.name,
