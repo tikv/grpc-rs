@@ -17,17 +17,17 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::grpc::{
-    CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
-};
-use crate::grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
-use crate::grpc_proto::testing::messages::SimpleRequest;
-use crate::grpc_proto::testing::services_grpc::BenchmarkServiceClient;
-use crate::grpc_proto::testing::stats::ClientStats;
-use crate::grpc_proto::util as proto_util;
 use futures::future::Loop;
 use futures::sync::oneshot::{self, Receiver, Sender};
 use futures::{future, Async, Future, Sink, Stream};
+use grpc::{
+    CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
+};
+use grpc_proto::testing::BenchmarkServiceClient;
+use grpc_proto::testing::ClientStats;
+use grpc_proto::testing::SimpleRequest;
+use grpc_proto::testing::{ClientConfig, ClientType, RpcType};
+use grpc_proto::util as proto_util;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
 use rand::{self, SeedableRng, XorShiftRng};
@@ -40,7 +40,7 @@ use crate::util::{self, CpuRecorder, Histogram};
 type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
-    let mut req = SimpleRequest::new();
+    let mut req = SimpleRequest::new_();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
     req.set_payload(proto_util::new_payload(
@@ -318,20 +318,20 @@ fn execute<B: Backoff + Send + 'static>(
     cfg: &ClientConfig,
 ) {
     match client_type {
-        ClientType::SYNC_CLIENT => {
+        ClientType::SyncClient => {
             if cfg.get_payload_config().has_bytebuf_params() {
                 panic!("only async_client is supported for generic service.");
             }
             RequestExecutor::new(ctx, ch, cfg).execute_unary()
         }
-        ClientType::ASYNC_CLIENT => match cfg.get_rpc_type() {
-            RpcType::UNARY => {
+        ClientType::AsyncClient => match cfg.get_rpc_type() {
+            RpcType::Unary => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     panic!("only streaming is supported for generic service.");
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-            RpcType::STREAMING => {
+            RpcType::Streaming => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     GenericExecutor::new(ctx, ch, cfg).execute_stream()
                 } else {
@@ -438,7 +438,7 @@ impl Client {
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ClientStats {
-        let mut stats = ClientStats::new();
+        let mut stats = ClientStats::new_();
 
         let sample = self.recorder.cpu_time(reset);
         stats.set_time_elapsed(sample.real_time);

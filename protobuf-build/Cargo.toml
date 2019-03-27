@@ -1,0 +1,16 @@
+[package]
+name = "protobuf-build"
+version = "0.2.0"
+authors = ["Nick Cameron <nrc@ncameron.org>"]
+edition = "2018"
+license = "Apache-2.0"
+description = "Utility functions for generating Rust code from protobufs (using protobuf-rust or Prost)"
+publish = false
+
+[dependencies]
+protoc-rust = "2.0"
+protoc-grpcio = "0.3.1"
+grpcio-compiler = { path = "../compiler" }
+regex = "1.1"
+syn = { version = "0.15", features = ["full"] }
+quote = "0.6"

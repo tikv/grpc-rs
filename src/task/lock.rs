@@ -36,7 +36,7 @@ impl<T> SpinLock<T> {
         }
     }
 
-    pub fn lock(&self) -> LockGuard<T> {
+    pub fn lock(&self) -> LockGuard<'_, T> {
         // TODO: what if poison?
         // It's safe to use swap here. If previous is false, then the lock
         // is taken, loop will break, set it to true is expected;
@@ -48,7 +48,7 @@ impl<T> SpinLock<T> {
 }
 
 /// A guard for `SpinLock`.
-pub struct LockGuard<'a, T: 'a> {
+pub struct LockGuard<'a, T> {
     inner: &'a SpinLock<T>,
 }
 
