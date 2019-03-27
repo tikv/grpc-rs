@@ -11,9 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
 
@@ -28,16 +25,16 @@ use futures::sync::oneshot;
 use futures::Future;
 use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
 
+use grpcio_proto::example::helloworld::{self, Greeter};
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
-use grpcio_proto::example::helloworld_grpc::{self, Greeter};
 
 #[derive(Clone)]
 struct GreeterService;
 
 impl Greeter for GreeterService {
-    fn say_hello(&mut self, ctx: RpcContext, req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let msg = format!("Hello {}", req.get_name());
-        let mut resp = HelloReply::new();
+        let mut resp = HelloReply::new_();
         resp.set_message(msg);
         let f = sink
             .success(resp)
@@ -49,7 +46,7 @@ impl Greeter for GreeterService {
 fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
-    let service = helloworld_grpc::create_greeter(GreeterService);
+    let service = helloworld::create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50_051)

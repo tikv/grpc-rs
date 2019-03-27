@@ -21,7 +21,7 @@ macro_rules! mk_test {
         fn $case_name() {
             let env = Arc::new(Environment::new(2));
 
-            let service = test_grpc::create_test_service(InteropTestService);
+            let service = create_test_service(InteropTestService);
             let mut builder = ServerBuilder::new(env.clone()).register_service(service);
 
             builder = if $use_tls {
@@ -55,9 +55,9 @@ macro_rules! mk_test {
         mod $func {
             use std::sync::Arc;
 
-            use crate::grpc::{ChannelBuilder, Environment, ServerBuilder};
-            use crate::grpc_proto::testing::test_grpc;
-            use crate::grpc_proto::util;
+            use grpc::{ChannelBuilder, Environment, ServerBuilder};
+            use grpc_proto::testing::create_test_service;
+            use grpc_proto::util;
             use interop::{Client, InteropTestService};
 
             mk_test!(test_insecure, $func, false);

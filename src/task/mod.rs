@@ -194,7 +194,7 @@ impl CallTag {
 }
 
 impl Debug for CallTag {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
             CallTag::Batch(ref ctx) => write!(f, "CallTag::Batch({:?})", ctx),
             CallTag::Request(_) => write!(f, "CallTag::Request(..)"),

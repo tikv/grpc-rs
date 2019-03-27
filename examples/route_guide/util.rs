@@ -36,7 +36,7 @@ struct FeatureRef {
 
 impl From<FeatureRef> for Feature {
     fn from(r: FeatureRef) -> Feature {
-        let mut f = Feature::new();
+        let mut f = Feature::new_();
         f.set_name(r.name);
         f.mut_location().set_latitude(r.location.latitude);
         f.mut_location().set_longitude(r.location.longitude);

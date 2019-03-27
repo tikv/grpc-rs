@@ -11,15 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
-extern crate rand;
+use rand;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 
 #[path = "../log_util.rs"]
 mod log_util;
@@ -31,26 +27,26 @@ use std::time::Duration;
 
 use futures::{future, Future, Sink, Stream};
 use grpcio::*;
+use grpcio_proto::example::route_guide::RouteGuideClient;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
-use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
 use rand::Rng;
 
 fn new_point(lat: i32, lon: i32) -> Point {
-    let mut point = Point::new();
+    let mut point = Point::new_();
     point.set_latitude(lat);
     point.set_longitude(lon);
     point
 }
 
 fn new_rect(lat1: i32, lon1: i32, lat2: i32, lon2: i32) -> Rectangle {
-    let mut rect = Rectangle::new();
+    let mut rect = Rectangle::new_();
     rect.set_lo(new_point(lat1, lon1));
     rect.set_hi(new_point(lat2, lon2));
     rect
 }
 
 fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
-    let mut note = RouteNote::new();
+    let mut note = RouteNote::new_();
     note.set_location(new_point(lat, lon));
     note.set_message(msg.to_owned());
     note

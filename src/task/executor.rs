@@ -24,7 +24,7 @@ use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::grpc_sys::{self, GrpcCallStatus};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 /// A handle to a `Spawn`.
 /// Inner future is expected to be polled in the same thread as cq.
@@ -166,7 +166,7 @@ pub(crate) struct Executor<'a> {
 }
 
 impl<'a> Executor<'a> {
-    pub fn new(cq: &CompletionQueue) -> Executor {
+    pub fn new(cq: &CompletionQueue) -> Executor<'_> {
         Executor { cq }
     }
 

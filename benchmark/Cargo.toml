@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2018"
 publish = false
 
+[features]
+default = ["protobuf-codec"]
+protobuf-codec = ["grpcio/protobuf-codec"]
+prost-codec = ["grpcio/prost-codec"]
+
 [dependencies]
 grpcio = { path = ".." }
 grpcio-proto = { path = "../proto" }

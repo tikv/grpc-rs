@@ -14,11 +14,10 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;
-use grpcio_proto::health::v1::health_grpc::*;
 use std::collections::*;
 use std::sync::*;
 
-type StatusRegistry = HashMap<String, HealthCheckResponse_ServingStatus>;
+type StatusRegistry = HashMap<String, health_check_response::ServingStatus>;
 
 #[derive(Clone)]
 struct HealthService {
@@ -28,7 +27,7 @@ struct HealthService {
 impl Health for HealthService {
     fn check(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         req: HealthCheckRequest,
         sink: UnarySink<HealthCheckResponse>,
     ) {
@@ -36,8 +35,8 @@ impl Health for HealthService {
         let res = match status.get(req.get_service()) {
             None => sink.fail(RpcStatus::new(RpcStatusCode::NotFound, None)),
             Some(s) => {
-                let mut resp = HealthCheckResponse::new();
-                resp.set_status(*s);
+                let mut resp = HealthCheckResponse::new_();
+                resp.set_status_(*s);
                 sink.success(resp)
             }
         };
@@ -49,10 +48,10 @@ fn check_health(
     client: &HealthClient,
     status: &Arc<RwLock<StatusRegistry>>,
     service: &str,
-    exp: HealthCheckResponse_ServingStatus,
+    exp: health_check_response::ServingStatus,
 ) {
     status.write().unwrap().insert(service.to_owned(), exp);
-    let mut req = HealthCheckRequest::new();
+    let mut req = HealthCheckRequest::new_();
     req.set_service(service.to_owned());
     let status = client.check(&req).unwrap().get_status();
     assert_eq!(status, exp);
@@ -80,22 +79,22 @@ fn test_health_check() {
         &client,
         &status,
         "test",
-        HealthCheckResponse_ServingStatus::SERVING,
+        health_check_response::ServingStatus::Serving,
     );
     check_health(
         &client,
         &status,
         "test",
-        HealthCheckResponse_ServingStatus::NOT_SERVING,
+        health_check_response::ServingStatus::NotServing,
     );
     check_health(
         &client,
         &status,
         "test",
-        HealthCheckResponse_ServingStatus::UNKNOWN,
+        health_check_response::ServingStatus::Unknown,
     );
 
-    let mut req = HealthCheckRequest::new();
+    let mut req = HealthCheckRequest::new_();
     req.set_service("not-exist".to_owned());
     let err = client.check(&req).unwrap_err();
     match err {
