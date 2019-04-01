@@ -120,7 +120,7 @@ impl TestService for InteropTestService {
             })
             .map_err(|e| match e {
                 grpc::Error::RemoteStopped => {}
-                e => error!("failed to send streaming inptu: {:?}", e),
+                e => error!("failed to send streaming input: {:?}", e),
             });
         ctx.spawn(f)
     }
