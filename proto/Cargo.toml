@@ -22,7 +22,7 @@ protobuf = { version = "~2.2" }
 
 [build-dependencies]
 grpcio-compiler = { path = "../compiler" }
-protobuf-build = { path = "../protobuf-build" }
+protobuf-build = "0.2"
 prost = "0.5"
 prost-types = "0.5"
 protobuf = "~2.2"
