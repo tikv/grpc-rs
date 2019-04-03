@@ -124,7 +124,7 @@ mod imp {
 #[cfg(not(feature = "secure"))]
 mod imp {
     use super::join_host_port;
-    use grpc_sys::{self, GrpcServer};
+    use crate::grpc_sys::{self, GrpcServer};
 
     pub struct Binder {
         pub host: String,
