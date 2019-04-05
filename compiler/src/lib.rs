@@ -12,5 +12,5 @@
 // limitations under the License.
 
 pub mod codegen;
-pub mod prost_codegen;
+// pub mod prost_codegen;
 mod util;
