@@ -28,7 +28,7 @@ use clap::{App, Arg};
 use futures::sync::oneshot;
 use futures::Future;
 use grpc::{Environment, ServerBuilder};
-use grpc_proto::testing::services_grpc;
+use grpc_proto::testing::create_worker_service;
 use rand::Rng;
 
 const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
@@ -53,7 +53,7 @@ fn main() {
     let env = Arc::new(Environment::new(2));
     let (tx, rx) = oneshot::channel();
     let worker = Worker::new(tx);
-    let service = services_grpc::create_worker_service(worker);
+    let service = create_worker_service(worker);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("[::]", port)

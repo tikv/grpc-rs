@@ -20,17 +20,17 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use crate::grpc_sys::{self, GrpcCallStatus, GrpcServer};
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcCallStatus, GrpcServer};
 
-use async::{CallTag, CqFuture};
-use call::server::*;
-use call::{MessageReader, Method, MethodType};
-use channel::ChannelArgs;
-use cq::CompletionQueue;
-use env::Environment;
-use error::{Error, Result};
-use RpcContext;
+use crate::call::server::*;
+use crate::call::{MessageReader, Method, MethodType};
+use crate::channel::ChannelArgs;
+use crate::cq::CompletionQueue;
+use crate::env::Environment;
+use crate::error::{Error, Result};
+use crate::task::{CallTag, CqFuture};
+use crate::RpcContext;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -48,22 +48,22 @@ impl<F> Handler<F> {
 }
 
 pub trait CloneableHandler: Send {
-    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>);
-    fn box_clone(&self) -> Box<CloneableHandler>;
+    fn handle(&mut self, ctx: RpcContext<'_>, reqs: Option<MessageReader>);
+    fn box_clone(&self) -> Box<dyn CloneableHandler>;
     fn method_type(&self) -> MethodType;
 }
 
 impl<F: 'static> CloneableHandler for Handler<F>
 where
-    F: FnMut(RpcContext, Option<MessageReader>) + Send + Clone,
+    F: FnMut(RpcContext<'_>, Option<MessageReader>) + Send + Clone,
 {
     #[inline]
-    fn handle(&mut self, ctx: RpcContext, reqs: Option<MessageReader>) {
+    fn handle(&mut self, ctx: RpcContext<'_>, reqs: Option<MessageReader>) {
         (self.cb)(ctx, reqs)
     }
 
     #[inline]
-    fn box_clone(&self) -> Box<CloneableHandler> {
+    fn box_clone(&self) -> Box<dyn CloneableHandler> {
         Box::new(self.clone())
     }
 
@@ -86,8 +86,8 @@ fn join_host_port(host: &str, port: u16) -> String {
 #[cfg(feature = "secure")]
 mod imp {
     use super::join_host_port;
-    use credentials::ServerCredentials;
-    use grpc_sys::{self, GrpcServer};
+    use crate::credentials::ServerCredentials;
+    use crate::grpc_sys::{self, GrpcServer};
 
     pub struct Binder {
         pub host: String,
@@ -124,7 +124,7 @@ mod imp {
 #[cfg(not(feature = "secure"))]
 mod imp {
     use super::join_host_port;
-    use grpc_sys::{self, GrpcServer};
+    use crate::grpc_sys::{self, GrpcServer};
 
     pub struct Binder {
         pub host: String,
@@ -169,10 +169,10 @@ impl ServiceBuilder {
     where
         Req: 'static,
         Resp: 'static,
-        F: FnMut(RpcContext, Req, UnarySink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext<'_>, Req, UnarySink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+        let h = move |ctx: RpcContext<'_>, payload: Option<MessageReader>| {
             execute_unary(ctx, ser, de, payload.unwrap(), &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::Unary, h));
@@ -189,13 +189,13 @@ impl ServiceBuilder {
     where
         Req: 'static,
         Resp: 'static,
-        F: FnMut(RpcContext, RequestStream<Req>, ClientStreamingSink<Resp>)
+        F: FnMut(RpcContext<'_>, RequestStream<Req>, ClientStreamingSink<Resp>)
             + Send
             + Clone
             + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+        let h = move |ctx: RpcContext<'_>, _: Option<MessageReader>| {
             execute_client_streaming(ctx, ser, de, &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::ClientStreaming, h));
@@ -212,10 +212,10 @@ impl ServiceBuilder {
     where
         Req: 'static,
         Resp: 'static,
-        F: FnMut(RpcContext, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext<'_>, Req, ServerStreamingSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, payload: Option<MessageReader>| {
+        let h = move |ctx: RpcContext<'_>, payload: Option<MessageReader>| {
             execute_server_streaming(ctx, ser, de, payload.unwrap(), &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::ServerStreaming, h));
@@ -232,10 +232,10 @@ impl ServiceBuilder {
     where
         Req: 'static,
         Resp: 'static,
-        F: FnMut(RpcContext, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
+        F: FnMut(RpcContext<'_>, RequestStream<Req>, DuplexSink<Resp>) + Send + Clone + 'static,
     {
         let (ser, de) = (method.resp_ser(), method.req_de());
-        let h = move |ctx: RpcContext, _: Option<MessageReader>| {
+        let h = move |ctx: RpcContext<'_>, _: Option<MessageReader>| {
             execute_duplex_streaming(ctx, ser, de, &mut handler)
         };
         let ch = Box::new(Handler::new(MethodType::Duplex, h));
@@ -311,7 +311,7 @@ impl ServerBuilder {
         let args = self
             .args
             .as_ref()
-            .map_or_else(ptr::null, |args| args.as_ptr());
+            .map_or_else(ptr::null, ChannelArgs::as_ptr);
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let mut bind_addrs = Vec::with_capacity(self.binders.len());
@@ -350,7 +350,7 @@ impl ServerBuilder {
 
 #[cfg(feature = "secure")]
 mod secure_server {
-    use credentials::ServerCredentials;
+    use crate::credentials::ServerCredentials;
 
     use super::{Binder, ServerBuilder};
 
@@ -386,7 +386,7 @@ impl Drop for ServerCore {
 unsafe impl Send for ServerCore {}
 unsafe impl Sync for ServerCore {}
 
-pub type BoxHandler = Box<CloneableHandler>;
+pub type BoxHandler = Box<dyn CloneableHandler>;
 
 #[derive(Clone)]
 pub struct RequestCallContext {
@@ -529,7 +529,7 @@ impl Drop for Server {
 }
 
 impl Debug for Server {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Server {:?}", self.core.bind_addrs)
     }
 }

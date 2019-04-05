@@ -13,16 +13,16 @@
 
 use futures::Future;
 
-use async::Executor;
-use async::Kicker;
-use call::client::{
+use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
 };
-use call::{Call, Method};
-use channel::Channel;
+use crate::call::{Call, Method};
+use crate::channel::Channel;
+use crate::task::Executor;
+use crate::task::Kicker;
 
-use error::Result;
+use crate::error::Result;
 
 /// A generic client for making RPC calls.
 #[derive(Clone)]

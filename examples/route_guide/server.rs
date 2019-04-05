@@ -11,14 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate futures;
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 
 #[path = "../log_util.rs"]
 mod log_util;
@@ -33,9 +29,9 @@ use futures::sync::oneshot;
 use futures::*;
 use grpcio::*;
 
+use crate::util::*;
+use grpcio_proto::example::route_guide;
 use grpcio_proto::example::route_guide::*;
-use grpcio_proto::example::route_guide_grpc::{self, RouteGuide};
-use util::*;
 
 #[derive(Clone)]
 struct RouteGuideService {
@@ -43,12 +39,12 @@ struct RouteGuideService {
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&mut self, ctx: RpcContext, point: Point, sink: UnarySink<Feature>) {
+    fn get_feature(&mut self, ctx: RpcContext<'_>, point: Point, sink: UnarySink<Feature>) {
         let data = self.data.clone();
         let resp = data
             .iter()
             .find(|f| same_point(f.get_location(), &point))
-            .map_or_else(Feature::new, ToOwned::to_owned);
+            .map_or_else(Feature::new_, ToOwned::to_owned);
         let f = sink
             .success(resp)
             .map_err(|e| error!("failed to handle getfeature request: {:?}", e));
@@ -57,7 +53,7 @@ impl RouteGuide for RouteGuideService {
 
     fn list_features(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         rect: Rectangle,
         resp: ServerStreamingSink<Feature>,
     ) {
@@ -81,7 +77,7 @@ impl RouteGuide for RouteGuideService {
 
     fn record_route(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         points: RequestStream<Point>,
         resp: ClientStreamingSink<RouteSummary>,
     ) {
@@ -89,7 +85,7 @@ impl RouteGuide for RouteGuideService {
         let timer = Instant::now();
         let f = points
             .fold(
-                (None, 0f64, RouteSummary::new()),
+                (None, 0f64, RouteSummary::new_()),
                 move |(last, mut dis, mut summary), point| {
                     let total_count = summary.get_point_count();
                     summary.set_point_count(total_count + 1);
@@ -118,7 +114,7 @@ impl RouteGuide for RouteGuideService {
 
     fn route_chat(
         &mut self,
-        ctx: RpcContext,
+        ctx: RpcContext<'_>,
         notes: RequestStream<RouteNote>,
         resp: DuplexSink<RouteNote>,
     ) {
@@ -153,7 +149,7 @@ fn main() {
     let instance = RouteGuideService {
         data: Arc::new(load_db()),
     };
-    let service = route_guide_grpc::create_route_guide(instance);
+    let service = route_guide::create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50_051)

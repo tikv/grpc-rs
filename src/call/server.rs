@@ -15,17 +15,19 @@ use std::ffi::CStr;
 use std::sync::Arc;
 use std::{result, slice};
 
+use crate::grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
-use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
-use call::{BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase};
-use codec::{DeserializeFn, SerializeFn};
-use cq::CompletionQueue;
-use error::Error;
-use metadata::Metadata;
-use server::{BoxHandler, RequestCallContext};
+use crate::call::{
+    BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
+};
+use crate::codec::{DeserializeFn, SerializeFn};
+use crate::cq::CompletionQueue;
+use crate::error::Error;
+use crate::metadata::Metadata;
+use crate::server::{BoxHandler, RequestCallContext};
+use crate::task::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 
 pub struct Deadline {
     spec: GprTimespec,
@@ -298,7 +300,7 @@ macro_rules! impl_unary_sink {
                     self.cq_f.take();
                 }
 
-                try_ready!(self.call.call(|c| c.poll_finish()));
+                try_ready!(self.call.call(ShareCall::poll_finish));
                 Ok(Async::Ready(()))
             }
         }
@@ -463,7 +465,7 @@ macro_rules! impl_stream_sink {
             type SinkError = Error;
 
             fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
-                if let Async::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish())? {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(ShareCall::poll_finish)? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base
@@ -478,7 +480,7 @@ macro_rules! impl_stream_sink {
             }
 
             fn poll_complete(&mut self) -> Poll<(), Error> {
-                if let Async::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish())? {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(ShareCall::poll_finish)? {
                     return Err(Error::RemoteStopped);
                 }
                 self.base.poll_complete()
@@ -502,7 +504,7 @@ macro_rules! impl_stream_sink {
                     self.flushed = true;
                 }
 
-                try_ready!(self.call.as_mut().unwrap().call(|c| c.poll_finish()));
+                try_ready!(self.call.as_mut().unwrap().call(ShareCall::poll_finish));
                 self.closed = true;
                 Ok(Async::Ready(()))
             }
@@ -576,7 +578,7 @@ pub struct RpcContext<'a> {
 }
 
 impl<'a> RpcContext<'a> {
-    fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext {
+    fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext<'_> {
         RpcContext {
             deadline: ctx.deadline(),
             ctx,
@@ -640,13 +642,13 @@ macro_rules! accept_call {
 
 // Helper function to call a unary handler.
 pub fn execute_unary<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: MessageReader,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, P, UnarySink<Q>),
+    F: FnMut(RpcContext<'_>, P, UnarySink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -667,12 +669,12 @@ pub fn execute_unary<P, Q, F>(
 
 // Helper function to call client streaming handler.
 pub fn execute_client_streaming<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, RequestStream<P>, ClientStreamingSink<Q>),
+    F: FnMut(RpcContext<'_>, RequestStream<P>, ClientStreamingSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -685,13 +687,13 @@ pub fn execute_client_streaming<P, Q, F>(
 
 // Helper function to call server streaming handler.
 pub fn execute_server_streaming<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     payload: MessageReader,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, P, ServerStreamingSink<Q>),
+    F: FnMut(RpcContext<'_>, P, ServerStreamingSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
@@ -714,12 +716,12 @@ pub fn execute_server_streaming<P, Q, F>(
 
 // Helper function to call duplex streaming handler.
 pub fn execute_duplex_streaming<P, Q, F>(
-    ctx: RpcContext,
+    ctx: RpcContext<'_>,
     ser: SerializeFn<Q>,
     de: DeserializeFn<P>,
     f: &mut F,
 ) where
-    F: FnMut(RpcContext, RequestStream<P>, DuplexSink<Q>),
+    F: FnMut(RpcContext<'_>, RequestStream<P>, DuplexSink<Q>),
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);

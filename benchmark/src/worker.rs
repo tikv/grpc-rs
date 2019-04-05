@@ -13,18 +13,18 @@
 
 use std::sync::{Arc, Mutex};
 
-use error::Error;
+use crate::error::Error;
 use futures::sync::oneshot::Sender;
 use futures::{future, Future, Sink, Stream};
 use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
-use grpc_proto::testing::control::{
+use grpc_proto::testing::WorkerService;
+use grpc_proto::testing::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
-use grpc_proto::testing::services_grpc::WorkerService;
 
-use client::Client;
-use server::Server;
-use util;
+use crate::client::Client;
+use crate::server::Server;
+use crate::util;
 
 #[derive(Clone)]
 pub struct Worker {
@@ -90,13 +90,13 @@ impl WorkerService for Worker {
                 let cfg = arg.as_ref().unwrap().get_setup();
                 info!("receive client setup: {:?}", cfg);
                 let client = Client::new(cfg);
-                sink.send((ClientStatus::new(), WriteFlags::default()))
+                sink.send((ClientStatus::new_(), WriteFlags::default()))
                     .and_then(|sink| {
                         stream.fold((sink, client), |(sink, mut client), arg| {
                             let mark = arg.get_mark();
                             info!("receive client mark: {:?}", mark);
                             let stats = client.get_stats(mark.get_reset());
-                            let mut status = ClientStatus::new();
+                            let mut status = ClientStatus::new_();
                             status.set_stats(stats);
                             sink.send((status, WriteFlags::default()))
                                 .map(|sink| (sink, client))
@@ -116,7 +116,7 @@ impl WorkerService for Worker {
 
     fn core_count(&mut self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
-        let mut resp = CoreResponse::new();
+        let mut resp = CoreResponse::new_();
         resp.set_cores(cpu_count as i32);
         ctx.spawn(
             sink.success(resp)
@@ -124,13 +124,13 @@ impl WorkerService for Worker {
         )
     }
 
-    fn quit_worker(&mut self, ctx: RpcContext, _: Void, sink: ::grpc::UnarySink<Void>) {
+    fn quit_worker(&mut self, ctx: RpcContext, _: Void, sink: crate::grpc::UnarySink<Void>) {
         let notifier = self.shutdown_notifier.lock().unwrap().take();
         if let Some(notifier) = notifier {
             let _ = notifier.send(());
         }
         ctx.spawn(
-            sink.success(Void::new())
+            sink.success(Void::new_())
                 .map_err(|e| error!("failed to report quick worker: {:?}", e)),
         );
     }

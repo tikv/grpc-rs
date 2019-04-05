@@ -13,7 +13,7 @@
 
 use std::result;
 
-use grpc;
+use crate::grpc;
 use tokio_timer::TimerError;
 
 #[derive(Debug)]

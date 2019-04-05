@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use call::server::{RequestContext, UnaryRequestContext};
-use call::{BatchContext, Call};
-use cq::CompletionQueue;
-use server::{self, RequestCallContext};
+use crate::call::server::{RequestContext, UnaryRequestContext};
+use crate::call::{BatchContext, Call};
+use crate::cq::CompletionQueue;
+use crate::server::{self, RequestCallContext};
 
 pub struct Request {
     ctx: RequestContext,

@@ -11,15 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use grpc_sys::{self, GrpcMetadataArray};
+use crate::grpc_sys::{self, GrpcMetadataArray};
 use std::borrow::Cow;
 use std::{mem, slice, str};
 
 use libc;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
-fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
+fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
     if key.is_empty() {
         return Err(Error::InvalidMetadata(
             "metadata key should not be empty".to_owned(),
@@ -191,7 +191,7 @@ impl Metadata {
     }
 
     /// Returns an iterator over the metadata entries.
-    pub fn iter(&self) -> MetadataIter {
+    pub fn iter(&self) -> MetadataIter<'_> {
         MetadataIter {
             data: self,
             index: 0,
