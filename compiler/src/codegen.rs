@@ -487,13 +487,13 @@ impl<'a> ServiceGen<'a> {
         );
         w.pub_fn(&s, |w| {
             w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
-            for method in &self.methods[0..self.methods.len()-1] {
+            for method in &self.methods[0..self.methods.len() - 1] {
                 w.write_line("let mut instance = s.clone();");
                 method.write_bind(w);
             }
 
             w.write_line("let mut instance = s;");
-            self.methods[self.methods.len()-1].write_bind(w);
+            self.methods[self.methods.len() - 1].write_bind(w);
 
             w.write_line("builder.build()");
         });
