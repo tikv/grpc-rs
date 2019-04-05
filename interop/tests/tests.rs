@@ -68,8 +68,12 @@ macro_rules! mk_test {
 
 mk_test!(empty_unary);
 mk_test!(large_unary);
+// FIXME(#305) Intermittent test.
+#[cfg(not(feature = "openssl"))]
 mk_test!(client_streaming);
 mk_test!(server_streaming);
+// FIXME(#306) Intermittent test.
+#[cfg(not(feature = "openssl"))]
 mk_test!(ping_pong);
 mk_test!(empty_stream);
 mk_test!(cancel_after_begin);
