@@ -469,10 +469,19 @@ fn generate_server(service: &Service, buf: &mut String) {
     buf.push_str(&fq_grpc("Service"));
     buf.push_str(" {\n");
     buf.push_str("let mut builder = ::grpcio::ServiceBuilder::new();\n");
-    for method in &service.methods {
+
+    for method in &service.methods[0..service.methods.len() - 1] {
         buf.push_str("let mut instance = s.clone();\n");
         generate_method_bind(&service.name, method, buf);
     }
+
+    buf.push_str("let mut instance = s;\n");
+    generate_method_bind(
+        &service.name,
+        &service.methods[service.methods.len() - 1],
+        buf,
+    );
+
     buf.push_str("builder.build()\n");
     buf.push_str("}\n");
 }
