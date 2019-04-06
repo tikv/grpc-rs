@@ -17,12 +17,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use grpcio_compiler::codegen as grpc_gen;
-use pb_gen::Customize;
 use prost::Message;
 use prost_types::FileDescriptorSet as ProstFileDescriptorSet;
 use protobuf::compiler_plugin::GenResult;
 use protobuf::descriptor::{FileDescriptorProto, FileDescriptorSet};
-use protobuf_codegen as pb_gen;
+use protobuf_codegen::{self as pb_gen, Customize};
 
 fn write_files<W: Write>(
     results: impl Iterator<Item = (String, Vec<u8>)>,
