@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-proto"
-version = "0.5.0"
+version = "0.5.0-alpha"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -13,11 +13,17 @@ categories = ["network-programming"]
 build = "build.rs"
 
 [dependencies]
-protobuf = "~2.2"
 futures = "0.1"
-grpcio = { path = "..", version = "0.5.0" }
+grpcio = { path = "..", features = ["prost-codec"] }
+bytes = "0.4"
+prost = "0.5"
+prost-derive = "0.5"
+protobuf = "~2.2"
 
 [build-dependencies]
+grpcio-compiler = { path = "../compiler" }
+protobuf-build = "0.2"
+prost = "0.5"
+prost-types = "0.5"
 protobuf = "~2.2"
 protobuf-codegen = "~2.2"
-grpcio-compiler = { path = "../compiler", version = "0.5.0" }

@@ -14,7 +14,6 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::atomic::*;
 use std::sync::*;
 use std::thread::{self, JoinHandle};
@@ -26,9 +25,9 @@ fn test_peer() {
     struct PeerService;
 
     impl Greeter for PeerService {
-        fn say_hello(&mut self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             let peer = ctx.peer();
-            let mut resp = HelloReply::new();
+            let mut resp = HelloReply::new_();
             resp.set_message(peer);
             ctx.spawn(
                 sink.success(resp)
@@ -49,7 +48,7 @@ fn test_peer() {
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
-    let req = HelloRequest::new();
+    let req = HelloRequest::new_();
     let resp = client.say_hello(&req).unwrap();
 
     assert!(resp.get_message().contains("127.0.0.1"), "{:?}", resp);
@@ -86,9 +85,9 @@ fn test_soundness() {
     }
 
     impl Greeter for CounterService {
-        fn say_hello(&mut self, ctx: RpcContext, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             self.c.incr();
-            let resp = HelloReply::new();
+            let resp = HelloReply::new_();
             ctx.spawn(
                 sink.success(resp)
                     .map_err(|e| panic!("failed to reply {:?}", e)),
@@ -118,7 +117,7 @@ fn test_soundness() {
         let mut resps = Vec::with_capacity(3000);
         thread::spawn(move || {
             for _ in 0..3000 {
-                resps.push(client.say_hello_async(&HelloRequest::new()).unwrap());
+                resps.push(client.say_hello_async(&HelloRequest::new_()).unwrap());
             }
             future::join_all(resps).wait().unwrap();
         })

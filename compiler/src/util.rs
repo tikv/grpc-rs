@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
 use std::str;
 
 // A struct that divide a name into serveral parts that meets rust's guidelines.
@@ -99,6 +100,21 @@ pub enum MethodType {
     ClientStreaming,
     ServerStreaming,
     Duplex,
+}
+
+impl fmt::Display for MethodType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MethodType::Unary => "MethodType::Unary",
+                MethodType::ClientStreaming => "MethodType::ClientStreaming",
+                MethodType::ServerStreaming => "MethodType::ServerStreaming",
+                MethodType::Duplex => "MethodType::Duplex",
+            }
+        )
+    }
 }
 
 #[cfg(test)]

@@ -14,17 +14,19 @@
 use std::fmt::{self, Display, Formatter};
 use std::{error, result};
 
+use crate::call::RpcStatus;
 use crate::grpc_sys::GrpcCallStatus;
+
+#[cfg(feature = "prost-codec")]
+use prost::DecodeError;
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
-
-use crate::call::RpcStatus;
 
 /// Errors generated from this library.
 #[derive(Debug)]
 pub enum Error {
     /// Codec error.
-    Codec(Box<error::Error + Send + Sync>),
+    Codec(Box<dyn error::Error + Send + Sync>),
     /// Failed to start an internal async call.
     CallFailure(GrpcCallStatus),
     /// Rpc request fail.
@@ -46,7 +48,7 @@ pub enum Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
         write!(fmt, "{:?}", self)
     }
 }
@@ -67,7 +69,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Codec(ref e) => Some(e.as_ref()),
             _ => None,
@@ -81,6 +83,13 @@ impl error::Error for Error {
 #[cfg(feature = "protobuf-codec")]
 impl From<ProtobufError> for Error {
     fn from(e: ProtobufError) -> Error {
+        Error::Codec(Box::new(e))
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl From<DecodeError> for Error {
+    fn from(e: DecodeError) -> Error {
         Error::Codec(Box::new(e))
     }
 }

@@ -19,7 +19,7 @@ use libc;
 
 use crate::error::{Error, Result};
 
-fn normalize_key(key: &str, binary: bool) -> Result<Cow<str>> {
+fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
     if key.is_empty() {
         return Err(Error::InvalidMetadata(
             "metadata key should not be empty".to_owned(),
@@ -191,7 +191,7 @@ impl Metadata {
     }
 
     /// Returns an iterator over the metadata entries.
-    pub fn iter(&self) -> MetadataIter {
+    pub fn iter(&self) -> MetadataIter<'_> {
         MetadataIter {
             data: self,
             index: 0,
