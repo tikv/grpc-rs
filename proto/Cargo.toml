@@ -14,11 +14,11 @@ build = "build.rs"
 
 [dependencies]
 futures = "0.1"
-grpcio = { path = "..", version = "0.5.0-alpha", features = ["prost-codec"] }
+grpcio = { path = "..", features = ["prost-codec"] }
 bytes = "0.4"
 prost = "0.5"
 prost-derive = "0.5"
-protobuf = { version = "~2.2" }
+protobuf = "~2.2"
 
 [build-dependencies]
 grpcio-compiler = { path = "../compiler" }
