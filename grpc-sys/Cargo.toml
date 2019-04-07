@@ -10,6 +10,7 @@ documentation = "https://docs.rs/grpcio-sys"
 description = "FFI bindings to gRPC c core library"
 categories = ["external-ffi-bindings", "network-programming"]
 build = "build.rs"
+edition = "2018"
 exclude = [
     "grpc/doc/*",
     "grpc/etc/*",
