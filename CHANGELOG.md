@@ -1,4 +1,8 @@
-# 0.5.0 - 2019-04-03
+# 0.5.0-alpha.1 - 2019-04-08
+
+- Fix grpc_sys import when secure feature is disabled
+
+# 0.5.0-alpha - 2019-04-03
 
 - Support Prost
 - Zero copy for receiving
