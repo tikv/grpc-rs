@@ -144,6 +144,8 @@ fn prepare_suite() -> (CancelService, RouteGuideClient, Server) {
 }
 
 #[test]
+// FIXME(#242) Intermittent test.
+#[cfg_attr(feature = "openssl", ignore)]
 fn test_client_cancel_on_dropping() {
     let (service, client, _server) = prepare_suite();
 
