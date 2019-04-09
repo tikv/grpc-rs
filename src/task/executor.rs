@@ -78,7 +78,7 @@ struct NotifyContext {
 impl NotifyContext {
     /// Notify the completion queue.
     ///
-    /// It only makes sence to call this function from the thread
+    /// It only makes sense to call this function from the thread
     /// that cq is not run on.
     fn notify(&mut self, tag: Box<CallTag>) {
         match self.kicker.kick(tag) {

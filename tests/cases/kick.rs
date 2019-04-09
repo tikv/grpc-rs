@@ -85,7 +85,7 @@ fn test_kick() {
     let _ = tx1.send(77);
     assert_eq!(rx2.wait().unwrap(), 77);
 
-    // Drop the client before a future is resloved.
+    // Drop the client before a future is resolved.
     let (tx1, rx2) = spawn_chianed_channel(&client);
     drop(client);
     thread::sleep(Duration::from_millis(10));
