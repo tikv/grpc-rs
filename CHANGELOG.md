@@ -1,4 +1,8 @@
-# 0.5.0 - 2019-04-03
+# 0.5.0-alpha.1 - 2019-04-08
+
+- Fix grpc_sys import when secure feature is disabled
+
+# 0.5.0-alpha - 2019-04-03
 
 - Support Prost
 - Zero copy for receiving
@@ -64,7 +68,7 @@
 # 0.2.0 - 2017-12-19
 
 - update gRPC from 1.6.1 to 1.7.2
-- seperate secure/unsecure features
+- separate secure/unsecure features
 - fix compilation error on OS X and Win32
 - publish gRPC built-in protos
 
