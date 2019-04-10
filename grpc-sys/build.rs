@@ -13,8 +13,6 @@
 
 extern crate cc;
 extern crate cmake;
-#[cfg(feature = "openssl-vendored")]
-extern crate openssl_src;
 extern crate pkg_config;
 
 use std::env::VarError;
@@ -200,7 +198,6 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
 #[cfg(feature = "openssl-vendored")]
 fn setup_openssl(config: &mut Config) {
-    use openssl_src;
     let artifacts = openssl_src::Build::new().build();
     let include_dir = artifacts.include_dir().to_path_buf();
     config.define("OPENSSL_INCLUDE_DIR", include_dir.as_os_str());
