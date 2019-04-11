@@ -34,6 +34,7 @@ protobuf-codec = ["protobuf"]
 prost-codec = ["prost", "bytes"]
 secure = ["grpcio-sys/secure"]
 openssl = ["secure", "grpcio-sys/openssl"]
+openssl-vendored = ["secure", "grpcio-sys/openssl-vendored"]
 
 [[example]]
 name = "route_guide_client"
