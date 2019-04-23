@@ -24,6 +24,8 @@ use crate::grpc_sys::{
 };
 #[cfg(feature = "prost-codec")]
 use bytes::Buf;
+#[cfg(feature = "prost-codec")]
+use bytes::BufMut;
 use futures::{Async, Future, Poll};
 use libc::c_void;
 
@@ -341,28 +343,43 @@ pub struct BatchContext {
 
 struct GrpcSliceBuffer {
     buffer: GrpcSlice,
-    buffer_len: usize,
+    buffer_offset: usize,
 }
 
 impl GrpcSliceBuffer {
     pub fn is_full(&self) -> bool {
-        self.buffer_len == self.buffer.len()
+        self.remaining_mut() == 0
     }
 
     /// Returns the remaining slice, `None` means fully consumed
     pub fn append<'a>(&mut self, data: &'a [u8]) -> Option<&'a [u8]> {
-        let internal_slice = unsafe { self.buffer.range_from_unsafe(self.buffer_len) };
+        let internal_slice = unsafe { self.buffer.range_from_unsafe(self.buffer_offset) };
         let data_len = data.len();
         let internal_len = internal_slice.len();
         if data_len > internal_len {
-            self.buffer_len += internal_len;
+            self.buffer_offset += internal_len;
             internal_slice.copy_from_slice(&data[..internal_len]);
             return Some(&data[internal_len..]);
         } else {
-            self.buffer_len += data_len;
+            self.buffer_offset += data_len;
             internal_slice[..data_len].copy_from_slice(data);
             None
         }
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl BufMut for GrpcSliceBuffer {
+    fn remaining_mut(&self) -> usize {
+        self.buffer.len() - self.buffer_offset
+    }
+
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        self.buffer_offset += cnt
+    }
+
+    unsafe fn bytes_mut(&mut self) -> &mut [u8] {
+        self.buffer.range_from_unsafe(self.buffer_offset)
     }
 }
 
@@ -400,7 +417,7 @@ impl MessageWriter {
         let buffer = GrpcSlice::with_capacity(new_size);
         self.reserved_buffer = Some(GrpcSliceBuffer {
             buffer,
-            buffer_len: 0,
+            buffer_offset: 0,
         })
     }
 
@@ -416,7 +433,7 @@ impl MessageWriter {
     pub fn len(&self) -> usize {
         self.reserved_buffer
             .as_ref()
-            .map_or(0, |buf| buf.buffer_len)
+            .map_or(0, |buf| buf.buffer_offset)
             + self.size
     }
 
@@ -471,15 +488,36 @@ impl Write for MessageWriter {
 
         if let Some(buffer) = dummy_buffer {
             // 0-sized buffers shouldn't haven been created
-            debug_assert!(buffer.buffer_len > 0);
+            debug_assert!(buffer.buffer_offset > 0);
             self.append_slice_to_data(if buffer.is_full() {
                 // Current buffer is filled
                 buffer.buffer
             } else {
-                From::from(buffer.buffer.range_to(buffer.buffer_len))
+                From::from(buffer.buffer.range_to(buffer.buffer_offset))
             });
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl BufMut for MessageWriter {
+    fn remaining_mut(&self) -> usize {
+        self.reserved_buffer
+            .as_ref()
+            .map_or(0, |buf| buf.remaining_mut())
+    }
+
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        if let Some(buf) = &mut self.reserved_buffer {
+            buf.advance_mut(cnt)
+        }
+    }
+
+    unsafe fn bytes_mut(&mut self) -> &mut [u8] {
+        self.reserved_buffer
+            .as_mut()
+            .map_or(&mut [], |buf| buf.bytes_mut())
     }
 }
 
@@ -1149,7 +1187,7 @@ mod tests {
     fn test_slice_buffer() {
         let mut buffer = GrpcSliceBuffer {
             buffer: GrpcSlice::with_capacity(5),
-            buffer_len: 0,
+            buffer_offset: 0,
         };
         let should_be_none = buffer.append("Ping".as_bytes());
         assert_eq!(should_be_none, None);

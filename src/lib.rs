@@ -62,7 +62,9 @@ pub use crate::call::server::{
     RequestStream, RpcContext, ServerStreamingSink, ServerStreamingSinkFailure, UnarySink,
     UnarySinkResult,
 };
-pub use crate::call::{MessageReader, MessageWriter, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
+pub use crate::call::{
+    MessageReader, MessageWriter, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags,
+};
 pub use crate::channel::{
     Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, ConnectivityState, LbPolicy,
     OptTarget,

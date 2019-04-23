@@ -64,16 +64,16 @@ pub mod pb_codec {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
-    use bytes::buf::BufMut;
     use prost::Message;
 
-    use super::MessageReader;
     use crate::error::Result;
+    use crate::{MessageReader, MessageWriter};
 
     #[inline]
-    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
-        // TODO: use `MessageWriter`
-        msg.encode(buf).expect("Writing message to buffer failed");
+    pub fn ser<M: Message>(m: &M, writer: &mut MessageWriter) {
+        writer.reserve(m.encoded_len());
+        // Because we've already got a reserved writer, we don't need length checks.
+        m.encode_raw(writer);
     }
 
     #[inline]

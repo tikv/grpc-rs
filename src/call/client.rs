@@ -19,7 +19,7 @@ use crate::grpc_sys;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
-use crate::call::{check_run, Call, MessageReader, Method};
+use crate::call::{check_run, Call, MessageReader, MessageWriter, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};

@@ -20,7 +20,8 @@ use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use crate::call::{
-    BatchContext, Call, MessageReader,MessageWriter, MethodType, RpcStatusCode, SinkBase, StreamingBase,
+    BatchContext, Call, MessageReader, MessageWriter, MethodType, RpcStatusCode, SinkBase,
+    StreamingBase,
 };
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
