@@ -71,9 +71,11 @@ pub mod pr_codec {
 
     #[inline]
     pub fn ser<M: Message>(m: &M, writer: &mut MessageWriter) {
+        use std::io::Write;
         writer.reserve(m.encoded_len());
         // Because we've already got a reserved writer, we don't need length checks.
         m.encode_raw(writer);
+        writer.flush().expect("Writing message to buffer failed");
     }
 
     #[inline]
