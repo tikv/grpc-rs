@@ -23,9 +23,7 @@ use crate::grpc_sys::{
     self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice,
 };
 #[cfg(feature = "prost-codec")]
-use bytes::Buf;
-#[cfg(feature = "prost-codec")]
-use bytes::BufMut;
+use bytes::{Buf, BufMut};
 use futures::{Async, Future, Poll};
 use libc::c_void;
 
