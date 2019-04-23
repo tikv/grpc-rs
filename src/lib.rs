@@ -28,23 +28,17 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 
 */
 
-// TODO: Remove it once Rust's tool_lints is stabilized.
-#![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", allow(new_without_default_derive))]
-#![cfg_attr(feature = "cargo-clippy", allow(new_without_default))]
-#![cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
-#![cfg_attr(feature = "cargo-clippy", allow(option_map_unit_fn))]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::option_map_unit_fn)]
 
 #[macro_use]
 extern crate futures;
-extern crate grpcio_sys as grpc_sys;
-extern crate libc;
+use grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate log;
-#[cfg(feature = "protobuf-codec")]
-extern crate protobuf;
 
-mod async;
 mod call;
 mod channel;
 mod client;
@@ -57,32 +51,36 @@ mod error;
 mod log_util;
 mod metadata;
 mod server;
+mod task;
 
-pub use call::client::{
+pub use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver, StreamingCallSink,
 };
-pub use call::server::{
+pub use crate::call::server::{
     ClientStreamingSink, ClientStreamingSinkResult, Deadline, DuplexSink, DuplexSinkFailure,
     RequestStream, RpcContext, ServerStreamingSink, ServerStreamingSinkFailure, UnarySink,
     UnarySinkResult,
 };
-pub use call::{
-    MessageReader, MessageWriter, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags,
+pub use crate::call::{MessageReader, MessageWriter, Method, MethodType, RpcStatus, RpcStatusCode, WriteFlags};
+pub use crate::channel::{
+    Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, ConnectivityState, LbPolicy,
+    OptTarget,
 };
-pub use channel::{
-    Channel, ChannelBuilder, CompressionAlgorithms, CompressionLevel, LbPolicy, OptTarget,
-};
-pub use client::Client;
+pub use crate::client::Client;
+
 #[cfg(feature = "protobuf-codec")]
-pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
-pub use codec::Marshaller;
+pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
+#[cfg(feature = "prost-codec")]
+pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};
+
+pub use crate::codec::Marshaller;
 #[cfg(feature = "secure")]
-pub use credentials::{
+pub use crate::credentials::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
-pub use env::{EnvBuilder, Environment};
-pub use error::{Error, Result};
-pub use log_util::redirect_log;
-pub use metadata::{Metadata, MetadataBuilder, MetadataIter};
-pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
+pub use crate::env::{EnvBuilder, Environment};
+pub use crate::error::{Error, Result};
+pub use crate::log_util::redirect_log;
+pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
+pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

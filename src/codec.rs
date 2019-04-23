@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use call::{MessageReader, MessageWriter};
-use error::Result;
+use crate::call::{MessageReader, MessageWriter};
+use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut MessageWriter);
@@ -40,8 +40,8 @@ pub mod pb_codec {
     use protobuf::stream::CodedOutputStream;
     use protobuf::{CodedInputStream, Message};
 
-    use call::{MessageReader, MessageWriter};
-    use error::Result;
+    use super::{MessageReader, MessageWriter};
+    use crate::error::Result;
 
     #[inline]
     pub fn ser<T: Message>(t: &T, writer: &mut MessageWriter) {
@@ -59,5 +59,27 @@ pub mod pb_codec {
         let mut m = T::new();
         m.merge_from(&mut s)?;
         Ok(m)
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+pub mod pr_codec {
+    use bytes::buf::BufMut;
+    use prost::Message;
+
+    use super::MessageReader;
+    use crate::error::Result;
+
+    #[inline]
+    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
+        // TODO: use `MessageWriter`
+        msg.encode(buf).expect("Writing message to buffer failed");
+    }
+
+    #[inline]
+    pub fn de<M: Message + Default>(mut reader: MessageReader) -> Result<M> {
+        use bytes::buf::Buf;
+        reader.advance(0);
+        M::decode(reader).map_err(Into::into)
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.4.0"
+version = "0.5.0-alpha"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -10,6 +10,7 @@ documentation = "https://docs.rs/grpcio-sys"
 description = "FFI bindings to gRPC c core library"
 categories = ["external-ffi-bindings", "network-programming"]
 build = "build.rs"
+edition = "2018"
 exclude = [
     "grpc/doc/*",
     "grpc/etc/*",
@@ -52,8 +53,10 @@ libc = "0.2"
 default = []
 secure = []
 openssl = ["secure"]
+openssl-vendored = ["openssl", "openssl-src"]
 
 [build-dependencies]
 cc = "1.0"
 cmake = "0.1.27"
 pkg-config = "0.3"
+openssl-src = { version = "111.0.1", optional = true }

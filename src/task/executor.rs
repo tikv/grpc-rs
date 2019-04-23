@@ -19,12 +19,12 @@ use futures::{Async, Future};
 
 use super::lock::SpinLock;
 use super::CallTag;
-use call::Call;
-use cq::CompletionQueue;
-use error::{Error, Result};
-use grpc_sys::{self, GrpcCallStatus};
+use crate::call::Call;
+use crate::cq::CompletionQueue;
+use crate::error::{Error, Result};
+use crate::grpc_sys::{self, GrpcCallStatus};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 /// A handle to a `Spawn`.
 /// Inner future is expected to be polled in the same thread as cq.
@@ -78,7 +78,7 @@ struct NotifyContext {
 impl NotifyContext {
     /// Notify the completion queue.
     ///
-    /// It only makes sence to call this function from the thread
+    /// It only makes sense to call this function from the thread
     /// that cq is not run on.
     fn notify(&mut self, tag: Box<CallTag>) {
         match self.kicker.kick(tag) {
@@ -166,7 +166,7 @@ pub(crate) struct Executor<'a> {
 }
 
 impl<'a> Executor<'a> {
-    pub fn new(cq: &CompletionQueue) -> Executor {
+    pub fn new(cq: &CompletionQueue) -> Executor<'_> {
         Executor { cq }
     }
 

@@ -24,7 +24,7 @@ use std::sync::Arc;
 use clap::{App, Arg};
 use futures::{future, Future};
 use grpc::{Environment, ServerBuilder};
-use grpc_proto::testing::test_grpc;
+use grpc_proto::testing::create_test_service;
 use grpc_proto::util;
 use interop::InteropTestService;
 
@@ -59,7 +59,7 @@ fn main() {
         .unwrap();
 
     let env = Arc::new(Environment::new(2));
-    let service = test_grpc::create_test_service(InteropTestService);
+    let service = create_test_service(InteropTestService);
     let mut builder = ServerBuilder::new(env).register_service(service);
 
     builder = if use_tls {

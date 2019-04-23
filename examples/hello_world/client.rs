@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate grpcio;
-extern crate grpcio_proto;
 #[macro_use]
 extern crate log;
 
@@ -22,8 +20,8 @@ mod log_util;
 use std::sync::Arc;
 
 use grpcio::{ChannelBuilder, EnvBuilder};
+use grpcio_proto::example::helloworld::GreeterClient;
 use grpcio_proto::example::helloworld::HelloRequest;
-use grpcio_proto::example::helloworld_grpc::GreeterClient;
 
 fn main() {
     let _guard = log_util::init_log(None);
@@ -31,7 +29,7 @@ fn main() {
     let ch = ChannelBuilder::new(env).connect("localhost:50051");
     let client = GreeterClient::new(ch);
 
-    let mut req = HelloRequest::new();
+    let mut req = HelloRequest::new_();
     req.set_name("world".to_owned());
     let reply = client.say_hello(&req).expect("rpc");
     info!("Greeter received: {}", reply.get_message());

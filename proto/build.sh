@@ -22,5 +22,5 @@ while read include package name; do
 done <<EOF
 . grpc/testing testing
 . grpc/health/v1/ health
-example example example
+. grpc/example example
 EOF

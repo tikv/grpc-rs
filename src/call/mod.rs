@@ -18,16 +18,20 @@ use std::io::{self, BufRead, ErrorKind, Read, Write};
 use std::sync::Arc;
 use std::{cmp, mem, ptr, slice, usize};
 
-use cq::CompletionQueue;
+use crate::cq::CompletionQueue;
+use crate::grpc_sys::{
+    self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice,
+};
+#[cfg(feature = "prost-codec")]
+use bytes::Buf;
 use futures::{Async, Future, Poll};
-use grpc_sys::{self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice};
 use libc::c_void;
 
-use async::{self, BatchFuture, BatchType, CallTag, SpinLock};
-use codec::{DeserializeFn, Marshaller, SerializeFn};
-use error::{Error, Result};
+use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
+use crate::error::{Error, Result};
+use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
-pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
+pub use crate::grpc_sys::GrpcStatusCode as RpcStatusCode;
 
 impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
     fn from(src: &'a mut GrpcByteBuffer) -> Self {
@@ -285,6 +289,48 @@ impl Drop for MessageReader {
         unsafe {
             grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
         }
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl Buf for MessageReader {
+    fn remaining(&self) -> usize {
+        self.pending_bytes_count()
+    }
+
+    fn bytes(&self) -> &[u8] {
+        // This is similar but not identical to `BuffRead::fill_buf`, since `self`
+        // is not mutable, we can only return bytes up to the end of the current
+        // slice.
+
+        // Optimization for empty slice
+        if self.buffer_slice.is_empty() {
+            return &[];
+        }
+
+        debug_assert!(self.buffer_offset <= self.buffer_slice.len());
+        self.buffer_slice.range_from(self.buffer_offset)
+    }
+
+    fn advance(&mut self, mut cnt: usize) {
+        // Similar but not identical to `BufRead::consume`. We must also advance
+        // the buffer slice if we have exhausted the current slice.
+
+        // The number of bytes remaining in the current slice.
+        let mut remaining = self.buffer_slice.len() - self.buffer_offset;
+        while remaining <= cnt {
+            self.consume(remaining);
+            if self.pending_bytes_count() == 0 {
+                return;
+            }
+
+            cnt -= remaining;
+            self.buffer_slice = self.reader.next_slice();
+            self.buffer_offset = 0;
+            remaining = self.buffer_slice.len();
+        }
+
+        self.consume(cnt);
     }
 }
 
@@ -731,7 +777,7 @@ impl ShareCall {
             return Err(Error::RpcFinished(self.status.clone()));
         }
 
-        async::check_alive(&self.close_f)
+        task::check_alive(&self.close_f)
     }
 }
 
@@ -1063,6 +1109,38 @@ mod tests {
 
                 assert_eq!(0, reader.pending_bytes_count());
                 assert_eq!(0, reader.read(&mut [1]).unwrap())
+            }
+        }
+    }
+
+    #[cfg(feature = "prost-codec")]
+    #[test]
+    fn test_buf_impl() {
+        for len in 0..1024 + 1 {
+            for n_slice in 1..4 {
+                let source = vec![len as u8; len];
+
+                let mut reader = make_message_reader(&source, n_slice);
+
+                let mut remaining = len * n_slice;
+                let mut count = 100;
+                while reader.remaining() > 0 {
+                    assert_eq!(remaining, reader.remaining());
+                    let bytes = Buf::bytes(&reader);
+                    bytes.iter().for_each(|b| assert_eq!(*b, len as u8));
+                    let mut read = bytes.len();
+                    // We don't have to advance by the whole amount we read.
+                    if read > 5 && len % 2 == 0 {
+                        read -= 5;
+                    }
+                    reader.advance(read);
+                    remaining -= read;
+                    count -= 1;
+                    assert!(count > 0);
+                }
+
+                assert_eq!(0, remaining);
+                assert_eq!(0, reader.remaining());
             }
         }
     }
