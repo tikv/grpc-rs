@@ -35,6 +35,7 @@ prost-codec = ["prost", "bytes"]
 secure = ["grpcio-sys/secure"]
 openssl = ["secure", "grpcio-sys/openssl"]
 openssl-vendored = ["secure", "grpcio-sys/openssl-vendored"]
+no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
 
 [[example]]
 name = "route_guide_client"

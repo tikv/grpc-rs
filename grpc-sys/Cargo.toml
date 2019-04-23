@@ -54,6 +54,7 @@ default = []
 secure = []
 openssl = ["secure"]
 openssl-vendored = ["openssl", "openssl-src"]
+no-omit-frame-pointer = []
 
 [build-dependencies]
 cc = "1.0"

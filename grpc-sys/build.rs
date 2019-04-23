@@ -138,6 +138,9 @@ fn build_grpc(cc: &mut Build, library: &str) {
             config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
             setup_openssl(&mut config)
         }
+        if cfg!(feature = "no-omit-frame-pointer") {
+            config.cxxflag("-fno-omit-frame-pointer");
+        }
         config.build_target(library).uses_cxx11().build()
     };
 
