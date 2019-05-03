@@ -19,6 +19,7 @@ use crate::grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcReque
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
+use crate::auth_context::AuthContext;
 use crate::call::{
     BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
 };
@@ -170,6 +171,13 @@ impl RequestContext {
                 .to_owned();
             grpc_sys::gpr_free(p as _);
             peer
+        }
+    }
+
+    fn auth_context(&self) -> AuthContext {
+        unsafe {
+            let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
+            AuthContext::from_call_ptr(call)
         }
     }
 }
@@ -614,6 +622,19 @@ impl<'a> RpcContext<'a> {
 
     pub fn peer(&self) -> String {
         self.ctx.peer()
+    }
+
+    /// Wrapper around the gRPC Core AuthContext
+    ///
+    /// Note that this doesn't return an option, for ease of use and performance
+    /// in secure binding scenarios.
+    /// (This has no use if the server binds in non-secure mode.)
+    ///
+    /// If the server binds in non-secure mode, methods will have a behaviour
+    /// consistent with client not being authenticated in a secure binding scenario.
+    /// (`peer_is_authenticated`=`false`, etc...)
+    pub fn auth_context(&self) -> AuthContext {
+        self.ctx.auth_context()
     }
 
     /// Spawn the future into current gRPC poll thread.
