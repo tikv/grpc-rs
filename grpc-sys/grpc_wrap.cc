@@ -847,7 +847,7 @@ grpcwrap_ssl_server_credentials_create(
       pem_root_certs, key_cert_pairs, num_key_cert_pairs,
       force_client_auth
           ? GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
-          : GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
+          : GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY,
       NULL);
   gpr_free(key_cert_pairs);
   return creds;
