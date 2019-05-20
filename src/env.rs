@@ -140,6 +140,10 @@ impl Drop for Environment {
             // it's safe to shutdown more than once.
             cq.shutdown()
         }
+
+        for handle in self._handles.drain(..) {
+            handle.join().unwrap();
+        }
     }
 }
 
