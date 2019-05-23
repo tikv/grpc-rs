@@ -357,7 +357,7 @@ impl GrpcSliceBuffer {
         if data_len > internal_len {
             self.buffer_offset += internal_len;
             internal_slice.copy_from_slice(&data[..internal_len]);
-            return Some(&data[internal_len..]);
+            Some(&data[internal_len..])
         } else {
             self.buffer_offset += data_len;
             internal_slice[..data_len].copy_from_slice(data);

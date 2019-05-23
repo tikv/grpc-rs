@@ -412,7 +412,7 @@ impl GrpcSlice {
         }
     }
 
-    pub unsafe fn range_from_unsafe(&self, offset: usize) -> &mut [u8] {
+    pub unsafe fn range_from_unsafe(&mut self, offset: usize) -> &mut [u8] {
         let mut len = 0;
         let ptr = grpcwrap_slice_raw_offset(self, offset, &mut len);
         slice::from_raw_parts_mut(ptr as _, len)
