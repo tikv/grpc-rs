@@ -203,14 +203,21 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
 #[cfg(feature = "openssl-vendored")]
 fn setup_openssl(config: &mut Config) {
-    let artifacts = openssl_src::Build::new().build();
-    let include_dir = artifacts.include_dir().to_path_buf();
-    config.define("OPENSSL_INCLUDE_DIR", include_dir.as_os_str());
-    println!(
-        "cargo:rustc-link-search=native={}",
-        artifacts.lib_dir().to_path_buf().to_string_lossy()
-    );
-    println!("cargo:include={}", include_dir.to_string_lossy());
+    // openssl-sys uses openssl-src to build the library. openssl-src uses
+    // configure/make to build the library which makes it hard to detect
+    // what's the actual path of the library. Here assumes the directory
+    // structure as follow (which is the behavior of 0.9.47):
+    // install_dir/
+    //     include/
+    //     lib/
+    // Remove the hack when sfackler/rust-openssl#1117 is resolved.
+    config.register_dep("openssl");
+    if env::var("DEP_OPENSSL_ROOT").is_err() {
+        let include_str = env::var("DEP_OPENSSL_INCLUDE").unwrap();
+        let include_dir = Path::new(&include_str);
+        let root_dir = format!("{}", include_dir.parent().unwrap().display());
+        env::set_var("DEP_OPENSSL_ROOT", &root_dir);
+    }
 }
 
 #[cfg(not(feature = "openssl-vendored"))]
