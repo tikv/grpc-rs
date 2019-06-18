@@ -16,12 +16,15 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::env::VarError;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
 use cc::Build;
 use cmake::Config;
+use grep::regex::RegexMatcher;
+use grep::searcher::sinks::UTF8;
 use pkg_config::{Config as PkgConfig, Library};
+use walkdir::WalkDir;
 
 const GRPC_VERSION: &'static str = "1.17.2";
 
@@ -234,7 +237,68 @@ fn get_env(name: &str) -> Option<String> {
     }
 }
 
+/**
+ * Generate the bindings to C-core
+ */
+fn bindgen_grpc() {
+    let bindings = config_from_headers()
+        .clang_arg("-I./grpc/include")
+        .whitelist_function(r"\bgrpc_.*")
+        .whitelist_function(r"\bgpr_.*")
+        .whitelist_function(r"\bgrpcwrap_.*")
+        .rustified_enum(r"\bgrpc_.*")
+        .rustified_enum(r"\bgpr_.*")
+        .generate()
+        .expect("Unable to generate grpc bindings");
+
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("grpc-bindings.rs"))
+        .expect("Couldn't write bindings!");
+}
+
+/**
+ * Use grep to search header files with API interface in the
+ * include/grpc directory and add these header files to bindgen's config
+ */
+fn config_from_headers() -> bindgen::Builder {
+    let mut config = bindgen::Builder::default();
+    let mut headers: Vec<String> = Vec::new();
+    let matcher = RegexMatcher::new("GRPCAPI|GPRAPI").expect("can't resolve pattern");
+
+    for result in WalkDir::new(Path::new("./grpc/include")) {
+        let dent = match result {
+            Ok(dent) => dent,
+            Err(err) => {
+                eprintln!("{}", err);
+                continue;
+            }
+        };
+        if !dent.file_type().is_file() {
+            continue;
+        }
+        let result = grep::searcher::Searcher::new().search_path(
+            &matcher,
+            dent.path(),
+            UTF8(|_, _| {
+                headers.push(String::from(dent.path().to_str().unwrap()));
+                Ok(true)
+            }),
+        );
+        if let Err(err) = result {
+            eprintln!("{}: {}", dent.path().display(), err);
+        }
+    }
+
+    for s in &headers {
+        config = config.header(s.as_str());
+    }
+    config.header("grpc_wrap.cc")
+}
+
 fn main() {
+    bindgen_grpc();
+
     let mut cc = Build::new();
 
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
