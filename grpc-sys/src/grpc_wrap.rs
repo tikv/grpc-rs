@@ -1,11 +1,7 @@
 use super::*;
 
-use std::os::raw;
-use std::ptr;
-
-use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
+use std::slice;
 use std::time::Duration;
-use std::{mem, slice};
 
 pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: u32 = 0x0000_0010;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 0x0000_0020;

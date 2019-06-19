@@ -20,7 +20,7 @@ use std::{cmp, mem, ptr, slice, usize};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{
-    self, grpcwrap_batch_context, grpc_byte_buffer_reader, grpc_call, grpc_call_error, grpc_slice,
+    self, grpc_byte_buffer_reader, grpc_call, grpc_call_error, grpc_slice, grpcwrap_batch_context,
 };
 #[cfg(feature = "prost-codec")]
 use bytes::Buf;

@@ -59,6 +59,9 @@ addons:
       - llvm-toolchain-trusty-5.0
     packages:
       - clang-tidy-5.0
+      - llvm-3.9-dev
+      - libclang-3.9-dev
+      - clang-3.9
 
 script:
   - rustup component add rustfmt && cargo fmt --all -- --check

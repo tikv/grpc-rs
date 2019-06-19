@@ -30,8 +30,8 @@ use crate::task::Kicker;
 use crate::CallOption;
 
 pub use crate::grpc_sys::{
-    grpc_compression_algorithm as CompressionAlgorithms, grpc_compression_level as CompressionLevel,
-    grpc_connectivity_state as ConnectivityState,
+    grpc_compression_algorithm as CompressionAlgorithms,
+    grpc_compression_level as CompressionLevel, grpc_connectivity_state as ConnectivityState,
 };
 
 // hack: add a '\0' to be compatible with c string without extra allocation.

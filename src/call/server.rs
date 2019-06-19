@@ -15,7 +15,9 @@ use std::ffi::CStr;
 use std::sync::Arc;
 use std::{result, slice};
 
-use crate::grpc_sys::{self, gpr_clock_type, gpr_timespec, grpc_call_error, grpcwrap_request_call_context};
+use crate::grpc_sys::{
+    self, gpr_clock_type, gpr_timespec, grpc_call_error, grpcwrap_request_call_context,
+};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
@@ -223,7 +225,10 @@ impl UnaryRequestContext {
             return execute(self.request, cq, reader, handler);
         }
 
-        let status = RpcStatus::new(RpcStatusCode::GRPC_STATUS_INTERNAL, Some("No payload".to_owned()));
+        let status = RpcStatus::new(
+            RpcStatusCode::GRPC_STATUS_INTERNAL,
+            Some("No payload".to_owned()),
+        );
         self.request.call(cq.clone()).abort(&status)
     }
 }
@@ -738,7 +743,10 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
     let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(&RpcStatus::new(RpcStatusCode::GRPC_STATUS_UNIMPLEMENTED, None))
+    call.abort(&RpcStatus::new(
+        RpcStatusCode::GRPC_STATUS_UNIMPLEMENTED,
+        None,
+    ))
 }
 
 // Helper function to call handler.

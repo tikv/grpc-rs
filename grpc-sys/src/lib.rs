@@ -14,9 +14,11 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
-
-include!(concat!(env!("OUT_DIR"), "/grpc-bindings.rs"));
-
+#[allow(clippy::all)]
+mod bindings {
+    include!(concat!(env!("OUT_DIR"), "/grpc-bindings.rs"));
+}
 mod grpc_wrap;
 
+pub use bindings::*;
 pub use grpc_wrap::*;
