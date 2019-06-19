@@ -20,7 +20,7 @@ use std::{cmp, mem, ptr, slice, usize};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{
-    self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice,
+    self, grpcwrap_batch_context, grpc_byte_buffer_reader, grpc_call, grpc_call_error, grpc_slice,
 };
 #[cfg(feature = "prost-codec")]
 use bytes::Buf;
@@ -31,9 +31,9 @@ use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
-pub use crate::grpc_sys::GrpcStatusCode as RpcStatusCode;
+pub use crate::grpc_sys::grpc_status_code as RpcStatusCode;
 
-impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
+impl<'a> From<&'a mut GrpcByteBuffer> for grpc_byte_buffer_reader {
     fn from(src: &'a mut GrpcByteBuffer) -> Self {
         let mut reader;
         unsafe {
@@ -46,7 +46,7 @@ impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
 }
 
 pub struct GrpcByteBuffer {
-    pub raw: *mut grpc_sys::GrpcByteBuffer,
+    pub raw: *mut grpc_sys::grpc_byte_buffer,
 }
 
 impl Default for GrpcByteBuffer {
@@ -59,8 +59,8 @@ impl Default for GrpcByteBuffer {
     }
 }
 
-impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
-    fn from(slice: &'a mut [GrpcSlice]) -> Self {
+impl<'a> From<&'a mut [grpc_slice]> for GrpcByteBuffer {
+    fn from(slice: &'a mut [grpc_slice]) -> Self {
         unsafe {
             GrpcByteBuffer {
                 raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
@@ -161,7 +161,7 @@ impl RpcStatus {
 
     /// Create a new [`RpcStatus`] that status code is Ok.
     pub fn ok() -> RpcStatus {
-        RpcStatus::new(RpcStatusCode::Ok, None)
+        RpcStatus::new(RpcStatusCode::GRPC_STATUS_OK, None)
     }
 }
 
@@ -171,8 +171,8 @@ impl RpcStatus {
 /// to operate the reader.
 pub struct MessageReader {
     _buf: GrpcByteBuffer,
-    reader: GrpcByteBufferReader,
-    buffer_slice: GrpcSlice,
+    reader: grpc_byte_buffer_reader,
+    buffer_slice: grpc_slice,
     buffer_offset: usize,
     length: usize,
 }
@@ -304,7 +304,7 @@ impl Buf for MessageReader {
 
 /// Context for batch request.
 pub struct BatchContext {
-    ctx: *mut GrpcBatchContext,
+    ctx: *mut grpcwrap_batch_context,
 }
 
 impl BatchContext {
@@ -314,7 +314,7 @@ impl BatchContext {
         }
     }
 
-    pub fn as_ptr(&self) -> *mut GrpcBatchContext {
+    pub fn as_ptr(&self) -> *mut grpcwrap_batch_context {
         self.ctx
     }
 
@@ -331,7 +331,7 @@ impl BatchContext {
     pub fn rpc_status(&self) -> RpcStatus {
         let status =
             unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) };
-        let details = if status == RpcStatusCode::Ok {
+        let details = if status == RpcStatusCode::GRPC_STATUS_OK {
             None
         } else {
             unsafe {
@@ -351,7 +351,7 @@ impl BatchContext {
     /// Fetch the response bytes of the rpc call.
     pub fn recv_message(&mut self) -> Option<MessageReader> {
         let mut buf = self.take_recv_message()?;
-        let reader = GrpcByteBufferReader::from(&mut buf);
+        let reader = grpc_byte_buffer_reader::from(&mut buf);
         let length = reader.len();
 
         Some(MessageReader {
@@ -371,7 +371,7 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
+fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
     let tag_box = Box::new(tag);
     (
         tag_box.batch_ctx().unwrap().as_ptr(),
@@ -382,12 +382,12 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
 where
-    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+    F: FnOnce(*mut grpcwrap_batch_context, *mut c_void) -> grpc_call_error,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
     let code = f(batch_ptr, tag_ptr);
-    if code != GrpcCallStatus::Ok {
+    if code != grpc_call_error::GRPC_CALL_OK {
         unsafe {
             Box::from_raw(tag_ptr);
         }
@@ -402,14 +402,14 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    pub call: *mut GrpcCall,
+    pub call: *mut grpc_call,
     pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
 
 impl Call {
-    pub unsafe fn from_raw(call: *mut grpc_sys::GrpcCall, cq: CompletionQueue) -> Call {
+    pub unsafe fn from_raw(call: *mut grpc_sys::grpc_call, cq: CompletionQueue) -> Call {
         assert!(!call.is_null());
         Call { call, cq }
     }
@@ -534,7 +534,7 @@ impl Call {
                 tag_ptr as *mut c_void,
             )
         };
-        if code != GrpcCallStatus::Ok {
+        if code != grpc_call_error::GRPC_CALL_OK {
             unsafe {
                 Box::from_raw(tag_ptr);
             }
@@ -813,7 +813,7 @@ mod tests {
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
         let mut slices = vec![From::from(source); n_slice];
         let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
-        let reader = GrpcByteBufferReader::from(&mut buf);
+        let reader = grpc_byte_buffer_reader::from(&mut buf);
         let length = reader.len();
 
         MessageReader {

@@ -243,11 +243,13 @@ fn get_env(name: &str) -> Option<String> {
 fn bindgen_grpc() {
     let bindings = config_from_headers()
         .clang_arg("-I./grpc/include")
+        .clang_arg("-DGRPC_SYS_SECURE")
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
         .rustified_enum(r"\bgrpc_.*")
         .rustified_enum(r"\bgpr_.*")
+        .no_copy("grpc_slice")
         .generate()
         .expect("Unable to generate grpc bindings");
 

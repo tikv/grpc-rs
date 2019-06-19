@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
 
-use crate::grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
+use crate::grpc_sys::{self, gpr_timespec, grpc_channel, grpc_channel_args};
 use libc::{self, c_char, c_int};
 
 use crate::call::{Call, Method};
@@ -30,8 +30,8 @@ use crate::task::Kicker;
 use crate::CallOption;
 
 pub use crate::grpc_sys::{
-    GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
-    GrpcConnectivityState as ConnectivityState,
+    grpc_compression_algorithm as CompressionAlgorithms, grpc_compression_level as CompressionLevel,
+    grpc_connectivity_state as ConnectivityState,
 };
 
 // hack: add a '\0' to be compatible with c string without extra allocation.
@@ -512,11 +512,11 @@ mod secure_channel {
 }
 
 pub struct ChannelArgs {
-    args: *mut GrpcChannelArgs,
+    args: *mut grpc_channel_args,
 }
 
 impl ChannelArgs {
-    pub fn as_ptr(&self) -> *const GrpcChannelArgs {
+    pub fn as_ptr(&self) -> *const grpc_channel_args {
         self.args
     }
 }
@@ -529,7 +529,7 @@ impl Drop for ChannelArgs {
 
 struct ChannelInner {
     _env: Arc<Environment>,
-    channel: *mut GrpcChannel,
+    channel: *mut grpc_channel,
 }
 
 impl ChannelInner {
@@ -565,7 +565,7 @@ unsafe impl Send for Channel {}
 unsafe impl Sync for Channel {}
 
 impl Channel {
-    fn new(cq: CompletionQueue, env: Arc<Environment>, channel: *mut GrpcChannel) -> Channel {
+    fn new(cq: CompletionQueue, env: Arc<Environment>, channel: *mut grpc_channel) -> Channel {
         Channel {
             inner: Arc::new(ChannelInner { _env: env, channel }),
             cq,
@@ -585,7 +585,7 @@ impl Channel {
             let ch = self.inner.channel;
             let cq = cq_ref.as_ptr();
             // Do not timeout.
-            let timeout = GprTimespec::inf_future();
+            let timeout = gpr_timespec::inf_future();
             grpc_sys::grpcwrap_channel_create_call(
                 ch,
                 ptr::null_mut(),
@@ -596,7 +596,6 @@ impl Channel {
                 ptr::null(),
                 0,
                 timeout,
-                ptr::null_mut(),
             )
         };
         let call = unsafe { Call::from_raw(raw_call, self.cq.clone()) };
@@ -617,7 +616,7 @@ impl Channel {
             let method_len = method.name.len();
             let timeout = opt
                 .get_timeout()
-                .map_or_else(GprTimespec::inf_future, GprTimespec::from);
+                .map_or_else(gpr_timespec::inf_future, gpr_timespec::from);
             grpc_sys::grpcwrap_channel_create_call(
                 ch,
                 ptr::null_mut(),
@@ -628,7 +627,6 @@ impl Channel {
                 ptr::null(),
                 0,
                 timeout,
-                ptr::null_mut(),
             )
         };
 

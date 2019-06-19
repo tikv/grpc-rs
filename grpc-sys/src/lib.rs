@@ -18,3 +18,5 @@
 include!(concat!(env!("OUT_DIR"), "/grpc-bindings.rs"));
 
 mod grpc_wrap;
+
+pub use grpc_wrap::*;

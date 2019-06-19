@@ -26,11 +26,11 @@ fn poll_queue(cq: Arc<CompletionQueueHandle>) {
     let cq = CompletionQueue::new(cq, id);
     loop {
         let e = cq.next();
-        match e.event_type {
-            EventType::QueueShutdown => break,
+        match e.type_ {
+            EventType::GRPC_QUEUE_SHUTDOWN => break,
             // timeout should not happen in theory.
-            EventType::QueueTimeout => continue,
-            EventType::OpComplete => {}
+            EventType::GRPC_QUEUE_TIMEOUT => continue,
+            EventType::GRPC_OP_COMPLETE => {}
         }
 
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };

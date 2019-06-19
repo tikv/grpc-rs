@@ -22,7 +22,7 @@ use super::CallTag;
 use crate::call::Call;
 use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
-use crate::grpc_sys::{self, GrpcCallStatus};
+use crate::grpc_sys::{self, grpc_call_error};
 
 type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
@@ -45,7 +45,7 @@ impl Kicker {
         unsafe {
             let ptr = Box::into_raw(tag);
             let status = grpc_sys::grpcwrap_call_kick_completion_queue(self.call.call, ptr as _);
-            if status == GrpcCallStatus::Ok {
+            if status == grpc_call_error::GRPC_CALL_OK {
                 Ok(())
             } else {
                 Err(Error::CallFailure(status))

@@ -15,7 +15,7 @@ use std::fmt::{self, Display, Formatter};
 use std::{error, result};
 
 use crate::call::RpcStatus;
-use crate::grpc_sys::GrpcCallStatus;
+use crate::grpc_sys::grpc_call_error;
 
 #[cfg(feature = "prost-codec")]
 use prost::DecodeError;
@@ -28,7 +28,7 @@ pub enum Error {
     /// Codec error.
     Codec(Box<dyn error::Error + Send + Sync>),
     /// Failed to start an internal async call.
-    CallFailure(GrpcCallStatus),
+    CallFailure(grpc_call_error),
     /// Rpc request fail.
     RpcFailure(RpcStatus),
     /// Try to write to a finished rpc call.
