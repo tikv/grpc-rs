@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial 
 sudo: false
 language: rust
 cache:
@@ -56,12 +56,12 @@ before_script:
 addons:
   apt:
     sources:
-      - llvm-toolchain-trusty-5.0
+      - llvm-toolchain-xenial-7
     packages:
-      - clang-tidy-5.0
-      - llvm-3.9-dev
-      - libclang-3.9-dev
-      - clang-3.9
+      - clang-tidy-7
+      - llvm-7-dev
+      - libclang-7-dev
+      - clang-7
 
 script:
   - rustup component add rustfmt && cargo fmt --all -- --check
