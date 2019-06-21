@@ -15,7 +15,7 @@
 #![allow(renamed_and_removed_lints)]
 // remove this after Rust's tool_lints is stabilized
 
-use libc::{c_char, c_int, c_uint, c_void, int32_t, int64_t, size_t, uint32_t, uint8_t};
+use libc::{c_char, c_int, c_uint, c_void, size_t};
 use std::time::Duration;
 use std::{mem, slice};
 
@@ -46,8 +46,8 @@ pub enum GprClockType {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct GprTimespec {
-    pub tv_sec: int64_t,
-    pub tv_nsec: int32_t,
+    pub tv_sec: i64,
+    pub tv_nsec: i32,
 
     /// Against which clock was this time measured? (or [`GprClockType::Timespan`] if this is a
     /// relative time measure)
@@ -63,8 +63,8 @@ impl GprTimespec {
 impl From<Duration> for GprTimespec {
     fn from(dur: Duration) -> GprTimespec {
         GprTimespec {
-            tv_sec: dur.as_secs() as int64_t,
-            tv_nsec: dur.subsec_nanos() as int32_t,
+            tv_sec: dur.as_secs() as i64,
+            tv_nsec: dur.subsec_nanos() as i32,
             clock_type: GprClockType::Timespan,
         }
     }
@@ -352,19 +352,19 @@ pub struct GrpcMetadataArray {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GrpcSliceRefCounted {
-    bytes: *mut uint8_t,
+    bytes: *mut u8,
     length: size_t,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GrpcSliceInlined {
-    length: uint8_t,
+    length: u8,
     // TODO: use size_of when it becomes a const function.
     #[cfg(target_pointer_width = "64")]
-    bytes: [uint8_t; 23],
+    bytes: [u8; 23],
     #[cfg(target_pointer_width = "32")]
-    bytes: [uint8_t; 11],
+    bytes: [u8; 11],
 }
 
 #[repr(C)]
@@ -463,12 +463,12 @@ impl GrpcByteBufferReader {
     }
 }
 
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: uint32_t = 0x0000_0010;
-pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: uint32_t = 0x0000_0020;
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: uint32_t = 0x0000_0040;
+pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: u32 = 0x0000_0010;
+pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 0x0000_0020;
+pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: u32 = 0x0000_0040;
 
-pub const GRPC_WRITE_BUFFER_HINT: uint32_t = 0x0000_0001;
-pub const GRPC_WRITE_NO_COMPRESS: uint32_t = 0x0000_0002;
+pub const GRPC_WRITE_BUFFER_HINT: u32 = 0x0000_0001;
+pub const GRPC_WRITE_NO_COMPRESS: u32 = 0x0000_0002;
 
 pub enum GrpcMetadata {}
 pub enum GrpcCallDetails {}
@@ -552,7 +552,7 @@ extern "C" {
     pub fn grpcwrap_channel_create_call(
         channel: *mut GrpcChannel,
         parent_call: *mut GrpcCall,
-        propagation_mask: uint32_t,
+        propagation_mask: u32,
         cq: *mut GrpcCompletionQueue,
         method: *const c_char,
         method_len: size_t,
@@ -612,7 +612,7 @@ extern "C" {
     ) -> *const GrpcMetadataArray;
     pub fn grpcwrap_batch_context_recv_close_on_server_cancelled(
         ctx: *mut GrpcBatchContext,
-    ) -> int32_t;
+    ) -> i32;
 
     pub fn grpcwrap_call_kick_completion_queue(
         call: *mut GrpcCall,
@@ -624,16 +624,16 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
         send_buffer: *const c_char,
         send_buffer_len: size_t,
-        write_flags: uint32_t,
+        write_flags: u32,
         initial_metadata: *mut GrpcMetadataArray,
-        initial_metadata_flags: uint32_t,
+        initial_metadata_flags: u32,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
     pub fn grpcwrap_call_start_client_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
         initial_metadata: *mut GrpcMetadataArray,
-        initial_metadata_flags: uint32_t,
+        initial_metadata_flags: u32,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
     pub fn grpcwrap_call_start_server_streaming(
@@ -641,16 +641,16 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
         send_buffer: *const c_char,
         send_buffer_len: size_t,
-        write_flags: uint32_t,
+        write_flags: u32,
         initial_metadata: *mut GrpcMetadataArray,
-        initial_metadata_flags: uint32_t,
+        initial_metadata_flags: u32,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
     pub fn grpcwrap_call_start_duplex_streaming(
         call: *mut GrpcCall,
         ctx: *mut GrpcBatchContext,
         initial_metadata: *mut GrpcMetadataArray,
-        initial_metadata_flags: uint32_t,
+        initial_metadata_flags: u32,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
     pub fn grpcwrap_call_recv_initial_metadata(
@@ -663,8 +663,8 @@ extern "C" {
         ctx: *mut GrpcBatchContext,
         send_buffer: *const c_char,
         send_buffer_len: size_t,
-        write_flags: uint32_t,
-        send_empty_initial_metadata: uint32_t,
+        write_flags: u32,
+        send_empty_initial_metadata: u32,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
     pub fn grpcwrap_call_send_close_from_client(
@@ -678,10 +678,10 @@ extern "C" {
         status_details: *const c_char,
         status_details_len: size_t,
         trailing_metadata: *mut GrpcMetadataArray,
-        send_empty_metadata: int32_t,
+        send_empty_metadata: i32,
         optional_send_buffer: *const c_char,
         buffer_len: size_t,
-        write_flags: uint32_t,
+        write_flags: u32,
         tag: *mut c_void,
     ) -> GrpcCallStatus;
     pub fn grpcwrap_call_recv_message(
@@ -717,7 +717,7 @@ extern "C" {
         method: *const c_char,
         host: *const c_char,
         payload_handling: GrpcServerRegisterMethodPayloadHandling,
-        flags: uint32_t,
+        flags: u32,
     ) -> *mut c_void;
     pub fn grpc_server_create(
         args: *const GrpcChannelArgs,
