@@ -244,6 +244,7 @@ fn bindgen_grpc() {
     let bindings = config_from_headers()
         .clang_arg("-I./grpc/include")
         .clang_arg("-DGRPC_SYS_SECURE")
+        .clang_arg("-std=c++11")
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
