@@ -38,8 +38,9 @@ matrix:
     os: windows
     rust: stable
     before_script: true
+    before_install:
+      - choco install yasm activeperl ninja 
     script:
-      - choco install yasm
       - cargo build --target x86_64-pc-windows-msvc
       - cargo test --all --target x86_64-pc-windows-msvc
 
