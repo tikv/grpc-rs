@@ -13,7 +13,6 @@
 
 #[allow(dead_code)]
 #[allow(clippy::all)]
-#[allow(bare_trait_objects)]
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
     include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.testing.rs"));
@@ -116,7 +115,6 @@ pub mod testing {
 }
 
 #[allow(dead_code)]
-#[allow(bare_trait_objects)]
 pub mod example {
     pub mod helloworld {
         include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
@@ -129,7 +127,6 @@ pub mod example {
 }
 
 #[allow(dead_code)]
-#[allow(bare_trait_objects)]
 pub mod health {
     pub mod v1 {
         pub mod health {
