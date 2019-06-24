@@ -38,14 +38,6 @@ matrix:
     os: windows
     rust: stable
     before_script: true
-    install:
-      - Invoke-WebRequest -Uri https://static.rust-lang.org/dist/rust-nightly-x86_64-pc-windows-msvc.exe -OutFile rust-nightly-x86_64-pc-windows-msvc.exe
-      - rust-nightly-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
-      - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
-      - git submodule -q update --init --recursive
-      - choco install yasm
-      - rustc -V
-      - cargo -V
     script:
       - cargo build --target x86_64-pc-windows-msvc
       - cargo test --all --target x86_64-pc-windows-msvc
