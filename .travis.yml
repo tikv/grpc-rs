@@ -1,28 +1,57 @@
-dist: trusty
+dist: xenial
 sudo: false
 language: rust
-cache:
-  directories:
-    - $HOME/.cargo
-    - $HOME/.cache
-    - $TRAVIS_BUILD_DIR/target
-before_cache:
-  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
+cache: cargo
 
 env:
   global:
     - RUST_BACKTRACE=1
     - RUSTFLAGS="--deny=warnings"
 
-os:
-  - linux
-rust:
-  - stable
-  - beta
-  - nightly
 matrix:
   include:
-  - os: osx
+  - name: linux-stable
+    rust: stable
+    addons:
+      apt:
+        sources:
+          - llvm-toolchain-xenial-7
+        packages:
+          - clang-tidy
+          - llvm-dev
+          - libclang-dev
+          - clang
+
+  - name: linux-nightly
+    rust: nightly
+    addons:
+      apt:
+        sources:
+          - llvm-toolchain-xenial-7
+        packages:
+          - clang-tidy
+          - llvm-dev
+          - libclang-dev
+          - clang
+
+  - name: win-stable
+    os: windows
+    rust: stable
+    before_script: true
+    install:
+      - Invoke-WebRequest -Uri https://static.rust-lang.org/dist/rust-nightly-x86_64-pc-windows-msvc.exe -OutFile rust-nightly-x86_64-pc-windows-msvc.exe
+      - rust-nightly-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
+      - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
+      - git submodule -q update --init --recursive
+      - choco install yasm
+      - rustc -V
+      - cargo -V
+    script:
+      - cargo build --target x86_64-pc-windows-msvc
+      - cargo test --all --target x86_64-pc-windows-msvc
+
+  - name: mac-stable
+    os: osx
     rust: stable
 
 before_script:
@@ -52,13 +81,6 @@ before_script:
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-
-addons:
-  apt:
-    sources:
-      - llvm-toolchain-trusty-5.0
-    packages:
-      - clang-tidy-5.0
 
 script:
   - rustup component add rustfmt && cargo fmt --all -- --check
