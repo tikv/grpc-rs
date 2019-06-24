@@ -40,7 +40,7 @@ matrix:
     before_script: true
     install:
       - choco install -y nuget.commandline
-      - choco install -y yasm activeperl ninja llvm
+      - choco install -y yasm activeperl ninja llvm cmake go python 
     script:
       - cargo build --target x86_64-pc-windows-msvc
       - cargo test --all --target x86_64-pc-windows-msvc
