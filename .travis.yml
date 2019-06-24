@@ -42,8 +42,8 @@ matrix:
       - choco install -y nuget.commandline
       - choco install -y yasm activeperl ninja cmake golang python 
     script:
-      - cargo build --target x86_64-pc-windows-msvc
-      - cargo test --all --target x86_64-pc-windows-msvc
+      - cargo build
+      - cargo test --all
 
   - name: mac-stable
     os: osx
