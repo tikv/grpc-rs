@@ -115,6 +115,7 @@ pub mod testing {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::all)]
 pub mod example {
     pub mod helloworld {
         include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
@@ -127,6 +128,7 @@ pub mod example {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::all)]
 pub mod health {
     pub mod v1 {
         pub mod health {
