@@ -39,6 +39,7 @@ matrix:
     rust: stable
     before_script: true
     script:
+      - choco install yasm
       - cargo build --target x86_64-pc-windows-msvc
       - cargo test --all --target x86_64-pc-windows-msvc
 
