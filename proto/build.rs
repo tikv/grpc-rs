@@ -92,6 +92,7 @@ fn desc_to_module_prost(descriptor: &Path) {
             .map(|m| format!("{}/{}.rs", env::var("OUT_DIR").unwrap(), m))
             .collect::<Vec<_>>(),
         &env::var("OUT_DIR").unwrap(),
+        protobuf_build::GenOpt::all(),
     );
 }
 
