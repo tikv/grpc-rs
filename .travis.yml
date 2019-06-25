@@ -3,6 +3,8 @@ sudo: false
 language: 
     - rust
     - go
+    - python
+    - cpp
 cache: cargo
 
 env:
@@ -41,7 +43,7 @@ matrix:
     rust: stable
     before_script: true
     install:
-      - choco install -y yasm activeperl ninja cmake golang python 
+      - choco install -y yasm activeperl ninja cmake 
       - go version
       - rustc -V
     script:
