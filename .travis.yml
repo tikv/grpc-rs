@@ -1,6 +1,6 @@
 dist: xenial
 sudo: false
-language: rust cpp
+language: rust cpp go
 cache: cargo
 
 env:
@@ -39,7 +39,6 @@ matrix:
     rust: stable
     before_script: true
     install:
-      - choco install -y nuget.commandline
       - choco install -y yasm activeperl ninja cmake golang python 
     script:
       - cargo build
