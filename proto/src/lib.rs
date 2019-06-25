@@ -11,8 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[allow(dead_code)]
-#[allow(clippy::all)]
+#[allow(clippy::large_enum_variant)]
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
     include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.testing.rs"));
@@ -114,7 +113,6 @@ pub mod testing {
     }
 }
 
-#[allow(dead_code)]
 pub mod example {
     pub mod helloworld {
         include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
@@ -126,7 +124,6 @@ pub mod example {
     }
 }
 
-#[allow(dead_code)]
 pub mod health {
     pub mod v1 {
         pub mod health {
