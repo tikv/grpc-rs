@@ -1,28 +1,54 @@
-dist: trusty
+dist: xenial
 sudo: false
 language: rust
-cache:
-  directories:
-    - $HOME/.cargo
-    - $HOME/.cache
-    - $TRAVIS_BUILD_DIR/target
-before_cache:
-  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
+cache: cargo
 
 env:
   global:
     - RUST_BACKTRACE=1
     - RUSTFLAGS="--deny=warnings"
 
-os:
-  - linux
-rust:
-  - stable
-  - beta
-  - nightly
 matrix:
   include:
-  - os: osx
+  - name: linux-stable
+    rust: stable
+    addons:
+      apt:
+        sources:
+          - llvm-toolchain-xenial-7
+        packages:
+          - clang-tidy
+          - llvm-dev
+          - libclang-dev
+          - clang
+
+  - name: linux-nightly
+    rust: nightly
+    addons:
+      apt:
+        sources:
+          - llvm-toolchain-xenial-7
+        packages:
+          - clang-tidy
+          - llvm-dev
+          - libclang-dev
+          - clang
+
+  - name: win-stable
+    os: windows
+    rust: stable
+    before_script: true
+    install:
+      - choco install golang yasm activeperl ninja
+      - export PATH="/c/Go/bin:$PATH"
+      - go version
+      - rustc -V
+    script:
+      - cargo build
+      - cargo test --all
+
+  - name: mac-stable
+    os: osx
     rust: stable
 
 before_script:
@@ -53,13 +79,6 @@ before_script:
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
-addons:
-  apt:
-    sources:
-      - llvm-toolchain-trusty-5.0
-    packages:
-      - clang-tidy-5.0
-
 script:
   - rustup component add rustfmt && cargo fmt --all -- --check
   - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
@@ -72,3 +91,4 @@ script:
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
   - cargo test --features "openssl" --all
   - cargo test --features "openssl-vendored" --all
+
