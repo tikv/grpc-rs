@@ -37,7 +37,7 @@ use crate::bench;
 use crate::error::Error;
 use crate::util::{self, CpuRecorder, Histogram};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::new_();
