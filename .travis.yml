@@ -1,8 +1,6 @@
 dist: xenial
 sudo: false
-language: 
-    - rust
-
+language: rust
 cache: cargo
 
 env:
