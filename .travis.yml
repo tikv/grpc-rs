@@ -40,7 +40,7 @@ matrix:
     before_script: true
     install:
       - choco install golang
-      - PowerShell -Command 'dir -r C:\ -Name go'
+      - PowerShell -Command 'dir -r C:\ -Name go.exe'
       - GOPATH=/c/Go/src/cmd
       - go version
       - rustc -V
