@@ -39,8 +39,8 @@ matrix:
     rust: stable
     before_script: true
     install:
-      - choco install -y golang
-      - dir -r C:\ -Name gofmt 
+      - choco install golang
+      - dir -r C:\ -Name gofmt
       - go version
       - rustc -V
     script:
