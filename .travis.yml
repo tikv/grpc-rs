@@ -41,7 +41,7 @@ matrix:
     install:
       - choco install golang
       - PowerShell -Command 'dir -r C:\ -Name go.exe'
-      - PowerShell -Command 'SET PATH=%PATH%;/c/Go/bin'
+      - export PATH="/c/Go/bin;$PATH"
       - go version
       - rustc -V
     script:
