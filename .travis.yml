@@ -2,7 +2,7 @@ dist: xenial
 sudo: false
 language: 
     - rust
-    - go
+
 cache: cargo
 
 env:
@@ -39,10 +39,10 @@ matrix:
   - name: win-stable
     os: windows
     rust: stable
-    go: 1.11.x
     before_script: true
     install:
-      - choco install -y yasm activeperl ninja
+      - choco install -y golang
+      - dir -r C:\ -Name gofmt 
       - go version
       - rustc -V
     script:

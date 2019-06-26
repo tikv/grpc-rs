@@ -1,4 +1,0 @@
-[submodule "grpc-sys/grpc"]
-	path = grpc-sys/grpc
-	url = https://github.com/pingcap/grpc.git
-	branch = rs-release
