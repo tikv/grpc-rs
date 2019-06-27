@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 sudo: false
 language: rust
 cache:
@@ -14,16 +14,35 @@ env:
     - RUST_BACKTRACE=1
     - RUSTFLAGS="--deny=warnings"
 
-os:
-  - linux
 rust:
   - stable
-  - beta
   - nightly
+
 matrix:
   include:
+  - os: windows
+    rust: stable
+    install:
+      - choco install golang yasm activeperl ninja
+      - export PATH="/c/Go/bin:$PATH"
+      - go version
+    before_script: true
+    script:
+      - cargo build
+      - cargo test --all
+
   - os: osx
     rust: stable
+
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-xenial-7
+    packages:
+      - clang-tidy-7
+      - llvm-7-dev
+      - libclang-7-dev
+      - clang-7
 
 before_script:
   - export GRPC_VERSION=1.17.2
@@ -52,13 +71,6 @@ before_script:
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-
-addons:
-  apt:
-    sources:
-      - llvm-toolchain-trusty-5.0
-    packages:
-      - clang-tidy-5.0
 
 script:
   - rustup component add rustfmt && cargo fmt --all -- --check
