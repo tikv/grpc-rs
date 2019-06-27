@@ -241,7 +241,14 @@ fn get_env(name: &str) -> Option<String> {
  * Generate the bindings to C-core
  */
 fn bindgen_grpc() {
-    let bindings = config_from_headers()
+    let mut config = config_from_headers();
+
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
+        // At lease win7
+        config = config.clang_arg("-D _WIN32_WINNT=0x0700");
+    }
+
+    let bindings = config
         .clang_arg("-I./grpc/include")
         .clang_arg("-DGRPC_SYS_SECURE")
         .clang_arg("-std=c++11")

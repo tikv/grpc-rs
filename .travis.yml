@@ -44,10 +44,10 @@ addons:
     sources:
       - llvm-toolchain-xenial-7
     packages:
-      - clang-tidy
-      - llvm-dev
-      - libclang-dev
-      - clang
+      - clang-tidy-7
+      - llvm-7-dev
+      - libclang-7-dev
+      - clang-7
 
 before_script:
   - export GRPC_VERSION=1.17.2
