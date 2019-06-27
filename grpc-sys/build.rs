@@ -16,13 +16,12 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::env::VarError;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
 use cc::Build;
 use cmake::Config;
-use grep::regex::RegexMatcher;
-use grep::searcher::sinks::UTF8;
 use pkg_config::{Config as PkgConfig, Library};
 use walkdir::WalkDir;
 
@@ -268,41 +267,26 @@ fn bindgen_grpc() {
 }
 
 /**
- * Use grep to search header files with API interface in the
- * include/grpc directory and add these header files to bindgen's config
+ * Search header files with API interface in the include/grpc
+ * directory and add these header files to bindgen's config
  */
 fn config_from_headers() -> bindgen::Builder {
     let mut config = bindgen::Builder::default();
-    let mut headers: Vec<String> = Vec::new();
-    let matcher = RegexMatcher::new("GRPCAPI|GPRAPI").expect("can't resolve pattern");
 
     for result in WalkDir::new(Path::new("./grpc/include")) {
-        let dent = match result {
-            Ok(dent) => dent,
-            Err(err) => {
-                eprintln!("{}", err);
-                continue;
-            }
-        };
+        let dent = result.expect("Error happened when search headers");
         if !dent.file_type().is_file() {
             continue;
         }
-        let result = grep::searcher::Searcher::new().search_path(
-            &matcher,
-            dent.path(),
-            UTF8(|_, _| {
-                headers.push(String::from(dent.path().to_str().unwrap()));
-                Ok(true)
-            }),
-        );
-        if let Err(err) = result {
-            eprintln!("{}: {}", dent.path().display(), err);
+        let mut file = fs::File::open(dent.path()).expect("couldn't open headers");
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)
+            .expect("Coundn't read header content");
+        if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
+            config = config.header(dent.path().to_str().unwrap());
         }
     }
 
-    for s in &headers {
-        config = config.header(s.as_str());
-    }
     config.header("grpc_wrap.cc")
 }
 
