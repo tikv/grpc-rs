@@ -70,4 +70,3 @@ debug = true
 
 [badges]
 travis-ci = { repository = "pingcap/grpc-rs" }
-appveyor = { repository = "busyjay/grpc-rs" }

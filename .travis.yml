@@ -1,7 +1,13 @@
 dist: xenial
 sudo: false
 language: rust
-cache: cargo
+cache:
+  directories:
+    - $HOME/.cargo
+    - $HOME/.cache
+    - $TRAVIS_BUILD_DIR/target
+before_cache:
+  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
 
 env:
   global:
