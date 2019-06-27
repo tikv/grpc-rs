@@ -14,48 +14,35 @@ env:
     - RUST_BACKTRACE=1
     - RUSTFLAGS="--deny=warnings"
 
+rust:
+  - stable
+  - nightly
+
 matrix:
   include:
-  - name: linux-stable
+  - os: windows
     rust: stable
-    addons:
-      apt:
-        sources:
-          - llvm-toolchain-xenial-7
-        packages:
-          - clang-tidy
-          - llvm-dev
-          - libclang-dev
-          - clang
-
-  - name: linux-nightly
-    rust: nightly
-    addons:
-      apt:
-        sources:
-          - llvm-toolchain-xenial-7
-        packages:
-          - clang-tidy
-          - llvm-dev
-          - libclang-dev
-          - clang
-
-  - name: win-stable
-    os: windows
-    rust: stable
-    before_script: true
     install:
       - choco install golang yasm activeperl ninja
       - export PATH="/c/Go/bin:$PATH"
       - go version
-      - rustc -V
+    before_script: true
     script:
       - cargo build
       - cargo test --all
 
-  - name: mac-stable
-    os: osx
+  - os: osx
     rust: stable
+
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-xenial-7
+    packages:
+      - clang-tidy-7
+      - llvm-7-dev
+      - libclang-7-dev
+      - clang-7
 
 before_script:
   - export GRPC_VERSION=1.17.2
@@ -97,4 +84,3 @@ script:
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
   - cargo test --features "openssl" --all
   - cargo test --features "openssl-vendored" --all
-
