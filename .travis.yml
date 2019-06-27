@@ -26,7 +26,6 @@ matrix:
       - choco install golang yasm activeperl ninja
       - export PATH="/c/Go/bin:$PATH"
       - go version
-      - rustc -V
     before_script: true
     script:
       - cargo build
