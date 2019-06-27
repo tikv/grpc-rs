@@ -12,37 +12,19 @@ matrix:
   include:
   - name: linux-stable
     rust: stable
-    addons:
-      apt:
-        sources:
-          - llvm-toolchain-xenial-7
-        packages:
-          - clang-tidy
-          - llvm-dev
-          - libclang-dev
-          - clang
 
   - name: linux-nightly
     rust: nightly
-    addons:
-      apt:
-        sources:
-          - llvm-toolchain-xenial-7
-        packages:
-          - clang-tidy
-          - llvm-dev
-          - libclang-dev
-          - clang
 
   - name: win-stable
     os: windows
     rust: stable
-    before_script: true
     install:
       - choco install golang yasm activeperl ninja
       - export PATH="/c/Go/bin:$PATH"
       - go version
       - rustc -V
+    before_script: true
     script:
       - cargo build
       - cargo test --all
@@ -50,6 +32,16 @@ matrix:
   - name: mac-stable
     os: osx
     rust: stable
+
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-xenial-7
+    packages:
+      - clang-tidy
+      - llvm-dev
+      - libclang-dev
+      - clang
 
 before_script:
   - export GRPC_VERSION=1.17.2
@@ -91,4 +83,3 @@ script:
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
   - cargo test --features "openssl" --all
   - cargo test --features "openssl-vendored" --all
-
