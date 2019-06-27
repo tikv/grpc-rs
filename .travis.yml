@@ -14,16 +14,13 @@ env:
     - RUST_BACKTRACE=1
     - RUSTFLAGS="--deny=warnings"
 
+rust:
+  - stable
+  - nightly
+
 matrix:
   include:
-  - name: linux-stable
-    rust: stable
-
-  - name: linux-nightly
-    rust: nightly
-
-  - name: win-stable
-    os: windows
+  - os: windows
     rust: stable
     install:
       - choco install golang yasm activeperl ninja
@@ -35,8 +32,7 @@ matrix:
       - cargo build
       - cargo test --all
 
-  - name: mac-stable
-    os: osx
+  - os: osx
     rust: stable
 
 addons:
