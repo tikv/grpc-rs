@@ -92,29 +92,3 @@ impl grpc_byte_buffer_reader {
         }
     }
 }
-
-impl From<i32> for grpc_status_code {
-    fn from(code: i32) -> grpc_status_code {
-        match code {
-            -1 => grpc_status_code::GRPC_STATUS__DO_NOT_USE,
-            0 => grpc_status_code::GRPC_STATUS_OK,
-            1 => grpc_status_code::GRPC_STATUS_CANCELLED,
-            2 => grpc_status_code::GRPC_STATUS_UNKNOWN,
-            3 => grpc_status_code::GRPC_STATUS_INVALID_ARGUMENT,
-            4 => grpc_status_code::GRPC_STATUS_DEADLINE_EXCEEDED,
-            5 => grpc_status_code::GRPC_STATUS_NOT_FOUND,
-            6 => grpc_status_code::GRPC_STATUS_ALREADY_EXISTS,
-            7 => grpc_status_code::GRPC_STATUS_PERMISSION_DENIED,
-            8 => grpc_status_code::GRPC_STATUS_RESOURCE_EXHAUSTED,
-            9 => grpc_status_code::GRPC_STATUS_FAILED_PRECONDITION,
-            10 => grpc_status_code::GRPC_STATUS_ABORTED,
-            11 => grpc_status_code::GRPC_STATUS_OUT_OF_RANGE,
-            12 => grpc_status_code::GRPC_STATUS_UNIMPLEMENTED,
-            13 => grpc_status_code::GRPC_STATUS_INTERNAL,
-            14 => grpc_status_code::GRPC_STATUS_UNAVAILABLE,
-            15 => grpc_status_code::GRPC_STATUS_DATA_LOSS,
-            16 => grpc_status_code::GRPC_STATUS_UNAUTHENTICATED,
-            _ => panic!("get wrong grpc_status_code"),
-        }
-    }
-}

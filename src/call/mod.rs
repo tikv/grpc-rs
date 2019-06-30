@@ -32,6 +32,7 @@ use crate::error::{Error, Result};
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
 pub use crate::grpc_sys::grpc_status_code as RpcStatusCode;
+pub type RpcStatusCodeType = i32;
 
 impl<'a> From<&'a mut GrpcByteBuffer> for grpc_byte_buffer_reader {
     fn from(src: &'a mut GrpcByteBuffer) -> Self {
@@ -147,7 +148,7 @@ impl<Req, Resp> Method<Req, Resp> {
 #[derive(Debug, Clone)]
 pub struct RpcStatus {
     /// gRPC status code. `Ok` indicates success, all other values indicate an error.
-    pub status: RpcStatusCode,
+    pub status: RpcStatusCodeType,
 
     /// Optional detail string.
     pub details: Option<String>,
@@ -155,7 +156,7 @@ pub struct RpcStatus {
 
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
-    pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
+    pub fn new(status: RpcStatusCodeType, details: Option<String>) -> RpcStatus {
         RpcStatus { status, details }
     }
 
