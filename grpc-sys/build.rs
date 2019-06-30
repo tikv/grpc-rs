@@ -16,12 +16,14 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::env::VarError;
-use std::path::Path;
+use std::io::prelude::*;
+use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
 use cc::Build;
 use cmake::Config;
 use pkg_config::{Config as PkgConfig, Library};
+use walkdir::WalkDir;
 
 const GRPC_VERSION: &'static str = "1.17.2";
 
@@ -235,7 +237,7 @@ fn get_env(name: &str) -> Option<String> {
 }
 
 /// Generate the bindings to C-core
-fn bindgen_grpc(config: bindgen::Builder) {
+fn bindgen_grpc(mut config: bindgen::Builder) {
     // Search header files with API interface
     for result in WalkDir::new(Path::new("./grpc/include")) {
         let dent = result.expect("Error happened when search headers");
@@ -251,7 +253,7 @@ fn bindgen_grpc(config: bindgen::Builder) {
         }
     }
 
-    config.header("grpc_wrap.cc")
+    config = config.header("grpc_wrap.cc");
 
     let bindings = config
         .clang_arg("-I./grpc/include")
@@ -311,7 +313,7 @@ fn main() {
     cc.file("grpc_wrap.cc");
 
     cc.warnings_into_errors(true);
-    
+
     cc.compile("libgrpc_wrap.a");
     bindgen_grpc(bind_config);
 }
