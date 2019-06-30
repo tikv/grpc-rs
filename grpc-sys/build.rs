@@ -16,14 +16,12 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::env::VarError;
-use std::io::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{env, fs, io};
 
 use cc::Build;
 use cmake::Config;
 use pkg_config::{Config as PkgConfig, Library};
-use walkdir::WalkDir;
 
 const GRPC_VERSION: &'static str = "1.17.2";
 
@@ -236,20 +234,27 @@ fn get_env(name: &str) -> Option<String> {
     }
 }
 
-/**
- * Generate the bindings to C-core
- */
-fn bindgen_grpc() {
-    let mut config = config_from_headers();
-
-    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-        // At lease win7
-        config = config.clang_arg("-D _WIN32_WINNT=0x0700");
+/// Generate the bindings to C-core
+fn bindgen_grpc(config: bindgen::Builder) {
+    // Search header files with API interface
+    for result in WalkDir::new(Path::new("./grpc/include")) {
+        let dent = result.expect("Error happened when search headers");
+        if !dent.file_type().is_file() {
+            continue;
+        }
+        let mut file = fs::File::open(dent.path()).expect("couldn't open headers");
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)
+            .expect("Coundn't read header content");
+        if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
+            config = config.header(dent.path().to_str().unwrap());
+        }
     }
+
+    config.header("grpc_wrap.cc")
 
     let bindings = config
         .clang_arg("-I./grpc/include")
-        .clang_arg("-DGRPC_SYS_SECURE")
         .clang_arg("-std=c++11")
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
@@ -268,44 +273,26 @@ fn bindgen_grpc() {
         .expect("Couldn't write bindings!");
 }
 
-/**
- * Search header files with API interface in the include/grpc
- * directory and add these header files to bindgen's config
- */
-fn config_from_headers() -> bindgen::Builder {
-    let mut config = bindgen::Builder::default();
-
-    for result in WalkDir::new(Path::new("./grpc/include")) {
-        let dent = result.expect("Error happened when search headers");
-        if !dent.file_type().is_file() {
-            continue;
-        }
-        let mut file = fs::File::open(dent.path()).expect("couldn't open headers");
-        let mut buf = String::new();
-        file.read_to_string(&mut buf)
-            .expect("Coundn't read header content");
-        if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
-            config = config.header(dent.path().to_str().unwrap());
-        }
-    }
-
-    config.header("grpc_wrap.cc")
-}
-
 fn main() {
-    bindgen_grpc();
-
     let mut cc = Build::new();
+    let mut bind_config = bindgen::Builder::default();
 
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
 
     let library = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
+        bind_config = bind_config.clang_arg("-DGRPC_SYS_SECURE");
         "grpc"
     } else {
         "grpc_unsecure"
     };
+
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
+        // At lease win7
+        cc.define("_WIN32_WINNT", Some("0x0700"));
+        bind_config = bind_config.clang_arg("-D _WIN32_WINNT=0x0700");
+    }
 
     if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
         // Print cargo metadata.
@@ -323,11 +310,8 @@ fn main() {
     }
     cc.file("grpc_wrap.cc");
 
-    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-        // At lease win7
-        cc.define("_WIN32_WINNT", Some("0x0700"));
-    }
-
     cc.warnings_into_errors(true);
+    
     cc.compile("libgrpc_wrap.a");
+    bindgen_grpc(bind_config);
 }
