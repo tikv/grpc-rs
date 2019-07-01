@@ -44,6 +44,11 @@ $ git submodule update --init --recursive # if you just cloned the repository
 $ cargo build
 ```
 
+### Error linking OpenSSL
+
+If you're getting linker errors when building your project using `gRPC-rs`, head
+down to the `openssl` feature section for a possible fix.
+
 ## Usage
 
 To generate the sources from proto files:
@@ -93,6 +98,20 @@ you can disable it by using the following configuration:
 [dependencies]
 grpcio = { version = "0.4", default-features = false, features = ["protobuf-codec"] }
 ```
+
+### Feature `openssl`
+
+`gRPC-rs` comes vendored with `gRPC Core`, which by default uses BoringSSL
+instead of OpenSSL. This may cause linking issues due to symbol clashes and/or
+missing symbols when another one of your dependencies uses OpenSSL. To resolve
+this, you can tell `gRPC-rs` to use OpenSSL too by specifying `"openssl"` in
+your `Cargo.toml`'s features list for `gprcio`. E.g.:
+
+```toml
+[dependencies]
+grpcio = { version = "0.4.4", features = ["openssl"] }
+```
+
 
 ## Performance
 
