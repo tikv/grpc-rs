@@ -3,13 +3,6 @@ use super::*;
 use std::slice;
 use std::time::Duration;
 
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: u32 = 0x0000_0010;
-pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 0x0000_0020;
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: u32 = 0x0000_0040;
-
-pub const GRPC_WRITE_BUFFER_HINT: u32 = 0x0000_0001;
-pub const GRPC_WRITE_NO_COMPRESS: u32 = 0x0000_0002;
-
 impl gpr_timespec {
     pub fn inf_future() -> gpr_timespec {
         unsafe { gpr_inf_future(gpr_clock_type::GPR_CLOCK_REALTIME) }
