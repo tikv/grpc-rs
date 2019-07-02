@@ -60,7 +60,7 @@ impl TestService for InteropTestService {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
-            let status = RpcStatus::new(code.into(), msg);
+            let status = RpcStatus::new(code, msg);
             let f = sink
                 .fail(status)
                 .map_err(|e| panic!("failed to send response: {:?}", e));
@@ -139,7 +139,7 @@ impl TestService for InteropTestService {
                 if req.has_response_status() {
                     let code = req.get_response_status().get_code();
                     let msg = Some(req.take_response_status().take_message());
-                    let status = RpcStatus::new(code.into(), msg);
+                    let status = RpcStatus::new(code, msg);
                     failure = Some(sink.fail(status));
                 } else {
                     let mut resp = StreamingOutputCallResponse::new_();
@@ -195,7 +195,10 @@ impl TestService for InteropTestService {
 
     fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
         let f = sink
-            .fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+            .fail(RpcStatus::new(
+                RpcStatusCode::GRPC_STATUS_UNIMPLEMENTED,
+                None,
+            ))
             .map_err(|e| error!("failed to report unimplemented method: {:?}", e));
         ctx.spawn(f)
     }

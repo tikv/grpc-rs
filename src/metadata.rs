@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::grpc_sys::{self, GrpcMetadataArray};
+use crate::grpc_sys::{self, grpc_metadata_array};
 use std::borrow::Cow;
 use std::{mem, slice, str};
 
@@ -150,7 +150,7 @@ impl MetadataBuilder {
 /// Metadata value can be ascii string or bytes. They are distinguish by the
 /// key suffix, key of bytes value should have suffix '-bin'.
 #[repr(C)]
-pub struct Metadata(GrpcMetadataArray);
+pub struct Metadata(grpc_metadata_array);
 
 impl Metadata {
     fn with_capacity(cap: usize) -> Metadata {
