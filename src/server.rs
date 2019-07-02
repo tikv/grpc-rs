@@ -20,7 +20,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::grpc_sys::{self, GrpcCallStatus, GrpcServer};
+use crate::grpc_sys::{self, grpc_call_error, grpc_server};
 use futures::{Async, Future, Poll};
 
 use crate::call::server::*;
@@ -87,7 +87,7 @@ fn join_host_port(host: &str, port: u16) -> String {
 mod imp {
     use super::join_host_port;
     use crate::credentials::ServerCredentials;
-    use crate::grpc_sys::{self, GrpcServer};
+    use crate::grpc_sys::{self, grpc_server};
 
     pub struct Binder {
         pub host: String,
@@ -106,7 +106,7 @@ mod imp {
             Binder { host, port, cred }
         }
 
-        pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
+        pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
             let addr = join_host_port(&self.host, self.port);
             let port = match self.cred.take() {
                 None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
@@ -124,7 +124,7 @@ mod imp {
 #[cfg(not(feature = "secure"))]
 mod imp {
     use super::join_host_port;
-    use crate::grpc_sys::{self, GrpcServer};
+    use crate::grpc_sys::{self, grpc_server};
 
     pub struct Binder {
         pub host: String,
@@ -136,7 +136,7 @@ mod imp {
             Binder { host, port }
         }
 
-        pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
+        pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
             let addr = join_host_port(&self.host, self.port);
             grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _) as u16
         }
@@ -371,7 +371,7 @@ mod secure_server {
 }
 
 struct ServerCore {
-    server: *mut GrpcServer,
+    server: *mut grpc_server,
     bind_addrs: Vec<(String, u16)>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
@@ -431,7 +431,7 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
             tag as *mut _,
         )
     };
-    if code != GrpcCallStatus::Ok {
+    if code != grpc_call_error::GRPC_CALL_OK {
         Box::from(tag);
         panic!("failed to request call: {:?}", code);
     }

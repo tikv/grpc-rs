@@ -16,16 +16,16 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 use std::thread::ThreadId;
 
-use crate::grpc_sys::{self, GprClockType, GrpcCompletionQueue};
+use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
 
 use crate::error::{Error, Result};
 
-pub use crate::grpc_sys::GrpcCompletionType as EventType;
-pub use crate::grpc_sys::GrpcEvent as Event;
+pub use crate::grpc_sys::grpc_completion_type as EventType;
+pub use crate::grpc_sys::grpc_event as Event;
 
 /// `CompletionQueueHandle` enable notification of the completion of asynchronous actions.
 pub struct CompletionQueueHandle {
-    cq: *mut GrpcCompletionQueue,
+    cq: *mut grpc_completion_queue,
     // When `ref_cnt` < 0, a shutdown is pending, completion queue should not
     // accept requests anymore; when `ref_cnt` == 0, completion queue should
     // be shutdown; When `ref_cnt` > 0, completion queue can accept requests
@@ -121,7 +121,7 @@ pub struct CompletionQueueRef<'a> {
 }
 
 impl<'a> CompletionQueueRef<'a> {
-    pub fn as_ptr(&self) -> *mut GrpcCompletionQueue {
+    pub fn as_ptr(&self) -> *mut grpc_completion_queue {
         self.queue.handle.cq
     }
 }
@@ -146,7 +146,7 @@ impl CompletionQueue {
     /// Blocks until an event is available, the completion queue is being shut down.
     pub fn next(&self) -> Event {
         unsafe {
-            let inf = grpc_sys::gpr_inf_future(GprClockType::Realtime);
+            let inf = grpc_sys::gpr_inf_future(gpr_clock_type::GPR_CLOCK_REALTIME);
             grpc_sys::grpc_completion_queue_next(self.handle.cq, inf, ptr::null_mut())
         }
     }
