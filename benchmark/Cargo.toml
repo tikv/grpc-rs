@@ -6,8 +6,8 @@ publish = false
 
 [features]
 default = ["protobuf-codec"]
-protobuf-codec = ["grpcio/protobuf-codec"]
-prost-codec = ["grpcio/prost-codec"]
+protobuf-codec = ["grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
+prost-codec = ["grpcio/prost-codec", "grpcio-proto/prost-codec"]
 
 [dependencies]
 grpcio = { path = ".." }
