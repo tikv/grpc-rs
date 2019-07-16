@@ -21,7 +21,7 @@ grpcio-sys = { path = "grpc-sys", version = "0.5.0-alpha" }
 libc = "0.2"
 futures = "^0.1.15"
 protobuf = { version = "2.0", optional = true }
-prost = { version = "0.5", optional = true }
+prost = { git = "https://github.com/danburkert/prost", rev = "1944c27c3029d01ff216e7b126d846b6cf8c7d77", optional = true }
 bytes = { version = "0.4.11", optional = true }
 log = "0.4"
 
