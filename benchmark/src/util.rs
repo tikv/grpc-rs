@@ -206,7 +206,7 @@ impl Histogram {
     }
 
     pub fn report(&mut self, reset: bool) -> HistogramData {
-        let mut data = HistogramData::new_();
+        let mut data = HistogramData::default();
         data.set_count(f64::from(self.count));
         data.set_sum(self.sum);
         data.set_sum_of_squares(self.sum_of_squares);

@@ -85,7 +85,7 @@ impl RouteGuide for RouteGuideService {
         let timer = Instant::now();
         let f = points
             .fold(
-                (None, 0f64, RouteSummary::new_()),
+                (None, 0f64, RouteSummary::default()),
                 move |(last, mut dis, mut summary), point| {
                     let total_count = summary.get_point_count();
                     summary.set_point_count(total_count + 1);

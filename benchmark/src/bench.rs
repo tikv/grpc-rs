@@ -29,7 +29,7 @@ use grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
-    let mut resp = SimpleResponse::new_();
+    let mut resp = SimpleResponse::default();
     resp.set_payload(payload);
     resp
 }

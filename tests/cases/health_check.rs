@@ -35,7 +35,7 @@ impl Health for HealthService {
         let res = match status.get(req.get_service()) {
             None => sink.fail(RpcStatus::new(RpcStatusCode::GRPC_STATUS_NOT_FOUND, None)),
             Some(s) => {
-                let mut resp = HealthCheckResponse::new_();
+                let mut resp = HealthCheckResponse::default();
                 resp.set_status_(*s);
                 sink.success(resp)
             }
@@ -51,7 +51,7 @@ fn check_health(
     exp: health_check_response::ServingStatus,
 ) {
     status.write().unwrap().insert(service.to_owned(), exp);
-    let mut req = HealthCheckRequest::new_();
+    let mut req = HealthCheckRequest::default();
     req.set_service(service.to_owned());
     let status = client.check(&req).unwrap().get_status();
     assert_eq!(status, exp);
@@ -94,7 +94,7 @@ fn test_health_check() {
         health_check_response::ServingStatus::Unknown,
     );
 
-    let mut req = HealthCheckRequest::new_();
+    let mut req = HealthCheckRequest::default();
     req.set_service("not-exist".to_owned());
     let err = client.check(&req).unwrap_err();
     match err {

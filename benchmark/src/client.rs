@@ -40,7 +40,7 @@ use crate::util::{self, CpuRecorder, Histogram};
 type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
-    let mut req = SimpleRequest::new_();
+    let mut req = SimpleRequest::default();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
     req.set_payload(proto_util::new_payload(
@@ -438,7 +438,7 @@ impl Client {
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ClientStats {
-        let mut stats = ClientStats::new_();
+        let mut stats = ClientStats::default();
 
         let sample = self.recorder.cpu_time(reset);
         stats.set_time_elapsed(sample.real_time);
