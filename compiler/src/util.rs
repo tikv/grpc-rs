@@ -81,6 +81,7 @@ pub fn to_snake_case(name: &str) -> String {
     snake_method_name
 }
 
+#[cfg(feature = "protobuf-codec")]
 pub fn to_camel_case(name: &str) -> String {
     let mut camel_case_name = String::with_capacity(name.len());
     for s in NameSpliter::new(name) {
