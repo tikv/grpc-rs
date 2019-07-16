@@ -15,7 +15,7 @@ use grpcio::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
 use crate::testing::messages::{Payload, ResponseParameters};
 #[cfg(feature = "prost-codec")]
 use crate::testing::{Payload, ResponseParameters};

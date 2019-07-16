@@ -136,21 +136,21 @@ pub mod health {
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
 #[allow(bare_trait_objects)]
 #[allow(renamed_and_removed_lints)]
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
 }
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
 #[allow(bare_trait_objects)]
 #[allow(renamed_and_removed_lints)]
 pub mod example {
     include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
 }
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
 pub mod health {
     #[allow(bare_trait_objects)]
     #[allow(renamed_and_removed_lints)]
