@@ -20,8 +20,8 @@ mod log_util;
 use std::sync::Arc;
 
 use grpcio::{ChannelBuilder, EnvBuilder};
-use grpcio_proto::example::helloworld::GreeterClient;
 use grpcio_proto::example::helloworld::HelloRequest;
+use grpcio_proto::example::helloworld_grpc::GreeterClient;
 
 fn main() {
     let _guard = log_util::init_log(None);

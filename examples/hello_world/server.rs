@@ -25,8 +25,8 @@ use futures::sync::oneshot;
 use futures::Future;
 use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
 
-use grpcio_proto::example::helloworld::{self, Greeter};
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
+use grpcio_proto::example::helloworld_grpc::{create_greeter, Greeter};
 
 #[derive(Clone)]
 struct GreeterService;
@@ -46,7 +46,7 @@ impl Greeter for GreeterService {
 fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
-    let service = helloworld::create_greeter(GreeterService);
+    let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50_051)

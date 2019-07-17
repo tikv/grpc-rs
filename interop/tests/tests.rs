@@ -56,7 +56,7 @@ macro_rules! mk_test {
             use std::sync::Arc;
 
             use grpc::{ChannelBuilder, Environment, ServerBuilder};
-            use grpc_proto::testing::create_test_service;
+            use grpc_proto::testing::test_grpc::create_test_service;
             use grpc_proto::util;
             use interop::{Client, InteropTestService};
 

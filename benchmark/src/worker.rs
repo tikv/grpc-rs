@@ -17,10 +17,10 @@ use crate::error::Error;
 use futures::sync::oneshot::Sender;
 use futures::{future, Future, Sink, Stream};
 use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
-use grpc_proto::testing::WorkerService;
-use grpc_proto::testing::{
+use grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
+use grpc_proto::testing::services_grpc::WorkerService;
 
 use crate::client::Client;
 use crate::server::Server;

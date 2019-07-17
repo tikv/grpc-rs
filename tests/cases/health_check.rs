@@ -14,10 +14,11 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;
+use grpcio_proto::health::v1::health_grpc::*;
 use std::collections::*;
 use std::sync::*;
 
-type StatusRegistry = HashMap<String, health_check_response::ServingStatus>;
+type StatusRegistry = HashMap<String, HealthCheckResponse_ServingStatus>;
 
 #[derive(Clone)]
 struct HealthService {
@@ -36,7 +37,7 @@ impl Health for HealthService {
             None => sink.fail(RpcStatus::new(RpcStatusCode::GRPC_STATUS_NOT_FOUND, None)),
             Some(s) => {
                 let mut resp = HealthCheckResponse::default();
-                resp.set_status_(*s);
+                resp.set_status(*s);
                 sink.success(resp)
             }
         };
@@ -48,7 +49,7 @@ fn check_health(
     client: &HealthClient,
     status: &Arc<RwLock<StatusRegistry>>,
     service: &str,
-    exp: health_check_response::ServingStatus,
+    exp: HealthCheckResponse_ServingStatus,
 ) {
     status.write().unwrap().insert(service.to_owned(), exp);
     let mut req = HealthCheckRequest::default();
@@ -79,19 +80,19 @@ fn test_health_check() {
         &client,
         &status,
         "test",
-        health_check_response::ServingStatus::Serving,
+        HealthCheckResponse_ServingStatus::SERVING,
     );
     check_health(
         &client,
         &status,
         "test",
-        health_check_response::ServingStatus::NotServing,
+        HealthCheckResponse_ServingStatus::NOT_SERVING,
     );
     check_health(
         &client,
         &status,
         "test",
-        health_check_response::ServingStatus::Unknown,
+        HealthCheckResponse_ServingStatus::UNKNOWN,
     );
 
     let mut req = HealthCheckRequest::default();

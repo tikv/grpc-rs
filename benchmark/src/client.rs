@@ -23,10 +23,10 @@ use futures::{future, Async, Future, Sink, Stream};
 use grpc::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
-use grpc_proto::testing::BenchmarkServiceClient;
-use grpc_proto::testing::ClientStats;
-use grpc_proto::testing::SimpleRequest;
-use grpc_proto::testing::{ClientConfig, ClientType, RpcType};
+use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
+use grpc_proto::testing::messages::SimpleRequest;
+use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
+use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
@@ -318,20 +318,20 @@ fn execute<B: Backoff + Send + 'static>(
     cfg: &ClientConfig,
 ) {
     match client_type {
-        ClientType::SyncClient => {
+        ClientType::SYNC_CLIENT => {
             if cfg.get_payload_config().has_bytebuf_params() {
                 panic!("only async_client is supported for generic service.");
             }
             RequestExecutor::new(ctx, ch, cfg).execute_unary()
         }
-        ClientType::AsyncClient => match cfg.get_rpc_type() {
-            RpcType::Unary => {
+        ClientType::ASYNC_CLIENT => match cfg.get_rpc_type() {
+            RpcType::UNARY => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     panic!("only streaming is supported for generic service.");
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-            RpcType::Streaming => {
+            RpcType::STREAMING => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     GenericExecutor::new(ctx, ch, cfg).execute_stream()
                 } else {

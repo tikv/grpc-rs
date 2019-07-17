@@ -23,8 +23,8 @@ use grpc::{
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
     WriteFlags,
 };
-use grpc_proto::testing::BenchmarkService;
-use grpc_proto::testing::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {

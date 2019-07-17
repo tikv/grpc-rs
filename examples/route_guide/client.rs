@@ -27,8 +27,8 @@ use std::time::Duration;
 
 use futures::{future, Future, Sink, Stream};
 use grpcio::*;
-use grpcio_proto::example::route_guide::RouteGuideClient;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
+use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
 use rand::Rng;
 
 fn new_point(lat: i32, lon: i32) -> Point {

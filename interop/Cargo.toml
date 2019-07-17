@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 grpcio = { path = ".." }
 grpcio-sys = { path = "../grpc-sys" }
-grpcio-proto = { path = "../proto", default-features = false, features = ["prost-codec"] }
+grpcio-proto = { path = "../proto" }
 protobuf = "2"
 futures = "0.1"
 log = "0.3"

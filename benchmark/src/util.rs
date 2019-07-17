@@ -14,7 +14,7 @@
 use std::f64;
 use std::time::{Duration, Instant};
 
-use grpc_proto::testing::HistogramData;
+use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
 
 #[path = "../../examples/log_util.rs"]

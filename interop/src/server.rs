@@ -20,12 +20,12 @@ use crate::grpc::{
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
 use futures_timer::Delay;
 
-use grpc_proto::testing::Empty;
-use grpc_proto::testing::TestService;
-use grpc_proto::testing::{
+use grpc_proto::testing::empty::Empty;
+use grpc_proto::testing::messages::{
     SimpleRequest, SimpleResponse, StreamingInputCallRequest, StreamingInputCallResponse,
     StreamingOutputCallRequest, StreamingOutputCallResponse,
 };
+use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::util;
 
 enum Error {
