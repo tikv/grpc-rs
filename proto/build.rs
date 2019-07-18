@@ -11,11 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 fn main() {
     for package in &["testing", "example", "health"] {
-        protobuf::compile(format!("{}.desc", package), package);
-        prost::compile(format!("{}.desc", package));
+        compile(format!("{}.desc", package), package);
     }
+}
+
+#[cfg(feature = "prost-codec")]
+fn compile<P: AsRef<Path>>(desc_path: P, _package: &str) {
+    prost::desc_to_module(desc_path.as_ref());
 }
 
 #[cfg(feature = "prost-codec")]
@@ -27,12 +33,8 @@ mod prost {
     use prost::Message;
     use prost_types::FileDescriptorSet as ProstFileDescriptorSet;
 
-    pub fn compile<P: AsRef<Path>>(desc_path: P) {
-        desc_to_module(desc_path.as_ref());
-    }
-
     /// Descriptor file to module file using Prost.
-    fn desc_to_module(descriptor: &Path) {
+    pub fn desc_to_module(descriptor: &Path) {
         let buf = fs::read(descriptor).unwrap();
         let proto_set: ProstFileDescriptorSet = Message::decode(buf).unwrap();
         let files: Vec<_> = proto_set
@@ -59,11 +61,9 @@ mod prost {
     }
 }
 
-#[cfg(not(feature = "prost-codec"))]
-mod prost {
-    use std::path::Path;
-
-    pub fn compile<P: AsRef<Path>>(_desc_path: P) {}
+#[cfg(feature = "protobuf-codec")]
+fn compile<P: AsRef<Path>>(desc_path: P, package: &str) {
+    protobuf::compile(desc_path, package);
 }
 
 #[cfg(feature = "protobuf-codec")]
@@ -151,11 +151,4 @@ mod protobuf {
             writeln!(out, "pub mod {};", module_name).unwrap();
         }
     }
-}
-
-#[cfg(not(feature = "protobuf-codec"))]
-mod protobuf {
-    use std::path::Path;
-
-    pub fn compile<P: AsRef<Path>>(_desc_path: P, _package: &str) {}
 }
