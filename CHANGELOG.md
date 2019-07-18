@@ -1,3 +1,8 @@
+# 0.5.0-alpha.2 - 2019-07-18
+
+- Support using vendored openssl
+- Use bindgen to generate code instead
+
 # 0.5.0-alpha.1 - 2019-04-08
 
 - Fix grpc_sys import when secure feature is disabled
