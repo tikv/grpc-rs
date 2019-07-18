@@ -14,6 +14,7 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
@@ -34,7 +35,7 @@ impl Greeter for GreeterService {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
         }
 
-        let mut resp = HelloReply::new_();
+        let mut resp = HelloReply::default();
         resp.set_message(format!("hello {}", req.take_name()));
         ctx.spawn(
             sink.success(resp)
@@ -68,7 +69,7 @@ fn test_metadata() {
     let metadata = builder.build();
     let call_opt = CallOption::default().headers(metadata);
 
-    let mut req = HelloRequest::new_();
+    let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let resp = client.say_hello_opt(&req, call_opt).unwrap();
 

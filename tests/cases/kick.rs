@@ -15,6 +15,7 @@ use futures::sync::oneshot::{self, Sender};
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::*;
 use std::thread;
 use std::time::*;
@@ -41,7 +42,7 @@ impl Greeter for GreeterService {
                 Ok(())
             }))
             .and_then(move |(greet, _)| {
-                let mut resp = HelloReply::new_();
+                let mut resp = HelloReply::default();
                 resp.set_message(format!("{} {}", greet, name));
                 sink.success(resp)
                     .map_err(|e| panic!("failed to reply {:?}", e))
@@ -64,7 +65,7 @@ fn test_kick() {
     let port = server.bind_addrs()[0].1;
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
-    let mut req = HelloRequest::new_();
+    let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let f = client.say_hello_async(&req).unwrap();
     loop {

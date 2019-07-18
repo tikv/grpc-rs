@@ -17,11 +17,11 @@ use std::time::Duration;
 use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{future, stream, Future, Sink, Stream};
 
-use grpc_proto::testing::Empty;
-use grpc_proto::testing::{
+use grpc_proto::testing::empty::Empty;
+use grpc_proto::testing::messages::{
     EchoStatus, SimpleRequest, StreamingInputCallRequest, StreamingOutputCallRequest,
 };
-use grpc_proto::testing::{TestServiceClient, UnimplementedServiceClient};
+use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::util;
 
 pub struct Client {
@@ -39,7 +39,7 @@ impl Client {
 
     pub fn empty_unary(&self) {
         print!("testing empty unary ... ");
-        let req = Empty::new_();
+        let req = Empty::default();
         let resp = self.client.empty_call(&req).unwrap();
         assert_eq!(req, resp);
         println!("pass");
@@ -47,7 +47,7 @@ impl Client {
 
     pub fn large_unary(&self) {
         print!("testing large unary ... ");
-        let mut req = SimpleRequest::new_();
+        let mut req = SimpleRequest::default();
         req.set_response_size(314_159);
         req.set_payload(util::new_payload(271_828));
         let resp = self.client.unary_call(&req).unwrap();
@@ -58,7 +58,7 @@ impl Client {
     pub fn client_streaming(&self) {
         print!("testing client streaming ... ");
         let reqs = vec![27182, 8, 1828, 45904].into_iter().map(|s| {
-            let mut req = StreamingInputCallRequest::new_();
+            let mut req = StreamingInputCallRequest::default();
             req.set_payload(util::new_payload(s));
             (req, WriteFlags::default())
         });
@@ -75,7 +75,7 @@ impl Client {
 
     pub fn server_streaming(&self) {
         print!("testing server streaming ... ");
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         let sizes = vec![31415, 9, 2653, 58979];
         for size in &sizes {
             req.mut_response_parameters()
@@ -96,7 +96,7 @@ impl Client {
         let (mut sender, mut receiver) = self.client.full_duplex_call().unwrap();
         let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
         for (resp_size, payload_size) in cases {
-            let mut req = StreamingOutputCallRequest::new_();
+            let mut req = StreamingOutputCallRequest::default();
             req.mut_response_parameters()
                 .push(util::new_parameters(resp_size));
             req.set_payload(util::new_payload(payload_size));
@@ -145,7 +145,7 @@ impl Client {
     pub fn cancel_after_first_response(&self) {
         print!("testing cancel_after_first_response ... ");
         let (mut sender, mut receiver) = self.client.full_duplex_call().unwrap();
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         req.mut_response_parameters()
             .push(util::new_parameters(31415));
         req.set_payload(util::new_payload(27182));
@@ -174,7 +174,7 @@ impl Client {
         print!("testing timeout_of_sleeping_server ... ");
         let opt = CallOption::default().timeout(Duration::from_millis(1));
         let (sender, receiver) = self.client.full_duplex_call_opt(opt).unwrap();
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         req.set_payload(util::new_payload(27182));
         // Keep the sender, so that receiver will not receive Cancelled error.
         let _sender = sender.send((req, WriteFlags::default())).wait();
@@ -191,10 +191,10 @@ impl Client {
     pub fn status_code_and_message(&self) {
         print!("testing status_code_and_message ... ");
         let error_msg = "test status message";
-        let mut status = EchoStatus::new_();
+        let mut status = EchoStatus::default();
         status.set_code(2);
         status.set_message(error_msg.to_owned());
-        let mut req = SimpleRequest::new_();
+        let mut req = SimpleRequest::default();
         req.set_response_status(status.clone());
         match self.client.unary_call(&req).unwrap_err() {
             grpc::Error::RpcFailure(s) => {
@@ -203,7 +203,7 @@ impl Client {
             }
             e => panic!("expected rpc failure: {:?}", e),
         }
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         req.set_response_status(status);
         let (sender, receiver) = self.client.full_duplex_call().unwrap();
         // Keep the sender, so that receiver will not receive Cancelled error.
@@ -221,7 +221,11 @@ impl Client {
 
     pub fn unimplemented_method(&self) {
         print!("testing unimplemented_method ... ");
-        match self.client.unimplemented_call(&Empty::new_()).unwrap_err() {
+        match self
+            .client
+            .unimplemented_call(&Empty::default())
+            .unwrap_err()
+        {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.status, RpcStatusCode::GRPC_STATUS_UNIMPLEMENTED)
             }
@@ -233,7 +237,7 @@ impl Client {
     pub fn unimplemented_service(&self) {
         print!("testing unimplemented_service ... ");
         let client = UnimplementedServiceClient::new(self.channel.clone());
-        match client.unimplemented_call(&Empty::new_()).unwrap_err() {
+        match client.unimplemented_call(&Empty::default()).unwrap_err() {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.status, RpcStatusCode::GRPC_STATUS_UNIMPLEMENTED)
             }

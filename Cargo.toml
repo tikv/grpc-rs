@@ -57,7 +57,7 @@ path = "examples/hello_world/server.rs"
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpcio-proto = { path = "proto", version = "0.5.0-alpha" }
+grpcio-proto = { path = "proto", default-features = false }
 rand = "0.4"
 slog = "2.0"
 slog-async = "2.1"

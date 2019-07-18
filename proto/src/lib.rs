@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "prost-codec")]
 #[allow(clippy::large_enum_variant)]
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
@@ -113,6 +114,7 @@ pub mod testing {
     }
 }
 
+#[cfg(feature = "prost-codec")]
 pub mod example {
     pub mod helloworld {
         include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
@@ -124,12 +126,36 @@ pub mod example {
     }
 }
 
+#[cfg(feature = "prost-codec")]
 pub mod health {
     pub mod v1 {
         pub mod health {
             include!(concat!(env!("OUT_DIR"), "/grpc.health.v1.rs"));
             include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.health.v1.rs"));
         }
+    }
+}
+
+#[cfg(feature = "protobuf-codec")]
+#[allow(bare_trait_objects)]
+#[allow(renamed_and_removed_lints)]
+pub mod testing {
+    include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
+}
+
+#[cfg(feature = "protobuf-codec")]
+#[allow(bare_trait_objects)]
+#[allow(renamed_and_removed_lints)]
+pub mod example {
+    include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
+}
+
+#[cfg(feature = "protobuf-codec")]
+pub mod health {
+    #[allow(bare_trait_objects)]
+    #[allow(renamed_and_removed_lints)]
+    pub mod v1 {
+        include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
     }
 }
 

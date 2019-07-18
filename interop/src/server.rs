@@ -20,12 +20,12 @@ use crate::grpc::{
 use futures::{future, stream, Async, Future, Poll, Sink, Stream};
 use futures_timer::Delay;
 
-use grpc_proto::testing::Empty;
-use grpc_proto::testing::TestService;
-use grpc_proto::testing::{
+use grpc_proto::testing::empty::Empty;
+use grpc_proto::testing::messages::{
     SimpleRequest, SimpleResponse, StreamingInputCallRequest, StreamingInputCallResponse,
     StreamingOutputCallRequest, StreamingOutputCallResponse,
 };
+use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::util;
 
 enum Error {
@@ -44,7 +44,7 @@ pub struct InteropTestService;
 
 impl TestService for InteropTestService {
     fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
-        let res = Empty::new_();
+        let res = Empty::default();
         let f = resp
             .success(res)
             .map_err(|e| panic!("failed to send response: {:?}", e));
@@ -68,7 +68,7 @@ impl TestService for InteropTestService {
             return;
         }
         let resp_size = req.get_response_size();
-        let mut resp = SimpleResponse::new_();
+        let mut resp = SimpleResponse::default();
         resp.set_payload(util::new_payload(resp_size as usize));
         let f = sink
             .success(resp)
@@ -92,7 +92,7 @@ impl TestService for InteropTestService {
         sink: ServerStreamingSink<StreamingOutputCallResponse>,
     ) {
         let resps = req.take_response_parameters().into_iter().map(|param| {
-            let mut resp = StreamingOutputCallResponse::new_();
+            let mut resp = StreamingOutputCallResponse::default();
             resp.set_payload(util::new_payload(param.get_size() as usize));
             (resp, WriteFlags::default())
         });
@@ -114,7 +114,7 @@ impl TestService for InteropTestService {
                 Ok(s + req.get_payload().get_body().len()) as grpc::Result<_>
             })
             .and_then(|s| {
-                let mut resp = StreamingInputCallResponse::new_();
+                let mut resp = StreamingInputCallResponse::default();
                 resp.set_aggregated_payload_size(s as i32);
                 sink.success(resp)
             })
@@ -142,7 +142,7 @@ impl TestService for InteropTestService {
                     let status = RpcStatus::new(code, msg);
                     failure = Some(sink.fail(status));
                 } else {
-                    let mut resp = StreamingOutputCallResponse::new_();
+                    let mut resp = StreamingOutputCallResponse::default();
                     if let Some(param) = req.get_response_parameters().get(0) {
                         resp.set_payload(util::new_payload(param.get_size() as usize));
                     }

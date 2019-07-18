@@ -30,8 +30,8 @@ use futures::*;
 use grpcio::*;
 
 use crate::util::*;
-use grpcio_proto::example::route_guide;
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::example::route_guide_grpc::*;
 
 #[derive(Clone)]
 struct RouteGuideService {
@@ -44,7 +44,7 @@ impl RouteGuide for RouteGuideService {
         let resp = data
             .iter()
             .find(|f| same_point(f.get_location(), &point))
-            .map_or_else(Feature::new_, ToOwned::to_owned);
+            .map_or_else(Feature::default, ToOwned::to_owned);
         let f = sink
             .success(resp)
             .map_err(|e| error!("failed to handle getfeature request: {:?}", e));
@@ -85,7 +85,7 @@ impl RouteGuide for RouteGuideService {
         let timer = Instant::now();
         let f = points
             .fold(
-                (None, 0f64, RouteSummary::new_()),
+                (None, 0f64, RouteSummary::default()),
                 move |(last, mut dis, mut summary), point| {
                     let total_count = summary.get_point_count();
                     summary.set_point_count(total_count + 1);
@@ -149,7 +149,7 @@ fn main() {
     let instance = RouteGuideService {
         data: Arc::new(load_db()),
     };
-    let service = route_guide::create_route_guide(instance);
+    let service = create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50_051)

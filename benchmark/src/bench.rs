@@ -23,13 +23,13 @@ use grpc::{
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
     WriteFlags,
 };
-use grpc_proto::testing::BenchmarkService;
-use grpc_proto::testing::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
-    let mut resp = SimpleResponse::new_();
+    let mut resp = SimpleResponse::default();
     resp.set_payload(payload);
     resp
 }

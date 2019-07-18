@@ -20,6 +20,7 @@ use futures::sync::mpsc;
 use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::example::route_guide_grpc::*;
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
 type BoxFuture = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
@@ -74,7 +75,7 @@ impl RouteGuide for CancelService {
 
         let f = rx
             .map(|_| {
-                let f = Feature::new_();
+                let f = Feature::default();
                 (f, WriteFlags::default())
             })
             .forward(sink.sink_map_err(|_| ()))
@@ -269,7 +270,7 @@ fn test_early_exit() {
     let (tx, rx) = std_mpsc::channel();
     *service.list_feature_listener.lock().unwrap() = Some(tx);
 
-    let rect = Rectangle::new_();
+    let rect = Rectangle::default();
     let l = client.list_features(&rect).unwrap();
     let f = l.into_future();
     match f.wait() {

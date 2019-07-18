@@ -14,7 +14,7 @@
 use std::f64;
 use std::time::{Duration, Instant};
 
-use grpc_proto::testing::HistogramData;
+use grpc_proto::testing::stats::HistogramData;
 use grpc_sys;
 
 #[path = "../../examples/log_util.rs"]
@@ -206,7 +206,7 @@ impl Histogram {
     }
 
     pub fn report(&mut self, reset: bool) -> HistogramData {
-        let mut data = HistogramData::new_();
+        let mut data = HistogramData::default();
         data.set_count(f64::from(self.count));
         data.set_sum(self.sum);
         data.set_sum_of_squares(self.sum_of_squares);
