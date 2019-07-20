@@ -379,24 +379,35 @@ impl<'a> MethodGen<'a> {
         w.fn_def(&sig);
     }
 
-    fn write_bind(&self, w: &mut CodeWriter) {
+    fn write_bind(&self, w: &mut CodeWriter, instrument: bool) {
         let add = match self.method_type().0 {
             MethodType::Unary => "add_unary_handler",
             MethodType::ClientStreaming => "add_client_streaming_handler",
             MethodType::ServerStreaming => "add_server_streaming_handler",
             MethodType::Duplex => "add_duplex_streaming_handler",
         };
-        w.block(
-            &format!(
-                "builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                add,
-                self.const_method_name()
-            ),
-            "});",
-            |w| {
-                w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
-            },
+
+        let line = &format!(
+            "builder = builder.{}(&{}, move |ctx, req, resp| {{",
+            add,
+            self.const_method_name()
         );
+
+        if instrument {
+            w.block(line, "});", |w| {
+                w.write_line("&p.before();");
+                w.write_line(&format!(
+                    "let res = instance.{}(ctx, req, resp);",
+                    self.name()
+                ));
+                w.write_line("&p.after();");
+                w.write_line("res");
+            });
+        } else {
+            w.block(line, "});", |w| {
+                w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
+            });
+        }
     }
 }
 
@@ -489,7 +500,26 @@ impl<'a> ServiceGen<'a> {
             w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
             for method in &self.methods[0..self.methods.len() - 1] {
                 w.write_line("let mut instance = s.clone();");
-                method.write_bind(w);
+                method.write_bind(w, false);
+            }
+            w.write_line("builder.build()");
+        });
+
+        // server with instrumentation
+        w.write_line("");
+
+        let s = format!(
+            "create_instrumented_{}<S: {} + Send + Clone + 'static, P: {} + Clone + Send + Copy + 'static>(s: S, p: P) -> {}",
+            to_snake_case(&self.service_name()),
+            self.service_name(),
+            fq_grpc("ServerInstrumenter"),
+            fq_grpc("Service")
+        );
+        w.pub_fn(&s, |w| {
+            w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
+            for method in &self.methods {
+                w.write_line("let mut instance = s.clone();");
+                method.write_bind(w, true);
             }
 
             w.write_line("let mut instance = s;");
