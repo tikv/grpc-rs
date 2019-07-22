@@ -27,6 +27,7 @@ This project is still under development. The following features with the check m
 - CMake >= 3.8.0
 - Rust >= 1.19.0
 - binutils >= 2.22
+- LLVM and Clang used by bindgen
 - By default, the [secure feature](#feature-secure) is enabled, therefore Go (>=1.7) is required.
 
 For Linux and MacOS, you also need to install gcc (or clang) too.
