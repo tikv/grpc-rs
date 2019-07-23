@@ -263,7 +263,9 @@ fn bindgen_grpc(mut config: bindgen::Builder) {
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
         .whitelist_var(r"\bGRPC_.*")
-        .default_enum_style(bindgen::EnumVariation::Rust{non_exhaustive: false})
+        .default_enum_style(bindgen::EnumVariation::Rust {
+            non_exhaustive: false,
+        })
         .constified_enum_module(r"grpc_status_code")
         .no_copy("grpc_slice")
         .generate()
