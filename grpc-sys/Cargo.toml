@@ -61,5 +61,5 @@ no-omit-frame-pointer = []
 cc = "1.0"
 cmake = "0.1.40"
 pkg-config = "0.3"
-bindgen = "0.50.0"
-walkdir = "2.2.8"
+walkdir = "2.2.9"
+bindgen = { version = "0.50.0", default-features = false }
