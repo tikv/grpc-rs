@@ -256,13 +256,16 @@ fn bindgen_grpc(mut config: bindgen::Builder) {
     config = config.header("grpc_wrap.cc");
 
     let bindings = config
+        .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
         .clang_arg("-std=c++11")
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
         .whitelist_var(r"\bGRPC_.*")
-        .default_enum_style(bindgen::EnumVariation::Rust)
+        .default_enum_style(bindgen::EnumVariation::Rust {
+            non_exhaustive: false,
+        })
         .constified_enum_module(r"grpc_status_code")
         .no_copy("grpc_slice")
         .generate()
