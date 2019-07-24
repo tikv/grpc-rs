@@ -22,13 +22,16 @@ fn main() {
     ];
     for (dir, package) in modules {
         let out_dir = format!("{}/{}", out_dir, package);
-        let files: Vec<_> = walkdir::WalkDir::new(format!("proto/{}", dir)).into_iter().filter_map(|p| {
-            let dent = p.expect("Error happened when search protos");
-            if !dent.file_type().is_file() {
-                return None;
-            }
-            Some(format!("{}", dent.path().display()))
-        }).collect();
+        let files: Vec<_> = walkdir::WalkDir::new(format!("proto/{}", dir))
+            .into_iter()
+            .filter_map(|p| {
+                let dent = p.expect("Error happened when search protos");
+                if !dent.file_type().is_file() {
+                    return None;
+                }
+                Some(format!("{}", dent.path().display()))
+            })
+            .collect();
         protobuf_build::generate_files(&["proto".to_owned()], &files, &out_dir);
     }
 }
