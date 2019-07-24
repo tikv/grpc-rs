@@ -1,3 +1,8 @@
+# 0.5.0-alpha.3 - 2019-07-24
+
+- Fix circle dependencies to get round several cargo bugs
+- Fix generating bindgen failure
+
 # 0.5.0-alpha.2 - 2019-07-18
 
 - Support using vendored openssl
