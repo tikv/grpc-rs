@@ -11,11 +11,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod testing {
+    include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
+
+    #[cfg(feature = "prost-codec")]
+    pub use self::grpc::testing::*;
+}
+
+pub mod example {
+    include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
+}
+
+pub mod health {
+    pub mod v1 {
+        include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
+
+        #[cfg(feature = "prost-codec")]
+        pub use self::grpc::health::v1::*;
+    }
+}
+
 #[cfg(feature = "prost-codec")]
 #[allow(clippy::large_enum_variant)]
-pub mod testing {
-    include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
-    include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.testing.rs"));
+pub mod help {
+
+    use super::testing::*;
 
     // Wrapper functions for oneof fields.
     impl ClientArgs {
@@ -111,51 +131,6 @@ pub mod testing {
                 _ => false,
             }
         }
-    }
-}
-
-#[cfg(feature = "prost-codec")]
-pub mod example {
-    pub mod helloworld {
-        include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
-        include!(concat!(env!("OUT_DIR"), "/wrapper_helloworld.rs"));
-    }
-    pub mod route_guide {
-        include!(concat!(env!("OUT_DIR"), "/routeguide.rs"));
-        include!(concat!(env!("OUT_DIR"), "/wrapper_routeguide.rs"));
-    }
-}
-
-#[cfg(feature = "prost-codec")]
-pub mod health {
-    pub mod v1 {
-        pub mod health {
-            include!(concat!(env!("OUT_DIR"), "/grpc.health.v1.rs"));
-            include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.health.v1.rs"));
-        }
-    }
-}
-
-#[cfg(feature = "protobuf-codec")]
-#[allow(bare_trait_objects)]
-#[allow(renamed_and_removed_lints)]
-pub mod testing {
-    include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
-}
-
-#[cfg(feature = "protobuf-codec")]
-#[allow(bare_trait_objects)]
-#[allow(renamed_and_removed_lints)]
-pub mod example {
-    include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
-}
-
-#[cfg(feature = "protobuf-codec")]
-pub mod health {
-    #[allow(bare_trait_objects)]
-    #[allow(renamed_and_removed_lints)]
-    pub mod v1 {
-        include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
     }
 }
 
