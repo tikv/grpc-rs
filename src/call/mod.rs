@@ -31,8 +31,58 @@ use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
-pub use crate::grpc_sys::grpc_status_code as RpcStatusCode;
-pub type RpcStatusCodeType = i32;
+/// An gRPC status code structure.
+/// This type contains constants for all gRPC status codes.
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct RpcStatusCode(i32);
+
+impl From<i32> for RpcStatusCode {
+    fn from(code: i32) -> RpcStatusCode {
+        RpcStatusCode(code)
+    }
+}
+
+impl Into<i32> for RpcStatusCode {
+    fn into(self) -> i32 {
+        self.0
+    }
+}
+
+macro_rules! status_codes {
+    (
+        $(
+            ($num:expr, $konst:ident);
+        )+
+    ) => {
+        #[allow(dead_code)]
+        impl RpcStatusCode {
+        $(
+            pub const $konst: RpcStatusCode = RpcStatusCode($num);
+        )+
+        }
+    }
+}
+
+status_codes! {
+    (0, OK);
+    (1, CANCELLED);
+    (2, UNKNOWN);
+    (3, INVALID_ARGUMENT);
+    (4, DEADLINE_EXCEEDED);
+    (5, NOT_FOUND);
+    (6, ALREADY_EXISTS);
+    (7, PERMISSION_DENIED);
+    (8, RESOURCE_EXHAUSTED);
+    (9, FAILED_PRECONDITION);
+    (10, ABORTED);
+    (11, OUT_OF_RANGE);
+    (12, UNIMPLEMENTED);
+    (13, INTERNAL);
+    (14, UNAVAILABLE);
+    (15, DATA_LOSS);
+    (16, UNAUTHENTICATED);
+    (-1, DO_NOT_USE);
+}
 
 impl<'a> From<&'a mut GrpcByteBuffer> for grpc_byte_buffer_reader {
     fn from(src: &'a mut GrpcByteBuffer) -> Self {
@@ -148,7 +198,7 @@ impl<Req, Resp> Method<Req, Resp> {
 #[derive(Debug, Clone)]
 pub struct RpcStatus {
     /// gRPC status code. `Ok` indicates success, all other values indicate an error.
-    pub status: RpcStatusCodeType,
+    pub status: RpcStatusCode,
 
     /// Optional detail string.
     pub details: Option<String>,
@@ -156,13 +206,13 @@ pub struct RpcStatus {
 
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
-    pub fn new(status: RpcStatusCodeType, details: Option<String>) -> RpcStatus {
+    pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
         RpcStatus { status, details }
     }
 
     /// Create a new [`RpcStatus`] that status code is Ok.
     pub fn ok() -> RpcStatus {
-        RpcStatus::new(RpcStatusCode::GRPC_STATUS_OK, None)
+        RpcStatus::new(RpcStatusCode::OK, None)
     }
 }
 
@@ -330,9 +380,10 @@ impl BatchContext {
 
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
-        let status =
-            unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) };
-        let details = if status == RpcStatusCode::GRPC_STATUS_OK {
+        let status = RpcStatusCode::from(unsafe {
+            grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx)
+        });
+        let details = if status == RpcStatusCode::OK {
             None
         } else {
             unsafe {
@@ -489,7 +540,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
-                status.status,
+                status.status.into(),
                 details_ptr,
                 details_len,
                 ptr::null_mut(),
@@ -524,7 +575,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
                 batch_ptr,
-                status.status,
+                status.status.into(),
                 details_ptr,
                 details_len,
                 ptr::null_mut(),

@@ -34,7 +34,7 @@ impl Health for HealthService {
     ) {
         let status = self.status.read().unwrap();
         let res = match status.get(req.get_service()) {
-            None => sink.fail(RpcStatus::new(RpcStatusCode::GRPC_STATUS_NOT_FOUND, None)),
+            None => sink.fail(RpcStatus::new(RpcStatusCode::NOT_FOUND, None)),
             Some(s) => {
                 let mut resp = HealthCheckResponse::default();
                 resp.set_status(*s);
@@ -99,7 +99,7 @@ fn test_health_check() {
     req.set_service("not-exist".to_owned());
     let err = client.check(&req).unwrap_err();
     match err {
-        Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::GRPC_STATUS_NOT_FOUND),
+        Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::NOT_FOUND),
         e => panic!("unexpected error: {:?}", e),
     }
 }
