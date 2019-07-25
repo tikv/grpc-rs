@@ -60,7 +60,7 @@ impl TestService for InteropTestService {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = Some(req.take_response_status().take_message());
-            let status = RpcStatus::new(RpcStatusCode::new(code), msg);
+            let status = RpcStatus::new(code.into(), msg);
             let f = sink
                 .fail(status)
                 .map_err(|e| panic!("failed to send response: {:?}", e));
@@ -139,7 +139,7 @@ impl TestService for InteropTestService {
                 if req.has_response_status() {
                     let code = req.get_response_status().get_code();
                     let msg = Some(req.take_response_status().take_message());
-                    let status = RpcStatus::new(RpcStatusCode::new(code), msg);
+                    let status = RpcStatus::new(code.into(), msg);
                     failure = Some(sink.fail(status));
                 } else {
                     let mut resp = StreamingOutputCallResponse::default();
