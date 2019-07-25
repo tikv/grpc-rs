@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 git submodule update --init grpc-sys/grpc
 cd grpc-sys/grpc
 git submodule update --init third_party/boringssl
