@@ -206,8 +206,11 @@ pub struct RpcStatus {
 
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
-    pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
-        RpcStatus { status, details }
+    pub fn new<T: Into<RpcStatusCode>>(code: T, details: Option<String>) -> RpcStatus {
+        RpcStatus {
+            status: code.into(),
+            details,
+        }
     }
 
     /// Create a new [`RpcStatus`] that status code is Ok.
@@ -380,9 +383,10 @@ impl BatchContext {
 
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
-        let status =
-            unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) }
-                .into();
+        let status = RpcStatusCode(unsafe {
+            grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx)
+        });
+
         let details = if status == RpcStatusCode::OK {
             None
         } else {
@@ -397,7 +401,7 @@ impl BatchContext {
             }
         };
 
-        RpcStatus { status, details }
+        RpcStatus::new(status, details)
     }
 
     /// Fetch the response bytes of the rpc call.
