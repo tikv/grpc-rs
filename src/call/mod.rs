@@ -36,8 +36,9 @@ use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct RpcStatusCode(i32);
 
-impl From<i32> for RpcStatusCode {
-    fn from(code: i32) -> RpcStatusCode {
+impl RpcStatusCode {
+    fn new(code: i32) -> RpcStatusCode {
+        assert!(code >= -1 && code <= 16, "RPC status code is invalid");
         RpcStatusCode(code)
     }
 }
@@ -54,7 +55,6 @@ macro_rules! status_codes {
             ($num:expr, $konst:ident);
         )+
     ) => {
-        #[allow(dead_code)]
         impl RpcStatusCode {
         $(
             pub const $konst: RpcStatusCode = RpcStatusCode($num);
@@ -380,7 +380,7 @@ impl BatchContext {
 
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
-        let status = RpcStatusCode::from(unsafe {
+        let status = RpcStatusCode::new(unsafe {
             grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx)
         });
         let details = if status == RpcStatusCode::OK {
