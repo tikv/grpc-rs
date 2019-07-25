@@ -29,7 +29,7 @@ fn main() {
                 if !dent.file_type().is_file() {
                     return None;
                 }
-                Some(format!("{}", dent.path().display()))
+                Some(format!("{}", dent.path().display()).replace('\\', "/"))
             })
             .collect();
         protobuf_build::generate_files(&["proto".to_owned()], &files, &out_dir);
