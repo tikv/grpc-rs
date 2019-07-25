@@ -29,6 +29,7 @@ fn main() {
                 if !dent.file_type().is_file() {
                     return None;
                 }
+                // rust-protobuf is bad at dealing with path, keep it the same style.
                 Some(format!("{}", dent.path().display()).replace('\\', "/"))
             })
             .collect();
