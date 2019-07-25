@@ -237,7 +237,7 @@ fn get_env(name: &str) -> Option<String> {
 }
 
 /// Generate the bindings to C-core
-fn bindgen_grpc(mut config: bindgen::Builder) {
+fn bindgen_grpc(mut config: bindgen::Builder, out_path: PathBuf) {
     // Search header files with API interface
     for result in WalkDir::new(Path::new("./grpc/include")) {
         let dent = result.expect("Error happened when search headers");
@@ -253,9 +253,8 @@ fn bindgen_grpc(mut config: bindgen::Builder) {
         }
     }
 
-    config = config.header("grpc_wrap.cc");
-
-    let bindings = config
+    config
+        .header("grpc_wrap.cc")
         .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
         .clang_arg("-std=c++11")
@@ -269,20 +268,18 @@ fn bindgen_grpc(mut config: bindgen::Builder) {
         .constified_enum_module(r"grpc_status_code")
         .no_copy("grpc_slice")
         .generate()
-        .expect("Unable to generate grpc bindings");
-
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
+        .expect("Unable to generate grpc bindings")
         .write_to_file(out_path.join("grpc-bindings.rs"))
         .expect("Couldn't write bindings!");
 }
 
 fn main() {
-    let mut cc = Build::new();
-    let mut bind_config = bindgen::Builder::default();
-
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
+    println!("rerun-if-env-changed=UPDATE_BIND");
+
+    let mut cc = Build::new();
+    let mut bind_config = bindgen::Builder::default();
 
     let library = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
@@ -317,5 +314,22 @@ fn main() {
     cc.warnings_into_errors(true);
 
     cc.compile("libgrpc_wrap.a");
-    bindgen_grpc(bind_config);
+
+    // Determine if need to update bindings. Supported platforms
+    // do not need to be updated by default unless the
+    // UPDATE_BIND is specified. Other platforms use bindgen
+    // to generate the bindings every time.
+    let supported = String::from("x86_64-unknown-linux-gnu;");
+
+    let out_path = if supported.contains(env::var("TARGET").unwrap().as_str()) {
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("bindings")
+    } else {
+        PathBuf::from(env::var("OUT_DIR").unwrap())
+    };
+    println!("cargo:rustc-env=BINDING_DIR={}", out_path.to_str().unwrap());
+
+    if !supported.contains(env::var("TARGET").unwrap().as_str()) || env::var("UPDATE_BIND").is_ok()
+    {
+        bindgen_grpc(bind_config, out_path);
+    }
 }

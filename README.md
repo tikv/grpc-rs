@@ -42,7 +42,8 @@ For Windows, you also need to install following software:
 
 ```
 $ git submodule update --init --recursive # if you just cloned the repository
-$ cargo build
+$ cargo build # if you just want to compile
+$ ./scripts/update-bindings.sh # if you update the version of gRPC
 ```
 
 ### Error linking OpenSSL
