@@ -29,10 +29,60 @@ use libc::c_void;
 
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
+use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
-pub use crate::grpc_sys::grpc_status_code as RpcStatusCode;
-pub type RpcStatusCodeType = i32;
+/// An gRPC status code structure.
+/// This type contains constants for all gRPC status codes.
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct RpcStatusCode(i32);
+
+impl From<i32> for RpcStatusCode {
+    fn from(code: i32) -> RpcStatusCode {
+        RpcStatusCode(code)
+    }
+}
+
+impl Into<i32> for RpcStatusCode {
+    fn into(self) -> i32 {
+        self.0
+    }
+}
+
+macro_rules! status_codes {
+    (
+        $(
+            ($num:expr, $konst:ident);
+        )+
+    ) => {
+        impl RpcStatusCode {
+        $(
+            pub const $konst: RpcStatusCode = RpcStatusCode($num);
+        )+
+        }
+    }
+}
+
+status_codes! {
+    (GRPC_STATUS_OK, OK);
+    (GRPC_STATUS_CANCELLED, CANCELLED);
+    (GRPC_STATUS_UNKNOWN, UNKNOWN);
+    (GRPC_STATUS_INVALID_ARGUMENT, INVALID_ARGUMENT);
+    (GRPC_STATUS_DEADLINE_EXCEEDED, DEADLINE_EXCEEDED);
+    (GRPC_STATUS_NOT_FOUND, NOT_FOUND);
+    (GRPC_STATUS_ALREADY_EXISTS, ALREADY_EXISTS);
+    (GRPC_STATUS_PERMISSION_DENIED, PERMISSION_DENIED);
+    (GRPC_STATUS_RESOURCE_EXHAUSTED, RESOURCE_EXHAUSTED);
+    (GRPC_STATUS_FAILED_PRECONDITION, FAILED_PRECONDITION);
+    (GRPC_STATUS_ABORTED, ABORTED);
+    (GRPC_STATUS_OUT_OF_RANGE, OUT_OF_RANGE);
+    (GRPC_STATUS_UNIMPLEMENTED, UNIMPLEMENTED);
+    (GRPC_STATUS_INTERNAL, INTERNAL);
+    (GRPC_STATUS_UNAVAILABLE, UNAVAILABLE);
+    (GRPC_STATUS_DATA_LOSS, DATA_LOSS);
+    (GRPC_STATUS_UNAUTHENTICATED, UNAUTHENTICATED);
+    (GRPC_STATUS__DO_NOT_USE, DO_NOT_USE);
+}
 
 impl<'a> From<&'a mut GrpcByteBuffer> for grpc_byte_buffer_reader {
     fn from(src: &'a mut GrpcByteBuffer) -> Self {
@@ -148,7 +198,7 @@ impl<Req, Resp> Method<Req, Resp> {
 #[derive(Debug, Clone)]
 pub struct RpcStatus {
     /// gRPC status code. `Ok` indicates success, all other values indicate an error.
-    pub status: RpcStatusCodeType,
+    pub status: RpcStatusCode,
 
     /// Optional detail string.
     pub details: Option<String>,
@@ -156,13 +206,16 @@ pub struct RpcStatus {
 
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
-    pub fn new(status: RpcStatusCodeType, details: Option<String>) -> RpcStatus {
-        RpcStatus { status, details }
+    pub fn new<T: Into<RpcStatusCode>>(code: T, details: Option<String>) -> RpcStatus {
+        RpcStatus {
+            status: code.into(),
+            details,
+        }
     }
 
     /// Create a new [`RpcStatus`] that status code is Ok.
     pub fn ok() -> RpcStatus {
-        RpcStatus::new(RpcStatusCode::GRPC_STATUS_OK, None)
+        RpcStatus::new(RpcStatusCode::OK, None)
     }
 }
 
@@ -330,9 +383,11 @@ impl BatchContext {
 
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
-        let status =
-            unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) };
-        let details = if status == RpcStatusCode::GRPC_STATUS_OK {
+        let status = RpcStatusCode(unsafe {
+            grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx)
+        });
+
+        let details = if status == RpcStatusCode::OK {
             None
         } else {
             unsafe {
@@ -346,7 +401,7 @@ impl BatchContext {
             }
         };
 
-        RpcStatus { status, details }
+        RpcStatus::new(status, details)
     }
 
     /// Fetch the response bytes of the rpc call.
@@ -489,7 +544,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
-                status.status,
+                status.status.into(),
                 details_ptr,
                 details_len,
                 ptr::null_mut(),
@@ -524,7 +579,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
                 batch_ptr,
-                status.status,
+                status.status.into(),
                 details_ptr,
                 details_len,
                 ptr::null_mut(),

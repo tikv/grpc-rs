@@ -122,7 +122,7 @@ where
 {
     match rx.into_future().wait() {
         Err((Error::RpcFailure(s), _)) | Err((Error::RpcFinished(Some(s)), _)) => {
-            assert_eq!(s.status, RpcStatusCode::GRPC_STATUS_CANCELLED)
+            assert_eq!(s.status, RpcStatusCode::CANCELLED)
         }
         Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
         Ok(_) => panic!("expected error, but got: Ok(_)"),

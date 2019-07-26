@@ -225,10 +225,7 @@ impl UnaryRequestContext {
             return execute(self.request, cq, reader, handler);
         }
 
-        let status = RpcStatus::new(
-            RpcStatusCode::GRPC_STATUS_INTERNAL,
-            Some("No payload".to_owned()),
-        );
+        let status = RpcStatus::new(RpcStatusCode::INTERNAL, Some("No payload".to_owned()));
         self.request.call(cq.clone()).abort(&status)
     }
 }
@@ -661,7 +658,7 @@ pub fn execute_unary<P, Q, F>(
         Ok(f) => f,
         Err(e) => {
             let status = RpcStatus::new(
-                RpcStatusCode::GRPC_STATUS_INTERNAL,
+                RpcStatusCode::INTERNAL,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
             call.abort(&status);
@@ -707,7 +704,7 @@ pub fn execute_server_streaming<P, Q, F>(
         Ok(t) => t,
         Err(e) => {
             let status = RpcStatus::new(
-                RpcStatusCode::GRPC_STATUS_INTERNAL,
+                RpcStatusCode::INTERNAL,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
             call.abort(&status);
@@ -743,10 +740,7 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
     let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(&RpcStatus::new(
-        RpcStatusCode::GRPC_STATUS_UNIMPLEMENTED,
-        None,
-    ))
+    call.abort(&RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None))
 }
 
 // Helper function to call handler.
