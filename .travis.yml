@@ -27,7 +27,7 @@ matrix:
     rust: stable
     install:
       - mkdir -p $HOME/tools
-      - export PATH="$HOME/tools/Go/bin:$HOME/tools/bin:$HOME/tools/Perl:$HOME/tools/ninja/bin:$PATH"
+      - export PATH="$HOME/tools/Go/bin:$HOME/tools/bin:$PATH"
       - if ! which go 2>/dev/null; then
           wget -nv https://dl.google.com/go/go1.12.7.windows-amd64.zip;
           unzip -q go1.12.7.windows-amd64.zip -d $HOME/tools/;
