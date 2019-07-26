@@ -1,10 +1,13 @@
 dist: xenial
 sudo: false
 language: rust
+git:
+  submodules: false
 cache:
   directories:
     - $HOME/.cargo
     - $HOME/.cache
+    - $HOME/tools
     - $TRAVIS_BUILD_DIR/target
 before_cache:
   - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
@@ -23,13 +26,34 @@ matrix:
   - os: windows
     rust: stable
     install:
-      - choco install golang yasm activeperl ninja
-      - export PATH="/c/Go/bin:$PATH"
-      - go version
-    before_script: true
+      - mkdir -p $HOME/tools
+      - export PATH="$HOME/tools/Go/bin:$HOME/tools/bin:$HOME/tools/perl/c/bin:$HOME/tools/perl/perl/bin/:$HOME/tools/perl/perl/site/bin:$PATH"
+      - if ! which go 2>/dev/null; then
+          wget -nv https://dl.google.com/go/go1.12.7.windows-amd64.zip;
+          unzip -q go1.12.7.windows-amd64.zip -d $HOME/tools/;
+        fi
+      - if ! which yasm 2>/dev/null; then
+          mkdir -p $HOME/tools/bin;
+          wget -nv https://github.com/yasm/yasm/releases/download/v1.3.0/yasm-1.3.0-win64.exe -O $HOME/tools/bin/yasm.exe;
+        fi
+      - export GO_ROOT=$HOME/tools/Go
+      - if ! which ninja 2> /dev/null; then
+          wget -nv https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-win.zip;
+          unzip ninja-win.zip -d $HOME/tools/bin;
+        fi
+      - if [[ ! -f $HOME/tools/perl/update_env.pl.bat ]]; then
+          mkdir -p $HOME/tool/perl;
+          wget -nv http://strawberryperl.com/download/5.30.0.1/strawberry-perl-5.30.0.1-64bit.zip;
+          unzip -q strawberry-perl-5.30.0.1-64bit.zip -d $HOME/tools/perl;
+          $HOME/tools/perl/relocation.pl.bat;
+        fi
+      - $HOME/tools/perl/update_env.pl.bat
+      - which perl && perl --version
+    before_script: 
+      - scripts/reset-submodule.cmd
     script:
-      - cargo build
-      - cargo test --all
+      - travis_wait cargo build
+      - travis_wait cargo test --all
 
   - os: osx
     rust: stable
@@ -45,6 +69,7 @@ addons:
       - clang-7
 
 before_script:
+  - scripts/reset-submodule.cmd
   - export GRPC_VERSION=1.17.2
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
@@ -73,7 +98,9 @@ before_script:
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
 script:
-  - rustup component add rustfmt && cargo fmt --all -- --check
+  - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
+      rustup component add rustfmt && cargo fmt --all -- --check;
+    fi
   - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi
   - cargo build --no-default-features
