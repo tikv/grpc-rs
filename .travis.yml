@@ -41,6 +41,14 @@ matrix:
           wget -nv https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-win.zip;
           unzip ninja-win.zip -d $HOME/tools/bin;
         fi
+      - if [[ ! -f $HOME/tools/perl/update_env.pl.bat ]]; then
+          mkdir -p $HOME/tool/perl;
+          wget http://strawberryperl.com/download/5.30.0.1/strawberry-perl-5.30.0.1-64bit.zip;
+          unzip -q strawberry-perl-5.30.0.1-64bit.zip -d $HOME/tools/perl;
+          $HOME/tools/perl/relocation.pl.bat;
+        fi
+      - $HOME/tools/perl/update_env.pl.bat
+      - which perl && perl --version
     before_script: 
       - scripts/reset-submodule.cmd
     script:
@@ -90,7 +98,9 @@ before_script:
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
 script:
-  - rustup component add rustfmt && cargo fmt --all -- --check
+  - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
+      rustup component add rustfmt && cargo fmt --all -- --check;
+    fi
   - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi
   - cargo build --no-default-features
