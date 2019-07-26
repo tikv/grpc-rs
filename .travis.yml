@@ -27,7 +27,7 @@ matrix:
     rust: stable
     install:
       - mkdir -p $HOME/tools
-      - export PATH="$HOME/tools/Go/bin:$HOME/tools/bin:$PATH"
+      - export PATH="$HOME/tools/Go/bin:$HOME/tools/bin:$HOME/tools/perl/c/bin:$HOME/tools/perl/perl/bin/:$HOME/tools/perl/perl/site/bin:$PATH"
       - if ! which go 2>/dev/null; then
           wget -nv https://dl.google.com/go/go1.12.7.windows-amd64.zip;
           unzip -q go1.12.7.windows-amd64.zip -d $HOME/tools/;
@@ -43,7 +43,7 @@ matrix:
         fi
       - if [[ ! -f $HOME/tools/perl/update_env.pl.bat ]]; then
           mkdir -p $HOME/tool/perl;
-          wget http://strawberryperl.com/download/5.30.0.1/strawberry-perl-5.30.0.1-64bit.zip;
+          wget -nv http://strawberryperl.com/download/5.30.0.1/strawberry-perl-5.30.0.1-64bit.zip;
           unzip -q strawberry-perl-5.30.0.1-64bit.zip -d $HOME/tools/perl;
           $HOME/tools/perl/relocation.pl.bat;
         fi
@@ -52,8 +52,8 @@ matrix:
     before_script: 
       - scripts/reset-submodule.cmd
     script:
-      - cargo build
-      - cargo test --all
+      - travis_wait cargo build
+      - travis_wait cargo test --all
 
   - os: osx
     rust: stable
