@@ -102,6 +102,7 @@ script:
       rustup component add rustfmt && cargo fmt --all -- --check;
     fi
   - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
+  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/update-bindings.sh && git diff-index --quiet HEAD; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi
   - cargo build --no-default-features
   - cargo build --no-default-features --features protobuf-codec
