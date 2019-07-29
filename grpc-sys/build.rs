@@ -237,7 +237,7 @@ fn get_env(name: &str) -> Option<String> {
 }
 
 /// Generate the bindings to C-core
-fn bindgen_grpc(mut config: bindgen::Builder, out_path: PathBuf) {
+fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
     // Search header files with API interface
     for result in WalkDir::new(Path::new("./grpc/include")) {
         let dent = result.expect("Error happened when search headers");
@@ -269,7 +269,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, out_path: PathBuf) {
         .no_copy("grpc_slice")
         .generate()
         .expect("Unable to generate grpc bindings")
-        .write_to_file(out_path.join("grpc-bindings.rs"))
+        .write_to_file(file_path)
         .expect("Couldn't write bindings!");
 }
 
@@ -319,17 +319,39 @@ fn main() {
     // do not need to be updated by default unless the
     // UPDATE_BIND is specified. Other platforms use bindgen
     // to generate the bindings every time.
-    let supported = String::from("x86_64-unknown-linux-gnu;");
-
-    let out_path = if supported.contains(env::var("TARGET").unwrap().as_str()) {
-        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("bindings")
-    } else {
-        PathBuf::from(env::var("OUT_DIR").unwrap())
+    match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
+        "x86_64-unknown-linux-gnu" => {
+            let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("bindings")
+                .join("x86_64-unknown-linux-gnu-bindings.rs");
+            if env::var("UPDATE_BIND").is_ok() {
+                bindgen_grpc(bind_config, &file_path);
+            }
+            println!(
+                "cargo:rustc-env=BINDING_DIR={}",
+                file_path.to_str().unwrap()
+            );
+        }
+        "x86_64-apple-darwin" => {
+            let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("bindings")
+                .join("x86_64-apple-darwin-bindings.rs");
+            if env::var("UPDATE_BIND").is_ok() {
+                bindgen_grpc(bind_config, &file_path);
+            }
+            println!(
+                "cargo:rustc-env=BINDING_DIR={}",
+                file_path.to_str().unwrap()
+            );
+        }
+        _ => {
+            let file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
+            bindgen_grpc(bind_config, &file_path);
+            println!(
+                "cargo:rustc-env=BINDING_DIR={}",
+                file_path.to_str().unwrap()
+            );
+        }
     };
-    println!("cargo:rustc-env=BINDING_DIR={}", out_path.to_str().unwrap());
-
-    if !supported.contains(env::var("TARGET").unwrap().as_str()) || env::var("UPDATE_BIND").is_ok()
-    {
-        bindgen_grpc(bind_config, out_path);
-    }
+    
 }
