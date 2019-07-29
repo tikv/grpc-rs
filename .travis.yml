@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 sudo: false
 language: rust
 git:
@@ -61,7 +61,7 @@ matrix:
 addons:
   apt:
     sources:
-      - llvm-toolchain-xenial-7
+      - llvm-toolchain-7
     packages:
       - clang-tidy-7
       - llvm-7-dev
