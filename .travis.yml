@@ -1,4 +1,4 @@
-dist: bionic
+dist: xenial
 sudo: false
 language: rust
 git:
@@ -62,12 +62,12 @@ addons:
   apt:
     update: true
     sources:
-      - llvm-toolchain-7
+      - llvm-toolchain-xenial-7
     packages:
-      - clang-tidy
-      - llvm-dev
-      - libclang-dev
-      - clang
+      - clang-tidy-7
+      - llvm-7-dev
+      - libclang-7-dev
+      - clang-7
 
 before_script:
   - scripts/reset-submodule.cmd
