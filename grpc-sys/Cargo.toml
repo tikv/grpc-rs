@@ -62,4 +62,4 @@ cc = "1.0"
 cmake = "0.1.40"
 pkg-config = "0.3"
 walkdir = "2.2.9"
-bindgen = { version = "0.50.0", default-features = false }
+bindgen = { version = "=0.51.0", default-features = false }
