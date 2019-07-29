@@ -60,13 +60,13 @@ matrix:
 
 addons:
   apt:
-    sources:
-      - llvm-toolchain-6
+    update: true
     packages:
-      - clang-tidy-6
-      - llvm-6-dev
-      - libclang-6-dev
-      - clang-6
+      - build-essential
+      - clang-tidy
+      - llvm-dev
+      - libclang-dev
+      - clang
 
 before_script:
   - scripts/reset-submodule.cmd
