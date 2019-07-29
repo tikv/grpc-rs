@@ -276,6 +276,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
+    println!("cargo:rerun-if-changed=bindings");
     println!("rerun-if-env-changed=UPDATE_BIND");
 
     let mut cc = Build::new();
