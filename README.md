@@ -43,6 +43,7 @@ For Windows, you also need to install following software:
 ```
 $ git submodule update --init --recursive # if you just cloned the repository
 $ cargo build # if you just want to compile
+
 $ ./scripts/generate-bindings.sh # used only on the Linux to update bindings 
 ```
 
