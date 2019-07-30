@@ -28,9 +28,9 @@ This project is still under development. The following features with the check m
 - Rust >= 1.19.0
 - binutils >= 2.22
 - LLVM and Clang >= 3.9 recommended by bindgen
-- By default, the [secure feature](#feature-secure) is enabled, therefore Go (>=1.7) is required.
+- By default, the [boringssl](#feature-secure) is enabled, therefore Go (>=1.7) is required.
 
-For Linux and MacOS, you also need to install gcc (or clang) too.
+For Linux and MacOS, you also need to install gcc too.
 
 For Windows, you also need to install following software:
 
