@@ -239,6 +239,7 @@ fn get_env(name: &str) -> Option<String> {
 /// Generate the bindings to C-core
 fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
     // Search header files with API interface
+    let mut headers = Vec::new();
     for result in WalkDir::new(Path::new("./grpc/include")) {
         let dent = result.expect("Error happened when search headers");
         if !dent.file_type().is_file() {
@@ -249,8 +250,14 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         file.read_to_string(&mut buf)
             .expect("Coundn't read header content");
         if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
-            config = config.header(dent.path().to_str().unwrap());
+            headers.push(String::from(dent.path().to_str().unwrap()));
         }
+    }
+
+    // To control the order of bindings
+    headers.sort();
+    for path in headers {
+        config = config.header(path);
     }
 
     config

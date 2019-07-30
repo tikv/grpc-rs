@@ -705,115 +705,6 @@ fn bindgen_test_layout_pthread_cond_t() {
     );
 }
 #[repr(u32)]
-#[doc = " The severity of a log message - use the #defines below when calling into"]
-#[doc = "gpr_log to additionally supply file and line data"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum gpr_log_severity {
-    GPR_LOG_SEVERITY_DEBUG = 0,
-    GPR_LOG_SEVERITY_INFO = 1,
-    GPR_LOG_SEVERITY_ERROR = 2,
-}
-extern "C" {
-    #[doc = " Returns a string representation of the log severity"]
-    pub fn gpr_log_severity_string(severity: gpr_log_severity) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    #[doc = " Log a message. It's advised to use GPR_xxx above to generate the context"]
-    #[doc = " for each message"]
-    pub fn gpr_log(
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-        severity: gpr_log_severity,
-        format: *const ::std::os::raw::c_char,
-        ...
-    );
-}
-extern "C" {
-    pub fn gpr_should_log(severity: gpr_log_severity) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn gpr_log_message(
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-        severity: gpr_log_severity,
-        message: *const ::std::os::raw::c_char,
-    );
-}
-extern "C" {
-    #[doc = " Set global log verbosity"]
-    pub fn gpr_set_log_verbosity(min_severity_to_print: gpr_log_severity);
-}
-extern "C" {
-    pub fn gpr_log_verbosity_init();
-}
-#[doc = " Log overrides: applications can use this API to intercept logging calls"]
-#[doc = "and use their own implementations"]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct gpr_log_func_args {
-    pub file: *const ::std::os::raw::c_char,
-    pub line: ::std::os::raw::c_int,
-    pub severity: gpr_log_severity,
-    pub message: *const ::std::os::raw::c_char,
-}
-#[test]
-fn bindgen_test_layout_gpr_log_func_args() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_log_func_args>(),
-        24usize,
-        concat!("Size of: ", stringify!(gpr_log_func_args))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_log_func_args>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_log_func_args))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).file as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(file)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).line as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(line)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).severity as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(severity)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).message as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(message)
-        )
-    );
-}
-pub type gpr_log_func = ::std::option::Option<unsafe extern "C" fn(args: *mut gpr_log_func_args)>;
-extern "C" {
-    pub fn gpr_set_log_function(func: gpr_log_func);
-}
-#[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC"]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum grpc_compression_algorithm {
@@ -1011,76 +902,6 @@ fn bindgen_test_layout_grpc_compression_options() {
             stringify!(grpc_compression_options),
             "::",
             stringify!(default_algorithm)
-        )
-    );
-}
-#[repr(u32)]
-#[doc = " The clocks we support."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum gpr_clock_type {
-    #[doc = " Monotonic clock. Epoch undefined. Always moves forwards."]
-    GPR_CLOCK_MONOTONIC = 0,
-    #[doc = " Realtime clock. May jump forwards or backwards. Settable by"]
-    #[doc = "the system administrator. Has its epoch at 0:00:00 UTC 1 Jan 1970."]
-    GPR_CLOCK_REALTIME = 1,
-    #[doc = " CPU cycle time obtained by rdtsc instruction on x86 platforms. Epoch"]
-    #[doc = "undefined. Degrades to GPR_CLOCK_REALTIME on other platforms."]
-    GPR_CLOCK_PRECISE = 2,
-    #[doc = " Unmeasurable clock type: no base, created by taking the difference"]
-    #[doc = "between two times"]
-    GPR_TIMESPAN = 3,
-}
-#[doc = " Analogous to struct timespec. On some machines, absolute times may be in"]
-#[doc = " local time."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct gpr_timespec {
-    pub tv_sec: i64,
-    pub tv_nsec: i32,
-    #[doc = " Against which clock was this time measured? (or GPR_TIMESPAN if"]
-    #[doc = "this is a relative time meaure)"]
-    pub clock_type: gpr_clock_type,
-}
-#[test]
-fn bindgen_test_layout_gpr_timespec() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_timespec>(),
-        16usize,
-        concat!("Size of: ", stringify!(gpr_timespec))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_timespec>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_timespec))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).tv_sec as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_timespec),
-            "::",
-            stringify!(tv_sec)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).tv_nsec as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_timespec),
-            "::",
-            stringify!(tv_nsec)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).clock_type as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_timespec),
-            "::",
-            stringify!(clock_type)
         )
     );
 }
@@ -1495,6 +1316,575 @@ fn bindgen_test_layout_grpc_slice_buffer() {
             stringify!(inlined)
         )
     );
+}
+#[repr(u32)]
+#[doc = " The clocks we support."]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum gpr_clock_type {
+    #[doc = " Monotonic clock. Epoch undefined. Always moves forwards."]
+    GPR_CLOCK_MONOTONIC = 0,
+    #[doc = " Realtime clock. May jump forwards or backwards. Settable by"]
+    #[doc = "the system administrator. Has its epoch at 0:00:00 UTC 1 Jan 1970."]
+    GPR_CLOCK_REALTIME = 1,
+    #[doc = " CPU cycle time obtained by rdtsc instruction on x86 platforms. Epoch"]
+    #[doc = "undefined. Degrades to GPR_CLOCK_REALTIME on other platforms."]
+    GPR_CLOCK_PRECISE = 2,
+    #[doc = " Unmeasurable clock type: no base, created by taking the difference"]
+    #[doc = "between two times"]
+    GPR_TIMESPAN = 3,
+}
+#[doc = " Analogous to struct timespec. On some machines, absolute times may be in"]
+#[doc = " local time."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct gpr_timespec {
+    pub tv_sec: i64,
+    pub tv_nsec: i32,
+    #[doc = " Against which clock was this time measured? (or GPR_TIMESPAN if"]
+    #[doc = "this is a relative time meaure)"]
+    pub clock_type: gpr_clock_type,
+}
+#[test]
+fn bindgen_test_layout_gpr_timespec() {
+    assert_eq!(
+        ::std::mem::size_of::<gpr_timespec>(),
+        16usize,
+        concat!("Size of: ", stringify!(gpr_timespec))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<gpr_timespec>(),
+        8usize,
+        concat!("Alignment of ", stringify!(gpr_timespec))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).tv_sec as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_timespec),
+            "::",
+            stringify!(tv_sec)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).tv_nsec as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_timespec),
+            "::",
+            stringify!(tv_nsec)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).clock_type as *const _ as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_timespec),
+            "::",
+            stringify!(clock_type)
+        )
+    );
+}
+pub type gpr_atm = isize;
+extern "C" {
+    #[doc = " Adds \\a delta to \\a *value, clamping the result to the range specified"]
+    #[doc = "by \\a min and \\a max.  Returns the new value."]
+    pub fn gpr_atm_no_barrier_clamped_add(
+        value: *mut gpr_atm,
+        delta: gpr_atm,
+        min: gpr_atm,
+        max: gpr_atm,
+    ) -> gpr_atm;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct gpr_event {
+    pub state: gpr_atm,
+}
+#[test]
+fn bindgen_test_layout_gpr_event() {
+    assert_eq!(
+        ::std::mem::size_of::<gpr_event>(),
+        8usize,
+        concat!("Size of: ", stringify!(gpr_event))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<gpr_event>(),
+        8usize,
+        concat!("Alignment of ", stringify!(gpr_event))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_event>())).state as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_event),
+            "::",
+            stringify!(state)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct gpr_refcount {
+    pub count: gpr_atm,
+}
+#[test]
+fn bindgen_test_layout_gpr_refcount() {
+    assert_eq!(
+        ::std::mem::size_of::<gpr_refcount>(),
+        8usize,
+        concat!("Size of: ", stringify!(gpr_refcount))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<gpr_refcount>(),
+        8usize,
+        concat!("Alignment of ", stringify!(gpr_refcount))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_refcount>())).count as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_refcount),
+            "::",
+            stringify!(count)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct gpr_stats_counter {
+    pub value: gpr_atm,
+}
+#[test]
+fn bindgen_test_layout_gpr_stats_counter() {
+    assert_eq!(
+        ::std::mem::size_of::<gpr_stats_counter>(),
+        8usize,
+        concat!("Size of: ", stringify!(gpr_stats_counter))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<gpr_stats_counter>(),
+        8usize,
+        concat!("Alignment of ", stringify!(gpr_stats_counter))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_stats_counter>())).value as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_stats_counter),
+            "::",
+            stringify!(value)
+        )
+    );
+}
+pub type gpr_mu = pthread_mutex_t;
+pub type gpr_cv = pthread_cond_t;
+pub type gpr_once = pthread_once_t;
+extern "C" {
+    #[doc = " Initialize *mu.  Requires:  *mu uninitialized."]
+    pub fn gpr_mu_init(mu: *mut gpr_mu);
+}
+extern "C" {
+    #[doc = " Cause *mu no longer to be initialized, freeing any memory in use.  Requires:"]
+    #[doc = "mu initialized; no other concurrent operation on *mu."]
+    pub fn gpr_mu_destroy(mu: *mut gpr_mu);
+}
+extern "C" {
+    #[doc = " Wait until no thread has a lock on *mu, cause the calling thread to own an"]
+    #[doc = "exclusive lock on *mu, then return.  May block indefinitely or crash if the"]
+    #[doc = "calling thread has a lock on *mu.  Requires:  *mu initialized."]
+    pub fn gpr_mu_lock(mu: *mut gpr_mu);
+}
+extern "C" {
+    #[doc = " Release an exclusive lock on *mu held by the calling thread.  Requires:  *mu"]
+    #[doc = "initialized; the calling thread holds an exclusive lock on *mu."]
+    pub fn gpr_mu_unlock(mu: *mut gpr_mu);
+}
+extern "C" {
+    #[doc = " Without blocking, attempt to acquire an exclusive lock on *mu for the"]
+    #[doc = "calling thread, then return non-zero iff success.  Fail, if any thread holds"]
+    #[doc = "the lock; succeeds with high probability if no thread holds the lock."]
+    #[doc = "Requires:  *mu initialized."]
+    pub fn gpr_mu_trylock(mu: *mut gpr_mu) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Initialize *cv.  Requires:  *cv uninitialized."]
+    pub fn gpr_cv_init(cv: *mut gpr_cv);
+}
+extern "C" {
+    #[doc = " Cause *cv no longer to be initialized, freeing any memory in use.  Requires:"]
+    #[doc = "cv initialized; no other concurrent operation on *cv."]
+    pub fn gpr_cv_destroy(cv: *mut gpr_cv);
+}
+extern "C" {
+    #[doc = " Atomically release *mu and wait on *cv.  When the calling thread is woken"]
+    #[doc = "from *cv or the deadline abs_deadline is exceeded, execute gpr_mu_lock(mu)"]
+    #[doc = "and return whether the deadline was exceeded.  Use"]
+    #[doc = "abs_deadline==gpr_inf_future for no deadline.  abs_deadline can be either"]
+    #[doc = "an absolute deadline, or a GPR_TIMESPAN.  May return even when not"]
+    #[doc = "woken explicitly.  Requires:  *mu and *cv initialized; the calling thread"]
+    #[doc = "holds an exclusive lock on *mu."]
+    pub fn gpr_cv_wait(
+        cv: *mut gpr_cv,
+        mu: *mut gpr_mu,
+        abs_deadline: gpr_timespec,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " If any threads are waiting on *cv, wake at least one."]
+    #[doc = "Clients may treat this as an optimization of gpr_cv_broadcast()"]
+    #[doc = "for use in the case where waking more than one waiter is not useful."]
+    #[doc = "Requires:  *cv initialized."]
+    pub fn gpr_cv_signal(cv: *mut gpr_cv);
+}
+extern "C" {
+    #[doc = " Wake all threads waiting on *cv.  Requires:  *cv initialized."]
+    pub fn gpr_cv_broadcast(cv: *mut gpr_cv);
+}
+extern "C" {
+    #[doc = " Ensure that (*init_routine)() has been called exactly once (for the"]
+    #[doc = "specified gpr_once instance) and then return."]
+    #[doc = "If multiple threads call gpr_once() on the same gpr_once instance, one of"]
+    #[doc = "them will call (*init_routine)(), and the others will block until that call"]
+    #[doc = "finishes."]
+    pub fn gpr_once_init(
+        once: *mut gpr_once,
+        init_routine: ::std::option::Option<unsafe extern "C" fn()>,
+    );
+}
+extern "C" {
+    #[doc = " Initialize *ev."]
+    pub fn gpr_event_init(ev: *mut gpr_event);
+}
+extern "C" {
+    #[doc = " Set *ev so that gpr_event_get() and gpr_event_wait() will return value."]
+    #[doc = "Requires:  *ev initialized; value != NULL; no prior or concurrent calls to"]
+    #[doc = "gpr_event_set(ev, ...) since initialization."]
+    pub fn gpr_event_set(ev: *mut gpr_event, value: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    #[doc = " Return the value set by gpr_event_set(ev, ...), or NULL if no such call has"]
+    #[doc = "completed.  If the result is non-NULL, all operations that occurred prior to"]
+    #[doc = "the gpr_event_set(ev, ...) set will be visible after this call returns."]
+    #[doc = "Requires:  *ev initialized.  This operation is faster than acquiring a mutex"]
+    #[doc = "on most platforms."]
+    pub fn gpr_event_get(ev: *mut gpr_event) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " Wait until *ev is set by gpr_event_set(ev, ...), or abs_deadline is"]
+    #[doc = "exceeded, then return gpr_event_get(ev).  Requires:  *ev initialized.  Use"]
+    #[doc = "abs_deadline==gpr_inf_future for no deadline.  When the event has been"]
+    #[doc = "signalled before the call, this operation is faster than acquiring a mutex"]
+    #[doc = "on most platforms."]
+    pub fn gpr_event_wait(
+        ev: *mut gpr_event,
+        abs_deadline: gpr_timespec,
+    ) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " Initialize *r to value n."]
+    pub fn gpr_ref_init(r: *mut gpr_refcount, n: ::std::os::raw::c_int);
+}
+extern "C" {
+    #[doc = " Increment the reference count *r.  Requires *r initialized."]
+    pub fn gpr_ref(r: *mut gpr_refcount);
+}
+extern "C" {
+    #[doc = " Increment the reference count *r.  Requires *r initialized."]
+    #[doc = "Crashes if refcount is zero"]
+    pub fn gpr_ref_non_zero(r: *mut gpr_refcount);
+}
+extern "C" {
+    #[doc = " Increment the reference count *r by n.  Requires *r initialized, n > 0."]
+    pub fn gpr_refn(r: *mut gpr_refcount, n: ::std::os::raw::c_int);
+}
+extern "C" {
+    #[doc = " Decrement the reference count *r and return non-zero iff it has reached"]
+    #[doc = "zero. .  Requires *r initialized."]
+    pub fn gpr_unref(r: *mut gpr_refcount) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Return non-zero iff the reference count of *r is one, and thus is owned"]
+    #[doc = "by exactly one object."]
+    pub fn gpr_ref_is_unique(r: *mut gpr_refcount) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Initialize *c to the value n."]
+    pub fn gpr_stats_init(c: *mut gpr_stats_counter, n: isize);
+}
+extern "C" {
+    #[doc = " *c += inc.  Requires: *c initialized."]
+    pub fn gpr_stats_inc(c: *mut gpr_stats_counter, inc: isize);
+}
+extern "C" {
+    #[doc = " Return *c.  Requires: *c initialized."]
+    pub fn gpr_stats_read(c: *const gpr_stats_counter) -> isize;
+}
+extern "C" {
+    #[doc = " Increment the refcount of s. Requires slice is initialized."]
+    #[doc = "Returns s."]
+    pub fn grpc_slice_ref(s: grpc_slice) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Decrement the ref count of s.  If the ref count of s reaches zero, all"]
+    #[doc = "slices sharing the ref count are destroyed, and considered no longer"]
+    #[doc = "initialized.  If s is ultimately derived from a call to grpc_slice_new(start,"]
+    #[doc = "len, dest) where dest!=NULL , then (*dest)(start) is called, else if s is"]
+    #[doc = "ultimately derived from a call to grpc_slice_new_with_len(start, len, dest)"]
+    #[doc = "where dest!=NULL , then (*dest)(start, len).  Requires s initialized."]
+    pub fn grpc_slice_unref(s: grpc_slice);
+}
+extern "C" {
+    #[doc = " Copy slice - create a new slice that contains the same data as s"]
+    pub fn grpc_slice_copy(s: grpc_slice) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Create a slice pointing at some data. Calls malloc to allocate a refcount"]
+    #[doc = "for the object, and arranges that destroy will be called with the pointer"]
+    #[doc = "passed in at destruction."]
+    pub fn grpc_slice_new(
+        p: *mut ::std::os::raw::c_void,
+        len: usize,
+        destroy: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
+    ) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Equivalent to grpc_slice_new, but with a separate pointer that is"]
+    #[doc = "passed to the destroy function.  This function can be useful when"]
+    #[doc = "the data is part of a larger structure that must be destroyed when"]
+    #[doc = "the data is no longer needed."]
+    pub fn grpc_slice_new_with_user_data(
+        p: *mut ::std::os::raw::c_void,
+        len: usize,
+        destroy: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
+        user_data: *mut ::std::os::raw::c_void,
+    ) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Equivalent to grpc_slice_new, but with a two argument destroy function that"]
+    #[doc = "also takes the slice length."]
+    pub fn grpc_slice_new_with_len(
+        p: *mut ::std::os::raw::c_void,
+        len: usize,
+        destroy: ::std::option::Option<
+            unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void, arg2: usize),
+        >,
+    ) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Equivalent to grpc_slice_new(malloc(len), len, free), but saves one malloc()"]
+    #[doc = "call."]
+    #[doc = "Aborts if malloc() fails."]
+    pub fn grpc_slice_malloc(length: usize) -> grpc_slice;
+}
+extern "C" {
+    pub fn grpc_slice_malloc_large(length: usize) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Intern a slice:"]
+    #[doc = ""]
+    #[doc = "The return value for two invocations of this function with  the same sequence"]
+    #[doc = "of bytes is a slice which points to the same memory."]
+    pub fn grpc_slice_intern(slice: grpc_slice) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Create a slice by copying a string."]
+    #[doc = "Does not preserve null terminators."]
+    #[doc = "Equivalent to:"]
+    #[doc = "size_t len = strlen(source);"]
+    #[doc = "grpc_slice slice = grpc_slice_malloc(len);"]
+    #[doc = "memcpy(slice->data, source, len);"]
+    pub fn grpc_slice_from_copied_string(source: *const ::std::os::raw::c_char) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Create a slice by copying a buffer."]
+    #[doc = "Equivalent to:"]
+    #[doc = "grpc_slice slice = grpc_slice_malloc(len);"]
+    #[doc = "memcpy(slice->data, source, len);"]
+    pub fn grpc_slice_from_copied_buffer(
+        source: *const ::std::os::raw::c_char,
+        len: usize,
+    ) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Create a slice pointing to constant memory"]
+    pub fn grpc_slice_from_static_string(source: *const ::std::os::raw::c_char) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Create a slice pointing to constant memory"]
+    pub fn grpc_slice_from_static_buffer(
+        source: *const ::std::os::raw::c_void,
+        len: usize,
+    ) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Return a result slice derived from s, which shares a ref count with \\a s,"]
+    #[doc = "where result.data==s.data+begin, and result.length==end-begin. The ref count"]
+    #[doc = "of \\a s is increased by one. Do not assign result back to \\a s."]
+    #[doc = "Requires s initialized, begin <= end, begin <= s.length, and"]
+    #[doc = "end <= source->length."]
+    pub fn grpc_slice_sub(s: grpc_slice, begin: usize, end: usize) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " The same as grpc_slice_sub, but without altering the ref count"]
+    pub fn grpc_slice_sub_no_ref(s: grpc_slice, begin: usize, end: usize) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Splits s into two: modifies s to be s[0:split], and returns a new slice,"]
+    #[doc = "sharing a refcount with s, that contains s[split:s.length]."]
+    #[doc = "Requires s intialized, split <= s.length"]
+    pub fn grpc_slice_split_tail(s: *mut grpc_slice, split: usize) -> grpc_slice;
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum grpc_slice_ref_whom {
+    GRPC_SLICE_REF_TAIL = 1,
+    GRPC_SLICE_REF_HEAD = 2,
+    GRPC_SLICE_REF_BOTH = 3,
+}
+extern "C" {
+    #[doc = " The same as grpc_slice_split_tail, but with an option to skip altering"]
+    #[doc = " refcounts (grpc_slice_split_tail_maybe_ref(..., true) is equivalent to"]
+    #[doc = " grpc_slice_split_tail(...))"]
+    pub fn grpc_slice_split_tail_maybe_ref(
+        s: *mut grpc_slice,
+        split: usize,
+        ref_whom: grpc_slice_ref_whom,
+    ) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Splits s into two: modifies s to be s[split:s.length], and returns a new"]
+    #[doc = "slice, sharing a refcount with s, that contains s[0:split]."]
+    #[doc = "Requires s intialized, split <= s.length"]
+    pub fn grpc_slice_split_head(s: *mut grpc_slice, split: usize) -> grpc_slice;
+}
+extern "C" {
+    pub fn grpc_empty_slice() -> grpc_slice;
+}
+extern "C" {
+    pub fn grpc_slice_default_hash_impl(s: grpc_slice) -> u32;
+}
+extern "C" {
+    pub fn grpc_slice_default_eq_impl(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn grpc_slice_eq(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Returns <0 if a < b, ==0 if a == b, >0 if a > b"]
+    #[doc = "The order is arbitrary, and is not guaranteed to be stable across different"]
+    #[doc = "versions of the API."]
+    pub fn grpc_slice_cmp(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn grpc_slice_str_cmp(
+        a: grpc_slice,
+        b: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " return non-zero if the first blen bytes of a are equal to b"]
+    pub fn grpc_slice_buf_start_eq(
+        a: grpc_slice,
+        b: *const ::std::os::raw::c_void,
+        blen: usize,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " return the index of the last instance of \\a c in \\a s, or -1 if not found"]
+    pub fn grpc_slice_rchr(s: grpc_slice, c: ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn grpc_slice_chr(s: grpc_slice, c: ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " return the index of the first occurance of \\a needle in \\a haystack, or -1"]
+    #[doc = "if it's not found"]
+    pub fn grpc_slice_slice(haystack: grpc_slice, needle: grpc_slice) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn grpc_slice_hash(s: grpc_slice) -> u32;
+}
+extern "C" {
+    #[doc = " Do two slices point at the same memory, with the same length"]
+    #[doc = "If a or b is inlined, actually compares data"]
+    pub fn grpc_slice_is_equivalent(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Return a slice pointing to newly allocated memory that has the same contents"]
+    #[doc = " as \\a s"]
+    pub fn grpc_slice_dup(a: grpc_slice) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Return a copy of slice as a C string. Offers no protection against embedded"]
+    #[doc = "NULL's. Returned string must be freed with gpr_free."]
+    pub fn grpc_slice_to_c_string(s: grpc_slice) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    #[doc = " Return if an algorithm is message compression algorithm."]
+    pub fn grpc_compression_algorithm_is_message(
+        algorithm: grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Return if an algorithm is stream compression algorithm."]
+    pub fn grpc_compression_algorithm_is_stream(
+        algorithm: grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Parses the \\a slice as a grpc_compression_algorithm instance and updating \\a"]
+    #[doc = " algorithm. Returns 1 upon success, 0 otherwise."]
+    pub fn grpc_compression_algorithm_parse(
+        value: grpc_slice,
+        algorithm: *mut grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Updates \\a name with the encoding name corresponding to a valid \\a"]
+    #[doc = " algorithm. Note that \\a name is statically allocated and must *not* be freed."]
+    #[doc = " Returns 1 upon success, 0 otherwise."]
+    pub fn grpc_compression_algorithm_name(
+        algorithm: grpc_compression_algorithm,
+        name: *mut *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Returns the compression algorithm corresponding to \\a level for the"]
+    #[doc = " compression algorithms encoded in the \\a accepted_encodings bitset."]
+    pub fn grpc_compression_algorithm_for_level(
+        level: grpc_compression_level,
+        accepted_encodings: u32,
+    ) -> grpc_compression_algorithm;
+}
+extern "C" {
+    pub fn grpc_compression_options_init(opts: *mut grpc_compression_options);
+}
+extern "C" {
+    #[doc = " Mark \\a algorithm as enabled in \\a opts."]
+    pub fn grpc_compression_options_enable_algorithm(
+        opts: *mut grpc_compression_options,
+        algorithm: grpc_compression_algorithm,
+    );
+}
+extern "C" {
+    #[doc = " Mark \\a algorithm as disabled in \\a opts."]
+    pub fn grpc_compression_options_disable_algorithm(
+        opts: *mut grpc_compression_options,
+        algorithm: grpc_compression_algorithm,
+    );
+}
+extern "C" {
+    #[doc = " Returns true if \\a algorithm is marked as enabled in \\a opts."]
+    pub fn grpc_compression_options_is_algorithm_enabled(
+        opts: *const grpc_compression_options,
+        algorithm: grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
 }
 pub mod grpc_status_code {
     pub type Type = i32;
@@ -3405,684 +3795,6 @@ extern "C" {
         reader: *mut grpc_byte_buffer_reader,
     ) -> *mut grpc_byte_buffer;
 }
-pub type gpr_atm = isize;
-extern "C" {
-    #[doc = " Adds \\a delta to \\a *value, clamping the result to the range specified"]
-    #[doc = "by \\a min and \\a max.  Returns the new value."]
-    pub fn gpr_atm_no_barrier_clamped_add(
-        value: *mut gpr_atm,
-        delta: gpr_atm,
-        min: gpr_atm,
-        max: gpr_atm,
-    ) -> gpr_atm;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct gpr_event {
-    pub state: gpr_atm,
-}
-#[test]
-fn bindgen_test_layout_gpr_event() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_event>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_event))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_event>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_event))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_event>())).state as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_event),
-            "::",
-            stringify!(state)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct gpr_refcount {
-    pub count: gpr_atm,
-}
-#[test]
-fn bindgen_test_layout_gpr_refcount() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_refcount>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_refcount))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_refcount>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_refcount))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_refcount>())).count as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_refcount),
-            "::",
-            stringify!(count)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct gpr_stats_counter {
-    pub value: gpr_atm,
-}
-#[test]
-fn bindgen_test_layout_gpr_stats_counter() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_stats_counter>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_stats_counter))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_stats_counter>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_stats_counter))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_stats_counter>())).value as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_stats_counter),
-            "::",
-            stringify!(value)
-        )
-    );
-}
-pub type gpr_mu = pthread_mutex_t;
-pub type gpr_cv = pthread_cond_t;
-pub type gpr_once = pthread_once_t;
-extern "C" {
-    #[doc = " Initialize *mu.  Requires:  *mu uninitialized."]
-    pub fn gpr_mu_init(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Cause *mu no longer to be initialized, freeing any memory in use.  Requires:"]
-    #[doc = "mu initialized; no other concurrent operation on *mu."]
-    pub fn gpr_mu_destroy(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Wait until no thread has a lock on *mu, cause the calling thread to own an"]
-    #[doc = "exclusive lock on *mu, then return.  May block indefinitely or crash if the"]
-    #[doc = "calling thread has a lock on *mu.  Requires:  *mu initialized."]
-    pub fn gpr_mu_lock(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Release an exclusive lock on *mu held by the calling thread.  Requires:  *mu"]
-    #[doc = "initialized; the calling thread holds an exclusive lock on *mu."]
-    pub fn gpr_mu_unlock(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Without blocking, attempt to acquire an exclusive lock on *mu for the"]
-    #[doc = "calling thread, then return non-zero iff success.  Fail, if any thread holds"]
-    #[doc = "the lock; succeeds with high probability if no thread holds the lock."]
-    #[doc = "Requires:  *mu initialized."]
-    pub fn gpr_mu_trylock(mu: *mut gpr_mu) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Initialize *cv.  Requires:  *cv uninitialized."]
-    pub fn gpr_cv_init(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Cause *cv no longer to be initialized, freeing any memory in use.  Requires:"]
-    #[doc = "cv initialized; no other concurrent operation on *cv."]
-    pub fn gpr_cv_destroy(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Atomically release *mu and wait on *cv.  When the calling thread is woken"]
-    #[doc = "from *cv or the deadline abs_deadline is exceeded, execute gpr_mu_lock(mu)"]
-    #[doc = "and return whether the deadline was exceeded.  Use"]
-    #[doc = "abs_deadline==gpr_inf_future for no deadline.  abs_deadline can be either"]
-    #[doc = "an absolute deadline, or a GPR_TIMESPAN.  May return even when not"]
-    #[doc = "woken explicitly.  Requires:  *mu and *cv initialized; the calling thread"]
-    #[doc = "holds an exclusive lock on *mu."]
-    pub fn gpr_cv_wait(
-        cv: *mut gpr_cv,
-        mu: *mut gpr_mu,
-        abs_deadline: gpr_timespec,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " If any threads are waiting on *cv, wake at least one."]
-    #[doc = "Clients may treat this as an optimization of gpr_cv_broadcast()"]
-    #[doc = "for use in the case where waking more than one waiter is not useful."]
-    #[doc = "Requires:  *cv initialized."]
-    pub fn gpr_cv_signal(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Wake all threads waiting on *cv.  Requires:  *cv initialized."]
-    pub fn gpr_cv_broadcast(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Ensure that (*init_routine)() has been called exactly once (for the"]
-    #[doc = "specified gpr_once instance) and then return."]
-    #[doc = "If multiple threads call gpr_once() on the same gpr_once instance, one of"]
-    #[doc = "them will call (*init_routine)(), and the others will block until that call"]
-    #[doc = "finishes."]
-    pub fn gpr_once_init(
-        once: *mut gpr_once,
-        init_routine: ::std::option::Option<unsafe extern "C" fn()>,
-    );
-}
-extern "C" {
-    #[doc = " Initialize *ev."]
-    pub fn gpr_event_init(ev: *mut gpr_event);
-}
-extern "C" {
-    #[doc = " Set *ev so that gpr_event_get() and gpr_event_wait() will return value."]
-    #[doc = "Requires:  *ev initialized; value != NULL; no prior or concurrent calls to"]
-    #[doc = "gpr_event_set(ev, ...) since initialization."]
-    pub fn gpr_event_set(ev: *mut gpr_event, value: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    #[doc = " Return the value set by gpr_event_set(ev, ...), or NULL if no such call has"]
-    #[doc = "completed.  If the result is non-NULL, all operations that occurred prior to"]
-    #[doc = "the gpr_event_set(ev, ...) set will be visible after this call returns."]
-    #[doc = "Requires:  *ev initialized.  This operation is faster than acquiring a mutex"]
-    #[doc = "on most platforms."]
-    pub fn gpr_event_get(ev: *mut gpr_event) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " Wait until *ev is set by gpr_event_set(ev, ...), or abs_deadline is"]
-    #[doc = "exceeded, then return gpr_event_get(ev).  Requires:  *ev initialized.  Use"]
-    #[doc = "abs_deadline==gpr_inf_future for no deadline.  When the event has been"]
-    #[doc = "signalled before the call, this operation is faster than acquiring a mutex"]
-    #[doc = "on most platforms."]
-    pub fn gpr_event_wait(
-        ev: *mut gpr_event,
-        abs_deadline: gpr_timespec,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " Initialize *r to value n."]
-    pub fn gpr_ref_init(r: *mut gpr_refcount, n: ::std::os::raw::c_int);
-}
-extern "C" {
-    #[doc = " Increment the reference count *r.  Requires *r initialized."]
-    pub fn gpr_ref(r: *mut gpr_refcount);
-}
-extern "C" {
-    #[doc = " Increment the reference count *r.  Requires *r initialized."]
-    #[doc = "Crashes if refcount is zero"]
-    pub fn gpr_ref_non_zero(r: *mut gpr_refcount);
-}
-extern "C" {
-    #[doc = " Increment the reference count *r by n.  Requires *r initialized, n > 0."]
-    pub fn gpr_refn(r: *mut gpr_refcount, n: ::std::os::raw::c_int);
-}
-extern "C" {
-    #[doc = " Decrement the reference count *r and return non-zero iff it has reached"]
-    #[doc = "zero. .  Requires *r initialized."]
-    pub fn gpr_unref(r: *mut gpr_refcount) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Return non-zero iff the reference count of *r is one, and thus is owned"]
-    #[doc = "by exactly one object."]
-    pub fn gpr_ref_is_unique(r: *mut gpr_refcount) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Initialize *c to the value n."]
-    pub fn gpr_stats_init(c: *mut gpr_stats_counter, n: isize);
-}
-extern "C" {
-    #[doc = " *c += inc.  Requires: *c initialized."]
-    pub fn gpr_stats_inc(c: *mut gpr_stats_counter, inc: isize);
-}
-extern "C" {
-    #[doc = " Return *c.  Requires: *c initialized."]
-    pub fn gpr_stats_read(c: *const gpr_stats_counter) -> isize;
-}
-extern "C" {
-    #[doc = " Return the number of CPU cores on the current system. Will return 0 if"]
-    #[doc = "the information is not available."]
-    pub fn gpr_cpu_num_cores() -> ::std::os::raw::c_uint;
-}
-extern "C" {
-    #[doc = " Return the CPU on which the current thread is executing; N.B. This should"]
-    #[doc = "be considered advisory only - it is possible that the thread is switched"]
-    #[doc = "to a different CPU at any time. Returns a value in range"]
-    #[doc = "[0, gpr_cpu_num_cores() - 1]"]
-    pub fn gpr_cpu_current_cpu() -> ::std::os::raw::c_uint;
-}
-pub type gpr_thd_id = usize;
-extern "C" {
-    #[doc = " Returns the identifier of the current thread."]
-    pub fn gpr_thd_currentid() -> gpr_thd_id;
-}
-extern "C" {
-    #[doc = " Returns a copy of src that can be passed to gpr_free()."]
-    #[doc = "If allocation fails or if src is NULL, returns NULL."]
-    pub fn gpr_strdup(src: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    #[doc = " printf to a newly-allocated string.  The set of supported formats may vary"]
-    #[doc = "between platforms."]
-    #[doc = ""]
-    #[doc = "On success, returns the number of bytes printed (excluding the final '\\0'),"]
-    #[doc = "and *strp points to a string which must later be destroyed with gpr_free()."]
-    #[doc = ""]
-    #[doc = "On error, returns -1 and sets *strp to NULL. If the format string is bad,"]
-    #[doc = "the result is undefined."]
-    pub fn gpr_asprintf(
-        strp: *mut *mut ::std::os::raw::c_char,
-        format: *const ::std::os::raw::c_char,
-        ...
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Time constants."]
-    pub fn gpr_time_0(type_: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " The zero time interval."]
-    pub fn gpr_inf_future(type_: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " The far future"]
-    pub fn gpr_inf_past(type_: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " initialize time subsystem"]
-    pub fn gpr_time_init();
-}
-extern "C" {
-    #[doc = " Return the current time measured from the given clocks epoch."]
-    pub fn gpr_now(clock: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Convert a timespec from one clock to another"]
-    pub fn gpr_convert_clock_type(t: gpr_timespec, target_clock: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Return -ve, 0, or +ve according to whether a < b, a == b, or a > b"]
-    #[doc = "respectively."]
-    pub fn gpr_time_cmp(a: gpr_timespec, b: gpr_timespec) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn gpr_time_max(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_min(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Add and subtract times.  Calculations saturate at infinities."]
-    pub fn gpr_time_add(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_sub(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Return a timespec representing a given number of time units. INT64_MIN is"]
-    #[doc = "interpreted as gpr_inf_past, and INT64_MAX as gpr_inf_future."]
-    pub fn gpr_time_from_micros(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_nanos(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_millis(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_seconds(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_minutes(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_hours(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_to_millis(timespec: gpr_timespec) -> i32;
-}
-extern "C" {
-    #[doc = " Return 1 if two times are equal or within threshold of each other,"]
-    #[doc = "0 otherwise"]
-    pub fn gpr_time_similar(
-        a: gpr_timespec,
-        b: gpr_timespec,
-        threshold: gpr_timespec,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Sleep until at least 'until' - an absolute timeout"]
-    pub fn gpr_sleep_until(until: gpr_timespec);
-}
-extern "C" {
-    pub fn gpr_timespec_to_micros(t: gpr_timespec) -> f64;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct gpr_allocation_functions {
-    pub malloc_fn:
-        ::std::option::Option<unsafe extern "C" fn(size: usize) -> *mut ::std::os::raw::c_void>,
-    pub zalloc_fn:
-        ::std::option::Option<unsafe extern "C" fn(size: usize) -> *mut ::std::os::raw::c_void>,
-    #[doc = " if NULL, uses malloc_fn then memset"]
-    pub realloc_fn: ::std::option::Option<
-        unsafe extern "C" fn(
-            ptr: *mut ::std::os::raw::c_void,
-            size: usize,
-        ) -> *mut ::std::os::raw::c_void,
-    >,
-    pub free_fn: ::std::option::Option<unsafe extern "C" fn(ptr: *mut ::std::os::raw::c_void)>,
-}
-#[test]
-fn bindgen_test_layout_gpr_allocation_functions() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_allocation_functions>(),
-        32usize,
-        concat!("Size of: ", stringify!(gpr_allocation_functions))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_allocation_functions>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_allocation_functions))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<gpr_allocation_functions>())).malloc_fn as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_allocation_functions),
-            "::",
-            stringify!(malloc_fn)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<gpr_allocation_functions>())).zalloc_fn as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_allocation_functions),
-            "::",
-            stringify!(zalloc_fn)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<gpr_allocation_functions>())).realloc_fn as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_allocation_functions),
-            "::",
-            stringify!(realloc_fn)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<gpr_allocation_functions>())).free_fn as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_allocation_functions),
-            "::",
-            stringify!(free_fn)
-        )
-    );
-}
-extern "C" {
-    #[doc = " malloc."]
-    #[doc = " If size==0, always returns NULL. Otherwise this function never returns NULL."]
-    #[doc = " The pointer returned is suitably aligned for any kind of variable it could"]
-    #[doc = " contain."]
-    pub fn gpr_malloc(size: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " like malloc, but zero all bytes before returning them"]
-    pub fn gpr_zalloc(size: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " free"]
-    pub fn gpr_free(ptr: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    #[doc = " realloc, never returns NULL"]
-    pub fn gpr_realloc(p: *mut ::std::os::raw::c_void, size: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " aligned malloc, never returns NULL, will align to alignment, which"]
-    #[doc = " must be a power of 2."]
-    pub fn gpr_malloc_aligned(size: usize, alignment: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " free memory allocated by gpr_malloc_aligned"]
-    pub fn gpr_free_aligned(ptr: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    #[doc = " Request the family of allocation functions in \\a functions be used. NOTE"]
-    #[doc = " that this request will be honored in a *best effort* basis and that no"]
-    #[doc = " guarantees are made about the default functions (eg, malloc) being called."]
-    #[doc = " The functions.free_fn implementation must be a no-op for NULL input."]
-    pub fn gpr_set_allocation_functions(functions: gpr_allocation_functions);
-}
-extern "C" {
-    #[doc = " Return the family of allocation functions currently in effect."]
-    pub fn gpr_get_allocation_functions() -> gpr_allocation_functions;
-}
-extern "C" {
-    #[doc = " Returns a string allocated with gpr_malloc that contains a UTF-8"]
-    #[doc = " formatted error message, corresponding to the error messageid."]
-    #[doc = " Use in conjunction with GetLastError() et al."]
-    pub fn gpr_format_message(messageid: ::std::os::raw::c_int) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    #[doc = " Increment the refcount of s. Requires slice is initialized."]
-    #[doc = "Returns s."]
-    pub fn grpc_slice_ref(s: grpc_slice) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Decrement the ref count of s.  If the ref count of s reaches zero, all"]
-    #[doc = "slices sharing the ref count are destroyed, and considered no longer"]
-    #[doc = "initialized.  If s is ultimately derived from a call to grpc_slice_new(start,"]
-    #[doc = "len, dest) where dest!=NULL , then (*dest)(start) is called, else if s is"]
-    #[doc = "ultimately derived from a call to grpc_slice_new_with_len(start, len, dest)"]
-    #[doc = "where dest!=NULL , then (*dest)(start, len).  Requires s initialized."]
-    pub fn grpc_slice_unref(s: grpc_slice);
-}
-extern "C" {
-    #[doc = " Copy slice - create a new slice that contains the same data as s"]
-    pub fn grpc_slice_copy(s: grpc_slice) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Create a slice pointing at some data. Calls malloc to allocate a refcount"]
-    #[doc = "for the object, and arranges that destroy will be called with the pointer"]
-    #[doc = "passed in at destruction."]
-    pub fn grpc_slice_new(
-        p: *mut ::std::os::raw::c_void,
-        len: usize,
-        destroy: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
-    ) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Equivalent to grpc_slice_new, but with a separate pointer that is"]
-    #[doc = "passed to the destroy function.  This function can be useful when"]
-    #[doc = "the data is part of a larger structure that must be destroyed when"]
-    #[doc = "the data is no longer needed."]
-    pub fn grpc_slice_new_with_user_data(
-        p: *mut ::std::os::raw::c_void,
-        len: usize,
-        destroy: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
-        user_data: *mut ::std::os::raw::c_void,
-    ) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Equivalent to grpc_slice_new, but with a two argument destroy function that"]
-    #[doc = "also takes the slice length."]
-    pub fn grpc_slice_new_with_len(
-        p: *mut ::std::os::raw::c_void,
-        len: usize,
-        destroy: ::std::option::Option<
-            unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void, arg2: usize),
-        >,
-    ) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Equivalent to grpc_slice_new(malloc(len), len, free), but saves one malloc()"]
-    #[doc = "call."]
-    #[doc = "Aborts if malloc() fails."]
-    pub fn grpc_slice_malloc(length: usize) -> grpc_slice;
-}
-extern "C" {
-    pub fn grpc_slice_malloc_large(length: usize) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Intern a slice:"]
-    #[doc = ""]
-    #[doc = "The return value for two invocations of this function with  the same sequence"]
-    #[doc = "of bytes is a slice which points to the same memory."]
-    pub fn grpc_slice_intern(slice: grpc_slice) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Create a slice by copying a string."]
-    #[doc = "Does not preserve null terminators."]
-    #[doc = "Equivalent to:"]
-    #[doc = "size_t len = strlen(source);"]
-    #[doc = "grpc_slice slice = grpc_slice_malloc(len);"]
-    #[doc = "memcpy(slice->data, source, len);"]
-    pub fn grpc_slice_from_copied_string(source: *const ::std::os::raw::c_char) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Create a slice by copying a buffer."]
-    #[doc = "Equivalent to:"]
-    #[doc = "grpc_slice slice = grpc_slice_malloc(len);"]
-    #[doc = "memcpy(slice->data, source, len);"]
-    pub fn grpc_slice_from_copied_buffer(
-        source: *const ::std::os::raw::c_char,
-        len: usize,
-    ) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Create a slice pointing to constant memory"]
-    pub fn grpc_slice_from_static_string(source: *const ::std::os::raw::c_char) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Create a slice pointing to constant memory"]
-    pub fn grpc_slice_from_static_buffer(
-        source: *const ::std::os::raw::c_void,
-        len: usize,
-    ) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Return a result slice derived from s, which shares a ref count with \\a s,"]
-    #[doc = "where result.data==s.data+begin, and result.length==end-begin. The ref count"]
-    #[doc = "of \\a s is increased by one. Do not assign result back to \\a s."]
-    #[doc = "Requires s initialized, begin <= end, begin <= s.length, and"]
-    #[doc = "end <= source->length."]
-    pub fn grpc_slice_sub(s: grpc_slice, begin: usize, end: usize) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " The same as grpc_slice_sub, but without altering the ref count"]
-    pub fn grpc_slice_sub_no_ref(s: grpc_slice, begin: usize, end: usize) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Splits s into two: modifies s to be s[0:split], and returns a new slice,"]
-    #[doc = "sharing a refcount with s, that contains s[split:s.length]."]
-    #[doc = "Requires s intialized, split <= s.length"]
-    pub fn grpc_slice_split_tail(s: *mut grpc_slice, split: usize) -> grpc_slice;
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum grpc_slice_ref_whom {
-    GRPC_SLICE_REF_TAIL = 1,
-    GRPC_SLICE_REF_HEAD = 2,
-    GRPC_SLICE_REF_BOTH = 3,
-}
-extern "C" {
-    #[doc = " The same as grpc_slice_split_tail, but with an option to skip altering"]
-    #[doc = " refcounts (grpc_slice_split_tail_maybe_ref(..., true) is equivalent to"]
-    #[doc = " grpc_slice_split_tail(...))"]
-    pub fn grpc_slice_split_tail_maybe_ref(
-        s: *mut grpc_slice,
-        split: usize,
-        ref_whom: grpc_slice_ref_whom,
-    ) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Splits s into two: modifies s to be s[split:s.length], and returns a new"]
-    #[doc = "slice, sharing a refcount with s, that contains s[0:split]."]
-    #[doc = "Requires s intialized, split <= s.length"]
-    pub fn grpc_slice_split_head(s: *mut grpc_slice, split: usize) -> grpc_slice;
-}
-extern "C" {
-    pub fn grpc_empty_slice() -> grpc_slice;
-}
-extern "C" {
-    pub fn grpc_slice_default_hash_impl(s: grpc_slice) -> u32;
-}
-extern "C" {
-    pub fn grpc_slice_default_eq_impl(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn grpc_slice_eq(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Returns <0 if a < b, ==0 if a == b, >0 if a > b"]
-    #[doc = "The order is arbitrary, and is not guaranteed to be stable across different"]
-    #[doc = "versions of the API."]
-    pub fn grpc_slice_cmp(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn grpc_slice_str_cmp(
-        a: grpc_slice,
-        b: *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " return non-zero if the first blen bytes of a are equal to b"]
-    pub fn grpc_slice_buf_start_eq(
-        a: grpc_slice,
-        b: *const ::std::os::raw::c_void,
-        blen: usize,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " return the index of the last instance of \\a c in \\a s, or -1 if not found"]
-    pub fn grpc_slice_rchr(s: grpc_slice, c: ::std::os::raw::c_char) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn grpc_slice_chr(s: grpc_slice, c: ::std::os::raw::c_char) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " return the index of the first occurance of \\a needle in \\a haystack, or -1"]
-    #[doc = "if it's not found"]
-    pub fn grpc_slice_slice(haystack: grpc_slice, needle: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn grpc_slice_hash(s: grpc_slice) -> u32;
-}
-extern "C" {
-    #[doc = " Do two slices point at the same memory, with the same length"]
-    #[doc = "If a or b is inlined, actually compares data"]
-    pub fn grpc_slice_is_equivalent(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Return a slice pointing to newly allocated memory that has the same contents"]
-    #[doc = " as \\a s"]
-    pub fn grpc_slice_dup(a: grpc_slice) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Return a copy of slice as a C string. Offers no protection against embedded"]
-    #[doc = "NULL's. Returned string must be freed with gpr_free."]
-    pub fn grpc_slice_to_c_string(s: grpc_slice) -> *mut ::std::os::raw::c_char;
-}
 extern "C" {
     #[doc = " initialize a slice buffer"]
     pub fn grpc_slice_buffer_init(sb: *mut grpc_slice_buffer);
@@ -4171,30 +3883,6 @@ extern "C" {
     #[doc = " undo the above with (a possibly different) \\a slice"]
     pub fn grpc_slice_buffer_undo_take_first(src: *mut grpc_slice_buffer, slice: grpc_slice);
 }
-extern "C" {
-    #[doc = " Create a client channel to 'target' using file descriptor 'fd'. The 'target'"]
-    #[doc = "argument will be used to indicate the name for this channel. See the comment"]
-    #[doc = "for grpc_insecure_channel_create for description of 'args' argument."]
-    pub fn grpc_insecure_channel_create_from_fd(
-        target: *const ::std::os::raw::c_char,
-        fd: ::std::os::raw::c_int,
-        args: *const grpc_channel_args,
-    ) -> *mut grpc_channel;
-}
-extern "C" {
-    #[doc = " Add the connected communication channel based on file descriptor 'fd' to the"]
-    #[doc = "'server'. The 'fd' must be an open file descriptor corresponding to a"]
-    #[doc = "connected socket. Events from the file descriptor may come on any of the"]
-    #[doc = "server completion queues (i.e completion queues registered via the"]
-    #[doc = "grpc_server_register_completion_queue API)."]
-    #[doc = ""]
-    #[doc = "The 'reserved' pointer MUST be NULL."]
-    pub fn grpc_server_add_insecure_channel_from_fd(
-        server: *mut grpc_server,
-        reserved: *mut ::std::os::raw::c_void,
-        fd: ::std::os::raw::c_int,
-    );
-}
 #[repr(u32)]
 #[doc = " Connectivity state of a channel."]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -4209,6 +3897,87 @@ pub enum grpc_connectivity_state {
     GRPC_CHANNEL_TRANSIENT_FAILURE = 3,
     #[doc = " channel has seen a failure that it cannot recover from"]
     GRPC_CHANNEL_SHUTDOWN = 4,
+}
+extern "C" {
+    #[doc = " Time constants."]
+    pub fn gpr_time_0(type_: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " The zero time interval."]
+    pub fn gpr_inf_future(type_: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " The far future"]
+    pub fn gpr_inf_past(type_: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " initialize time subsystem"]
+    pub fn gpr_time_init();
+}
+extern "C" {
+    #[doc = " Return the current time measured from the given clocks epoch."]
+    pub fn gpr_now(clock: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Convert a timespec from one clock to another"]
+    pub fn gpr_convert_clock_type(t: gpr_timespec, target_clock: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Return -ve, 0, or +ve according to whether a < b, a == b, or a > b"]
+    #[doc = "respectively."]
+    pub fn gpr_time_cmp(a: gpr_timespec, b: gpr_timespec) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn gpr_time_max(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_min(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Add and subtract times.  Calculations saturate at infinities."]
+    pub fn gpr_time_add(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_sub(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Return a timespec representing a given number of time units. INT64_MIN is"]
+    #[doc = "interpreted as gpr_inf_past, and INT64_MAX as gpr_inf_future."]
+    pub fn gpr_time_from_micros(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_nanos(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_millis(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_seconds(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_minutes(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_hours(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_to_millis(timespec: gpr_timespec) -> i32;
+}
+extern "C" {
+    #[doc = " Return 1 if two times are equal or within threshold of each other,"]
+    #[doc = "0 otherwise"]
+    pub fn gpr_time_similar(
+        a: gpr_timespec,
+        b: gpr_timespec,
+        threshold: gpr_timespec,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Sleep until at least 'until' - an absolute timeout"]
+    pub fn gpr_sleep_until(until: gpr_timespec);
+}
+extern "C" {
+    pub fn gpr_timespec_to_micros(t: gpr_timespec) -> f64;
 }
 extern "C" {
     #[doc = " \\mainpage GRPC Core"]
@@ -4833,65 +4602,36 @@ extern "C" {
     pub fn grpc_channelz_get_socket(socket_id: isize) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
-    #[doc = " Return if an algorithm is message compression algorithm."]
-    pub fn grpc_compression_algorithm_is_message(
-        algorithm: grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
+    pub fn grpc_cronet_secure_channel_create(
+        engine: *mut ::std::os::raw::c_void,
+        target: *const ::std::os::raw::c_char,
+        args: *const grpc_channel_args,
+        reserved: *mut ::std::os::raw::c_void,
+    ) -> *mut grpc_channel;
 }
 extern "C" {
-    #[doc = " Return if an algorithm is stream compression algorithm."]
-    pub fn grpc_compression_algorithm_is_stream(
-        algorithm: grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
+    #[doc = " Create a client channel to 'target' using file descriptor 'fd'. The 'target'"]
+    #[doc = "argument will be used to indicate the name for this channel. See the comment"]
+    #[doc = "for grpc_insecure_channel_create for description of 'args' argument."]
+    pub fn grpc_insecure_channel_create_from_fd(
+        target: *const ::std::os::raw::c_char,
+        fd: ::std::os::raw::c_int,
+        args: *const grpc_channel_args,
+    ) -> *mut grpc_channel;
 }
 extern "C" {
-    #[doc = " Parses the \\a slice as a grpc_compression_algorithm instance and updating \\a"]
-    #[doc = " algorithm. Returns 1 upon success, 0 otherwise."]
-    pub fn grpc_compression_algorithm_parse(
-        value: grpc_slice,
-        algorithm: *mut grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Updates \\a name with the encoding name corresponding to a valid \\a"]
-    #[doc = " algorithm. Note that \\a name is statically allocated and must *not* be freed."]
-    #[doc = " Returns 1 upon success, 0 otherwise."]
-    pub fn grpc_compression_algorithm_name(
-        algorithm: grpc_compression_algorithm,
-        name: *mut *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Returns the compression algorithm corresponding to \\a level for the"]
-    #[doc = " compression algorithms encoded in the \\a accepted_encodings bitset."]
-    pub fn grpc_compression_algorithm_for_level(
-        level: grpc_compression_level,
-        accepted_encodings: u32,
-    ) -> grpc_compression_algorithm;
-}
-extern "C" {
-    pub fn grpc_compression_options_init(opts: *mut grpc_compression_options);
-}
-extern "C" {
-    #[doc = " Mark \\a algorithm as enabled in \\a opts."]
-    pub fn grpc_compression_options_enable_algorithm(
-        opts: *mut grpc_compression_options,
-        algorithm: grpc_compression_algorithm,
+    #[doc = " Add the connected communication channel based on file descriptor 'fd' to the"]
+    #[doc = "'server'. The 'fd' must be an open file descriptor corresponding to a"]
+    #[doc = "connected socket. Events from the file descriptor may come on any of the"]
+    #[doc = "server completion queues (i.e completion queues registered via the"]
+    #[doc = "grpc_server_register_completion_queue API)."]
+    #[doc = ""]
+    #[doc = "The 'reserved' pointer MUST be NULL."]
+    pub fn grpc_server_add_insecure_channel_from_fd(
+        server: *mut grpc_server,
+        reserved: *mut ::std::os::raw::c_void,
+        fd: ::std::os::raw::c_int,
     );
-}
-extern "C" {
-    #[doc = " Mark \\a algorithm as disabled in \\a opts."]
-    pub fn grpc_compression_options_disable_algorithm(
-        opts: *mut grpc_compression_options,
-        algorithm: grpc_compression_algorithm,
-    );
-}
-extern "C" {
-    #[doc = " Returns true if \\a algorithm is marked as enabled in \\a opts."]
-    pub fn grpc_compression_options_is_algorithm_enabled(
-        opts: *const grpc_compression_options,
-        algorithm: grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
 }
 #[repr(u32)]
 #[doc = " Results for the SSL roots override callback."]
@@ -5986,13 +5726,273 @@ extern "C" {
         type_: grpc_local_connect_type,
     ) -> *mut grpc_server_credentials;
 }
+#[repr(u32)]
+#[doc = " The severity of a log message - use the #defines below when calling into"]
+#[doc = "gpr_log to additionally supply file and line data"]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum gpr_log_severity {
+    GPR_LOG_SEVERITY_DEBUG = 0,
+    GPR_LOG_SEVERITY_INFO = 1,
+    GPR_LOG_SEVERITY_ERROR = 2,
+}
 extern "C" {
-    pub fn grpc_cronet_secure_channel_create(
-        engine: *mut ::std::os::raw::c_void,
-        target: *const ::std::os::raw::c_char,
-        args: *const grpc_channel_args,
-        reserved: *mut ::std::os::raw::c_void,
-    ) -> *mut grpc_channel;
+    #[doc = " Returns a string representation of the log severity"]
+    pub fn gpr_log_severity_string(severity: gpr_log_severity) -> *const ::std::os::raw::c_char;
+}
+extern "C" {
+    #[doc = " Log a message. It's advised to use GPR_xxx above to generate the context"]
+    #[doc = " for each message"]
+    pub fn gpr_log(
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        severity: gpr_log_severity,
+        format: *const ::std::os::raw::c_char,
+        ...
+    );
+}
+extern "C" {
+    pub fn gpr_should_log(severity: gpr_log_severity) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn gpr_log_message(
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        severity: gpr_log_severity,
+        message: *const ::std::os::raw::c_char,
+    );
+}
+extern "C" {
+    #[doc = " Set global log verbosity"]
+    pub fn gpr_set_log_verbosity(min_severity_to_print: gpr_log_severity);
+}
+extern "C" {
+    pub fn gpr_log_verbosity_init();
+}
+#[doc = " Log overrides: applications can use this API to intercept logging calls"]
+#[doc = "and use their own implementations"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct gpr_log_func_args {
+    pub file: *const ::std::os::raw::c_char,
+    pub line: ::std::os::raw::c_int,
+    pub severity: gpr_log_severity,
+    pub message: *const ::std::os::raw::c_char,
+}
+#[test]
+fn bindgen_test_layout_gpr_log_func_args() {
+    assert_eq!(
+        ::std::mem::size_of::<gpr_log_func_args>(),
+        24usize,
+        concat!("Size of: ", stringify!(gpr_log_func_args))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<gpr_log_func_args>(),
+        8usize,
+        concat!("Alignment of ", stringify!(gpr_log_func_args))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).file as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_log_func_args),
+            "::",
+            stringify!(file)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).line as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_log_func_args),
+            "::",
+            stringify!(line)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).severity as *const _ as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_log_func_args),
+            "::",
+            stringify!(severity)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).message as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_log_func_args),
+            "::",
+            stringify!(message)
+        )
+    );
+}
+pub type gpr_log_func = ::std::option::Option<unsafe extern "C" fn(args: *mut gpr_log_func_args)>;
+extern "C" {
+    pub fn gpr_set_log_function(func: gpr_log_func);
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct gpr_allocation_functions {
+    pub malloc_fn:
+        ::std::option::Option<unsafe extern "C" fn(size: usize) -> *mut ::std::os::raw::c_void>,
+    pub zalloc_fn:
+        ::std::option::Option<unsafe extern "C" fn(size: usize) -> *mut ::std::os::raw::c_void>,
+    #[doc = " if NULL, uses malloc_fn then memset"]
+    pub realloc_fn: ::std::option::Option<
+        unsafe extern "C" fn(
+            ptr: *mut ::std::os::raw::c_void,
+            size: usize,
+        ) -> *mut ::std::os::raw::c_void,
+    >,
+    pub free_fn: ::std::option::Option<unsafe extern "C" fn(ptr: *mut ::std::os::raw::c_void)>,
+}
+#[test]
+fn bindgen_test_layout_gpr_allocation_functions() {
+    assert_eq!(
+        ::std::mem::size_of::<gpr_allocation_functions>(),
+        32usize,
+        concat!("Size of: ", stringify!(gpr_allocation_functions))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<gpr_allocation_functions>(),
+        8usize,
+        concat!("Alignment of ", stringify!(gpr_allocation_functions))
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<gpr_allocation_functions>())).malloc_fn as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_allocation_functions),
+            "::",
+            stringify!(malloc_fn)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<gpr_allocation_functions>())).zalloc_fn as *const _ as usize
+        },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_allocation_functions),
+            "::",
+            stringify!(zalloc_fn)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<gpr_allocation_functions>())).realloc_fn as *const _ as usize
+        },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_allocation_functions),
+            "::",
+            stringify!(realloc_fn)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<gpr_allocation_functions>())).free_fn as *const _ as usize
+        },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(gpr_allocation_functions),
+            "::",
+            stringify!(free_fn)
+        )
+    );
+}
+extern "C" {
+    #[doc = " malloc."]
+    #[doc = " If size==0, always returns NULL. Otherwise this function never returns NULL."]
+    #[doc = " The pointer returned is suitably aligned for any kind of variable it could"]
+    #[doc = " contain."]
+    pub fn gpr_malloc(size: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " like malloc, but zero all bytes before returning them"]
+    pub fn gpr_zalloc(size: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " free"]
+    pub fn gpr_free(ptr: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    #[doc = " realloc, never returns NULL"]
+    pub fn gpr_realloc(p: *mut ::std::os::raw::c_void, size: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " aligned malloc, never returns NULL, will align to alignment, which"]
+    #[doc = " must be a power of 2."]
+    pub fn gpr_malloc_aligned(size: usize, alignment: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " free memory allocated by gpr_malloc_aligned"]
+    pub fn gpr_free_aligned(ptr: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    #[doc = " Request the family of allocation functions in \\a functions be used. NOTE"]
+    #[doc = " that this request will be honored in a *best effort* basis and that no"]
+    #[doc = " guarantees are made about the default functions (eg, malloc) being called."]
+    #[doc = " The functions.free_fn implementation must be a no-op for NULL input."]
+    pub fn gpr_set_allocation_functions(functions: gpr_allocation_functions);
+}
+extern "C" {
+    #[doc = " Return the family of allocation functions currently in effect."]
+    pub fn gpr_get_allocation_functions() -> gpr_allocation_functions;
+}
+extern "C" {
+    #[doc = " Return the number of CPU cores on the current system. Will return 0 if"]
+    #[doc = "the information is not available."]
+    pub fn gpr_cpu_num_cores() -> ::std::os::raw::c_uint;
+}
+extern "C" {
+    #[doc = " Return the CPU on which the current thread is executing; N.B. This should"]
+    #[doc = "be considered advisory only - it is possible that the thread is switched"]
+    #[doc = "to a different CPU at any time. Returns a value in range"]
+    #[doc = "[0, gpr_cpu_num_cores() - 1]"]
+    pub fn gpr_cpu_current_cpu() -> ::std::os::raw::c_uint;
+}
+extern "C" {
+    #[doc = " Returns a string allocated with gpr_malloc that contains a UTF-8"]
+    #[doc = " formatted error message, corresponding to the error messageid."]
+    #[doc = " Use in conjunction with GetLastError() et al."]
+    pub fn gpr_format_message(messageid: ::std::os::raw::c_int) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    #[doc = " Returns a copy of src that can be passed to gpr_free()."]
+    #[doc = "If allocation fails or if src is NULL, returns NULL."]
+    pub fn gpr_strdup(src: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    #[doc = " printf to a newly-allocated string.  The set of supported formats may vary"]
+    #[doc = "between platforms."]
+    #[doc = ""]
+    #[doc = "On success, returns the number of bytes printed (excluding the final '\\0'),"]
+    #[doc = "and *strp points to a string which must later be destroyed with gpr_free()."]
+    #[doc = ""]
+    #[doc = "On error, returns -1 and sets *strp to NULL. If the format string is bad,"]
+    #[doc = "the result is undefined."]
+    pub fn gpr_asprintf(
+        strp: *mut *mut ::std::os::raw::c_char,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> ::std::os::raw::c_int;
+}
+pub type gpr_thd_id = usize;
+extern "C" {
+    #[doc = " Returns the identifier of the current thread."]
+    pub fn gpr_thd_currentid() -> gpr_thd_id;
 }
 #[doc = " Reader for byte buffers. Iterates over slices in the byte buffer"]
 #[repr(C)]
