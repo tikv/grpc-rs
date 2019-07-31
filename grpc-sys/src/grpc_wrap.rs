@@ -9,6 +9,18 @@ impl gpr_timespec {
     }
 }
 
+impl Copy for gpr_timespec {}
+
+impl Clone for gpr_timespec {
+    fn clone(&self) -> Self {
+        gpr_timespec {
+            tv_sec: self.tv_sec,
+            tv_nsec: self.tv_nsec,
+            clock_type: self.clock_type,
+        }
+    }
+}
+
 impl From<Duration> for gpr_timespec {
     fn from(dur: Duration) -> gpr_timespec {
         gpr_timespec {

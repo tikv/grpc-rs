@@ -186,524 +186,6 @@ pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &'static [u8; 33usize] =
 pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &'static [u8; 31usize] =
     b"GOOGLE_APPLICATION_CREDENTIALS\0";
 pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
-pub type __uint8_t = ::std::os::raw::c_uchar;
-pub type __int32_t = ::std::os::raw::c_int;
-pub type __uint32_t = ::std::os::raw::c_uint;
-pub type __int64_t = ::std::os::raw::c_long;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __pthread_internal_list {
-    pub __prev: *mut __pthread_internal_list,
-    pub __next: *mut __pthread_internal_list,
-}
-#[test]
-fn bindgen_test_layout___pthread_internal_list() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_internal_list>(),
-        16usize,
-        concat!("Size of: ", stringify!(__pthread_internal_list))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_internal_list>(),
-        8usize,
-        concat!("Alignment of ", stringify!(__pthread_internal_list))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_internal_list>())).__prev as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_internal_list),
-            "::",
-            stringify!(__prev)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_internal_list>())).__next as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_internal_list),
-            "::",
-            stringify!(__next)
-        )
-    );
-}
-pub type __pthread_list_t = __pthread_internal_list;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __pthread_mutex_s {
-    pub __lock: ::std::os::raw::c_int,
-    pub __count: ::std::os::raw::c_uint,
-    pub __owner: ::std::os::raw::c_int,
-    pub __nusers: ::std::os::raw::c_uint,
-    pub __kind: ::std::os::raw::c_int,
-    pub __spins: ::std::os::raw::c_short,
-    pub __elision: ::std::os::raw::c_short,
-    pub __list: __pthread_list_t,
-}
-#[test]
-fn bindgen_test_layout___pthread_mutex_s() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_mutex_s>(),
-        40usize,
-        concat!("Size of: ", stringify!(__pthread_mutex_s))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_mutex_s>(),
-        8usize,
-        concat!("Alignment of ", stringify!(__pthread_mutex_s))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__lock as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__lock)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__count as *const _ as usize },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__count)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__owner as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__owner)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__nusers as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__nusers)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__kind as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__kind)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__spins as *const _ as usize },
-        20usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__spins)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__elision as *const _ as usize },
-        22usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__elision)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_mutex_s>())).__list as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_mutex_s),
-            "::",
-            stringify!(__list)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct __pthread_cond_s {
-    pub __bindgen_anon_1: __pthread_cond_s__bindgen_ty_1,
-    pub __bindgen_anon_2: __pthread_cond_s__bindgen_ty_2,
-    pub __g_refs: [::std::os::raw::c_uint; 2usize],
-    pub __g_size: [::std::os::raw::c_uint; 2usize],
-    pub __g1_orig_size: ::std::os::raw::c_uint,
-    pub __wrefs: ::std::os::raw::c_uint,
-    pub __g_signals: [::std::os::raw::c_uint; 2usize],
-}
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union __pthread_cond_s__bindgen_ty_1 {
-    pub __wseq: ::std::os::raw::c_ulonglong,
-    pub __wseq32: __pthread_cond_s__bindgen_ty_1__bindgen_ty_1,
-    _bindgen_union_align: u64,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __pthread_cond_s__bindgen_ty_1__bindgen_ty_1 {
-    pub __low: ::std::os::raw::c_uint,
-    pub __high: ::std::os::raw::c_uint,
-}
-#[test]
-fn bindgen_test_layout___pthread_cond_s__bindgen_ty_1__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_cond_s__bindgen_ty_1__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(__pthread_cond_s__bindgen_ty_1__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_cond_s__bindgen_ty_1__bindgen_ty_1>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(__pthread_cond_s__bindgen_ty_1__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_1__bindgen_ty_1>())).__low
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(__low)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_1__bindgen_ty_1>())).__high
-                as *const _ as usize
-        },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(__high)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout___pthread_cond_s__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_cond_s__bindgen_ty_1>(),
-        8usize,
-        concat!("Size of: ", stringify!(__pthread_cond_s__bindgen_ty_1))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_cond_s__bindgen_ty_1>(),
-        8usize,
-        concat!("Alignment of ", stringify!(__pthread_cond_s__bindgen_ty_1))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_1>())).__wseq as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_1),
-            "::",
-            stringify!(__wseq)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_1>())).__wseq32 as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_1),
-            "::",
-            stringify!(__wseq32)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union __pthread_cond_s__bindgen_ty_2 {
-    pub __g1_start: ::std::os::raw::c_ulonglong,
-    pub __g1_start32: __pthread_cond_s__bindgen_ty_2__bindgen_ty_1,
-    _bindgen_union_align: u64,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __pthread_cond_s__bindgen_ty_2__bindgen_ty_1 {
-    pub __low: ::std::os::raw::c_uint,
-    pub __high: ::std::os::raw::c_uint,
-}
-#[test]
-fn bindgen_test_layout___pthread_cond_s__bindgen_ty_2__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_cond_s__bindgen_ty_2__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(__pthread_cond_s__bindgen_ty_2__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_cond_s__bindgen_ty_2__bindgen_ty_1>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(__pthread_cond_s__bindgen_ty_2__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_2__bindgen_ty_1>())).__low
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_2__bindgen_ty_1),
-            "::",
-            stringify!(__low)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_2__bindgen_ty_1>())).__high
-                as *const _ as usize
-        },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_2__bindgen_ty_1),
-            "::",
-            stringify!(__high)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout___pthread_cond_s__bindgen_ty_2() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_cond_s__bindgen_ty_2>(),
-        8usize,
-        concat!("Size of: ", stringify!(__pthread_cond_s__bindgen_ty_2))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_cond_s__bindgen_ty_2>(),
-        8usize,
-        concat!("Alignment of ", stringify!(__pthread_cond_s__bindgen_ty_2))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_2>())).__g1_start as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_2),
-            "::",
-            stringify!(__g1_start)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<__pthread_cond_s__bindgen_ty_2>())).__g1_start32 as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s__bindgen_ty_2),
-            "::",
-            stringify!(__g1_start32)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout___pthread_cond_s() {
-    assert_eq!(
-        ::std::mem::size_of::<__pthread_cond_s>(),
-        48usize,
-        concat!("Size of: ", stringify!(__pthread_cond_s))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<__pthread_cond_s>(),
-        8usize,
-        concat!("Alignment of ", stringify!(__pthread_cond_s))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_cond_s>())).__g_refs as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s),
-            "::",
-            stringify!(__g_refs)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_cond_s>())).__g_size as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s),
-            "::",
-            stringify!(__g_size)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_cond_s>())).__g1_orig_size as *const _ as usize },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s),
-            "::",
-            stringify!(__g1_orig_size)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_cond_s>())).__wrefs as *const _ as usize },
-        36usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s),
-            "::",
-            stringify!(__wrefs)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<__pthread_cond_s>())).__g_signals as *const _ as usize },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__pthread_cond_s),
-            "::",
-            stringify!(__g_signals)
-        )
-    );
-}
-pub type pthread_once_t = ::std::os::raw::c_int;
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union pthread_mutex_t {
-    pub __data: __pthread_mutex_s,
-    pub __size: [::std::os::raw::c_char; 40usize],
-    pub __align: ::std::os::raw::c_long,
-    _bindgen_union_align: [u64; 5usize],
-}
-#[test]
-fn bindgen_test_layout_pthread_mutex_t() {
-    assert_eq!(
-        ::std::mem::size_of::<pthread_mutex_t>(),
-        40usize,
-        concat!("Size of: ", stringify!(pthread_mutex_t))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<pthread_mutex_t>(),
-        8usize,
-        concat!("Alignment of ", stringify!(pthread_mutex_t))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<pthread_mutex_t>())).__data as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(pthread_mutex_t),
-            "::",
-            stringify!(__data)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<pthread_mutex_t>())).__size as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(pthread_mutex_t),
-            "::",
-            stringify!(__size)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<pthread_mutex_t>())).__align as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(pthread_mutex_t),
-            "::",
-            stringify!(__align)
-        )
-    );
-}
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union pthread_cond_t {
-    pub __data: __pthread_cond_s,
-    pub __size: [::std::os::raw::c_char; 48usize],
-    pub __align: ::std::os::raw::c_longlong,
-    _bindgen_union_align: [u64; 6usize],
-}
-#[test]
-fn bindgen_test_layout_pthread_cond_t() {
-    assert_eq!(
-        ::std::mem::size_of::<pthread_cond_t>(),
-        48usize,
-        concat!("Size of: ", stringify!(pthread_cond_t))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<pthread_cond_t>(),
-        8usize,
-        concat!("Alignment of ", stringify!(pthread_cond_t))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<pthread_cond_t>())).__data as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(pthread_cond_t),
-            "::",
-            stringify!(__data)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<pthread_cond_t>())).__size as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(pthread_cond_t),
-            "::",
-            stringify!(__size)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<pthread_cond_t>())).__align as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(pthread_cond_t),
-            "::",
-            stringify!(__align)
-        )
-    );
-}
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC"]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -728,7 +210,6 @@ pub enum grpc_compression_level {
     GRPC_COMPRESS_LEVEL_COUNT = 4,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_compression_options {
     #[doc = " All algs are enabled by default. This option corresponds to the channel"]
     #[doc = " argument key behind \\a GRPC_COMPRESSION_CHANNEL_ENABLED_ALGORITHMS_BITSET"]
@@ -1047,14 +528,12 @@ pub struct grpc_slice {
     pub data: grpc_slice_grpc_slice_data,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
-pub union grpc_slice_grpc_slice_data {
-    pub refcounted: grpc_slice_grpc_slice_data_grpc_slice_refcounted,
-    pub inlined: grpc_slice_grpc_slice_data_grpc_slice_inlined,
-    _bindgen_union_align: [u64; 3usize],
+pub struct grpc_slice_grpc_slice_data {
+    pub refcounted: __BindgenUnionField<grpc_slice_grpc_slice_data_grpc_slice_refcounted>,
+    pub inlined: __BindgenUnionField<grpc_slice_grpc_slice_data_grpc_slice_inlined>,
+    pub bindgen_union_field: [u64; 3usize],
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_slice_grpc_slice_data_grpc_slice_refcounted {
     pub bytes: *mut u8,
     pub length: usize,
@@ -1105,7 +584,6 @@ fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_refcounted() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_slice_grpc_slice_data_grpc_slice_inlined {
     pub length: u8,
     pub bytes: [u8; 23usize],
@@ -1336,7 +814,6 @@ pub enum gpr_clock_type {
 #[doc = " Analogous to struct timespec. On some machines, absolute times may be in"]
 #[doc = " local time."]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct gpr_timespec {
     pub tv_sec: i64,
     pub tv_nsec: i32,
@@ -1399,7 +876,6 @@ extern "C" {
     ) -> gpr_atm;
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct gpr_event {
     pub state: gpr_atm,
 }
@@ -1427,7 +903,6 @@ fn bindgen_test_layout_gpr_event() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct gpr_refcount {
     pub count: gpr_atm,
 }
@@ -1455,7 +930,6 @@ fn bindgen_test_layout_gpr_refcount() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct gpr_stats_counter {
     pub value: gpr_atm,
 }
@@ -1480,81 +954,6 @@ fn bindgen_test_layout_gpr_stats_counter() {
             "::",
             stringify!(value)
         )
-    );
-}
-pub type gpr_mu = pthread_mutex_t;
-pub type gpr_cv = pthread_cond_t;
-pub type gpr_once = pthread_once_t;
-extern "C" {
-    #[doc = " Initialize *mu.  Requires:  *mu uninitialized."]
-    pub fn gpr_mu_init(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Cause *mu no longer to be initialized, freeing any memory in use.  Requires:"]
-    #[doc = "mu initialized; no other concurrent operation on *mu."]
-    pub fn gpr_mu_destroy(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Wait until no thread has a lock on *mu, cause the calling thread to own an"]
-    #[doc = "exclusive lock on *mu, then return.  May block indefinitely or crash if the"]
-    #[doc = "calling thread has a lock on *mu.  Requires:  *mu initialized."]
-    pub fn gpr_mu_lock(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Release an exclusive lock on *mu held by the calling thread.  Requires:  *mu"]
-    #[doc = "initialized; the calling thread holds an exclusive lock on *mu."]
-    pub fn gpr_mu_unlock(mu: *mut gpr_mu);
-}
-extern "C" {
-    #[doc = " Without blocking, attempt to acquire an exclusive lock on *mu for the"]
-    #[doc = "calling thread, then return non-zero iff success.  Fail, if any thread holds"]
-    #[doc = "the lock; succeeds with high probability if no thread holds the lock."]
-    #[doc = "Requires:  *mu initialized."]
-    pub fn gpr_mu_trylock(mu: *mut gpr_mu) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Initialize *cv.  Requires:  *cv uninitialized."]
-    pub fn gpr_cv_init(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Cause *cv no longer to be initialized, freeing any memory in use.  Requires:"]
-    #[doc = "cv initialized; no other concurrent operation on *cv."]
-    pub fn gpr_cv_destroy(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Atomically release *mu and wait on *cv.  When the calling thread is woken"]
-    #[doc = "from *cv or the deadline abs_deadline is exceeded, execute gpr_mu_lock(mu)"]
-    #[doc = "and return whether the deadline was exceeded.  Use"]
-    #[doc = "abs_deadline==gpr_inf_future for no deadline.  abs_deadline can be either"]
-    #[doc = "an absolute deadline, or a GPR_TIMESPAN.  May return even when not"]
-    #[doc = "woken explicitly.  Requires:  *mu and *cv initialized; the calling thread"]
-    #[doc = "holds an exclusive lock on *mu."]
-    pub fn gpr_cv_wait(
-        cv: *mut gpr_cv,
-        mu: *mut gpr_mu,
-        abs_deadline: gpr_timespec,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " If any threads are waiting on *cv, wake at least one."]
-    #[doc = "Clients may treat this as an optimization of gpr_cv_broadcast()"]
-    #[doc = "for use in the case where waking more than one waiter is not useful."]
-    #[doc = "Requires:  *cv initialized."]
-    pub fn gpr_cv_signal(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Wake all threads waiting on *cv.  Requires:  *cv initialized."]
-    pub fn gpr_cv_broadcast(cv: *mut gpr_cv);
-}
-extern "C" {
-    #[doc = " Ensure that (*init_routine)() has been called exactly once (for the"]
-    #[doc = "specified gpr_once instance) and then return."]
-    #[doc = "If multiple threads call gpr_once() on the same gpr_once instance, one of"]
-    #[doc = "them will call (*init_routine)(), and the others will block until that call"]
-    #[doc = "finishes."]
-    pub fn gpr_once_init(
-        once: *mut gpr_once,
-        init_routine: ::std::option::Option<unsafe extern "C" fn()>,
     );
 }
 extern "C" {
@@ -2193,6 +1592,11 @@ pub struct grpc_completion_queue {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct grpc_alarm {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct grpc_channel {
     _unused: [u8; 0],
 }
@@ -2204,6 +1608,16 @@ pub struct grpc_server {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_call {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_socket_mutator {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_socket_factory {
     _unused: [u8; 0],
 }
 #[repr(u32)]
@@ -2452,7 +1866,6 @@ fn bindgen_test_layout_grpc_arg() {
 #[doc = "See the description of the \\ref grpc_arg_keys \"available args\" for more"]
 #[doc = "details."]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_channel_args {
     pub num_args: usize,
     pub args: *mut grpc_arg,
@@ -2701,7 +2114,6 @@ fn bindgen_test_layout_grpc_event() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_metadata_array {
     pub count: usize,
     pub capacity: usize,
@@ -2868,7 +2280,6 @@ pub enum grpc_op_type {
 #[doc = " Operation data: one field for each op type (except SEND_CLOSE_FROM_CLIENT"]
 #[doc = "which has no arguments)"]
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct grpc_op {
     #[doc = " Operation type, as defined by grpc_op_type"]
     pub op: grpc_op_type,
@@ -2879,17 +2290,21 @@ pub struct grpc_op {
     pub data: grpc_op_grpc_op_data,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
-pub union grpc_op_grpc_op_data {
-    pub reserved: grpc_op_grpc_op_data__bindgen_ty_1,
-    pub send_initial_metadata: grpc_op_grpc_op_data_grpc_op_send_initial_metadata,
-    pub send_message: grpc_op_grpc_op_data_grpc_op_send_message,
-    pub send_status_from_server: grpc_op_grpc_op_data_grpc_op_send_status_from_server,
-    pub recv_initial_metadata: grpc_op_grpc_op_data_grpc_op_recv_initial_metadata,
-    pub recv_message: grpc_op_grpc_op_data_grpc_op_recv_message,
-    pub recv_status_on_client: grpc_op_grpc_op_data_grpc_op_recv_status_on_client,
-    pub recv_close_on_server: grpc_op_grpc_op_data_grpc_op_recv_close_on_server,
-    _bindgen_union_align: [u64; 8usize],
+pub struct grpc_op_grpc_op_data {
+    pub reserved: __BindgenUnionField<grpc_op_grpc_op_data__bindgen_ty_1>,
+    pub send_initial_metadata:
+        __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>,
+    pub send_message: __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_send_message>,
+    pub send_status_from_server:
+        __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_send_status_from_server>,
+    pub recv_initial_metadata:
+        __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_recv_initial_metadata>,
+    pub recv_message: __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_recv_message>,
+    pub recv_status_on_client:
+        __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>,
+    pub recv_close_on_server:
+        __BindgenUnionField<grpc_op_grpc_op_data_grpc_op_recv_close_on_server>,
+    pub bindgen_union_field: [u64; 8usize],
 }
 #[doc = " Reserved for future usage"]
 #[repr(C)]
@@ -2927,12 +2342,10 @@ fn bindgen_test_layout_grpc_op_grpc_op_data__bindgen_ty_1() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata { pub count : usize , pub metadata : * mut grpc_metadata , pub maybe_compression_level : grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level , }
 #[doc = " If \\a is_set, \\a compression_level will be used for the call."]
 #[doc = " Otherwise, \\a compression_level won't be considered"]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level
 {
     pub is_set: u8,
@@ -3046,7 +2459,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_message() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_status_from_server {
     pub trailing_metadata_count: usize,
     pub trailing_metadata: *mut grpc_metadata,
@@ -4713,7 +4125,6 @@ pub struct grpc_auth_context {
     _unused: [u8; 0],
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_auth_property_iterator {
     pub ctx: *const grpc_auth_context,
     pub index: usize,
@@ -4768,7 +4179,6 @@ fn bindgen_test_layout_grpc_auth_property_iterator() {
 }
 #[doc = " value, if not NULL, is guaranteed to be NULL terminated."]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_auth_property {
     pub name: *mut ::std::os::raw::c_char,
     pub value: *mut ::std::os::raw::c_char,
@@ -6100,7 +5510,6 @@ pub struct grpcwrap_batch_context {
     pub recv_close_on_server_cancelled: ::std::os::raw::c_int,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpcwrap_batch_context__bindgen_ty_1 {
     pub trailing_metadata: grpc_metadata_array,
 }
