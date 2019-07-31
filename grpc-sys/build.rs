@@ -265,6 +265,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
         .clang_arg("-std=c++11")
+        .clang_arg("-lpthread")
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
