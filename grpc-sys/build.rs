@@ -236,7 +236,8 @@ fn get_env(name: &str) -> Option<String> {
     }
 }
 
-/// Generate the bindings to C-core
+// Generate the bindings to grpc C-core.
+// Try to disable the generation of platform-related bindings.
 fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
     // Search header files with API interface
     let mut headers = Vec::new();
@@ -292,6 +293,39 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .expect("Couldn't write bindings!");
 }
 
+// Determine if need to update bindings. Supported platforms do not
+// need to be updated by default unless the UPDATE_BIND is specified.
+// Other platforms use bindgen to generate the bindings every time.
+fn config_binding_path(config: bindgen::Builder) {
+    let mut file_path: PathBuf;
+    match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
+        "x86_64-unknown-linux-gnu" => {
+            file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("bindings")
+                .join("x86_64-unknown-linux-gnu-bindings.rs");
+            if env::var("UPDATE_BIND").is_ok() {
+                bindgen_grpc(config, &file_path);
+            }
+        }
+        "x86_64-apple-darwin" => {
+            file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("bindings")
+                .join("x86_64-apple-darwin-bindings.rs");
+            if env::var("UPDATE_BIND").is_ok() {
+                bindgen_grpc(config, &file_path);
+            }
+        }
+        _ => {
+            file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
+            bindgen_grpc(config, &file_path);
+        }
+    };
+    println!(
+        "cargo:rustc-env=BINDING_PATH={}",
+        file_path.to_str().unwrap()
+    );
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
@@ -335,42 +369,5 @@ fn main() {
 
     cc.compile("libgrpc_wrap.a");
 
-    // Determine if need to update bindings. Supported platforms
-    // do not need to be updated by default unless the
-    // UPDATE_BIND is specified. Other platforms use bindgen
-    // to generate the bindings every time.
-    match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
-        "x86_64-unknown-linux-gnu" => {
-            let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("bindings")
-                .join("x86_64-unknown-linux-gnu-bindings.rs");
-            if env::var("UPDATE_BIND").is_ok() {
-                bindgen_grpc(bind_config, &file_path);
-            }
-            println!(
-                "cargo:rustc-env=BINDING_DIR={}",
-                file_path.to_str().unwrap()
-            );
-        }
-        "x86_64-apple-darwin" => {
-            let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("bindings")
-                .join("x86_64-apple-darwin-bindings.rs");
-            if env::var("UPDATE_BIND").is_ok() {
-                bindgen_grpc(bind_config, &file_path);
-            }
-            println!(
-                "cargo:rustc-env=BINDING_DIR={}",
-                file_path.to_str().unwrap()
-            );
-        }
-        _ => {
-            let file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
-            bindgen_grpc(bind_config, &file_path);
-            println!(
-                "cargo:rustc-env=BINDING_DIR={}",
-                file_path.to_str().unwrap()
-            );
-        }
-    };
+    config_binding_path(bind_config);
 }
