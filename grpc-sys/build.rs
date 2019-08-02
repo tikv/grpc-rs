@@ -297,7 +297,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 // need to be updated by default unless the UPDATE_BIND is specified.
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path(config: bindgen::Builder) {
-    let mut file_path: PathBuf;
+    let file_path: PathBuf;
     match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
         "x86_64-unknown-linux-gnu" => {
             file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
