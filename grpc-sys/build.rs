@@ -236,9 +236,11 @@ fn get_env(name: &str) -> Option<String> {
     }
 }
 
-/// Generate the bindings to C-core
-fn bindgen_grpc(mut config: bindgen::Builder) {
+// Generate the bindings to grpc C-core.
+// Try to disable the generation of platform-related bindings.
+fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
     // Search header files with API interface
+    let mut headers = Vec::new();
     for result in WalkDir::new(Path::new("./grpc/include")) {
         let dent = result.expect("Error happened when search headers");
         if !dent.file_type().is_file() {
@@ -249,40 +251,81 @@ fn bindgen_grpc(mut config: bindgen::Builder) {
         file.read_to_string(&mut buf)
             .expect("Coundn't read header content");
         if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
-            config = config.header(dent.path().to_str().unwrap());
+            headers.push(String::from(dent.path().to_str().unwrap()));
         }
     }
 
-    config = config.header("grpc_wrap.cc");
+    // To control the order of bindings
+    headers.sort();
+    for path in headers {
+        config = config.header(path);
+    }
 
-    let bindings = config
+    config
+        .header("grpc_wrap.cc")
         .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
         .clang_arg("-std=c++11")
+        .whitelist_recursively(false)
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
         .whitelist_var(r"\bGRPC_.*")
+        .whitelist_type(r"\bgrpc_.*")
+        .whitelist_type(r"\bgpr_.*")
+        .whitelist_type(r"\bgrpcwrap_.*")
+        .whitelist_type(r"\bcensus_context.*")
+        .whitelist_type(r"\bverify_peer_options.*")
+        .blacklist_function(r"\bgpr_mu_.*")
+        .blacklist_function(r"\bgpr_cv_.*")
+        .blacklist_function(r"\bgpr_once_.*")
+        .blacklist_type(r"gpr_mu")
+        .blacklist_type(r"gpr_cv")
+        .blacklist_type(r"gpr_once")
+        .constified_enum_module(r"grpc_status_code")
+        .no_copy("grpc_slice")
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })
-        .constified_enum_module(r"grpc_status_code")
-        .no_copy("grpc_slice")
         .generate()
-        .expect("Unable to generate grpc bindings");
-
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
-        .write_to_file(out_path.join("grpc-bindings.rs"))
+        .expect("Unable to generate grpc bindings")
+        .write_to_file(file_path)
         .expect("Couldn't write bindings!");
 }
 
-fn main() {
-    let mut cc = Build::new();
-    let mut bind_config = bindgen::Builder::default();
+// Determine if need to update bindings. Supported platforms do not
+// need to be updated by default unless the UPDATE_BIND is specified.
+// Other platforms use bindgen to generate the bindings every time.
+fn config_binding_path(config: bindgen::Builder) {
+    let file_path: PathBuf;
+    println!("cargo:rerun-if-changed=bindings/x86_64-unknown-linux-gnu-bindings.rs");
+    match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
+        "x86_64-unknown-linux-gnu" => {
+            file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("bindings")
+                .join("x86_64-unknown-linux-gnu-bindings.rs");
+            if env::var("UPDATE_BIND").map(|s| s == "1").unwrap_or(false) {
+                bindgen_grpc(config, &file_path);
+            }
+        }
+        _ => {
+            file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
+            bindgen_grpc(config, &file_path);
+        }
+    };
+    println!(
+        "cargo:rustc-env=BINDING_PATH={}",
+        file_path.to_str().unwrap()
+    );
+}
 
+fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
+    println!("cargo:rerun-if-env-changed=UPDATE_BIND");
+
+    let mut cc = Build::new();
+    let mut bind_config = bindgen::Builder::default();
 
     let library = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
@@ -317,5 +360,6 @@ fn main() {
     cc.warnings_into_errors(true);
 
     cc.compile("libgrpc_wrap.a");
-    bindgen_grpc(bind_config);
+
+    config_binding_path(bind_config);
 }

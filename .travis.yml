@@ -3,14 +3,6 @@ sudo: false
 language: rust
 git:
   submodules: false
-cache:
-  directories:
-    - $HOME/.cargo
-    - $HOME/.cache
-    - $HOME/tools
-    - $TRAVIS_BUILD_DIR/target
-before_cache:
-  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
 
 env:
   global:
@@ -60,6 +52,7 @@ matrix:
 
 addons:
   apt:
+    update: true
     sources:
       - llvm-toolchain-xenial-7
     packages:
@@ -100,6 +93,7 @@ before_script:
 script:
   - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
       rustup component add rustfmt && cargo fmt --all -- --check;
+      scripts/generate-bindings.sh && git diff --exit-code HEAD;
     fi
   - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi

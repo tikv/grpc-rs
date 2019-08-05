@@ -27,10 +27,12 @@ This project is still under development. The following features with the check m
 - CMake >= 3.8.0
 - Rust >= 1.19.0
 - binutils >= 2.22
-- LLVM and Clang >= 3.9 recommended by bindgen
-- By default, the [secure feature](#feature-secure) is enabled, therefore Go (>=1.7) is required.
+- LLVM and Clang >= 3.9 if you need to generate bindings at compile time.
+- By default, the [secure feature](#feature-secure) is provided by boringssl, which requires Go (>=1.7) to build. You can also use openssl instead by enabling [openssl feature](#feature-openssl).
 
 For Linux and MacOS, you also need to install gcc (or clang) too.
+
+Bindings are pre-generated for x86_64 Linux. For other platforms, bindings are generated at compile time.
 
 For Windows, you also need to install following software:
 
@@ -41,7 +43,7 @@ For Windows, you also need to install following software:
 ## Build
 
 ```
-$ git submodule update --init --recursive # if you just cloned the repository
+$ ./scripts/reset-submodule.cmd # if you just cloned the repository
 $ cargo build
 ```
 
@@ -113,7 +115,6 @@ your `Cargo.toml`'s features list for `gprcio`. E.g.:
 grpcio = { version = "0.4.4", features = ["openssl"] }
 ```
 
-
 ## Performance
 
 See [benchmark](https://github.com/pingcap/grpc-rs/tree/master/benchmark) to find out how to run a benchmark by yourself.
@@ -121,3 +122,14 @@ See [benchmark](https://github.com/pingcap/grpc-rs/tree/master/benchmark) to fin
 Cross Compile
 -------------
 See [cross_compile](cross_compile.md)
+
+Contributing
+------------
+
+Make sure to format and test the code before sending a PR.
+
+If the content in grpc-sys/grpc is updated, you may need to regenerate bindings:
+
+```
+$ ./scripts/generate-bindings.sh
+```

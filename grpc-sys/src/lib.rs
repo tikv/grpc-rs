@@ -16,7 +16,7 @@
 #![allow(non_upper_case_globals)]
 #[allow(clippy::all)]
 mod bindings {
-    include!(concat!(env!("OUT_DIR"), "/grpc-bindings.rs"));
+    include!(env!("BINDING_PATH"));
 }
 mod grpc_wrap;
 
