@@ -5,5 +5,5 @@
 # The generated bindings will overwrite grpc-sys/bindings/*
 
 export UPDATE_BIND=1
-cargo build
+cargo build -p grpcio-sys --target x86_64-unknown-linux-gnu
 rustfmt grpc-sys/bindings/*

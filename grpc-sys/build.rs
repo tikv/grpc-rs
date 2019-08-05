@@ -303,15 +303,7 @@ fn config_binding_path(config: bindgen::Builder) {
             file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
                 .join("x86_64-unknown-linux-gnu-bindings.rs");
-            if env::var("UPDATE_BIND").is_ok() {
-                bindgen_grpc(config, &file_path);
-            }
-        }
-        "x86_64-apple-darwin" => {
-            file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("bindings")
-                .join("x86_64-apple-darwin-bindings.rs");
-            if env::var("UPDATE_BIND").is_ok() {
+            if env::var("UPDATE_BIND").map(|s| s == "1").unwrap_or(false) {
                 bindgen_grpc(config, &file_path);
             }
         }
@@ -329,7 +321,6 @@ fn config_binding_path(config: bindgen::Builder) {
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
-    println!("cargo:rerun-if-changed=bindings");
     println!("rerun-if-env-changed=UPDATE_BIND");
 
     let mut cc = Build::new();
