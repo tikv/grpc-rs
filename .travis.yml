@@ -3,14 +3,6 @@ sudo: false
 language: rust
 git:
   submodules: false
-cache:
-  directories:
-    - $HOME/.cargo
-    - $HOME/.cache
-    - $HOME/tools
-    - $TRAVIS_BUILD_DIR/target
-before_cache:
-  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
 
 env:
   global:

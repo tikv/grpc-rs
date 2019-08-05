@@ -298,6 +298,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path(config: bindgen::Builder) {
     let file_path: PathBuf;
+    println!("cargo:rerun-if-changed=bindings/x86_64-unknown-linux-gnu-bindings.rs");
     match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
         "x86_64-unknown-linux-gnu" => {
             file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
@@ -321,7 +322,7 @@ fn config_binding_path(config: bindgen::Builder) {
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
-    println!("rerun-if-env-changed=UPDATE_BIND");
+    println!("cargo:rerun-if-env-changed=UPDATE_BIND");
 
     let mut cc = Build::new();
     let mut bind_config = bindgen::Builder::default();
