@@ -43,8 +43,8 @@ For Windows, you also need to install following software:
 ## Build
 
 ```
-$ git submodule update --init --recursive # if you just cloned the repository
-$ cargo build # if you just want to compile
+$ ./scripts/reset-submodule.cmd # if you just cloned the repository
+$ cargo build
 ```
 
 ### Error linking OpenSSL
@@ -126,7 +126,7 @@ See [cross_compile](cross_compile.md)
 Contributing
 ------------
 
-Make sure to format and test your code before sending a PR.
+Make sure to format and test the code before sending a PR.
 
 If the content in grpc-sys/grpc is updated, you may need to regenerate bindings:
 
