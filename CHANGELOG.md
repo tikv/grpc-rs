@@ -1,3 +1,9 @@
+# 0.5.0-alpha.4 - 2019-08-12
+
+- Make proto compile on Windows
+- Make status code readable
+- Remove clang requirement on x86_64 Linux
+
 # 0.5.0-alpha.3 - 2019-07-24
 
 - Fix circle dependencies to get round several cargo bugs
