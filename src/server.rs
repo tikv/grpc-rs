@@ -47,7 +47,7 @@ impl<F> Handler<F> {
 
 pub trait CloneableHandler: Send {
     fn handle(&self, ctx: RpcContext, reqs: &[u8]);
-    fn box_clone(&self) -> Box<CloneableHandler>;
+    fn box_clone(&self) -> Box<dyn CloneableHandler>;
     fn method_type(&self) -> MethodType;
 }
 
@@ -61,7 +61,7 @@ where
     }
 
     #[inline]
-    fn box_clone(&self) -> Box<CloneableHandler> {
+    fn box_clone(&self) -> Box<dyn CloneableHandler> {
         Box::new(self.clone())
     }
 
@@ -365,7 +365,7 @@ impl Drop for ServerCore {
 unsafe impl Send for ServerCore {}
 unsafe impl Sync for ServerCore {}
 
-pub type BoxHandler = Box<CloneableHandler>;
+pub type BoxHandler = Box<dyn CloneableHandler>;
 
 #[derive(Clone)]
 pub struct RequestCallContext {
