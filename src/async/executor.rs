@@ -24,7 +24,7 @@ use cq::CompletionQueue;
 use error::{Error, Result};
 use grpc_sys::{self, GrpcCallStatus};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 /// A handle to a `Spawn`.
 /// Inner future is expected to be polled in the same thread as cq.
