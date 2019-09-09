@@ -464,9 +464,8 @@ extern "C" {
     pub fn grpcwrap_batch_context_recv_status_on_client_trailing_metadata(
         ctx: *mut GrpcBatchContext,
     ) -> *const GrpcMetadataArray;
-    pub fn grpcwrap_batch_context_recv_close_on_server_cancelled(
-        ctx: *mut GrpcBatchContext,
-    ) -> i32;
+    pub fn grpcwrap_batch_context_recv_close_on_server_cancelled(ctx: *mut GrpcBatchContext)
+        -> i32;
 
     pub fn grpcwrap_call_kick_completion_queue(
         call: *mut GrpcCall,
