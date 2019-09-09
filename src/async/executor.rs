@@ -24,7 +24,7 @@ use super::CallTag;
 use cq::CompletionQueue;
 use error::{Error, Result};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 struct Alarm {
     alarm: *mut GrpcAlarm,
