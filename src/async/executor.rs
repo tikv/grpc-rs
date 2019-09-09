@@ -84,7 +84,7 @@ impl NotifyContext {
         match self.kicker.kick(tag) {
             // If the queue is shutdown, then the tag will be notified
             // eventually. So just skip here.
-            Err(Error::QueueShutdown) => return,
+            Err(Error::QueueShutdown) => (),
             Err(e) => panic!("unexpected error when canceling call: {:?}", e),
             _ => (),
         }
@@ -153,7 +153,6 @@ fn poll(notify: &Arc<SpawnNotify>, woken: bool) {
             // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
             handle.take();
-            return;
         }
         _ => {}
     }
