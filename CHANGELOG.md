@@ -1,9 +1,12 @@
+# 0.3.2 - 2018-09-10
+- fix a segmentation fault bug in grpc c core
+
 # 0.3.1 - 2018-08-27
 
-- Support configuring load balancing policy
-- Fix compilation failure when go is missing
-- Fix compilation issue under musl
-- Fix soundness of service handler
+- support configuring load balancing policy
+- fix compilation failure when go is missing
+- fix compilation issue under musl
+- fix soundness of service handler
 
 # 0.3.0 - 2018-06-01
 
