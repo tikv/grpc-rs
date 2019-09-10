@@ -24,7 +24,7 @@ use cq::CompletionQueue;
 use error::{Error, Result};
 use grpc_sys::{self, GrpcCallStatus};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 /// A handle to a `Spawn`.
 /// Inner future is expected to be polled in the same thread as cq.
@@ -84,7 +84,7 @@ impl NotifyContext {
         match self.kicker.kick(tag) {
             // If the queue is shutdown, then the tag will be notified
             // eventually. So just skip here.
-            Err(Error::QueueShutdown) => return,
+            Err(Error::QueueShutdown) => (),
             Err(e) => panic!("unexpected error when canceling call: {:?}", e),
             _ => (),
         }
@@ -153,7 +153,6 @@ fn poll(notify: &Arc<SpawnNotify>, woken: bool) {
             // Future stores notify, and notify contains future,
             // hence circular reference. Take the future to break it.
             handle.take();
-            return;
         }
         _ => {}
     }

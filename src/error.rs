@@ -24,7 +24,7 @@ use call::RpcStatus;
 #[derive(Debug)]
 pub enum Error {
     /// Codec error.
-    Codec(Box<error::Error + Send + Sync>),
+    Codec(Box<dyn error::Error + Send + Sync>),
     /// Failed to start an internal async call.
     CallFailure(GrpcCallStatus),
     /// Rpc request fail.
@@ -67,7 +67,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Codec(ref e) => Some(e.as_ref()),
             _ => None,
