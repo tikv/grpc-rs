@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.5.0-alpha.4"
+version = "0.5.0-alpha.5"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
