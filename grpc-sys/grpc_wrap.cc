@@ -76,13 +76,6 @@
 #define GPR_CALLTYPE
 #endif
 
-grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
-  grpc_slice slice = grpc_slice_from_copied_buffer(buffer, len);
-  grpc_byte_buffer* bb = grpc_raw_byte_buffer_create(&slice, 1);
-  grpc_slice_unref(slice);
-  return bb;
-}
-
 /*
  * Helper to maintain lifetime of batch op inputs and store batch op outputs.
  */
@@ -479,10 +472,9 @@ grpcwrap_channel_args_destroy(grpc_channel_args* args) {
 /* Call */
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_unary(
-    grpc_call* call, grpcwrap_batch_context* ctx, const char* send_buffer,
-    size_t send_buffer_len, uint32_t write_flags,
-    grpc_metadata_array* initial_metadata, uint32_t initial_metadata_flags,
-    void* tag) {
+    grpc_call* call, grpcwrap_batch_context* ctx, grpc_byte_buffer* buffer,
+    uint32_t write_flags, grpc_metadata_array* initial_metadata,
+    uint32_t initial_metadata_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[6];
   memset(ops, 0, sizeof(ops));
@@ -495,7 +487,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_unary(
   ops[0].reserved = nullptr;
 
   ops[1].op = GRPC_OP_SEND_MESSAGE;
-  ctx->send_message = string_to_byte_buffer(send_buffer, send_buffer_len);
+  ctx->send_message = buffer;
   ops[1].data.send_message.send_message = ctx->send_message;
   ops[1].flags = write_flags;
   ops[1].reserved = nullptr;
@@ -570,10 +562,9 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_client_streaming(
 }
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_server_streaming(
-    grpc_call* call, grpcwrap_batch_context* ctx, const char* send_buffer,
-    size_t send_buffer_len, uint32_t write_flags,
-    grpc_metadata_array* initial_metadata, uint32_t initial_metadata_flags,
-    void* tag) {
+    grpc_call* call, grpcwrap_batch_context* ctx, grpc_byte_buffer* send_buffer,
+    uint32_t write_flags, grpc_metadata_array* initial_metadata,
+    uint32_t initial_metadata_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[4];
   memset(ops, 0, sizeof(ops));
@@ -586,7 +577,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_start_server_streaming(
   ops[0].reserved = nullptr;
 
   ops[1].op = GRPC_OP_SEND_MESSAGE;
-  ctx->send_message = string_to_byte_buffer(send_buffer, send_buffer_len);
+  ctx->send_message = send_buffer;
   ops[1].data.send_message.send_message = ctx->send_message;
   ops[1].flags = write_flags;
   ops[1].reserved = nullptr;
@@ -653,15 +644,14 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_recv_initial_metadata(
 }
 
 GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_message(
-    grpc_call* call, grpcwrap_batch_context* ctx, const char* send_buffer,
-    size_t send_buffer_len, uint32_t write_flags,
-    int32_t send_empty_initial_metadata, void* tag) {
+    grpc_call* call, grpcwrap_batch_context* ctx, grpc_byte_buffer* send_buffer,
+    uint32_t write_flags, int32_t send_empty_initial_metadata, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[2];
   memset(ops, 0, sizeof(ops));
   size_t nops = send_empty_initial_metadata ? 2 : 1;
   ops[0].op = GRPC_OP_SEND_MESSAGE;
-  ctx->send_message = string_to_byte_buffer(send_buffer, send_buffer_len);
+  ctx->send_message = send_buffer;
   ops[0].data.send_message.send_message = ctx->send_message;
   ops[0].flags = write_flags;
   ops[0].reserved = nullptr;
@@ -688,8 +678,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
     grpc_call* call, grpcwrap_batch_context* ctx, grpc_status_code status_code,
     const char* status_details, size_t status_details_len,
     grpc_metadata_array* trailing_metadata, int32_t send_empty_initial_metadata,
-    const char* optional_send_buffer, size_t optional_send_buffer_len,
-    uint32_t write_flags, void* tag) {
+    grpc_byte_buffer* optional_send_buffer, uint32_t write_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[3];
   memset(ops, 0, sizeof(ops));
@@ -709,8 +698,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
   ops[0].reserved = nullptr;
   if (optional_send_buffer) {
     ops[nops].op = GRPC_OP_SEND_MESSAGE;
-    ctx->send_message =
-        string_to_byte_buffer(optional_send_buffer, optional_send_buffer_len);
+    ctx->send_message = optional_send_buffer;
     ops[nops].data.send_message.send_message = ctx->send_message;
     ops[nops].flags = write_flags;
     ops[nops].reserved = nullptr;

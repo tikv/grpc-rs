@@ -19,7 +19,7 @@ use crate::grpc_sys;
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
-use crate::call::{check_run, Call, MessageReader, Method};
+use crate::call::{check_run, Call, MessageReader, MessageWriter, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
@@ -113,14 +113,14 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = MessageWriter::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+            let send_buf = payload.into_buffer().take_raw();
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
-                payload.as_ptr() as *const _,
-                payload.len(),
+                send_buf,
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()
@@ -167,14 +167,14 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = MessageWriter::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            let buffer = payload.into_buffer().take_raw();
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
-                payload.as_ptr() as _,
-                payload.len(),
+                buffer,
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()

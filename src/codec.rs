@@ -11,11 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::call::MessageReader;
+use crate::call::{MessageReader, MessageWriter};
 use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
-pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
+pub type SerializeFn<T> = fn(&T, &mut MessageWriter);
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -37,14 +37,20 @@ pub struct Marshaller<T> {
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
+    use protobuf::stream::CodedOutputStream;
     use protobuf::{CodedInputStream, Message};
 
-    use super::MessageReader;
+    use super::{MessageReader, MessageWriter};
     use crate::error::Result;
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
-        t.write_to_vec(buf).unwrap()
+    pub fn ser<T: Message>(t: &T, writer: &mut MessageWriter) {
+        let size = t.compute_size();
+        writer.reserve(size as usize);
+        let mut cos = CodedOutputStream::new(writer);
+        t.check_initialized().unwrap();
+        t.write_to_with_cached_sizes(&mut cos).unwrap();
+        cos.flush().unwrap();
     }
 
     #[inline]
@@ -58,15 +64,18 @@ pub mod pb_codec {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
-    use bytes::buf::BufMut;
     use prost::Message;
 
-    use super::MessageReader;
     use crate::error::Result;
+    use crate::{MessageReader, MessageWriter};
 
     #[inline]
-    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
-        msg.encode(buf).expect("Writing message to buffer failed");
+    pub fn ser<M: Message>(m: &M, writer: &mut MessageWriter) {
+        use std::io::Write;
+        writer.reserve(m.encoded_len());
+        // Because we've already got a reserved writer, we don't need length checks.
+        m.encode_raw(writer);
+        writer.flush().expect("Writing message to buffer failed");
     }
 
     #[inline]

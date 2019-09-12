@@ -14,7 +14,7 @@
 pub mod client;
 pub mod server;
 
-use std::io::{self, BufRead, ErrorKind, Read};
+use std::io::{self, BufRead, ErrorKind, Read, Write};
 use std::sync::Arc;
 use std::{cmp, mem, ptr, slice, usize};
 
@@ -23,7 +23,7 @@ use crate::grpc_sys::{
     self, grpc_byte_buffer_reader, grpc_call, grpc_call_error, grpc_slice, grpcwrap_batch_context,
 };
 #[cfg(feature = "prost-codec")]
-use bytes::Buf;
+use bytes::{Buf, BufMut};
 use futures::{Async, Future, Poll};
 use libc::c_void;
 
@@ -100,6 +100,47 @@ pub struct GrpcByteBuffer {
     pub raw: *mut grpc_sys::grpc_byte_buffer,
 }
 
+impl GrpcByteBuffer {
+    pub fn push(&mut self, slice: grpc_slice) {
+        unsafe {
+            grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, slice);
+        }
+    }
+
+    pub fn pop(&mut self) {
+        unsafe { grpc_sys::grpcwrap_byte_buffer_pop(self.raw as _) }
+    }
+
+    pub fn clear(&mut self) {
+        unsafe { grpc_sys::grpcwrap_byte_buffer_reset_and_unref(self.raw as _) }
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { grpc_sys::grpc_byte_buffer_length(self.raw) }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Increase the ref count, so it's mutated.
+    pub fn clone(&mut self) -> Self {
+        unsafe {
+            GrpcByteBuffer {
+                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
+            }
+        }
+    }
+
+    pub unsafe fn take_raw(&mut self) -> *mut grpc_sys::grpc_byte_buffer {
+        let ret = self.raw;
+        self.raw = grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0);
+        ret
+    }
+}
+
+unsafe impl Send for GrpcByteBuffer {}
+
 impl Default for GrpcByteBuffer {
     fn default() -> Self {
         unsafe {
@@ -115,16 +156,6 @@ impl<'a> From<&'a mut [grpc_slice]> for GrpcByteBuffer {
         unsafe {
             GrpcByteBuffer {
                 raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
-            }
-        }
-    }
-}
-
-impl Clone for GrpcByteBuffer {
-    fn clone(&self) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
             }
         }
     }
@@ -240,6 +271,7 @@ impl MessageReader {
 }
 
 unsafe impl Sync for MessageReader {}
+
 unsafe impl Send for MessageReader {}
 
 impl Read for MessageReader {
@@ -361,6 +393,186 @@ pub struct BatchContext {
     ctx: *mut grpcwrap_batch_context,
 }
 
+struct GrpcSliceBuffer {
+    buffer: grpc_slice,
+    buffer_offset: usize,
+}
+
+impl GrpcSliceBuffer {
+    pub fn is_full(&self) -> bool {
+        self.buffer.len() - self.buffer_offset == 0
+    }
+
+    /// Returns the remaining slice, `None` means fully consumed
+    pub fn append<'a>(&mut self, data: &'a [u8]) -> Option<&'a [u8]> {
+        let internal_slice = unsafe { self.buffer.range_from_unsafe(self.buffer_offset) };
+        let data_len = data.len();
+        let internal_len = internal_slice.len();
+        if data_len > internal_len {
+            self.buffer_offset += internal_len;
+            internal_slice.copy_from_slice(&data[..internal_len]);
+            Some(&data[internal_len..])
+        } else {
+            self.buffer_offset += data_len;
+            internal_slice[..data_len].copy_from_slice(data);
+            None
+        }
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl BufMut for GrpcSliceBuffer {
+    fn remaining_mut(&self) -> usize {
+        self.buffer.len() - self.buffer_offset
+    }
+
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        self.buffer_offset += cnt
+    }
+
+    unsafe fn bytes_mut(&mut self) -> &mut [u8] {
+        self.buffer.range_from_unsafe(self.buffer_offset)
+    }
+}
+
+pub struct MessageWriter {
+    data: GrpcByteBuffer,
+    reserved_buffer: Option<GrpcSliceBuffer>,
+    size: usize,
+}
+
+impl MessageWriter {
+    pub fn new() -> MessageWriter {
+        MessageWriter {
+            data: Default::default(),
+            reserved_buffer: None,
+            size: 0,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        if self.is_empty() {
+            return;
+        }
+        self.data.clear();
+        self.size = 0;
+    }
+
+    pub fn reserve(&mut self, size: usize) {
+        if size <= self.size {
+            return;
+        }
+        self.flush().unwrap();
+        // `self.reserved_buffer` is supposed to be None after `self.flush()`
+        debug_assert!(self.reserved_buffer.is_none());
+        let new_size = size - self.size;
+        let buffer = grpc_slice::with_capacity(new_size);
+        self.reserved_buffer = Some(GrpcSliceBuffer {
+            buffer,
+            buffer_offset: 0,
+        })
+    }
+
+    pub fn into_buffer(self) -> GrpcByteBuffer {
+        self.data
+    }
+
+    pub fn as_buffer(&mut self) -> &mut GrpcByteBuffer {
+        &mut self.data
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.reserved_buffer
+            .as_ref()
+            .map_or(0, |buf| buf.buffer_offset)
+            + self.size
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn append_slice_to_data(&mut self, slice: grpc_slice) {
+        self.size += slice.len();
+        self.data.push(slice);
+    }
+
+    fn append_buf_to_reserved<'a>(&mut self, buf: &'a [u8]) -> Option<&'a [u8]> {
+        use std::mem::swap;
+        let mut dummy_buffer = None;
+        swap(&mut dummy_buffer, &mut self.reserved_buffer);
+        match dummy_buffer {
+            Some(mut buffer) => {
+                let rest = buffer.append(buf);
+                if buffer.is_full() {
+                    // Full, push it into the buffer
+                    self.append_slice_to_data(buffer.buffer);
+                } else {
+                    // Not full, put it back to `self`
+                    self.reserved_buffer = Some(buffer);
+                }
+                rest
+            }
+            None => Some(buf),
+        }
+    }
+
+    /// Returns the rest
+    pub fn write_safe(&mut self, buf: &[u8]) {
+        if let Some(rest) = self.append_buf_to_reserved(buf) {
+            self.append_slice_to_data(From::from(rest));
+        }
+    }
+}
+
+impl Write for MessageWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.write_safe(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        use std::mem::swap;
+        let mut dummy_buffer = None;
+        swap(&mut dummy_buffer, &mut self.reserved_buffer);
+
+        if let Some(buffer) = dummy_buffer {
+            // 0-sized buffers shouldn't haven been created
+            debug_assert!(buffer.buffer_offset > 0);
+            self.append_slice_to_data(if buffer.is_full() {
+                // Current buffer is filled
+                buffer.buffer
+            } else {
+                From::from(buffer.buffer.range_to(buffer.buffer_offset))
+            });
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+impl BufMut for MessageWriter {
+    fn remaining_mut(&self) -> usize {
+        self.reserved_buffer
+            .as_ref()
+            .map_or(0, |buf| buf.remaining_mut())
+    }
+
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        if let Some(buf) = &mut self.reserved_buffer {
+            buf.advance_mut(cnt)
+        }
+    }
+
+    unsafe fn bytes_mut(&mut self) -> &mut [u8] {
+        self.reserved_buffer
+            .as_mut()
+            .map_or(&mut [], |buf| buf.bytes_mut())
+    }
+}
+
 impl BatchContext {
     pub fn new() -> BatchContext {
         BatchContext {
@@ -473,22 +685,15 @@ impl Call {
     /// Send a message asynchronously.
     pub fn start_send_message(
         &mut self,
-        msg: &[u8],
+        msg: &mut MessageWriter,
         write_flags: u32,
         initial_meta: bool,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(
-                self.call,
-                ctx,
-                msg.as_ptr() as _,
-                msg.len(),
-                write_flags,
-                i,
-                tag,
-            )
+            let buffer = msg.as_buffer().take_raw();
+            grpc_sys::grpcwrap_call_send_message(self.call, ctx, buffer, write_flags, i, tag)
         });
         Ok(f)
     }
@@ -527,20 +732,19 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: &Option<Vec<u8>>,
+        payload: &mut Option<MessageWriter>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let (payload_ptr, payload_len) = payload
-            .as_ref()
-            .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
+        let buffer = payload
+            .as_mut()
+            .map_or_else(ptr::null_mut, |p| unsafe { p.as_buffer().take_raw() });
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let details_ptr = status
+            let (details_ptr, details_len) = status
                 .details
                 .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
-            let details_len = status.details.as_ref().map_or(0, String::len);
+                .map_or_else(|| (ptr::null(), 0), |s| (s.as_ptr() as _, s.len()));
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
@@ -549,8 +753,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 send_empty_metadata,
-                payload_ptr as _,
-                payload_len,
+                buffer,
                 write_flags,
                 tag,
             )
@@ -571,11 +774,10 @@ impl Call {
         let (batch_ptr, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
-            let details_ptr = status
+            let (details_ptr, details_len) = status
                 .details
                 .as_ref()
-                .map_or_else(ptr::null, |s| s.as_ptr() as _);
-            let details_len = status.details.as_ref().map_or(0, String::len);
+                .map_or_else(|| (ptr::null(), 0), |s| (s.as_ptr() as _, s.len()));
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
                 batch_ptr,
@@ -584,8 +786,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 1,
-                ptr::null(),
-                0,
+                ptr::null_mut(),
                 0,
                 tag_ptr as *mut c_void,
             )
@@ -809,7 +1010,7 @@ impl WriteFlags {
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
     batch_f: Option<BatchFuture>,
-    buf: Vec<u8>,
+    buf: MessageWriter,
     send_metadata: bool,
 }
 
@@ -817,7 +1018,7 @@ impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
-            buf: Vec::new(),
+            buf: MessageWriter::new(),
             send_metadata,
         }
     }
@@ -843,11 +1044,10 @@ impl SinkBase {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
         }
-        let write_f = call.call(|c| {
+        self.batch_f = Some(call.call(|c| {
             c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
-        })?;
-        self.batch_f = Some(write_f);
+                .start_send_message(&mut self.buf, flags.flags, self.send_metadata)
+        })?);
         self.send_metadata = false;
         Ok(true)
     }
@@ -865,6 +1065,72 @@ impl SinkBase {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn byte_buffer_empty() {
+        let mut buf = GrpcByteBuffer::default();
+        unsafe {
+            assert_eq!(
+                0,
+                GrpcByteBuffer {
+                    raw: buf.take_raw(),
+                }
+                .len()
+            );
+        }
+        assert_eq!(0, buf.len());
+    }
+
+    #[test]
+    fn byte_buffer_clear_after_taken_away() {
+        let mut buf = GrpcByteBuffer::default();
+        let data = "oh my god!".as_bytes();
+        buf.push(From::from(data));
+        unsafe {
+            assert_eq!(
+                data.len(),
+                GrpcByteBuffer {
+                    raw: buf.take_raw(),
+                }
+                .len()
+            );
+        }
+        buf.clear();
+        assert_eq!(0, buf.len());
+    }
+
+    #[test]
+    fn byte_buffer_clear_empty() {
+        let mut buf = GrpcByteBuffer::default();
+        buf.clear();
+        buf.clear();
+        buf.push(From::from("bla".as_bytes()));
+        buf.push(From::from("bla".as_bytes()));
+        buf.clear();
+        buf.clear();
+        buf.push(From::from("bla".as_bytes()));
+        buf.push(From::from("bla".as_bytes()));
+        buf.clear();
+        buf.clear();
+    }
+
+    #[test]
+    fn byte_buffer_simple() {
+        let mut buf = GrpcByteBuffer::default();
+        assert_eq!(0, buf.len());
+        let data = "2333".as_bytes();
+        buf.push(From::from(data));
+        assert_eq!(data.len(), buf.len());
+        let data1 = "666".as_bytes();
+        buf.push(From::from(data1));
+        assert_eq!(data.len() + data1.len(), buf.len());
+        buf.clear();
+        assert_eq!(0, buf.len());
+        buf.push(From::from(data));
+        assert_eq!(data.len(), buf.len());
+        buf.push(From::from(data1));
+        assert_eq!(data.len() + data1.len(), buf.len());
+    }
 
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
         let mut slices = vec![From::from(source); n_slice];
@@ -969,5 +1235,39 @@ mod tests {
                 assert_eq!(0, reader.remaining());
             }
         }
+    }
+
+    #[test]
+    fn test_slice_buffer() {
+        let mut buffer = GrpcSliceBuffer {
+            buffer: grpc_slice::with_capacity(5),
+            buffer_offset: 0,
+        };
+        let should_be_none = buffer.append("Ping".as_bytes());
+        assert_eq!(should_be_none, None);
+        let should_be_ap = buffer.append("CAP".as_bytes());
+        assert_eq!(should_be_ap, Some("AP".as_bytes()));
+    }
+
+    #[test]
+    fn test_message_writer() {
+        let mut writer = MessageWriter::new();
+        assert_eq!(writer.len(), 0);
+        writer.write_safe("114".as_bytes());
+        assert_eq!(writer.len(), 3);
+        writer.write("514".as_bytes()).unwrap();
+        assert_eq!(writer.len(), 6);
+        assert_eq!(writer.as_buffer().len(), 6);
+    }
+
+    #[test]
+    fn test_message_writer_reserve() {
+        let mut writer = MessageWriter::new();
+        writer.reserve(3);
+        writer.write_safe(&[1]);
+        // Longer than 2
+        let text = "TiDB will rule the world!".as_bytes();
+        writer.write(text).unwrap();
+        assert_eq!(writer.as_buffer().len(), text.len() + 1);
     }
 }

@@ -13,15 +13,15 @@
 
 #![allow(renamed_and_removed_lints)]
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::{Future, Sink, Stream};
 use grpc::{
-    self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
-    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
-    WriteFlags,
+    self, ClientStreamingSink, DuplexSink, MessageReader, MessageWriter, Method, MethodType,
+    RequestStream, RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder,
+    UnarySink, WriteFlags,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;
@@ -111,8 +111,8 @@ impl Generic {
 
 #[inline]
 #[allow(clippy::ptr_arg)]
-pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
-    buf.extend_from_slice(t)
+pub fn bin_ser(t: &Vec<u8>, buf: &mut MessageWriter) {
+    buf.write_all(t.as_ref()).unwrap();
 }
 
 #[inline]
