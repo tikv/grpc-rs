@@ -11,91 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{self, BufRead, ErrorKind, Read, Write};
-use std::{cmp, mem, ptr, usize};
+use std::io::{self, BufRead, ErrorKind, Read};
+use std::mem::MaybeUninit;
+use std::{cmp, mem, usize};
 
 use crate::grpc_sys::{
-    self, grpc_byte_buffer_reader, grpc_slice,
+    self, grpc_byte_buffer, grpc_byte_buffer_reader, grpc_slice, grpc_slice_buffer,
 };
+
 #[cfg(feature = "prost-codec")]
 use bytes::{Buf, BufMut};
 
-pub struct GrpcByteBuffer {
-    pub raw: *mut grpc_sys::grpc_byte_buffer,
+pub(super) struct GrpcByteBuffer {
+    raw: *mut grpc_byte_buffer,
 }
 
-impl GrpcByteBuffer {
-    pub fn push(&mut self, slice: grpc_slice) {
-        unsafe {
-            grpc_sys::grpcwrap_byte_buffer_add(self.raw as _, slice);
-        }
-    }
-
-    pub fn pop(&mut self) {
-        unsafe { grpc_sys::grpcwrap_byte_buffer_pop(self.raw as _) }
-    }
-
-    pub fn clear(&mut self) {
-        unsafe { grpc_sys::grpcwrap_byte_buffer_reset_and_unref(self.raw as _) }
-    }
-
-    pub fn len(&self) -> usize {
-        unsafe { grpc_sys::grpc_byte_buffer_length(self.raw) }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Increase the ref count, so it's mutated.
-    pub fn clone(&mut self) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
-            }
-        }
-    }
-
-    pub unsafe fn take_raw(&mut self) -> *mut grpc_sys::grpc_byte_buffer {
-        let ret = self.raw;
-        self.raw = grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0);
-        ret
-    }
-}
-
+// Only safe if you have unique access to the internal `grpc_byte_buffer`.
 unsafe impl Send for GrpcByteBuffer {}
-
-impl Default for GrpcByteBuffer {
-    fn default() -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
-            }
-        }
-    }
-}
-
-impl<'a> From<&'a mut GrpcByteBuffer> for grpc_byte_buffer_reader {
-    fn from(src: &'a mut GrpcByteBuffer) -> Self {
-        let mut reader;
-        unsafe {
-            reader = mem::zeroed();
-            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, src.raw);
-            assert_eq!(init_result, 1);
-        }
-        reader
-    }
-}
-
-impl<'a> From<&'a mut [grpc_slice]> for GrpcByteBuffer {
-    fn from(slice: &'a mut [grpc_slice]) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
-            }
-        }
-    }
-}
 
 impl Drop for GrpcByteBuffer {
     fn drop(&mut self) {
@@ -118,11 +50,29 @@ pub struct MessageReader {
 impl MessageReader {
     /// Get the available bytes count of the reader.
     #[inline]
-    pub fn pending_bytes_count(&self) -> usize {
+    fn pending_bytes_count(&self) -> usize {
         self.length
     }
 
-    pub fn new(buf: GrpcByteBuffer, reader: grpc_byte_buffer_reader, length: usize) -> MessageReader {
+    /// Create a new `MessageReader`.
+    ///
+    /// Safety: `raw` must be a unique reference.
+    pub unsafe fn new(
+        raw: *mut grpc_byte_buffer,
+    ) -> MessageReader {
+        Self::from_buf(GrpcByteBuffer { raw })
+    }
+
+    fn from_buf(buf: GrpcByteBuffer) -> MessageReader {
+        let reader = unsafe {
+            let mut reader = mem::zeroed();
+            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, buf.raw);
+            assert_eq!(init_result, 1);
+            reader
+        };
+
+        let length = reader.len();
+
         MessageReader {
             _buf: buf,
             reader,
@@ -250,271 +200,197 @@ impl Buf for MessageReader {
     }
 }
 
-pub struct GrpcSliceBuffer {
-    buffer: grpc_slice,
-    buffer_offset: usize,
-}
-
-impl GrpcSliceBuffer {
-    pub fn is_full(&self) -> bool {
-        self.buffer.len() - self.buffer_offset == 0
-    }
-
-    /// Returns the remaining slice, `None` means fully consumed
-    pub fn append<'a>(&mut self, data: &'a [u8]) -> Option<&'a [u8]> {
-        let internal_slice = unsafe { self.buffer.range_from_unsafe(self.buffer_offset) };
-        let data_len = data.len();
-        let internal_len = internal_slice.len();
-        if data_len > internal_len {
-            self.buffer_offset += internal_len;
-            internal_slice.copy_from_slice(&data[..internal_len]);
-            Some(&data[internal_len..])
-        } else {
-            self.buffer_offset += data_len;
-            internal_slice[..data_len].copy_from_slice(data);
-            None
-        }
-    }
-}
-
-unsafe impl Send for GrpcSliceBuffer {}
-
-#[cfg(feature = "prost-codec")]
-impl BufMut for GrpcSliceBuffer {
-    fn remaining_mut(&self) -> usize {
-        self.buffer.len() - self.buffer_offset
-    }
-
-    unsafe fn advance_mut(&mut self, cnt: usize) {
-        self.buffer_offset += cnt
-    }
-
-    unsafe fn bytes_mut(&mut self) -> &mut [u8] {
-        self.buffer.range_from_unsafe(self.buffer_offset)
-    }
-}
-
+/// Wraps a `grpc_slice_buffer` and provides an intermediate write buffer.
 pub struct MessageWriter {
-    data: GrpcByteBuffer,
-    reserved_buffer: Option<GrpcSliceBuffer>,
-    size: usize,
+    // A `grpc_slice_buffer` cannot be moved, so we must keep it on the heap and
+    // never move it until we are dropped.
+    buffer: Box<grpc_slice_buffer>,
+    write_buffer: Option<Vec<u8>>,
 }
 
 impl MessageWriter {
+    /// Create an empty MessageWriter.
     pub fn new() -> MessageWriter {
+        let buffer = unsafe {
+            // This unsafe block is just to let grpc initialise `buffer`. 
+            let mut buffer = Box::new(MaybeUninit::uninit());
+            grpc_sys::grpc_slice_buffer_init(buffer.as_mut_ptr());
+            mem::transmute::<_, Box<grpc_slice_buffer>>(buffer)
+        };
+
         MessageWriter {
-            data: Default::default(),
-            reserved_buffer: None,
-            size: 0,
-        }
-    }
-
-    pub fn clear(&mut self) {
-        if self.is_empty() {
-            return;
-        }
-        self.data.clear();
-        self.size = 0;
-    }
-
-    pub fn reserve(&mut self, size: usize) {
-        if size <= self.size {
-            return;
-        }
-        self.flush().unwrap();
-        // `self.reserved_buffer` is supposed to be None after `self.flush()`
-        debug_assert!(self.reserved_buffer.is_none());
-        let new_size = size - self.size;
-        let buffer = grpc_slice::with_capacity(new_size);
-        self.reserved_buffer = Some(GrpcSliceBuffer {
             buffer,
-            buffer_offset: 0,
-        })
-    }
-
-    pub fn into_buffer(self) -> GrpcByteBuffer {
-        self.data
-    }
-
-    pub fn as_buffer(&mut self) -> &mut GrpcByteBuffer {
-        &mut self.data
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.reserved_buffer
-            .as_ref()
-            .map_or(0, |buf| buf.buffer_offset)
-            + self.size
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    fn append_slice_to_data(&mut self, slice: grpc_slice) {
-        self.size += slice.len();
-        self.data.push(slice);
-    }
-
-    fn append_buf_to_reserved<'a>(&mut self, buf: &'a [u8]) -> Option<&'a [u8]> {
-        use std::mem::swap;
-        let mut dummy_buffer = None;
-        swap(&mut dummy_buffer, &mut self.reserved_buffer);
-        match dummy_buffer {
-            Some(mut buffer) => {
-                let rest = buffer.append(buf);
-                if buffer.is_full() {
-                    // Full, push it into the buffer
-                    self.append_slice_to_data(buffer.buffer);
-                } else {
-                    // Not full, put it back to `self`
-                    self.reserved_buffer = Some(buffer);
-                }
-                rest
-            }
-            None => Some(buf),
+            write_buffer: None,
         }
     }
 
-    /// Returns the rest
-    pub fn write_safe(&mut self, buf: &[u8]) {
-        if let Some(rest) = self.append_buf_to_reserved(buf) {
-            self.append_slice_to_data(From::from(rest));
+    /// Clear the message writer. Any data that has not been flushed will be lost.
+    /// (And will cause a panic in debug builds).
+    pub fn clear(&mut self) {
+        debug_assert!(self.write_buffer.is_none());
+        unsafe { grpc_sys::grpc_slice_buffer_reset_and_unref(&mut *self.buffer); }
+    }
+
+    /// Flush data written. Creates a new slice in the internal `grpc_slice_buffer`.
+    pub fn flush(&mut self) {
+        // Any data written to `write_buffer` is saved into `buffer`.
+        if let Some(mut buf) = self.write_buffer.take() {
+            unsafe {
+                let cap = buf.capacity();
+                let ptr = buf.as_mut_ptr();
+                mem::forget(buf);
+                let slice =
+                    grpc_sys::grpc_slice_new_with_len(ptr as *mut _, cap, Some(destroy_slice));
+                grpc_sys::grpc_slice_buffer_add(&mut *self.buffer, slice);
+            }
+        }
+    }
+
+    /// If you `reserve`, you must flush or you will lose any data written. Write
+    /// to the returned `Vec`.
+    pub fn reserve(&mut self, size: usize) -> &mut [u8] {
+        debug_assert!(
+            self.write_buffer.is_none(),
+            "Any data in write_buffer will be lost"
+        );
+        self.write_buffer = Some(Vec::with_capacity(size));
+        let result = self.write_buffer.as_mut().unwrap();
+        result.resize(result.capacity(), 0);
+        result
+    }
+
+    // Unsafe because the caller takes responsibility for destroying the returned
+    // byte buffer.
+    pub unsafe fn byte_buffer(&self) -> *mut grpc_byte_buffer {
+        debug_assert!(self.write_buffer.is_none());
+        grpc_sys::grpc_raw_byte_buffer_create(self.buffer.slices, self.buffer.count)
+    }
+}
+
+impl Drop for MessageWriter {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpc_slice_buffer_destroy(&mut *self.buffer);
         }
     }
 }
 
-impl Write for MessageWriter {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.write_safe(buf);
-        Ok(buf.len())
+// A function used to tidy up a `grpc_slice` which wraps a Rust `Vec`.
+extern "C" fn destroy_slice(ptr: *mut ::std::os::raw::c_void, cap: usize) {
+    unsafe {
+        let vec = Vec::from_raw_parts(ptr as *mut u8, cap, cap);
+        mem::drop(vec);
     }
+}
 
-    fn flush(&mut self) -> io::Result<()> {
-        use std::mem::swap;
-        let mut dummy_buffer = None;
-        swap(&mut dummy_buffer, &mut self.reserved_buffer);
+// Safe because both `grpc_slice_buffer` and `Vec` are safe to send across threads
+// as long as only one thread has access.
+unsafe impl Send for MessageWriter {}
 
-        if let Some(buffer) = dummy_buffer {
-            // 0-sized buffers shouldn't haven been created
-            debug_assert!(buffer.buffer_offset > 0);
-            self.append_slice_to_data(if buffer.is_full() {
-                // Current buffer is filled
-                buffer.buffer
-            } else {
-                From::from(buffer.buffer.range_to(buffer.buffer_offset))
-            });
-        }
-        Ok(())
+/// A wrapper for `MessageWriter` for implementing `Bytes::BufMut`. A wrapper is
+/// needed because `BufMut` can be read and written incrementally, which
+/// `MessageWriter` does not support.
+#[cfg(feature = "prost-codec")]
+pub struct MessageWriterBuf<'a> {
+    inner: &'a mut MessageWriter,
+    offset: usize,
+}
+
+#[cfg(feature = "prost-codec")]
+impl<'a> MessageWriterBuf<'a> {
+    /// Flush the inner `MessageWriter`.
+    pub fn flush(&mut self) {
+        self.inner.flush()
     }
 }
 
 #[cfg(feature = "prost-codec")]
-impl BufMut for MessageWriter {
-    fn remaining_mut(&self) -> usize {
-        self.reserved_buffer
-            .as_ref()
-            .map_or(0, |buf| buf.remaining_mut())
+impl<'a> From<&'a mut MessageWriter> for MessageWriterBuf<'a> {
+    fn from(inner: &'a mut MessageWriter) -> MessageWriterBuf<'a> {
+        MessageWriterBuf {
+            inner,
+            offset: 0,
+        }
     }
+}
 
-    unsafe fn advance_mut(&mut self, cnt: usize) {
-        if let Some(buf) = &mut self.reserved_buffer {
-            buf.advance_mut(cnt)
+#[cfg(feature = "prost-codec")]
+impl<'a> BufMut for MessageWriterBuf<'a> {
+    fn remaining_mut(&self) -> usize {
+        match &self.inner.write_buffer {
+            Some(v) => v.len() - self.offset,
+            None => 0,
         }
     }
 
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        self.offset += cnt;
+    }
+
     unsafe fn bytes_mut(&mut self) -> &mut [u8] {
-        self.reserved_buffer
-            .as_mut()
-            .map_or(&mut [], |buf| buf.bytes_mut())
+        // If the user has not previously called `reserve`, then we will
+        // return an empty array.
+        match &mut self.inner.write_buffer {
+            Some(v) => &mut v[self.offset..],
+            None => &mut [],
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ptr;
+
+    impl Default for GrpcByteBuffer {
+        fn default() -> Self {
+            unsafe {
+                GrpcByteBuffer {
+                    raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
+                }
+            }
+        }
+    }
+
+    impl<'a> From<&'a mut [grpc_slice]> for GrpcByteBuffer {
+        fn from(slice: &'a mut [grpc_slice]) -> Self {
+            unsafe {
+                GrpcByteBuffer {
+                    raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
+                }
+            }
+        }
+    }
+
+    impl GrpcByteBuffer {
+        fn len(&self) -> usize {
+            unsafe { grpc_sys::grpc_byte_buffer_length(self.raw) }
+        }
+    }
+
+    impl MessageWriter {
+        // Note, only returns the length of flushed bytes.
+        fn len(&self) -> usize {
+            unsafe {
+                let bb = self.byte_buffer();
+                let len =  grpc_sys::grpc_byte_buffer_length(bb);
+                grpc_sys::grpc_byte_buffer_destroy(bb);
+                len
+            }
+        }
+    }
 
     #[test]
     fn byte_buffer_empty() {
-        let mut buf = GrpcByteBuffer::default();
-        unsafe {
-            assert_eq!(
-                0,
-                GrpcByteBuffer {
-                    raw: buf.take_raw(),
-                }
-                .len()
-            );
-        }
+        let buf = GrpcByteBuffer::default();
         assert_eq!(0, buf.len());
-    }
-
-    #[test]
-    fn byte_buffer_clear_after_taken_away() {
-        let mut buf = GrpcByteBuffer::default();
-        let data = "oh my god!".as_bytes();
-        buf.push(From::from(data));
-        unsafe {
-            assert_eq!(
-                data.len(),
-                GrpcByteBuffer {
-                    raw: buf.take_raw(),
-                }
-                .len()
-            );
-        }
-        buf.clear();
-        assert_eq!(0, buf.len());
-    }
-
-    #[test]
-    fn byte_buffer_clear_empty() {
-        let mut buf = GrpcByteBuffer::default();
-        buf.clear();
-        buf.clear();
-        buf.push(From::from("bla".as_bytes()));
-        buf.push(From::from("bla".as_bytes()));
-        buf.clear();
-        buf.clear();
-        buf.push(From::from("bla".as_bytes()));
-        buf.push(From::from("bla".as_bytes()));
-        buf.clear();
-        buf.clear();
-    }
-
-    #[test]
-    fn byte_buffer_simple() {
-        let mut buf = GrpcByteBuffer::default();
-        assert_eq!(0, buf.len());
-        let data = "2333".as_bytes();
-        buf.push(From::from(data));
-        assert_eq!(data.len(), buf.len());
-        let data1 = "666".as_bytes();
-        buf.push(From::from(data1));
-        assert_eq!(data.len() + data1.len(), buf.len());
-        buf.clear();
-        assert_eq!(0, buf.len());
-        buf.push(From::from(data));
-        assert_eq!(data.len(), buf.len());
-        buf.push(From::from(data1));
-        assert_eq!(data.len() + data1.len(), buf.len());
     }
 
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
         let mut slices = vec![From::from(source); n_slice];
-        let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
-        let reader = grpc_byte_buffer_reader::from(&mut buf);
-        let length = reader.len();
+        let buf = GrpcByteBuffer::from(slices.as_mut_slice());
 
-        MessageReader {
-            _buf: buf,
-            reader,
-            buffer_slice: Default::default(),
-            buffer_offset: 0,
-            length,
-        }
+        MessageReader::from_buf(buf)
     }
 
     #[test]
@@ -608,36 +484,58 @@ mod tests {
     }
 
     #[test]
-    fn test_slice_buffer() {
-        let mut buffer = GrpcSliceBuffer {
-            buffer: grpc_slice::with_capacity(5),
-            buffer_offset: 0,
-        };
-        let should_be_none = buffer.append("Ping".as_bytes());
-        assert_eq!(should_be_none, None);
-        let should_be_ap = buffer.append("CAP".as_bytes());
-        assert_eq!(should_be_ap, Some("AP".as_bytes()));
-    }
-
-    #[test]
-    fn test_message_writer() {
+    fn msg_writer_reserve_flush_clear() {
         let mut writer = MessageWriter::new();
         assert_eq!(writer.len(), 0);
-        writer.write_safe("114".as_bytes());
+        let bytes = writer.reserve(3);
+        bytes[2] = 42;
+        writer.flush();
         assert_eq!(writer.len(), 3);
-        writer.write("514".as_bytes()).unwrap();
-        assert_eq!(writer.len(), 6);
-        assert_eq!(writer.as_buffer().len(), 6);
+        writer.clear();
+        assert_eq!(writer.len(), 0);
     }
 
     #[test]
-    fn test_message_writer_reserve() {
+    #[cfg_attr(debug_assertions, should_panic)]
+    fn msg_writer_no_flush() {
         let mut writer = MessageWriter::new();
-        writer.reserve(3);
-        writer.write_safe(&[1]);
-        // Longer than 2
-        let text = "TiDB will rule the world!".as_bytes();
-        writer.write(text).unwrap();
-        assert_eq!(writer.as_buffer().len(), text.len() + 1);
+        assert_eq!(writer.len(), 0);
+        let bytes = writer.reserve(10);
+        bytes[0] = 42;
+        writer.clear();
+    }
+
+    #[test]
+    fn msg_writer_multi_write() {
+        let mut writer = MessageWriter::new();
+        assert_eq!(writer.len(), 0);
+        let bytes = writer.reserve(3);
+        bytes[0] = 42;
+        writer.flush();
+        let bytes = writer.reserve(3);
+        bytes[2] = 255;
+        writer.flush();
+        let bytes = writer.reserve(2);
+        bytes[1] = 0;
+        writer.flush();
+        assert_eq!(writer.len(), 8);
+    }
+
+    #[cfg(feature = "prost-codec")]
+    #[test]
+    fn msg_writer_buf_mut() {
+        let writer = &mut MessageWriter::new();
+        assert_eq!(writer.len(), 0);
+        writer.reserve(10);
+        unsafe {
+            let mut buf: MessageWriterBuf = writer.into();
+            assert_eq!(buf.remaining_mut(), 10);
+            let bytes = buf.bytes_mut();
+            bytes[0] = 4;
+            bytes[3] = 42;
+            buf.advance_mut(3);
+            assert_eq!(buf.remaining_mut(), 7);
+            assert_eq!(buf.bytes_mut()[0], 42);
+        }
     }
 }

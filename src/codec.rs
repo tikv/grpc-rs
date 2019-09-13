@@ -44,13 +44,13 @@ pub mod pb_codec {
     use crate::error::Result;
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, writer: &mut MessageWriter) {
+    pub fn ser<T: Message>(t: &T, buf: &mut MessageWriter) {
         let size = t.compute_size();
-        writer.reserve(size as usize);
-        let mut cos = CodedOutputStream::new(writer);
+        let mut cos = CodedOutputStream::bytes(buf.reserve(size as usize));
         t.check_initialized().unwrap();
         t.write_to_with_cached_sizes(&mut cos).unwrap();
         cos.flush().unwrap();
+        buf.flush();
     }
 
     #[inline]
@@ -66,16 +66,17 @@ pub mod pb_codec {
 pub mod pr_codec {
     use prost::Message;
 
+    use crate::call::MessageWriterBuf;
     use crate::error::Result;
     use crate::{MessageReader, MessageWriter};
 
     #[inline]
-    pub fn ser<M: Message>(m: &M, writer: &mut MessageWriter) {
-        use std::io::Write;
-        writer.reserve(m.encoded_len());
+    pub fn ser<M: Message>(m: &M, buf: &mut MessageWriter) {
+        buf.reserve(m.encoded_len());
+        let mut buf: MessageWriterBuf = buf.into();
         // Because we've already got a reserved writer, we don't need length checks.
-        m.encode_raw(writer);
-        writer.flush().expect("Writing message to buffer failed");
+        m.encode_raw(&mut buf);
+        buf.flush();
     }
 
     #[inline]

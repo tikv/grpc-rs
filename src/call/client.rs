@@ -116,7 +116,7 @@ impl Call {
         let mut payload = MessageWriter::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
-            let send_buf = payload.into_buffer().take_raw();
+            let send_buf = payload.byte_buffer();
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
@@ -170,7 +170,7 @@ impl Call {
         let mut payload = MessageWriter::new();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let buffer = payload.into_buffer().take_raw();
+            let buffer = payload.byte_buffer();
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,

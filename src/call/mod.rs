@@ -11,21 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod buffers;
 pub mod client;
 pub mod server;
-mod buffers;
 
-pub use buffers::{MessageReader, MessageWriter, GrpcByteBuffer, GrpcSliceBuffer};
+pub use buffers::{MessageReader, MessageWriter};
+#[cfg(feature = "prost-codec")]
+pub use buffers::MessageWriterBuf;
 
 use std::sync::Arc;
 use std::{ptr, slice};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{
-    self, grpc_byte_buffer_reader, grpc_call, grpc_call_error, grpcwrap_batch_context,
+    self, grpc_call, grpc_call_error, grpcwrap_batch_context,
 };
-#[cfg(feature = "prost-codec")]
-use bytes::{Buf, BufMut};
 use futures::{Async, Future, Poll};
 use libc::c_void;
 
@@ -185,15 +185,6 @@ impl BatchContext {
         self.ctx
     }
 
-    pub fn take_recv_message(&self) -> Option<GrpcByteBuffer> {
-        let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx) };
-        if ptr.is_null() {
-            None
-        } else {
-            Some(GrpcByteBuffer { raw: ptr })
-        }
-    }
-
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
         let status = RpcStatusCode(unsafe {
@@ -219,11 +210,14 @@ impl BatchContext {
 
     /// Fetch the response bytes of the rpc call.
     pub fn recv_message(&mut self) -> Option<MessageReader> {
-        let mut buf = self.take_recv_message()?;
-        let reader = grpc_byte_buffer_reader::from(&mut buf);
-        let length = reader.len();
-
-        Some(MessageReader::new(buf, reader, length))
+        unsafe {
+            let ptr = grpc_sys::grpcwrap_batch_context_take_recv_message(self.ctx);
+            if ptr.is_null() {
+                None
+            } else {
+                Some(MessageReader::new(ptr))
+            }
+        }
     }
 }
 
@@ -287,7 +281,7 @@ impl Call {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let buffer = msg.as_buffer().take_raw();
+            let buffer = msg.byte_buffer();
             grpc_sys::grpcwrap_call_send_message(self.call, ctx, buffer, write_flags, i, tag)
         });
         Ok(f)
@@ -332,10 +326,10 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let buffer = payload
-            .as_mut()
-            .map_or_else(ptr::null_mut, |p| unsafe { p.as_buffer().take_raw() });
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+            let buffer = payload
+                .as_mut()
+                .map_or_else(ptr::null_mut, |p| p.byte_buffer());
             let (details_ptr, details_len) = status
                 .details
                 .as_ref()

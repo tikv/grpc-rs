@@ -44,11 +44,11 @@ impl grpc_slice {
         self.len() == 0
     }
 
-    pub fn range_from(&self, offset: usize) -> &[u8] {
+    pub fn range_from(&self, offset: usize) -> &mut [u8] {
         unsafe {
             let mut len = 0;
             let ptr = grpcwrap_slice_raw_offset(self, offset, &mut len);
-            slice::from_raw_parts(ptr as _, len)
+            slice::from_raw_parts_mut(ptr as _, len)
         }
     }
 
@@ -58,12 +58,6 @@ impl grpc_slice {
             let ptr = grpcwrap_slice_raw_offset(self, 0, &mut len);
             slice::from_raw_parts(ptr as _, size)
         }
-    }
-
-    pub unsafe fn range_from_unsafe(&mut self, offset: usize) -> &mut [u8] {
-        let mut len = 0;
-        let ptr = grpcwrap_slice_raw_offset(self, offset, &mut len);
-        slice::from_raw_parts_mut(ptr as _, len)
     }
 }
 
