@@ -15,17 +15,15 @@ mod buffers;
 pub mod client;
 pub mod server;
 
-pub use buffers::{MessageReader, MessageWriter};
 #[cfg(feature = "prost-codec")]
 pub use buffers::MessageWriterBuf;
+pub use buffers::{MessageReader, MessageWriter};
 
 use std::sync::Arc;
 use std::{ptr, slice};
 
 use crate::cq::CompletionQueue;
-use crate::grpc_sys::{
-    self, grpc_call, grpc_call_error, grpcwrap_batch_context,
-};
+use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
 use futures::{Async, Future, Poll};
 use libc::c_void;
 

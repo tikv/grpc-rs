@@ -15,34 +15,18 @@ use std::io::{self, BufRead, ErrorKind, Read};
 use std::mem::MaybeUninit;
 use std::{cmp, mem, usize};
 
-use crate::grpc_sys::{
-    self, grpc_byte_buffer, grpc_byte_buffer_reader, grpc_slice, grpc_slice_buffer,
-};
+use crate::grpc_sys::{self, grpc_byte_buffer, grpc_slice_buffer, GrpcByteBufferReader, GrpcSlice};
 
 #[cfg(feature = "prost-codec")]
 use bytes::{Buf, BufMut};
-
-pub(super) struct GrpcByteBuffer {
-    raw: *mut grpc_byte_buffer,
-}
-
-// Only safe if you have unique access to the internal `grpc_byte_buffer`.
-unsafe impl Send for GrpcByteBuffer {}
-
-impl Drop for GrpcByteBuffer {
-    fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_byte_buffer_destroy(self.raw) }
-    }
-}
 
 /// `MessageReader` is a zero-copy reader for the message payload.
 ///
 /// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
 /// to operate the reader.
 pub struct MessageReader {
-    _buf: GrpcByteBuffer,
-    reader: grpc_byte_buffer_reader,
-    buffer_slice: grpc_slice,
+    reader: GrpcByteBufferReader,
+    buffer_slice: GrpcSlice,
     buffer_offset: usize,
     length: usize,
 }
@@ -57,24 +41,11 @@ impl MessageReader {
     /// Create a new `MessageReader`.
     ///
     /// Safety: `raw` must be a unique reference.
-    pub unsafe fn new(
-        raw: *mut grpc_byte_buffer,
-    ) -> MessageReader {
-        Self::from_buf(GrpcByteBuffer { raw })
-    }
-
-    fn from_buf(buf: GrpcByteBuffer) -> MessageReader {
-        let reader = unsafe {
-            let mut reader = mem::zeroed();
-            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, buf.raw);
-            assert_eq!(init_result, 1);
-            reader
-        };
-
+    pub unsafe fn new(raw: *mut grpc_byte_buffer) -> MessageReader {
+        let reader = GrpcByteBufferReader::new(raw);
         let length = reader.len();
 
         MessageReader {
-            _buf: buf,
             reader,
             buffer_slice: Default::default(),
             buffer_offset: 0,
@@ -150,14 +121,6 @@ impl BufRead for MessageReader {
     }
 }
 
-impl Drop for MessageReader {
-    fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
-        }
-    }
-}
-
 #[cfg(feature = "prost-codec")]
 impl Buf for MessageReader {
     fn remaining(&self) -> usize {
@@ -204,6 +167,7 @@ impl Buf for MessageReader {
 pub struct MessageWriter {
     // A `grpc_slice_buffer` cannot be moved, so we must keep it on the heap and
     // never move it until we are dropped.
+    // FIXME: it *might* be quicker to arena allocate these.
     buffer: Box<grpc_slice_buffer>,
     write_buffer: Option<Vec<u8>>,
 }
@@ -212,7 +176,7 @@ impl MessageWriter {
     /// Create an empty MessageWriter.
     pub fn new() -> MessageWriter {
         let buffer = unsafe {
-            // This unsafe block is just to let grpc initialise `buffer`. 
+            // This unsafe block is just to let grpc initialise `buffer`.
             let mut buffer = Box::new(MaybeUninit::uninit());
             grpc_sys::grpc_slice_buffer_init(buffer.as_mut_ptr());
             mem::transmute::<_, Box<grpc_slice_buffer>>(buffer)
@@ -228,7 +192,9 @@ impl MessageWriter {
     /// (And will cause a panic in debug builds).
     pub fn clear(&mut self) {
         debug_assert!(self.write_buffer.is_none());
-        unsafe { grpc_sys::grpc_slice_buffer_reset_and_unref(&mut *self.buffer); }
+        unsafe {
+            grpc_sys::grpc_slice_buffer_reset_and_unref(&mut *self.buffer);
+        }
     }
 
     /// Flush data written. Creates a new slice in the internal `grpc_slice_buffer`.
@@ -307,10 +273,7 @@ impl<'a> MessageWriterBuf<'a> {
 #[cfg(feature = "prost-codec")]
 impl<'a> From<&'a mut MessageWriter> for MessageWriterBuf<'a> {
     fn from(inner: &'a mut MessageWriter) -> MessageWriterBuf<'a> {
-        MessageWriterBuf {
-            inner,
-            offset: 0,
-        }
+        MessageWriterBuf { inner, offset: 0 }
     }
 }
 
@@ -340,57 +303,28 @@ impl<'a> BufMut for MessageWriterBuf<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ptr;
-
-    impl Default for GrpcByteBuffer {
-        fn default() -> Self {
-            unsafe {
-                GrpcByteBuffer {
-                    raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
-                }
-            }
-        }
-    }
-
-    impl<'a> From<&'a mut [grpc_slice]> for GrpcByteBuffer {
-        fn from(slice: &'a mut [grpc_slice]) -> Self {
-            unsafe {
-                GrpcByteBuffer {
-                    raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
-                }
-            }
-        }
-    }
-
-    impl GrpcByteBuffer {
-        fn len(&self) -> usize {
-            unsafe { grpc_sys::grpc_byte_buffer_length(self.raw) }
-        }
-    }
 
     impl MessageWriter {
-        // Note, only returns the length of flushed bytes.
+        // Only returns the length of flushed bytes.
         fn len(&self) -> usize {
             unsafe {
                 let bb = self.byte_buffer();
-                let len =  grpc_sys::grpc_byte_buffer_length(bb);
+                let len = grpc_sys::grpc_byte_buffer_length(bb);
                 grpc_sys::grpc_byte_buffer_destroy(bb);
                 len
             }
         }
     }
 
-    #[test]
-    fn byte_buffer_empty() {
-        let buf = GrpcByteBuffer::default();
-        assert_eq!(0, buf.len());
-    }
-
     fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
-        let mut slices = vec![From::from(source); n_slice];
-        let buf = GrpcByteBuffer::from(slices.as_mut_slice());
-
-        MessageReader::from_buf(buf)
+        unsafe {
+            let mut data: Vec<_> = ::std::iter::repeat(source)
+                .take(n_slice)
+                .map(|s| grpc_sys::grpc_slice_from_copied_buffer(s.as_ptr() as _, s.len()))
+                .collect();
+            let buf = grpc_sys::grpc_raw_byte_buffer_create(data.as_mut_ptr(), data.len());
+            MessageReader::new(buf)
+        }
     }
 
     #[test]

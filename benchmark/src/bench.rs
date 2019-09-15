@@ -13,7 +13,7 @@
 
 #![allow(renamed_and_removed_lints)]
 
-use std::io::{Read, Write};
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -112,7 +112,8 @@ impl Generic {
 #[inline]
 #[allow(clippy::ptr_arg)]
 pub fn bin_ser(t: &Vec<u8>, buf: &mut MessageWriter) {
-    buf.write_all(t.as_ref()).unwrap();
+    let bytes = buf.reserve(t.len());
+    bytes.copy_from_slice(t);
 }
 
 #[inline]
