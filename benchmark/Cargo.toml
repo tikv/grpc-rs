@@ -25,6 +25,9 @@ slog-stdlog = "3.0"
 slog-scope = "4.0"
 slog-term = "2.2"
 
+[target.'cfg(not(windows))'.dependencies]
+jemallocator = { version = "0.1.9", features = ["unprefixed_malloc_on_supported_platforms"] }
+
 [[bin]]
 name = "qps_worker"
 path = "src/main.rs"
