@@ -324,10 +324,10 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
+        let buffer = payload
+            .as_mut()
+            .map_or_else(ptr::null_mut, |p| unsafe { p.byte_buffer() });
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let buffer = payload
-                .as_mut()
-                .map_or_else(ptr::null_mut, |p| p.byte_buffer());
             let (details_ptr, details_len) = status
                 .details
                 .as_ref()

@@ -1,6 +1,7 @@
 use super::*;
 
 use std::mem;
+use std::ptr;
 use std::slice;
 use std::time::Duration;
 
@@ -125,5 +126,70 @@ impl Drop for GrpcByteBufferReader {
         unsafe {
             grpc_byte_buffer_reader_destroy(&mut self.0);
         }
+    }
+}
+
+// TODO should probably live elsewhere
+pub fn vec_slice(v: Vec<u8>) -> Box<grpc_slice> {
+    let mut data = grpc_slice_grpc_slice_data::default();
+    unsafe {
+        *data.refcounted.as_mut() = grpc_slice_grpc_slice_data_grpc_slice_refcounted {
+            bytes: v.as_ptr() as *const _ as *mut _,
+            length: v.len(),
+        };
+    }
+    let mut refcount = VecSliceRefCount::new(v);
+    let mut result = Box::new(grpc_slice {
+        refcount: ptr::null_mut(),
+        data,
+    });
+    refcount.slice = result.as_mut();
+    result.refcount = Box::into_raw(refcount) as *mut _;
+    result
+}
+
+// comment: grpc_slice_refcount
+#[repr(C)]
+struct VecSliceRefCount {
+    vtable: *const grpc_slice_refcount_vtable,
+    sub_refcount: *mut grpc_slice_refcount,
+    vec: Vec<u8>,
+    count: usize,
+    slice: *mut grpc_slice,
+}
+
+impl VecSliceRefCount {
+    fn new(vec: Vec<u8>) -> Box<VecSliceRefCount> {
+        let mut result = Box::new(VecSliceRefCount {
+            vtable: &VEC_SLICE_VTABLE,
+            sub_refcount: ptr::null_mut(),
+            vec,
+            count: 1,
+            slice: ptr::null_mut(),
+        });
+        result.sub_refcount = &*result as *const _ as *mut _;
+        result
+    }
+}
+
+static VEC_SLICE_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable {
+    ref_: Some(vec_slice_ref),
+    unref: Some(vec_slice_unref),
+    eq: Some(grpc_slice_default_eq_impl),
+    hash: Some(grpc_slice_default_hash_impl),
+};
+
+unsafe extern "C" fn vec_slice_ref(arg1: *mut ::std::os::raw::c_void) {
+    let refcount = arg1 as *mut VecSliceRefCount;
+    (*refcount).count += 1;
+}
+unsafe extern "C" fn vec_slice_unref(arg1: *mut ::std::os::raw::c_void) {
+    let refcount = arg1 as *mut VecSliceRefCount;
+    (*refcount).count -= 1;
+    if (*refcount).count == 0 {
+        let refcount = Box::from_raw(refcount);
+        let slice = Box::from_raw(refcount.slice);
+        mem::drop(refcount);
+        mem::drop(slice);
     }
 }

@@ -12,10 +12,11 @@
 // limitations under the License.
 
 use std::io::{self, BufRead, ErrorKind, Read};
-use std::mem::MaybeUninit;
 use std::{cmp, mem, usize};
 
-use crate::grpc_sys::{self, grpc_byte_buffer, grpc_slice_buffer, GrpcByteBufferReader, GrpcSlice};
+use crate::grpc_sys::{
+    self, grpc_byte_buffer, vec_slice, GrpcByteBufferReader, GrpcSlice,
+};
 
 #[cfg(feature = "prost-codec")]
 use bytes::{Buf, BufMut};
@@ -28,28 +29,22 @@ pub struct MessageReader {
     reader: GrpcByteBufferReader,
     buffer_slice: GrpcSlice,
     buffer_offset: usize,
-    length: usize,
+    remaining: usize,
 }
 
 impl MessageReader {
-    /// Get the available bytes count of the reader.
-    #[inline]
-    fn pending_bytes_count(&self) -> usize {
-        self.length
-    }
-
     /// Create a new `MessageReader`.
     ///
-    /// Safety: `raw` must be a unique reference.
+    /// Safety: `raw` must be a unique reference. TODO - take ownership
     pub unsafe fn new(raw: *mut grpc_byte_buffer) -> MessageReader {
         let reader = GrpcByteBufferReader::new(raw);
-        let length = reader.len();
+        let remaining = reader.len();
 
         MessageReader {
             reader,
             buffer_slice: Default::default(),
             buffer_offset: 0,
-            length,
+            remaining,
         }
     }
 }
@@ -68,19 +63,20 @@ impl Read for MessageReader {
             buf[..amt].copy_from_slice(&bytes[..amt]);
             amt
         };
+
         self.consume(amt);
         Ok(amt)
     }
 
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
-        if self.length == 0 {
+        if self.remaining == 0 {
             return Ok(0);
         }
-        buf.reserve(self.length);
+        buf.reserve(self.remaining);
         let start = buf.len();
         let mut len = start;
         unsafe {
-            buf.set_len(start + self.length);
+            buf.set_len(start + self.remaining);
         }
         let ret = loop {
             match self.read(&mut buf[len..]) {
@@ -100,7 +96,7 @@ impl Read for MessageReader {
 impl BufRead for MessageReader {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         // Optimization for empty slice
-        if self.pending_bytes_count() == 0 {
+        if self.remaining == 0 {
             return Ok(&[]);
         }
 
@@ -116,7 +112,7 @@ impl BufRead for MessageReader {
     }
 
     fn consume(&mut self, amt: usize) {
-        self.length -= amt;
+        self.remaining -= amt;
         self.buffer_offset += amt;
     }
 }
@@ -124,7 +120,7 @@ impl BufRead for MessageReader {
 #[cfg(feature = "prost-codec")]
 impl Buf for MessageReader {
     fn remaining(&self) -> usize {
-        self.pending_bytes_count()
+        self.remaining
     }
 
     fn bytes(&self) -> &[u8] {
@@ -149,7 +145,7 @@ impl Buf for MessageReader {
         let mut remaining = self.buffer_slice.len() - self.buffer_offset;
         while remaining <= cnt {
             self.consume(remaining);
-            if self.pending_bytes_count() == 0 {
+            if self.remaining == 0 {
                 return;
             }
 
@@ -163,95 +159,40 @@ impl Buf for MessageReader {
     }
 }
 
-/// Wraps a `grpc_slice_buffer` and provides an intermediate write buffer.
 pub struct MessageWriter {
-    // A `grpc_slice_buffer` cannot be moved, so we must keep it on the heap and
-    // never move it until we are dropped.
-    // FIXME: it *might* be quicker to arena allocate these.
-    buffer: Box<grpc_slice_buffer>,
-    write_buffer: Option<Vec<u8>>,
+    pub write_buffer: Vec<u8>,
 }
 
 impl MessageWriter {
     /// Create an empty MessageWriter.
     pub fn new() -> MessageWriter {
-        let buffer = unsafe {
-            // This unsafe block is just to let grpc initialise `buffer`.
-            let mut buffer = Box::new(MaybeUninit::uninit());
-            grpc_sys::grpc_slice_buffer_init(buffer.as_mut_ptr());
-            mem::transmute::<_, Box<grpc_slice_buffer>>(buffer)
-        };
-
         MessageWriter {
-            buffer,
-            write_buffer: None,
+            write_buffer: Vec::new(),
         }
     }
 
-    /// Clear the message writer. Any data that has not been flushed will be lost.
-    /// (And will cause a panic in debug builds).
     pub fn clear(&mut self) {
-        debug_assert!(self.write_buffer.is_none());
-        unsafe {
-            grpc_sys::grpc_slice_buffer_reset_and_unref(&mut *self.buffer);
-        }
+        self.write_buffer.clear();
     }
 
-    /// Flush data written. Creates a new slice in the internal `grpc_slice_buffer`.
-    pub fn flush(&mut self) {
-        // Any data written to `write_buffer` is saved into `buffer`.
-        if let Some(mut buf) = self.write_buffer.take() {
-            unsafe {
-                let cap = buf.capacity();
-                let ptr = buf.as_mut_ptr();
-                mem::forget(buf);
-                let slice =
-                    grpc_sys::grpc_slice_new_with_len(ptr as *mut _, cap, Some(destroy_slice));
-                grpc_sys::grpc_slice_buffer_add(&mut *self.buffer, slice);
-            }
-        }
-    }
-
-    /// If you `reserve`, you must flush or you will lose any data written. Write
-    /// to the returned `Vec`.
     pub fn reserve(&mut self, size: usize) -> &mut [u8] {
-        debug_assert!(
-            self.write_buffer.is_none(),
-            "Any data in write_buffer will be lost"
-        );
-        self.write_buffer = Some(Vec::with_capacity(size));
-        let result = self.write_buffer.as_mut().unwrap();
-        result.resize(result.capacity(), 0);
-        result
+        let new_len = self.write_buffer.len() + size;
+        self.write_buffer.reserve(size);
+        unsafe {
+            self.write_buffer.set_len(new_len);
+            &mut self.write_buffer
+        }
     }
 
     // Unsafe because the caller takes responsibility for destroying the returned
-    // byte buffer.
-    pub unsafe fn byte_buffer(&self) -> *mut grpc_byte_buffer {
-        debug_assert!(self.write_buffer.is_none());
-        grpc_sys::grpc_raw_byte_buffer_create(self.buffer.slices, self.buffer.count)
+    // byte buffer. Clears the internal buffer.
+    pub unsafe fn byte_buffer(&mut self) -> *mut grpc_byte_buffer {
+        let mut vec = Vec::new();
+        mem::swap(&mut self.write_buffer, &mut vec);
+        let slice = vec_slice(vec);
+        grpc_sys::grpc_raw_byte_buffer_create(Box::into_raw(slice), 1)
     }
 }
-
-impl Drop for MessageWriter {
-    fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpc_slice_buffer_destroy(&mut *self.buffer);
-        }
-    }
-}
-
-// A function used to tidy up a `grpc_slice` which wraps a Rust `Vec`.
-extern "C" fn destroy_slice(ptr: *mut ::std::os::raw::c_void, cap: usize) {
-    unsafe {
-        let vec = Vec::from_raw_parts(ptr as *mut u8, cap, cap);
-        mem::drop(vec);
-    }
-}
-
-// Safe because both `grpc_slice_buffer` and `Vec` are safe to send across threads
-// as long as only one thread has access.
-unsafe impl Send for MessageWriter {}
 
 /// A wrapper for `MessageWriter` for implementing `Bytes::BufMut`. A wrapper is
 /// needed because `BufMut` can be read and written incrementally, which
@@ -260,14 +201,6 @@ unsafe impl Send for MessageWriter {}
 pub struct MessageWriterBuf<'a> {
     inner: &'a mut MessageWriter,
     offset: usize,
-}
-
-#[cfg(feature = "prost-codec")]
-impl<'a> MessageWriterBuf<'a> {
-    /// Flush the inner `MessageWriter`.
-    pub fn flush(&mut self) {
-        self.inner.flush()
-    }
 }
 
 #[cfg(feature = "prost-codec")]
@@ -280,10 +213,7 @@ impl<'a> From<&'a mut MessageWriter> for MessageWriterBuf<'a> {
 #[cfg(feature = "prost-codec")]
 impl<'a> BufMut for MessageWriterBuf<'a> {
     fn remaining_mut(&self) -> usize {
-        match &self.inner.write_buffer {
-            Some(v) => v.len() - self.offset,
-            None => 0,
-        }
+        self.inner.write_buffer.len() - self.offset
     }
 
     unsafe fn advance_mut(&mut self, cnt: usize) {
@@ -291,12 +221,7 @@ impl<'a> BufMut for MessageWriterBuf<'a> {
     }
 
     unsafe fn bytes_mut(&mut self) -> &mut [u8] {
-        // If the user has not previously called `reserve`, then we will
-        // return an empty array.
-        match &mut self.inner.write_buffer {
-            Some(v) => &mut v[self.offset..],
-            None => &mut [],
-        }
+        &mut self.inner.write_buffer[self.offset..]
     }
 }
 
@@ -305,14 +230,8 @@ mod tests {
     use super::*;
 
     impl MessageWriter {
-        // Only returns the length of flushed bytes.
         fn len(&self) -> usize {
-            unsafe {
-                let bb = self.byte_buffer();
-                let len = grpc_sys::grpc_byte_buffer_length(bb);
-                grpc_sys::grpc_byte_buffer_destroy(bb);
-                len
-            }
+            self.write_buffer.len()
         }
     }
 
@@ -334,7 +253,7 @@ mod tests {
         // half of the size of `data`
         const HALF_SIZE: usize = 4;
         let mut reader = make_message_reader(&data, 1);
-        assert_eq!(reader.pending_bytes_count(), data.len());
+        assert_eq!(reader.remaining, data.len());
         // first 3 elements of `data`
         let mut buf = [0; HALF_SIZE];
         reader.read(&mut buf).unwrap();
@@ -379,7 +298,7 @@ mod tests {
                 reader.read_to_end(&mut dest).unwrap();
                 assert_eq!(dest, expect, "len: {}, nslice: {}", len, n_slice);
 
-                assert_eq!(0, reader.pending_bytes_count());
+                assert_eq!(0, reader.remaining);
                 assert_eq!(0, reader.read(&mut [1]).unwrap())
             }
         }
@@ -423,20 +342,9 @@ mod tests {
         assert_eq!(writer.len(), 0);
         let bytes = writer.reserve(3);
         bytes[2] = 42;
-        writer.flush();
         assert_eq!(writer.len(), 3);
         writer.clear();
         assert_eq!(writer.len(), 0);
-    }
-
-    #[test]
-    #[cfg_attr(debug_assertions, should_panic)]
-    fn msg_writer_no_flush() {
-        let mut writer = MessageWriter::new();
-        assert_eq!(writer.len(), 0);
-        let bytes = writer.reserve(10);
-        bytes[0] = 42;
-        writer.clear();
     }
 
     #[test]
@@ -445,13 +353,10 @@ mod tests {
         assert_eq!(writer.len(), 0);
         let bytes = writer.reserve(3);
         bytes[0] = 42;
-        writer.flush();
         let bytes = writer.reserve(3);
         bytes[2] = 255;
-        writer.flush();
         let bytes = writer.reserve(2);
         bytes[1] = 0;
-        writer.flush();
         assert_eq!(writer.len(), 8);
     }
 

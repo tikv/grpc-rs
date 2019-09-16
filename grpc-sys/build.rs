@@ -287,6 +287,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })
+        .derive_default(true)
         .generate()
         .expect("Unable to generate grpc bindings")
         .write_to_file(file_path)

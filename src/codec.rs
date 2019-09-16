@@ -49,8 +49,6 @@ pub mod pb_codec {
         let mut cos = CodedOutputStream::bytes(buf.reserve(size as usize));
         t.check_initialized().unwrap();
         t.write_to_with_cached_sizes(&mut cos).unwrap();
-        cos.flush().unwrap();
-        buf.flush();
     }
 
     #[inline]
@@ -76,7 +74,6 @@ pub mod pr_codec {
         let mut buf: MessageWriterBuf = buf.into();
         // Because we've already got a reserved writer, we don't need length checks.
         m.encode_raw(&mut buf);
-        buf.flush();
     }
 
     #[inline]
