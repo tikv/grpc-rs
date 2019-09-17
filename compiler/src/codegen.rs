@@ -38,7 +38,155 @@ use protobuf;
 use protobuf::compiler_plugin;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
-use protobuf_codegen::code_writer::CodeWriter;
+use std::io::Write;
+
+struct CodeWriter<'a> {
+    writer: &'a mut (dyn Write + 'a),
+    indent: String,
+}
+
+impl<'a> CodeWriter<'a> {
+    pub fn new(writer: &'a mut dyn Write) -> CodeWriter<'a> {
+        CodeWriter {
+            writer,
+            indent: "".to_string(),
+        }
+    }
+
+    pub fn write_line<S: AsRef<str>>(&mut self, line: S) {
+        (if line.as_ref().is_empty() {
+            self.writer.write_all("\n".as_bytes())
+        } else {
+            let s: String = [self.indent.as_ref(), line.as_ref(), "\n"].concat();
+            self.writer.write_all(s.as_bytes())
+        })
+        .unwrap();
+    }
+
+    pub fn write_generated(&mut self) {
+        self.write_line("// This file is generated. Do not edit");
+        self.write_generated_common();
+    }
+
+    fn write_generated_common(&mut self) {
+        // https://secure.phabricator.com/T784
+        self.write_line("// @generated");
+
+        self.write_line("");
+        self.comment("https://github.com/Manishearth/rust-clippy/issues/702");
+        self.write_line("#![allow(unknown_lints)]");
+        self.write_line("#![allow(clippy)]");
+        self.write_line("");
+        self.write_line("#![cfg_attr(rustfmt, rustfmt_skip)]");
+        self.write_line("");
+        self.write_line("#![allow(box_pointers)]");
+        self.write_line("#![allow(dead_code)]");
+        self.write_line("#![allow(missing_docs)]");
+        self.write_line("#![allow(non_camel_case_types)]");
+        self.write_line("#![allow(non_snake_case)]");
+        self.write_line("#![allow(non_upper_case_globals)]");
+        self.write_line("#![allow(trivial_casts)]");
+        self.write_line("#![allow(unsafe_code)]");
+        self.write_line("#![allow(unused_imports)]");
+        self.write_line("#![allow(unused_results)]");
+    }
+
+    pub fn indented<F>(&mut self, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        cb(&mut CodeWriter {
+            writer: self.writer,
+            indent: format!("{}    ", self.indent),
+        });
+    }
+
+    #[allow(dead_code)]
+    pub fn commented<F>(&mut self, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        cb(&mut CodeWriter {
+            writer: self.writer,
+            indent: format!("// {}", self.indent),
+        });
+    }
+
+    pub fn block<F>(&mut self, first_line: &str, last_line: &str, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        self.write_line(first_line);
+        self.indented(cb);
+        self.write_line(last_line);
+    }
+
+    pub fn expr_block<F>(&mut self, prefix: &str, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        self.block(&format!("{} {{", prefix), "}", cb);
+    }
+
+    pub fn impl_self_block<S: AsRef<str>, F>(&mut self, name: S, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        self.expr_block(&format!("impl {}", name.as_ref()), cb);
+    }
+
+    pub fn pub_struct<S: AsRef<str>, F>(&mut self, name: S, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        self.expr_block(&format!("pub struct {}", name.as_ref()), cb);
+    }
+
+    pub fn pub_trait<F>(&mut self, name: &str, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        self.expr_block(&format!("pub trait {}", name), cb);
+    }
+
+    pub fn field_entry(&mut self, name: &str, value: &str) {
+        self.write_line(&format!("{}: {},", name, value));
+    }
+
+    pub fn field_decl(&mut self, name: &str, field_type: &str) {
+        self.write_line(&format!("{}: {},", name, field_type));
+    }
+
+    pub fn comment(&mut self, comment: &str) {
+        if comment.is_empty() {
+            self.write_line("//");
+        } else {
+            self.write_line(&format!("// {}", comment));
+        }
+    }
+
+    pub fn fn_def(&mut self, sig: &str) {
+        self.write_line(&format!("fn {};", sig));
+    }
+
+    pub fn fn_block<F>(&mut self, public: bool, sig: &str, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        if public {
+            self.expr_block(&format!("pub fn {}", sig), cb);
+        } else {
+            self.expr_block(&format!("fn {}", sig), cb);
+        }
+    }
+
+    pub fn pub_fn<F>(&mut self, sig: &str, cb: F)
+    where
+        F: Fn(&mut CodeWriter),
+    {
+        self.fn_block(true, sig, cb);
+    }
+}
 
 use super::util::{self, fq_grpc, to_snake_case, MethodType};
 
