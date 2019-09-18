@@ -49,7 +49,7 @@ fn main() {
     let service = create_greeter(GreeterService);
 
     let quota = ResourceQuota::new(None).resize(1024 * 1024);
-    let ch_builder = ChannelBuilder::new(env.clone()).set_resource_quota(quota);
+    let ch_builder = ChannelBuilder::new(env.clone()).set_resource_quota(&quota);
 
     let mut server = ServerBuilder::new(env)
         .register_service(service)

@@ -2,15 +2,15 @@ use crate::grpc_sys::{self, grpc_resource_quota};
 use std::ptr;
 
 /// ResourceQuota represents a bound on memory and thread usage by the gRPC,
-/// Now grpc-rs only supports setting memory bound. A ResourceQuota can be
-/// consumed by a ChannelBuilder.
+/// A ResourceQuota need to be ensure lifetime when the attached Channel is
+/// working or the program is aborted.
 pub struct ResourceQuota {
-    pub raw: *mut grpc_resource_quota,
+    raw: *mut grpc_resource_quota,
 }
 
 impl ResourceQuota {
     /// Create a control block for resource quota
-    pub fn new(name: Option<String>) -> ResourceQuota {
+    pub fn new(name: Option<&str>) -> ResourceQuota {
         match name {
             Some(name_str) => ResourceQuota {
                 raw: unsafe { grpc_sys::grpc_resource_quota_create(name_str.as_ptr() as _) },
@@ -25,5 +25,18 @@ impl ResourceQuota {
     pub fn resize(self, new_size: usize) -> ResourceQuota {
         unsafe { grpc_sys::grpc_resource_quota_resize(self.raw, new_size) };
         self
+    }
+
+    pub fn get_raw(&self) -> *mut grpc_resource_quota {
+        self.raw
+    }
+}
+
+impl Drop for ResourceQuota {
+    fn drop(&mut self) {
+        println!("drop ResourceQuota");
+        unsafe {
+            grpc_sys::grpc_resource_quota_unref(self.raw);
+        }
     }
 }

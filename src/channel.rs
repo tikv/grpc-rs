@@ -132,8 +132,9 @@ impl ChannelBuilder {
         self
     }
 
-    pub fn set_resource_quota(mut self, quota: ResourceQuota) -> ChannelBuilder {
-        let raw_quota = quota.raw;
+    /// Set resource quota to be attached to the constructed channel.
+    pub fn set_resource_quota(mut self, quota: &ResourceQuota) -> ChannelBuilder {
+        let raw_quota = quota.get_raw();
         unsafe {
             self.options.insert(
                 Cow::Borrowed(grpc_sys::GRPC_ARG_RESOURCE_QUOTA),
