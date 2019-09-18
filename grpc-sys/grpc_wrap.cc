@@ -450,6 +450,16 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_channel_args_set_integer(
   args->args[index].value.integer = value;
 }
 
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_channel_args_set_pointer_vtable(
+    grpc_channel_args* args, size_t index, const char* key, void* value, const grpc_arg_pointer_vtable* vtable) {
+  GPR_ASSERT(args);
+  GPR_ASSERT(index < args->num_args);
+  args->args[index].type = GRPC_ARG_POINTER;
+  args->args[index].key = gpr_strdup(key);
+  args->args[index].value.pointer.p = vtable->copy(value);
+  args->args[index].value.pointer.vtable = vtable;
+}
+
 GPR_EXPORT void GPR_CALLTYPE
 grpcwrap_channel_args_destroy(grpc_channel_args* args) {
   size_t i;

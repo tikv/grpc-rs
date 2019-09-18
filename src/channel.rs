@@ -15,6 +15,7 @@ use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
+use std::os::raw::c_void;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
@@ -28,6 +29,7 @@ use crate::env::Environment;
 use crate::error::Result;
 use crate::task::Kicker;
 use crate::CallOption;
+use crate::ResourceQuota;
 
 pub use crate::grpc_sys::{
     grpc_compression_algorithm as CompressionAlgorithms,
@@ -85,6 +87,7 @@ fn dur_to_ms(dur: Duration) -> i32 {
 enum Options {
     Integer(i32),
     String(CString),
+    Pointer(*mut c_void, *mut c_void),
 }
 
 /// The optimization target for a [`Channel`].
@@ -126,6 +129,20 @@ impl ChannelBuilder {
             Cow::Borrowed(OPT_DEFAULT_AUTHORITY),
             Options::String(authority),
         );
+        self
+    }
+
+    pub fn set_resource_quota(mut self, quota: ResourceQuota) -> ChannelBuilder {
+        let raw_quota = quota.raw;
+        unsafe {
+            self.options.insert(
+                Cow::Borrowed(grpc_sys::GRPC_ARG_RESOURCE_QUOTA),
+                Options::Pointer(
+                    raw_quota as _,
+                    grpc_sys::grpc_resource_quota_arg_vtable() as _,
+                ),
+            );
+        }
         self
     }
 
@@ -438,6 +455,11 @@ impl ChannelBuilder {
                 },
                 Options::String(ref val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
+                },
+                Options::Pointer(p1, p2) => unsafe {
+                    grpc_sys::grpcwrap_channel_args_set_pointer_vtable(
+                        args, i, key, p1 as _, p2 as _,
+                    )
                 },
             }
         }

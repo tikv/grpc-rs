@@ -50,6 +50,7 @@ mod env;
 mod error;
 mod log_util;
 mod metadata;
+mod quota;
 mod server;
 mod task;
 
@@ -83,4 +84,5 @@ pub use crate::env::{EnvBuilder, Environment};
 pub use crate::error::{Error, Result};
 pub use crate::log_util::redirect_log;
 pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
+pub use crate::quota::ResourceQuota;
 pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
