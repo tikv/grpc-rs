@@ -105,7 +105,7 @@ typedef struct grpcwrap_batch_context {
 GPR_EXPORT grpcwrap_batch_context* GPR_CALLTYPE
 grpcwrap_batch_context_create() {
   auto* ctx =
-    (grpcwrap_batch_context*)gpr_malloc(sizeof(grpcwrap_batch_context));
+      (grpcwrap_batch_context*)gpr_malloc(sizeof(grpcwrap_batch_context));
   memset(ctx, 0, sizeof(grpcwrap_batch_context));
   return ctx;
 }
@@ -118,8 +118,8 @@ typedef struct {
 
 GPR_EXPORT grpcwrap_request_call_context* GPR_CALLTYPE
 grpcwrap_request_call_context_create() {
-  auto * ctx = (grpcwrap_request_call_context*)
-    gpr_malloc(sizeof(grpcwrap_request_call_context));
+  auto* ctx = (grpcwrap_request_call_context*)gpr_malloc(
+      sizeof(grpcwrap_request_call_context));
   memset(ctx, 0, sizeof(grpcwrap_request_call_context));
   return ctx;
 }
@@ -295,35 +295,32 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-GPR_EXPORT const char *GPR_CALLTYPE
-grpcwrap_slice_raw_offset(const grpc_slice *slice, size_t offset, size_t *len) {
+GPR_EXPORT const char* GPR_CALLTYPE
+grpcwrap_slice_raw_offset(const grpc_slice* slice, size_t offset, size_t* len) {
   *len = GRPC_SLICE_LENGTH(*slice) - offset;
-  return (const char *)(GRPC_SLICE_START_PTR(*slice)) + offset;
+  return (const char*)(GRPC_SLICE_START_PTR(*slice)) + offset;
 }
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
-grpcwrap_slice_copy(const grpc_slice *slice) {
+grpcwrap_slice_copy(const grpc_slice* slice) {
   return grpc_slice_copy(*slice);
 }
 
-GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_slice_unref(const grpc_slice *slice) {
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_slice_unref(const grpc_slice* slice) {
   grpc_slice_unref(*slice);
 }
 
-GPR_EXPORT grpc_slice GPR_CALLTYPE
-grpcwrap_slice_ref(const grpc_slice *slice) {
+GPR_EXPORT grpc_slice GPR_CALLTYPE grpcwrap_slice_ref(const grpc_slice* slice) {
   return grpc_slice_ref(*slice);
 }
 
-GPR_EXPORT size_t GPR_CALLTYPE
-grpcwrap_slice_length(const grpc_slice *slice) {
+GPR_EXPORT size_t GPR_CALLTYPE grpcwrap_slice_length(const grpc_slice* slice) {
   return GRPC_SLICE_LENGTH(*slice);
 }
 
-GPR_EXPORT grpc_byte_buffer *GPR_CALLTYPE
-grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context *ctx) {
-  grpc_byte_buffer *buf = nullptr;
+GPR_EXPORT grpc_byte_buffer* GPR_CALLTYPE
+grpcwrap_batch_context_take_recv_message(grpcwrap_batch_context* ctx) {
+  grpc_byte_buffer* buf = nullptr;
   if (ctx->recv_message) {
     buf = ctx->recv_message;
     ctx->recv_message = nullptr;
@@ -422,8 +419,7 @@ GPR_EXPORT grpc_call* GPR_CALLTYPE grpcwrap_channel_create_call(
 
 GPR_EXPORT grpc_channel_args* GPR_CALLTYPE
 grpcwrap_channel_args_create(size_t num_args) {
-  auto * args =
-      (grpc_channel_args*)gpr_malloc(sizeof(grpc_channel_args));
+  auto* args = (grpc_channel_args*)gpr_malloc(sizeof(grpc_channel_args));
   memset(args, 0, sizeof(grpc_channel_args));
 
   args->num_args = num_args;
@@ -451,7 +447,8 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_channel_args_set_integer(
 }
 
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_channel_args_set_pointer_vtable(
-    grpc_channel_args* args, size_t index, const char* key, void* value, const grpc_arg_pointer_vtable* vtable) {
+    grpc_channel_args* args, size_t index, const char* key, void* value,
+    const grpc_arg_pointer_vtable* vtable) {
   GPR_ASSERT(args);
   GPR_ASSERT(index < args->num_args);
   args->args[index].type = GRPC_ARG_POINTER;
@@ -468,6 +465,10 @@ grpcwrap_channel_args_destroy(grpc_channel_args* args) {
       gpr_free(args->args[i].key);
       if (args->args[i].type == GRPC_ARG_STRING) {
         gpr_free(args->args[i].value.string);
+      }
+      if (args->args[i].type == GRPC_ARG_POINTER) {
+        args->args[i].value.pointer.vtable->destroy(
+            args->args[i].value.pointer.p);
       }
     }
     gpr_free(args->args);
@@ -774,8 +775,8 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_initial_metadata(
     ready to poll.
     THREAD SAFETY: grpcwrap_call_kick_completion_queue is thread-safe
     because it does not change the call's state. */
-GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_kick_completion_queue(
-    grpc_call* call, void* tag) {
+GPR_EXPORT grpc_call_error GPR_CALLTYPE
+grpcwrap_call_kick_completion_queue(grpc_call* call, void* tag) {
   // Empty batch grpc_op kicks call's completion queue immediately.
   return grpc_call_start_batch(call, nullptr, 0, tag, nullptr);
 }
@@ -825,7 +826,8 @@ grpcwrap_ssl_credentials_create(const char* pem_root_certs,
   if (key_cert_pair_cert_chain || key_cert_pair_private_key) {
     key_cert_pair.cert_chain = key_cert_pair_cert_chain;
     key_cert_pair.private_key = key_cert_pair_private_key;
-    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL, NULL);
+    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL,
+                                       NULL);
   } else {
     GPR_ASSERT(!key_cert_pair_cert_chain);
     GPR_ASSERT(!key_cert_pair_private_key);

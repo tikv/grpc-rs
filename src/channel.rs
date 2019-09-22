@@ -90,6 +90,16 @@ enum Options {
     Pointer(*mut c_void, *mut c_void),
 }
 
+impl Drop for Options {
+    fn drop(&mut self) {
+        if let Options::Pointer(pointer, _) = *self {
+            unsafe {
+                grpc_sys::grpc_resource_quota_unref(pointer as _);
+            }
+        }
+    }
+}
+
 /// The optimization target for a [`Channel`].
 #[derive(Clone, Copy)]
 pub enum OptTarget {
@@ -132,10 +142,11 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set resource quota to be attached to the constructed channel.
-    pub fn set_resource_quota(mut self, quota: &ResourceQuota) -> ChannelBuilder {
-        let raw_quota = quota.get_raw();
+    /// Set resource quota by consuming a ResourceQuota
+    pub fn set_resource_quota(mut self, quota: ResourceQuota) -> ChannelBuilder {
+        let raw_quota = quota.get_ptr();
         unsafe {
+            grpc_sys::grpc_resource_quota_ref(raw_quota);
             self.options.insert(
                 Cow::Borrowed(grpc_sys::GRPC_ARG_RESOURCE_QUOTA),
                 Options::Pointer(
