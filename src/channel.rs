@@ -138,7 +138,7 @@ impl ChannelBuilder {
         unsafe {
             self.options.insert(
                 Cow::Borrowed(grpc_sys::GRPC_ARG_RESOURCE_QUOTA),
-                Options::Pointer(quota, grpc_sys::grpc_resource_quota_arg_vtable() as _),
+                Options::Pointer(quota, grpc_sys::grpc_resource_quota_arg_vtable()),
             );
         }
         self
@@ -460,7 +460,7 @@ impl ChannelBuilder {
                         i,
                         key,
                         quota.get_ptr() as _,
-                        vtable as _,
+                        vtable,
                     )
                 },
             }
