@@ -15,12 +15,13 @@ use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
-use std::os::raw::c_void;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
 
-use crate::grpc_sys::{self, gpr_timespec, grpc_channel, grpc_channel_args};
+use crate::grpc_sys::{
+    self, gpr_timespec, grpc_arg_pointer_vtable, grpc_channel, grpc_channel_args,
+};
 use libc::{self, c_char, c_int};
 
 use crate::call::{Call, Method};
@@ -87,7 +88,7 @@ fn dur_to_ms(dur: Duration) -> i32 {
 enum Options {
     Integer(i32),
     String(CString),
-    Pointer(ResourceQuota, *mut c_void),
+    Pointer(ResourceQuota, *const grpc_arg_pointer_vtable),
 }
 
 /// The optimization target for a [`Channel`].
@@ -453,13 +454,13 @@ impl ChannelBuilder {
                 Options::String(ref val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
                 },
-                Options::Pointer(ref quota, p2) => unsafe {
+                Options::Pointer(ref quota, vtable) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_pointer_vtable(
                         args,
                         i,
                         key,
                         quota.get_ptr() as _,
-                        p2 as _,
+                        vtable as _,
                     )
                 },
             }
