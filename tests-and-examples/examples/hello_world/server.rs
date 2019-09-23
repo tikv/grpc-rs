@@ -23,7 +23,7 @@ use std::{io, thread};
 
 use futures::sync::oneshot;
 use futures::Future;
-use grpcio::{Environment, RpcContext, ServerBuilder, UnarySink};
+use grpcio::{ChannelBuilder, Environment, ResourceQuota, RpcContext, ServerBuilder, UnarySink};
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
 use grpcio_proto::example::helloworld_grpc::{create_greeter, Greeter};
@@ -47,9 +47,14 @@ fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
     let service = create_greeter(GreeterService);
+
+    let quota = ResourceQuota::new(Some("HelloServerQuota")).resize_memory(1024 * 1024);
+    let ch_builder = ChannelBuilder::new(env.clone()).set_resource_quota(quota);
+
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", 50_051)
+        .channel_args(ch_builder.build_args())
         .build()
         .unwrap();
     server.start();

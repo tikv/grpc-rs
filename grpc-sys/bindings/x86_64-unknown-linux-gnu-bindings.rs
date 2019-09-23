@@ -5947,6 +5947,15 @@ extern "C" {
     );
 }
 extern "C" {
+    pub fn grpcwrap_channel_args_set_pointer_vtable(
+        args: *mut grpc_channel_args,
+        index: usize,
+        key: *const ::std::os::raw::c_char,
+        value: *mut ::std::os::raw::c_void,
+        vtable: *const grpc_arg_pointer_vtable,
+    );
+}
+extern "C" {
     pub fn grpcwrap_channel_args_destroy(args: *mut grpc_channel_args);
 }
 extern "C" {
