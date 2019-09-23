@@ -87,17 +87,7 @@ fn dur_to_ms(dur: Duration) -> i32 {
 enum Options {
     Integer(i32),
     String(CString),
-    Pointer(*mut c_void, *mut c_void),
-}
-
-impl Drop for Options {
-    fn drop(&mut self) {
-        if let Options::Pointer(pointer, _) = *self {
-            unsafe {
-                grpc_sys::grpc_resource_quota_unref(pointer as _);
-            }
-        }
-    }
+    Pointer(ResourceQuota, *mut c_void),
 }
 
 /// The optimization target for a [`Channel`].
@@ -144,15 +134,10 @@ impl ChannelBuilder {
 
     /// Set resource quota by consuming a ResourceQuota
     pub fn set_resource_quota(mut self, quota: ResourceQuota) -> ChannelBuilder {
-        let raw_quota = quota.get_ptr();
         unsafe {
-            grpc_sys::grpc_resource_quota_ref(raw_quota);
             self.options.insert(
                 Cow::Borrowed(grpc_sys::GRPC_ARG_RESOURCE_QUOTA),
-                Options::Pointer(
-                    raw_quota as _,
-                    grpc_sys::grpc_resource_quota_arg_vtable() as _,
-                ),
+                Options::Pointer(quota, grpc_sys::grpc_resource_quota_arg_vtable() as _),
             );
         }
         self
@@ -468,9 +453,13 @@ impl ChannelBuilder {
                 Options::String(ref val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
                 },
-                Options::Pointer(p1, p2) => unsafe {
+                Options::Pointer(ref quota, p2) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_pointer_vtable(
-                        args, i, key, p1 as _, p2 as _,
+                        args,
+                        i,
+                        key,
+                        quota.get_ptr() as _,
+                        p2 as _,
                     )
                 },
             }

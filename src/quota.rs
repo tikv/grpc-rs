@@ -2,7 +2,9 @@ use crate::grpc_sys::{self, grpc_resource_quota};
 use std::ffi::CString;
 use std::ptr;
 
-/// ResourceQuota represents a bound on memory and thread usage by the gRPC
+/// ResourceQuota represents a bound on memory and thread usage by the gRPC.
+/// NOTE: The management of threads created in grpc-core don't use ResourceQuota.
+/// TODO: Manage the poller threads created in grpc-rs with this ResourceQuota later.
 pub struct ResourceQuota {
     raw: *mut grpc_resource_quota,
 }
@@ -26,7 +28,7 @@ impl ResourceQuota {
     }
 
     /// Resize this ResourceQuota to a new memory size.
-    pub fn resize(self, new_size: usize) -> ResourceQuota {
+    pub fn resize_memory(self, new_size: usize) -> ResourceQuota {
         unsafe { grpc_sys::grpc_resource_quota_resize(self.raw, new_size) };
         self
     }

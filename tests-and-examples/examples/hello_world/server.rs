@@ -48,7 +48,7 @@ fn main() {
     let env = Arc::new(Environment::new(1));
     let service = create_greeter(GreeterService);
 
-    let quota = ResourceQuota::new(Some("HelloServerQuota")).resize(1024 * 1024);
+    let quota = ResourceQuota::new(Some("HelloServerQuota")).resize_memory(1024 * 1024);
     let ch_builder = ChannelBuilder::new(env.clone()).set_resource_quota(quota);
 
     let mut server = ServerBuilder::new(env)
