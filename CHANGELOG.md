@@ -1,3 +1,8 @@
+# 0.4.5 - 2019-09-24
+
+- Support resource quota
+- Fix a segmentation fault bug in grpc c core
+
 # 0.4.4 - 2019-02-15
 
 - Support cross-compile for iOS and Android targets
