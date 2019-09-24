@@ -218,6 +218,8 @@ impl Drop for Metadata {
     }
 }
 
+unsafe impl Send for Metadata {}
+
 /// Immutable metadata iterator
 ///
 /// This struct is created by the iter method on `Metadata`.
