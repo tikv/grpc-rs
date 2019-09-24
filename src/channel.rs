@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
 
-use grpc_sys::{self, GprTimespec, GrpcChannel, GrpcChannelArgs};
+use grpc_sys::{self, GprTimespec, GrpcArgPointerVtable, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
 use async::Kicker;
@@ -28,6 +28,7 @@ use cq::CompletionQueue;
 use env::Environment;
 use error::Result;
 use CallOption;
+use ResourceQuota;
 
 pub use grpc_sys::{
     GrpcCompressionAlgorithms as CompressionAlgorithms, GrpcCompressionLevel as CompressionLevel,
@@ -63,6 +64,7 @@ const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8] = b"grpc.keepalive_permit_withou
 const OPT_OPTIMIZATION_TARGET: &[u8] = b"grpc.optimization_target\0";
 const PRIMARY_USER_AGENT_STRING: &[u8] = b"grpc.primary_user_agent\0";
 const OPT_GRPC_ARG_LB_POLICY_NAME: &[u8] = b"grpc.lb_policy_name\0";
+const OPT_GRPC_ARG_RESOURCE_QUOTA: &[u8] = b"grpc.resource_quota\0";
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
@@ -84,6 +86,7 @@ fn dur_to_ms(dur: Duration) -> i32 {
 enum Options {
     Integer(i32),
     String(CString),
+    Pointer(ResourceQuota, *const GrpcArgPointerVtable),
 }
 
 /// The optimization target for a [`Channel`].
@@ -125,6 +128,17 @@ impl ChannelBuilder {
             Cow::Borrowed(OPT_DEFAULT_AUTHORITY),
             Options::String(authority),
         );
+        self
+    }
+
+    /// Set resource quota by consuming a ResourceQuota
+    pub fn resource_quota(mut self, quota: ResourceQuota) -> ChannelBuilder {
+        unsafe {
+            self.options.insert(
+                Cow::Borrowed(OPT_GRPC_ARG_RESOURCE_QUOTA),
+                Options::Pointer(quota, grpc_sys::grpc_resource_quota_arg_vtable()),
+            );
+        }
         self
     }
 
@@ -437,6 +451,15 @@ impl ChannelBuilder {
                 },
                 Options::String(ref val) => unsafe {
                     grpc_sys::grpcwrap_channel_args_set_string(args, i, key, val.as_ptr())
+                },
+                Options::Pointer(ref quota, vtable) => unsafe {
+                    grpc_sys::grpcwrap_channel_args_set_pointer_vtable(
+                        args,
+                        i,
+                        key,
+                        quota.get_ptr() as _,
+                        vtable,
+                    )
                 },
             }
         }
