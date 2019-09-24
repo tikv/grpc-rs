@@ -56,6 +56,7 @@ mod env;
 mod error;
 mod log_util;
 mod metadata;
+mod quota;
 mod server;
 
 pub use call::client::{
@@ -83,4 +84,5 @@ pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
 pub use log_util::redirect_log;
 pub use metadata::{Metadata, MetadataBuilder, MetadataIter};
+pub use quota::ResourceQuota;
 pub use server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

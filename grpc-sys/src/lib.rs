@@ -365,6 +365,8 @@ pub enum GrpcByteBuffer {}
 pub enum GrpcBatchContext {}
 pub enum GrpcServer {}
 pub enum GrpcRequestCallContext {}
+pub enum GrpcResourceQuota {}
+pub enum GrpcArgPointerVtable {}
 
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: usize = 6;
 
@@ -416,6 +418,13 @@ extern "C" {
         index: size_t,
         key: *const c_char,
         value: c_int,
+    );
+    pub fn grpcwrap_channel_args_set_pointer_vtable(
+        args: *mut GrpcChannelArgs,
+        index: usize,
+        key: *const c_char,
+        value: *mut c_void,
+        vtable: *const GrpcArgPointerVtable,
     );
     pub fn grpcwrap_channel_args_destroy(args: *mut GrpcChannelArgs);
 
@@ -645,6 +654,13 @@ extern "C" {
     pub fn grpcwrap_metadata_array_cleanup(array: *mut GrpcMetadataArray);
 
     pub fn gpr_free(p: *mut c_void);
+
+    pub fn grpc_resource_quota_create(trace_name: *const c_char) -> *mut GrpcResourceQuota;
+    pub fn grpc_resource_quota_ref(resource_quota: *mut GrpcResourceQuota);
+    pub fn grpc_resource_quota_unref(resource_quota: *mut GrpcResourceQuota);
+    pub fn grpc_resource_quota_resize(resource_quota: *mut GrpcResourceQuota, new_size: size_t);
+    pub fn grpc_resource_quota_set_max_threads(resource_quota: *mut GrpcResourceQuota, new_max_threads: c_int);
+    pub fn grpc_resource_quota_arg_vtable() -> *const GrpcArgPointerVtable;
 }
 
 #[cfg(feature = "secure")]
