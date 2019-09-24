@@ -659,7 +659,10 @@ extern "C" {
     pub fn grpc_resource_quota_ref(resource_quota: *mut GrpcResourceQuota);
     pub fn grpc_resource_quota_unref(resource_quota: *mut GrpcResourceQuota);
     pub fn grpc_resource_quota_resize(resource_quota: *mut GrpcResourceQuota, new_size: size_t);
-    pub fn grpc_resource_quota_set_max_threads(resource_quota: *mut GrpcResourceQuota, new_max_threads: c_int);
+    pub fn grpc_resource_quota_set_max_threads(
+        resource_quota: *mut GrpcResourceQuota,
+        new_max_threads: c_int,
+    );
     pub fn grpc_resource_quota_arg_vtable() -> *const GrpcArgPointerVtable;
 }
 

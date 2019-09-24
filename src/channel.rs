@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
 
-use grpc_sys::{self, GrpcArgPointerVtable, GprTimespec, GrpcChannel, GrpcChannelArgs};
+use grpc_sys::{self, GprTimespec, GrpcArgPointerVtable, GrpcChannel, GrpcChannelArgs};
 use libc::{self, c_char, c_int};
 
 use async::Kicker;
