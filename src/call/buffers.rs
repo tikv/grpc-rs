@@ -11,16 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{self, BufRead, ErrorKind, Read};
-use std::{cmp, mem::{self, MaybeUninit}, ptr, slice, usize};
+//! This module provides data structures for reading and writing client data.
+
+use std::{
+    cmp,
+    io::{self, BufRead, ErrorKind, Read},
+    marker::PhantomPinned,
+    mem::{self, MaybeUninit},
+    ptr, slice, usize,
+};
 
 use crate::grpc_sys::{
-    self, grpc_byte_buffer, grpc_slice, grpc_slice_refcount_vtable, grpc_byte_buffer_reader, grpc_slice_refcount,
+    self, grpc_byte_buffer, grpc_byte_buffer_reader, grpc_slice, grpc_slice_refcount,
+    grpc_slice_refcount_vtable,
 };
 
 #[cfg(feature = "prost-codec")]
 use bytes::{Buf, BufMut};
 
+// A wrapper for `grpc_slice`.
 struct GrpcSlice(grpc_slice);
 
 impl GrpcSlice {
@@ -46,15 +55,24 @@ impl Default for GrpcSlice {
 impl Drop for GrpcSlice {
     fn drop(&mut self) {
         unsafe {
-            grpc_sys::grpcwrap_slice_unref(&mut self.0);
+            grpc_sys::grpcwrap_slice_unref(&self.0);
         }
     }
 }
 
+// A wrapper for `grpc_byte_buffer_reader`.
+//
+// Manages the `byte_buffer` behind the reader as well as the reader itself. That
+// means we expect a 1:1 relationship between the `byte_buffer` and reader, so
+// this is not a general purpose wrapper.
 struct GrpcByteBufferReader(grpc_byte_buffer_reader);
 
 impl GrpcByteBufferReader {
-    // TODO takes ownership of buf
+    // Takes ownership of `buf` and will destroy it (at some point). The caller
+    // must not keep a reference.
+    //
+    // Safety: `buf` must be valid and non-null. The caller must not keep a reference
+    // to it.
     unsafe fn new(buf: *mut grpc_byte_buffer) -> GrpcByteBufferReader {
         let mut reader = MaybeUninit::uninit();
         let init_result = grpc_sys::grpc_byte_buffer_reader_init(reader.as_mut_ptr(), buf);
@@ -86,6 +104,9 @@ impl Drop for GrpcByteBufferReader {
     }
 }
 
+// Constructor function for a `grpc_slice` which wraps a Rust `Vec`.
+//
+// Safety: see `VecSliceRefCount::new`, the same applies here.
 unsafe fn vec_slice(v: Vec<u8>) -> Box<grpc_slice> {
     let mut data = grpc_sys::grpc_slice_grpc_slice_data::default();
     *data.refcounted.as_mut() = grpc_sys::grpc_slice_grpc_slice_data_grpc_slice_refcounted {
@@ -102,18 +123,38 @@ unsafe fn vec_slice(v: Vec<u8>) -> Box<grpc_slice> {
     result
 }
 
-// comment: grpc_slice_refcount
+// comment: grpc_slice_refcount, sub_refcount
+// A `grpc_slice_refcount` structure to handle ref-counting and memory mangement
+// of `grpc_slice`s created by `vec_slice`.
+//
+// Note that `grpc_slice_refcount` must be a prefix of this type so that a pointer
+// to `VecSliceRefCount` can be treated polymorphically as a pointer to
+// `grpc_slice_refcount`.
 #[repr(C)]
 struct VecSliceRefCount {
+    // 'vtable' pointer, should always point at VEC_SLICE_VTABLE.
     vtable: *const grpc_slice_refcount_vtable,
+    // Self-reference. Must not be null.
     sub_refcount: *mut grpc_slice_refcount,
+    // The `Vec` providing the memory for this slice.
     vec: Vec<u8>,
+    // Refcount.
     count: usize,
+    // Pointer to the slice this object is managing.
     slice: *mut grpc_slice,
+    // Because `sub_refcount` is self-referential.
+    _phantom: PhantomPinned,
 }
 
 impl VecSliceRefCount {
-    // TODO comment - no ref count
+    // Create a new `VecSliceRefCount`.
+    //
+    // Safety: the returned `VecSliceRefCount` has a 0 refcount. It is the
+    // caller's responsibility to increment the refcount or either memory will
+    // be leaked or `vec_slice_unref` will panic.
+    //
+    // `VecSliceRefCount::sub_refcount` is self-referential, therefore a
+    // `VecSliceRefCount` *must never be moved*.
     unsafe fn new(vec: Vec<u8>) -> Box<VecSliceRefCount> {
         let mut result = Box::new(VecSliceRefCount {
             vtable: &VEC_SLICE_VTABLE,
@@ -121,12 +162,15 @@ impl VecSliceRefCount {
             vec,
             count: 0,
             slice: ptr::null_mut(),
+            _phantom: PhantomPinned,
         });
         result.sub_refcount = &*result as *const _ as *mut _;
         result
     }
 }
 
+// gRPC data structure proving functions for managing a `grpc_slice` created by
+// `vec_slice`.
 static VEC_SLICE_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable {
     ref_: Some(vec_slice_ref),
     unref: Some(vec_slice_unref),
@@ -134,14 +178,20 @@ static VEC_SLICE_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable
     hash: Some(grpc_sys::grpc_slice_default_hash_impl),
 };
 
+// Increment a vec_slice ref count.
 unsafe extern "C" fn vec_slice_ref(arg1: *mut ::std::os::raw::c_void) {
     let refcount = arg1 as *mut VecSliceRefCount;
     (*refcount).count += 1;
 }
+
+// Decrement a vec_slice ref count and possibly destroy it.
 unsafe extern "C" fn vec_slice_unref(arg1: *mut ::std::os::raw::c_void) {
     let refcount = arg1 as *mut VecSliceRefCount;
     (*refcount).count -= 1;
     if (*refcount).count == 0 {
+        // Recreate the `Box`s we used to create the slice and refcount objects.
+        // Dropping them causes their data to be dropped, including the `Vec`
+        // that was originally used to create the slice.
         let refcount = Box::from_raw(refcount);
         let slice = Box::from_raw(refcount.slice);
         mem::drop(refcount);
@@ -163,7 +213,9 @@ pub struct MessageReader {
 impl MessageReader {
     /// Create a new `MessageReader`.
     ///
-    /// Safety: `raw` must be a unique reference. TODO - take ownership
+    /// Safety: `raw` must be a unique reference. The returned `MessageReader`
+    /// has ownership of `raw` and will destroy `raw`. The caller should not
+    /// keep a reference to `raw` or destroy it.
     pub unsafe fn new(raw: *mut grpc_byte_buffer) -> MessageReader {
         let reader = GrpcByteBufferReader::new(raw);
         let remaining = reader.len();
@@ -177,6 +229,8 @@ impl MessageReader {
     }
 }
 
+// These impls are safe because we ensure we have a unique reference to the
+// underlying data.
 unsafe impl Sync for MessageReader {}
 unsafe impl Send for MessageReader {}
 
@@ -257,7 +311,7 @@ impl Buf for MessageReader {
         // slice.
 
         // Optimization for empty slice
-        if self.buffer_slice.is_empty() {
+        if self.buffer_slice.len() == 0 {
             return &[];
         }
 
@@ -287,6 +341,10 @@ impl Buf for MessageReader {
     }
 }
 
+/// A zero-copy writer.
+///
+/// This is implemented by writing into a Rust `Vec`, then wrapping that with the
+/// necessary gRPC data structures (see `vec_slice`).
 pub struct MessageWriter {
     pub write_buffer: Vec<u8>,
 }
@@ -303,17 +361,20 @@ impl MessageWriter {
         self.write_buffer.clear();
     }
 
+    /// Allocates `size` bytes for writing to and returns a pointer to the start
+    /// of the newly allocated memory for writing into.
     pub fn reserve(&mut self, size: usize) -> &mut [u8] {
-        let new_len = self.write_buffer.len() + size;
+        let old_len = self.write_buffer.len();
+        let new_len = old_len + size;
         self.write_buffer.reserve(size);
         unsafe {
             self.write_buffer.set_len(new_len);
-            &mut self.write_buffer
+            &mut self.write_buffer[old_len..]
         }
     }
 
-    // Unsafe because the caller takes responsibility for destroying the returned
-    // byte buffer. Clears the internal buffer.
+    /// Safety: the caller takes responsibility for destroying the returned
+    /// byte_buffer. Clears the internal buffer.
     pub unsafe fn byte_buffer(&mut self) -> *mut grpc_byte_buffer {
         let mut vec = Vec::new();
         mem::swap(&mut self.write_buffer, &mut vec);
@@ -325,6 +386,8 @@ impl MessageWriter {
 /// A wrapper for `MessageWriter` for implementing `Bytes::BufMut`. A wrapper is
 /// needed because `BufMut` can be read and written incrementally, which
 /// `MessageWriter` does not support.
+///
+/// Create a `MessageWriterBuf` by using `into` on a `MessageWriter`.
 #[cfg(feature = "prost-codec")]
 pub struct MessageWriterBuf<'a> {
     inner: &'a mut MessageWriter,

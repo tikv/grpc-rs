@@ -6118,15 +6118,6 @@ extern "C" {
     pub fn grpcwrap_slice_length(slice: *const grpc_slice) -> usize;
 }
 extern "C" {
-    pub fn grpcwrap_byte_buffer_add(buf: *mut grpc_byte_buffer, slice: grpc_slice);
-}
-extern "C" {
-    pub fn grpcwrap_byte_buffer_reset_and_unref(buf: *mut grpc_byte_buffer);
-}
-extern "C" {
-    pub fn grpcwrap_byte_buffer_pop(buf: *mut grpc_byte_buffer);
-}
-extern "C" {
     pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut grpcwrap_batch_context,
     ) -> *mut grpc_byte_buffer;
