@@ -12,14 +12,142 @@
 // limitations under the License.
 
 use std::io::{self, BufRead, ErrorKind, Read};
-use std::{cmp, mem, usize};
+use std::{cmp, mem::{self, MaybeUninit}, ptr, slice, usize};
 
 use crate::grpc_sys::{
-    self, grpc_byte_buffer, vec_slice, GrpcByteBufferReader, GrpcSlice,
+    self, grpc_byte_buffer, grpc_slice, grpc_slice_refcount_vtable, grpc_byte_buffer_reader, grpc_slice_refcount,
 };
 
 #[cfg(feature = "prost-codec")]
 use bytes::{Buf, BufMut};
+
+struct GrpcSlice(grpc_slice);
+
+impl GrpcSlice {
+    fn len(&self) -> usize {
+        unsafe { grpc_sys::grpcwrap_slice_length(&self.0) }
+    }
+
+    fn range_from(&self, offset: usize) -> &[u8] {
+        unsafe {
+            let mut len = 0;
+            let ptr = grpc_sys::grpcwrap_slice_raw_offset(&self.0, offset, &mut len);
+            slice::from_raw_parts(ptr as _, len)
+        }
+    }
+}
+
+impl Default for GrpcSlice {
+    fn default() -> Self {
+        GrpcSlice(unsafe { grpc_sys::grpc_empty_slice() })
+    }
+}
+
+impl Drop for GrpcSlice {
+    fn drop(&mut self) {
+        unsafe {
+            grpc_sys::grpcwrap_slice_unref(&mut self.0);
+        }
+    }
+}
+
+struct GrpcByteBufferReader(grpc_byte_buffer_reader);
+
+impl GrpcByteBufferReader {
+    // TODO takes ownership of buf
+    unsafe fn new(buf: *mut grpc_byte_buffer) -> GrpcByteBufferReader {
+        let mut reader = MaybeUninit::uninit();
+        let init_result = grpc_sys::grpc_byte_buffer_reader_init(reader.as_mut_ptr(), buf);
+        assert_eq!(init_result, 1);
+        GrpcByteBufferReader(reader.assume_init())
+    }
+
+    fn len(&self) -> usize {
+        unsafe { grpc_sys::grpc_byte_buffer_length(self.0.buffer_out) }
+    }
+
+    fn next_slice(&mut self) -> GrpcSlice {
+        unsafe {
+            let mut slice = GrpcSlice::default();
+            let code = grpc_sys::grpc_byte_buffer_reader_next(&mut self.0, &mut slice.0);
+            debug_assert_ne!(code, 0);
+            slice
+        }
+    }
+}
+
+impl Drop for GrpcByteBufferReader {
+    fn drop(&mut self) {
+        unsafe {
+            let buf = self.0.buffer_in;
+            grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.0);
+            grpc_sys::grpc_byte_buffer_destroy(buf);
+        }
+    }
+}
+
+unsafe fn vec_slice(v: Vec<u8>) -> Box<grpc_slice> {
+    let mut data = grpc_sys::grpc_slice_grpc_slice_data::default();
+    *data.refcounted.as_mut() = grpc_sys::grpc_slice_grpc_slice_data_grpc_slice_refcounted {
+        bytes: v.as_ptr() as *const _ as *mut _,
+        length: v.len(),
+    };
+    let mut refcount = VecSliceRefCount::new(v);
+    let mut result = Box::new(grpc_slice {
+        refcount: ptr::null_mut(),
+        data,
+    });
+    refcount.slice = result.as_mut();
+    result.refcount = Box::into_raw(refcount) as *mut _;
+    result
+}
+
+// comment: grpc_slice_refcount
+#[repr(C)]
+struct VecSliceRefCount {
+    vtable: *const grpc_slice_refcount_vtable,
+    sub_refcount: *mut grpc_slice_refcount,
+    vec: Vec<u8>,
+    count: usize,
+    slice: *mut grpc_slice,
+}
+
+impl VecSliceRefCount {
+    // TODO comment - no ref count
+    unsafe fn new(vec: Vec<u8>) -> Box<VecSliceRefCount> {
+        let mut result = Box::new(VecSliceRefCount {
+            vtable: &VEC_SLICE_VTABLE,
+            sub_refcount: ptr::null_mut(),
+            vec,
+            count: 0,
+            slice: ptr::null_mut(),
+        });
+        result.sub_refcount = &*result as *const _ as *mut _;
+        result
+    }
+}
+
+static VEC_SLICE_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable {
+    ref_: Some(vec_slice_ref),
+    unref: Some(vec_slice_unref),
+    eq: Some(grpc_sys::grpc_slice_default_eq_impl),
+    hash: Some(grpc_sys::grpc_slice_default_hash_impl),
+};
+
+unsafe extern "C" fn vec_slice_ref(arg1: *mut ::std::os::raw::c_void) {
+    let refcount = arg1 as *mut VecSliceRefCount;
+    (*refcount).count += 1;
+}
+unsafe extern "C" fn vec_slice_unref(arg1: *mut ::std::os::raw::c_void) {
+    let refcount = arg1 as *mut VecSliceRefCount;
+    (*refcount).count -= 1;
+    if (*refcount).count == 0 {
+        let refcount = Box::from_raw(refcount);
+        let slice = Box::from_raw(refcount.slice);
+        mem::drop(refcount);
+        mem::drop(slice);
+    }
+}
 
 /// `MessageReader` is a zero-copy reader for the message payload.
 ///
