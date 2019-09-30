@@ -60,11 +60,11 @@ impl Drop for GrpcSlice {
     }
 }
 
-// A wrapper for `grpc_byte_buffer_reader`.
-//
-// Manages the `byte_buffer` behind the reader as well as the reader itself. That
-// means we expect a 1:1 relationship between the `byte_buffer` and reader, so
-// this is not a general purpose wrapper.
+/// A wrapper for `grpc_byte_buffer_reader`.
+///
+/// Manages the `byte_buffer` behind the reader as well as the reader itself. That
+/// means we expect a 1:1 relationship between the `byte_buffer` and reader, so
+/// this is not a general purpose wrapper.
 struct GrpcByteBufferReader(grpc_byte_buffer_reader);
 
 impl GrpcByteBufferReader {
@@ -104,32 +104,31 @@ impl Drop for GrpcByteBufferReader {
     }
 }
 
-// Constructor function for a `grpc_slice` which wraps a Rust `Vec`.
-//
-// Safety: see `VecSliceRefCount::new`, the same applies here.
+/// Constructor function for a `grpc_slice` which wraps a Rust `Vec`.
+///
+/// Safety: see `VecSliceRefCount::new`, the same applies here.
 unsafe fn vec_slice(v: Vec<u8>) -> Box<grpc_slice> {
-    let mut data = grpc_sys::grpc_slice_grpc_slice_data::default();
-    *data.refcounted.as_mut() = grpc_sys::grpc_slice_grpc_slice_data_grpc_slice_refcounted {
+    let mut data: MaybeUninit<grpc_sys::grpc_slice_grpc_slice_data> = MaybeUninit::zeroed();
+    *(*data.as_mut_ptr()).refcounted.as_mut() = grpc_sys::grpc_slice_grpc_slice_data_grpc_slice_refcounted {
         bytes: v.as_ptr() as *const _ as *mut _,
         length: v.len(),
     };
     let mut refcount = VecSliceRefCount::new(v);
     let mut result = Box::new(grpc_slice {
         refcount: ptr::null_mut(),
-        data,
+        data: data.assume_init(),
     });
     refcount.slice = result.as_mut();
     result.refcount = Box::into_raw(refcount) as *mut _;
     result
 }
 
-// comment: grpc_slice_refcount, sub_refcount
-// A `grpc_slice_refcount` structure to handle ref-counting and memory mangement
-// of `grpc_slice`s created by `vec_slice`.
-//
-// Note that `grpc_slice_refcount` must be a prefix of this type so that a pointer
-// to `VecSliceRefCount` can be treated polymorphically as a pointer to
-// `grpc_slice_refcount`.
+/// A `grpc_slice_refcount` structure to handle ref-counting and memory mangement
+/// of `grpc_slice`s created by `vec_slice`.
+///
+/// Note that `grpc_slice_refcount` must be a prefix of this type so that a pointer
+/// to `VecSliceRefCount` can be treated polymorphically as a pointer to
+/// `grpc_slice_refcount`.
 #[repr(C)]
 struct VecSliceRefCount {
     // 'vtable' pointer, should always point at VEC_SLICE_VTABLE.
@@ -147,14 +146,14 @@ struct VecSliceRefCount {
 }
 
 impl VecSliceRefCount {
-    // Create a new `VecSliceRefCount`.
-    //
-    // Safety: the returned `VecSliceRefCount` has a 0 refcount. It is the
-    // caller's responsibility to increment the refcount or either memory will
-    // be leaked or `vec_slice_unref` will panic.
-    //
-    // `VecSliceRefCount::sub_refcount` is self-referential, therefore a
-    // `VecSliceRefCount` *must never be moved*.
+    /// Create a new `VecSliceRefCount`.
+    ///
+    /// Safety: the returned `VecSliceRefCount` has a 0 refcount. It is the
+    /// caller's responsibility to increment the refcount or either memory will
+    /// be leaked or `vec_slice_unref` will panic.
+    ///
+    /// `VecSliceRefCount::sub_refcount` is self-referential, therefore a
+    /// `VecSliceRefCount` *must never be moved*.
     unsafe fn new(vec: Vec<u8>) -> Box<VecSliceRefCount> {
         let mut result = Box::new(VecSliceRefCount {
             vtable: &VEC_SLICE_VTABLE,
@@ -169,8 +168,8 @@ impl VecSliceRefCount {
     }
 }
 
-// gRPC data structure proving functions for managing a `grpc_slice` created by
-// `vec_slice`.
+/// gRPC data structure proving functions for managing a `grpc_slice` created by
+/// `vec_slice`.
 static VEC_SLICE_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable {
     ref_: Some(vec_slice_ref),
     unref: Some(vec_slice_unref),
@@ -178,13 +177,13 @@ static VEC_SLICE_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable
     hash: Some(grpc_sys::grpc_slice_default_hash_impl),
 };
 
-// Increment a vec_slice ref count.
+/// Increment a vec_slice ref count.
 unsafe extern "C" fn vec_slice_ref(arg1: *mut ::std::os::raw::c_void) {
     let refcount = arg1 as *mut VecSliceRefCount;
     (*refcount).count += 1;
 }
 
-// Decrement a vec_slice ref count and possibly destroy it.
+/// Decrement a vec_slice ref count and possibly destroy it.
 unsafe extern "C" fn vec_slice_unref(arg1: *mut ::std::os::raw::c_void) {
     let refcount = arg1 as *mut VecSliceRefCount;
     (*refcount).count -= 1;

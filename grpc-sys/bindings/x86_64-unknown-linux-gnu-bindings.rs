@@ -275,11 +275,6 @@ fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default
         )
     );
 }
-impl Default for grpc_compression_options_grpc_compression_options_default_level {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " The default message compression algorithm. It'll be used in the absence of"]
 #[doc = " call specific settings. This option corresponds to the channel argument key"]
 #[doc = " behind \\a GRPC_COMPRESSION_CHANNEL_DEFAULT_ALGORITHM."]
@@ -340,11 +335,6 @@ fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default
         )
     );
 }
-impl Default for grpc_compression_options_grpc_compression_options_default_algorithm {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_compression_options() {
     assert_eq!(
@@ -396,11 +386,6 @@ fn bindgen_test_layout_grpc_compression_options() {
         )
     );
 }
-impl Default for grpc_compression_options {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " Slice API"]
 #[doc = ""]
 #[doc = "A slice represents a contiguous reference counted array of bytes."]
@@ -414,7 +399,7 @@ impl Default for grpc_compression_options {
 #[doc = "reference ownership semantics (who should call unref?) and mutability"]
 #[doc = "constraints (is the callee allowed to modify the slice?)"]
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct grpc_slice_refcount_vtable {
     pub ref_: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
     pub unref: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
@@ -528,11 +513,6 @@ fn bindgen_test_layout_grpc_slice_refcount() {
         )
     );
 }
-impl Default for grpc_slice_refcount {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " A grpc_slice s, if initialized, represents the byte range"]
 #[doc = "s.bytes[0..s.length-1]."]
 #[doc = ""]
@@ -603,11 +583,6 @@ fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_refcounted() {
         )
     );
 }
-impl Default for grpc_slice_grpc_slice_data_grpc_slice_refcounted {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct grpc_slice_grpc_slice_data_grpc_slice_inlined {
     pub length: u8,
@@ -658,11 +633,6 @@ fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_inlined() {
         )
     );
 }
-impl Default for grpc_slice_grpc_slice_data_grpc_slice_inlined {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_slice_grpc_slice_data() {
     assert_eq!(
@@ -700,11 +670,6 @@ fn bindgen_test_layout_grpc_slice_grpc_slice_data() {
         )
     );
 }
-impl Default for grpc_slice_grpc_slice_data {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_slice() {
     assert_eq!(
@@ -737,11 +702,6 @@ fn bindgen_test_layout_grpc_slice() {
             stringify!(data)
         )
     );
-}
-impl Default for grpc_slice {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[doc = " Represents an expandable array of slices, to be interpreted as a"]
 #[doc = "single item."]
@@ -835,11 +795,6 @@ fn bindgen_test_layout_grpc_slice_buffer() {
         )
     );
 }
-impl Default for grpc_slice_buffer {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(u32)]
 #[doc = " The clocks we support."]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -909,11 +864,6 @@ fn bindgen_test_layout_gpr_timespec() {
         )
     );
 }
-impl Default for gpr_timespec {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 pub type gpr_atm = isize;
 extern "C" {
     #[doc = " Adds \\a delta to \\a *value, clamping the result to the range specified"]
@@ -952,11 +902,6 @@ fn bindgen_test_layout_gpr_event() {
         )
     );
 }
-impl Default for gpr_event {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct gpr_refcount {
     pub count: gpr_atm,
@@ -984,11 +929,6 @@ fn bindgen_test_layout_gpr_refcount() {
         )
     );
 }
-impl Default for gpr_refcount {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct gpr_stats_counter {
     pub value: gpr_atm,
@@ -1015,11 +955,6 @@ fn bindgen_test_layout_gpr_stats_counter() {
             stringify!(value)
         )
     );
-}
-impl Default for gpr_stats_counter {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 extern "C" {
     #[doc = " Initialize *ev."]
@@ -1510,11 +1445,6 @@ fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1() {
         )
     );
 }
-impl Default for grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1 {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
     pub compression: grpc_compression_algorithm,
@@ -1567,11 +1497,6 @@ fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_bu
         )
     );
 }
-impl Default for grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data() {
     assert_eq!(
@@ -1617,11 +1542,6 @@ fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data() {
         )
     );
 }
-impl Default for grpc_byte_buffer_grpc_byte_buffer_data {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_byte_buffer() {
     assert_eq!(
@@ -1664,11 +1584,6 @@ fn bindgen_test_layout_grpc_byte_buffer() {
             stringify!(data)
         )
     );
-}
-impl Default for grpc_byte_buffer {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1714,7 +1629,7 @@ pub enum grpc_arg_type {
     GRPC_ARG_POINTER = 2,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct grpc_arg_pointer_vtable {
     pub copy: ::std::option::Option<
         unsafe extern "C" fn(p: *mut ::std::os::raw::c_void) -> *mut ::std::os::raw::c_void,
@@ -1848,11 +1763,6 @@ fn bindgen_test_layout_grpc_arg_grpc_arg_value_grpc_arg_pointer() {
         )
     );
 }
-impl Default for grpc_arg_grpc_arg_value_grpc_arg_pointer {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_arg_grpc_arg_value() {
     assert_eq!(
@@ -1896,11 +1806,6 @@ fn bindgen_test_layout_grpc_arg_grpc_arg_value() {
         )
     );
 }
-impl Default for grpc_arg_grpc_arg_value {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_arg() {
     assert_eq!(
@@ -1943,11 +1848,6 @@ fn bindgen_test_layout_grpc_arg() {
             stringify!(value)
         )
     );
-}
-impl Default for grpc_arg {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[doc = " An array of arguments that can be passed around."]
 #[doc = ""]
@@ -2002,11 +1902,6 @@ fn bindgen_test_layout_grpc_channel_args() {
             stringify!(args)
         )
     );
-}
-impl Default for grpc_channel_args {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(u32)]
 #[doc = " Result of a grpc call. If the caller satisfies the prerequisites of a"]
@@ -2093,11 +1988,6 @@ fn bindgen_test_layout_grpc_metadata__bindgen_ty_1() {
         )
     );
 }
-impl Default for grpc_metadata__bindgen_ty_1 {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_metadata() {
     assert_eq!(
@@ -2150,11 +2040,6 @@ fn bindgen_test_layout_grpc_metadata() {
             stringify!(internal_data)
         )
     );
-}
-impl Default for grpc_metadata {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(u32)]
 #[doc = " The type of completion (for grpc_event)"]
@@ -2228,11 +2113,6 @@ fn bindgen_test_layout_grpc_event() {
         )
     );
 }
-impl Default for grpc_event {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct grpc_metadata_array {
     pub count: usize,
@@ -2281,11 +2161,6 @@ fn bindgen_test_layout_grpc_metadata_array() {
             stringify!(metadata)
         )
     );
-}
-impl Default for grpc_metadata_array {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(C)]
 pub struct grpc_call_details {
@@ -2357,11 +2232,6 @@ fn bindgen_test_layout_grpc_call_details() {
             stringify!(reserved)
         )
     );
-}
-impl Default for grpc_call_details {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -2471,11 +2341,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data__bindgen_ty_1() {
         )
     );
 }
-impl Default for grpc_op_grpc_op_data__bindgen_ty_1 {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata { pub count : usize , pub metadata : * mut grpc_metadata , pub maybe_compression_level : grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level , }
 #[doc = " If \\a is_set, \\a compression_level will be used for the call."]
@@ -2494,7 +2359,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_o
     assert_eq ! ( unsafe { & ( * ( :: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) ) ) . is_set as * const _ as usize } , 0usize , concat ! ( "Offset of field: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) , "::" , stringify ! ( is_set ) ) );
     assert_eq ! ( unsafe { & ( * ( :: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) ) ) . level as * const _ as usize } , 4usize , concat ! ( "Offset of field: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) , "::" , stringify ! ( level ) ) );
 }
-impl Default for grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level { fn default ( ) -> Self { unsafe { :: std :: mem :: zeroed ( ) } } }
 #[test]
 fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata() {
     assert_eq!(
@@ -2553,11 +2417,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata() {
         )
     );
 }
-impl Default for grpc_op_grpc_op_data_grpc_op_send_initial_metadata {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_message {
@@ -2598,11 +2457,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_message() {
             stringify!(send_message)
         )
     );
-}
-impl Default for grpc_op_grpc_op_data_grpc_op_send_message {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(C)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_status_from_server {
@@ -2684,11 +2538,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_status_from_server() {
         )
     );
 }
-impl Default for grpc_op_grpc_op_data_grpc_op_send_status_from_server {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " ownership of the array is with the caller, but ownership of the elements"]
 #[doc = "stays with the call object (ie key, value members are owned by the call"]
 #[doc = "object, recv_initial_metadata->array is owned by the caller)."]
@@ -2731,11 +2580,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_initial_metadata() {
         )
     );
 }
-impl Default for grpc_op_grpc_op_data_grpc_op_recv_initial_metadata {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " ownership of the byte buffer is moved to the caller; the caller must"]
 #[doc = "call grpc_byte_buffer_destroy on this value, or reuse it in a future op."]
 #[doc = "The returned byte buffer will be NULL if trailing metadata was"]
@@ -2776,11 +2620,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_message() {
             stringify!(recv_message)
         )
     );
-}
-impl Default for grpc_op_grpc_op_data_grpc_op_recv_message {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2869,11 +2708,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_status_on_client() {
         )
     );
 }
-impl Default for grpc_op_grpc_op_data_grpc_op_recv_status_on_client {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_recv_close_on_server {
@@ -2912,11 +2746,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_close_on_server() {
             stringify!(cancelled)
         )
     );
-}
-impl Default for grpc_op_grpc_op_data_grpc_op_recv_close_on_server {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[test]
 fn bindgen_test_layout_grpc_op_grpc_op_data() {
@@ -3030,11 +2859,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data() {
         )
     );
 }
-impl Default for grpc_op_grpc_op_data {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_op() {
     assert_eq!(
@@ -3088,11 +2912,6 @@ fn bindgen_test_layout_grpc_op() {
         )
     );
 }
-impl Default for grpc_op {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " Information requested from the channel."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -3141,11 +2960,6 @@ fn bindgen_test_layout_grpc_channel_info() {
         )
     );
 }
-impl Default for grpc_channel_info {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_resource_quota {
@@ -3193,7 +3007,7 @@ pub enum grpc_cq_completion_type {
 #[doc = "Its \"run\" value should be assigned to some non-member function, such as"]
 #[doc = "a static method."]
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct grpc_experimental_completion_queue_functor {
     #[doc = " The run member specifies a function that will be called when this"]
     #[doc = "tag is extracted from the completion queue. Its arguments will be a"]
@@ -3318,11 +3132,6 @@ fn bindgen_test_layout_grpc_completion_queue_attributes() {
             stringify!(cq_shutdown_cb)
         )
     );
-}
-impl Default for grpc_completion_queue_attributes {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -4368,11 +4177,6 @@ fn bindgen_test_layout_grpc_auth_property_iterator() {
         )
     );
 }
-impl Default for grpc_auth_property_iterator {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " value, if not NULL, is guaranteed to be NULL terminated."]
 #[repr(C)]
 pub struct grpc_auth_property {
@@ -4422,11 +4226,6 @@ fn bindgen_test_layout_grpc_auth_property() {
             stringify!(value_length)
         )
     );
-}
-impl Default for grpc_auth_property {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 extern "C" {
     #[doc = " Returns NULL when the iterator is at the end."]
@@ -4605,11 +4404,6 @@ fn bindgen_test_layout_grpc_ssl_pem_key_cert_pair() {
         )
     );
 }
-impl Default for grpc_ssl_pem_key_cert_pair {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " Object that holds additional peer-verification options on a secure"]
 #[doc = "channel."]
 #[repr(C)]
@@ -4687,11 +4481,6 @@ fn bindgen_test_layout_verify_peer_options() {
             stringify!(verify_peer_destruct)
         )
     );
-}
-impl Default for verify_peer_options {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 extern "C" {
     #[doc = " Creates an SSL credentials object."]
@@ -4894,11 +4683,6 @@ fn bindgen_test_layout_grpc_auth_metadata_context() {
         )
     );
 }
-impl Default for grpc_auth_metadata_context {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[doc = " grpc_metadata_credentials plugin is an API user provided structure used to"]
 #[doc = "create grpc_credentials objects that can be set on a channel (composed) or"]
 #[doc = "a call. See grpc_credentials_metadata_create_from_plugin below."]
@@ -5009,11 +4793,6 @@ fn bindgen_test_layout_grpc_metadata_credentials_plugin() {
             stringify!(type_)
         )
     );
-}
-impl Default for grpc_metadata_credentials_plugin {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 extern "C" {
     #[doc = " Creates a credentials object from a plugin."]
@@ -5271,11 +5050,6 @@ fn bindgen_test_layout_grpc_auth_metadata_processor() {
         )
     );
 }
-impl Default for grpc_auth_metadata_processor {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 extern "C" {
     pub fn grpc_server_credentials_set_auth_metadata_processor(
         creds: *mut grpc_server_credentials,
@@ -5467,17 +5241,12 @@ fn bindgen_test_layout_gpr_log_func_args() {
         )
     );
 }
-impl Default for gpr_log_func_args {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 pub type gpr_log_func = ::std::option::Option<unsafe extern "C" fn(args: *mut gpr_log_func_args)>;
 extern "C" {
     pub fn gpr_set_log_function(func: gpr_log_func);
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct gpr_allocation_functions {
     pub malloc_fn:
         ::std::option::Option<unsafe extern "C" fn(size: usize) -> *mut ::std::os::raw::c_void>,
@@ -5683,11 +5452,6 @@ fn bindgen_test_layout_grpc_byte_buffer_reader_grpc_byte_buffer_reader_current()
         )
     );
 }
-impl Default for grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[test]
 fn bindgen_test_layout_grpc_byte_buffer_reader() {
     assert_eq!(
@@ -5735,11 +5499,6 @@ fn bindgen_test_layout_grpc_byte_buffer_reader() {
         )
     );
 }
-impl Default for grpc_byte_buffer_reader {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 #[repr(C)]
 pub struct grpcwrap_batch_context {
     pub send_initial_metadata: grpc_metadata_array,
@@ -5785,11 +5544,6 @@ fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_1() {
             stringify!(trailing_metadata)
         )
     );
-}
-impl Default for grpcwrap_batch_context__bindgen_ty_1 {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[repr(C)]
 pub struct grpcwrap_batch_context__bindgen_ty_2 {
@@ -5854,11 +5608,6 @@ fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_2() {
             stringify!(status_details)
         )
     );
-}
-impl Default for grpcwrap_batch_context__bindgen_ty_2 {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 #[test]
 fn bindgen_test_layout_grpcwrap_batch_context() {
@@ -5962,11 +5711,6 @@ fn bindgen_test_layout_grpcwrap_batch_context() {
         )
     );
 }
-impl Default for grpcwrap_batch_context {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
 extern "C" {
     pub fn grpcwrap_batch_context_create() -> *mut grpcwrap_batch_context;
 }
@@ -6026,11 +5770,6 @@ fn bindgen_test_layout_grpcwrap_request_call_context() {
             stringify!(request_metadata)
         )
     );
-}
-impl Default for grpcwrap_request_call_context {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
 }
 extern "C" {
     pub fn grpcwrap_request_call_context_create() -> *mut grpcwrap_request_call_context;
