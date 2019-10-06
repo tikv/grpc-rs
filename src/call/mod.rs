@@ -19,6 +19,7 @@ pub mod server;
 pub use buffers::MessageWriterBuf;
 pub use buffers::{MessageReader, MessageWriter};
 
+use std::mem;
 use std::sync::Arc;
 use std::{ptr, slice};
 
@@ -225,11 +226,19 @@ impl Drop for BatchContext {
     }
 }
 
+// Caller must call `BatchContext::drop` on the returned
+// `*mut grpcwrap_batch_context` if necessary.
 #[inline]
 fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
     let tag_box = Box::new(tag);
+    let ctx = tag_box.batch_ctx().unwrap();
+    let ctx_ptr = ctx.as_ptr();
+    // Forget `ctx` to avoid calling `drop` and thus `grpcwrap_batch_context_destroy`
+    // on `ctx_ptr`.
+    mem::forget(ctx);
+
     (
-        tag_box.batch_ctx().unwrap().as_ptr(),
+        ctx_ptr,
         Box::into_raw(tag_box) as _,
     )
 }
@@ -242,8 +251,13 @@ where
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
     let code = f(batch_ptr, tag_ptr);
+
     if code != grpc_call_error::GRPC_CALL_OK {
         unsafe {
+            // Create and drop, to call the BatchContext dtor and tidy up from
+            // `box_batch_tag`. If the call did succeed, then any part of the
+            // context that needs tidying up will be cleaned up by grpc.
+            BatchContext { ctx: batch_ptr };
             Box::from_raw(tag_ptr);
         }
         panic!("create call fail: {:?}", code);
@@ -380,6 +394,9 @@ impl Call {
         };
         if code != grpc_call_error::GRPC_CALL_OK {
             unsafe {
+                // Create and drop, to call the BatchContext dtor and tidy up from
+                // `box_batch_tag`.
+                BatchContext { ctx: batch_ptr };
                 Box::from_raw(tag_ptr);
             }
             panic!("create call fail: {:?}", code);
