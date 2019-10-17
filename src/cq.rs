@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use std::ptr;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicIsize, Ordering, AtomicBool};
 use std::sync::Arc;
 use std::thread::ThreadId;
 
@@ -132,15 +132,50 @@ impl<'a> Drop for CompletionQueueRef<'a> {
     }
 }
 
+pub struct WorkerInfo {
+    id: ThreadId,
+    in_poll: AtomicBool,
+}
+
+impl WorkerInfo {
+    pub fn new(id: ThreadId) -> WorkerInfo {
+        WorkerInfo {
+            id,
+            in_poll: AtomicBool::new(false),
+        }
+    }
+    
+    pub fn begin_poll(&self, id: ThreadId) -> Option<PollLease> {
+        if self.id == id {
+            match self.in_poll.compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed) {
+                Ok(_) => Some(PollLease { info: self }),
+                Err(_) => None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pub struct PollLease<'a> {
+    info: &'a WorkerInfo,
+}
+
+impl<'a> Drop for PollLease<'a> {
+    fn drop(&mut self) {
+        self.info.in_poll.store(false, Ordering::Relaxed);
+    }
+}
+
 #[derive(Clone)]
 pub struct CompletionQueue {
     handle: Arc<CompletionQueueHandle>,
-    id: ThreadId,
+    worker: Arc<WorkerInfo>,
 }
 
 impl CompletionQueue {
-    pub fn new(handle: Arc<CompletionQueueHandle>, id: ThreadId) -> CompletionQueue {
-        CompletionQueue { handle, id }
+    pub fn new(handle: Arc<CompletionQueueHandle>, worker: Arc<WorkerInfo>) -> CompletionQueue {
+        CompletionQueue { handle, worker }
     }
 
     /// Blocks until an event is available, the completion queue is being shut down.
@@ -164,7 +199,7 @@ impl CompletionQueue {
         self.handle.shutdown()
     }
 
-    pub fn worker_id(&self) -> ThreadId {
-        self.id
+    pub fn worker_info(&self) -> Arc<WorkerInfo> {
+        self.worker.clone()
     }
 }

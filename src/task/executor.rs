@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::thread::{self, ThreadId};
+use std::thread;
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
@@ -20,7 +20,7 @@ use futures::{Async, Future};
 use super::lock::SpinLock;
 use super::CallTag;
 use crate::call::Call;
-use crate::cq::CompletionQueue;
+use crate::cq::{CompletionQueue, WorkerInfo};
 use crate::error::{Error, Result};
 use crate::grpc_sys::{self, grpc_call_error};
 
@@ -99,13 +99,13 @@ impl NotifyContext {
 pub struct SpawnNotify {
     ctx: Arc<SpinLock<NotifyContext>>,
     handle: Arc<SpinLock<SpawnHandle>>,
-    worker_id: ThreadId,
+    worker: Arc<WorkerInfo>,
 }
 
 impl SpawnNotify {
-    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker, worker_id: ThreadId) -> SpawnNotify {
+    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker, worker: Arc<WorkerInfo>) -> SpawnNotify {
         SpawnNotify {
-            worker_id,
+            worker,
             handle: Arc::new(SpinLock::new(Some(s))),
             ctx: Arc::new(SpinLock::new(NotifyContext {
                 kicked: false,
@@ -123,15 +123,19 @@ impl SpawnNotify {
 
 impl Notify for SpawnNotify {
     fn notify(&self, _: usize) {
-        if thread::current().id() == self.worker_id {
-            poll(&Arc::new(self.clone()), false)
-        } else {
-            let mut ctx = self.ctx.lock();
-            if ctx.kicked {
-                return;
+        match self.worker.begin_poll(thread::current().id()) {
+            Some(_lease) => poll(&Arc::new(self.clone()), false),
+            None => {
+                // TODO: it's more friendly to cache if poll it immediately
+                // if the worker thread id is still equal to current. However
+                // we need a way to prevent deadlocks and stack overflows.
+                let mut ctx = self.ctx.lock();
+                if ctx.kicked {
+                    return;
+                }
+                ctx.notify(Box::new(CallTag::Spawn(self.clone())));
+                ctx.kicked = true;
             }
-            ctx.notify(Box::new(CallTag::Spawn(self.clone())));
-            ctx.kicked = true;
         }
     }
 }
@@ -182,7 +186,7 @@ impl<'a> Executor<'a> {
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
         let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
-        let notify = Arc::new(SpawnNotify::new(s, kicker, self.cq.worker_id()));
+        let notify = Arc::new(SpawnNotify::new(s, kicker, self.cq.worker_info()));
         poll(&notify, false)
     }
 }

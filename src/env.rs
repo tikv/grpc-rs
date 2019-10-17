@@ -13,17 +13,20 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::mpsc;
 use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
 
 use crate::grpc_sys;
 
-use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType};
+use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkerInfo};
 use crate::task::CallTag;
 
 // event loop
-fn poll_queue(cq: Arc<CompletionQueueHandle>) {
+fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
     let id = thread::current().id();
-    let cq = CompletionQueue::new(cq, id);
+    let cq = Arc::new(CompletionQueueHandle::new());
+    let cq = CompletionQueue::new(cq, Arc::new(WorkerInfo::new(id)));
+    let _ = tx.send(cq.clone());
     loop {
         let e = cq.next();
         match e.type_ {
@@ -79,16 +82,18 @@ impl EnvBuilder {
         }
         let mut cqs = Vec::with_capacity(self.cq_count);
         let mut handles = Vec::with_capacity(self.cq_count);
+        let (tx, rx) = mpsc::channel();
         for i in 0..self.cq_count {
-            let cq = Arc::new(CompletionQueueHandle::new());
-            let cq_ = cq.clone();
+            let tx_i = tx.clone();
             let mut builder = ThreadBuilder::new();
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
-            let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
-            cqs.push(CompletionQueue::new(cq, handle.thread().id()));
+            let handle = builder.spawn(move || poll_queue(tx_i)).unwrap();
             handles.push(handle);
+        }
+        for _ in 0..self.cq_count {
+            cqs.push(rx.recv().unwrap());
         }
 
         Environment {
