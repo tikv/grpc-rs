@@ -218,7 +218,11 @@ fn figure_ssl_path(build_dir: &str) {
         let t = trim_start(&l, "OPENSSL_CRYPTO_LIBRARY:FILEPATH=")
             .or_else(|| trim_start(&l, "OPENSSL_SSL_LIBRARY:FILEPATH="));
         if let Some(s) = t {
-            println!("cargo:rustc-link-lib={}", s);
+            let path = Path::new(s);
+            println!(
+                "cargo:rustc-link-search=native={}",
+                path.parent().unwrap().display()
+            );
             cnt += 1;
         }
     }
@@ -228,6 +232,8 @@ fn figure_ssl_path(build_dir: &str) {
             path, cnt
         );
     }
+    println!("cargo:rustc-link-lib=ssl");
+    println!("cargo:rustc-link-lib=crypto");
 }
 
 #[cfg(feature = "openssl-vendored")]
