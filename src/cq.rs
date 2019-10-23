@@ -16,7 +16,7 @@ use std::collections::VecDeque;
 use std::ptr;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
-use std::thread::ThreadId;
+use std::thread::{self, ThreadId};
 
 use crate::error::{Error, Result};
 use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
@@ -151,7 +151,7 @@ impl WorkerInfo {
     }
 
     pub fn push_work(&self, work: UnfinishedWork) -> Option<UnfinishedWork> {
-        if self.id == std::thread::current().id() {
+        if self.id == thread::current().id() {
             unsafe { &mut *self.pending_work.get() }.push_back(work);
             None
         } else {
@@ -167,7 +167,7 @@ impl WorkerInfo {
 #[derive(Clone)]
 pub struct CompletionQueue {
     handle: Arc<CompletionQueueHandle>,
-    worker: Arc<WorkerInfo>,
+    pub(crate) worker: Arc<WorkerInfo>,
 }
 
 impl CompletionQueue {
@@ -196,7 +196,7 @@ impl CompletionQueue {
         self.handle.shutdown()
     }
 
-    pub fn worker_info(&self) -> &Arc<WorkerInfo> {
-        &self.worker
+    pub fn worker_id(&self) -> ThreadId {
+        self.worker.id
     }
 }

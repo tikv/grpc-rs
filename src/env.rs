@@ -39,8 +39,8 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
 
         tag.resolve(&cq, e.success != 0);
-        while let Some(work) = cq.worker_info().pop_work() {
-            work.finish();
+        while let Some(work) = cq.worker.pop_work() {
+            work.finish(&cq);
         }
     }
 }

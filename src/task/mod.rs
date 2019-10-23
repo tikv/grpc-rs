@@ -188,7 +188,7 @@ impl CallTag {
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
-            CallTag::Spawn(notify) => self::executor::resolve(notify, success),
+            CallTag::Spawn(notify) => self::executor::resolve(cq, notify, success),
         }
     }
 }

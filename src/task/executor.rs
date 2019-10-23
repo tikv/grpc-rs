@@ -12,9 +12,9 @@
 // limitations under the License.
 
 use std::cell::UnsafeCell;
+use std::mem;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-use std::{mem, ptr};
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
@@ -84,13 +84,11 @@ pub struct SpawnTask {
     handle: UnsafeCell<SpawnHandle>,
     state: AtomicU8,
     kicker: Kicker,
-    worker: Arc<WorkerInfo>,
 }
 
 impl SpawnTask {
-    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker, worker: Arc<WorkerInfo>) -> SpawnTask {
+    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker) -> SpawnTask {
         SpawnTask {
-            worker,
             handle: UnsafeCell::new(Some(s)),
             state: AtomicU8::new(IDLE),
             kicker,
@@ -125,16 +123,13 @@ impl SpawnTask {
     }
 }
 
-pub fn resolve(task: Arc<SpawnTask>, success: bool) {
+pub fn resolve(cq: &CompletionQueue, task: Arc<SpawnTask>, success: bool) {
     // it should always be canceled for now.
     assert!(success);
-    poll(task, true);
+    poll(cq, task, true);
 }
 
-#[derive(Clone)]
-struct Notifier;
-
-impl Notify for Notifier {
+impl Notify for WorkerInfo {
     fn notify(&self, id: usize) {
         let task = unsafe { Arc::from_raw(id as *mut SpawnTask) };
         if !task.mark_notified() {
@@ -142,7 +137,7 @@ impl Notify for Notifier {
             return;
         }
 
-        if let Some(UnfinishedWork(w)) = task.worker.push_work(UnfinishedWork(task.clone())) {
+        if let Some(UnfinishedWork(w)) = self.push_work(UnfinishedWork(task.clone())) {
             match task.kicker.kick(Box::new(CallTag::Spawn(w))) {
                 // If the queue is shutdown, then the tag will be notified
                 // eventually. So just skip here.
@@ -169,16 +164,17 @@ impl Notify for Notifier {
 pub struct UnfinishedWork(Arc<SpawnTask>);
 
 impl UnfinishedWork {
-    pub fn finish(self) {
-        resolve(self.0, true);
+    pub fn finish(self, cq: &CompletionQueue) {
+        resolve(cq, self.0, true);
     }
 }
 
 /// Poll the future.
 ///
 /// `woken` indicates that if the cq is kicked by itself.
-fn poll(task: Arc<SpawnTask>, woken: bool) {
+fn poll(cq: &CompletionQueue, task: Arc<SpawnTask>, woken: bool) {
     let mut init_state = if woken { NOTIFIED } else { IDLE };
+    // TODO: maybe we need to break the loop to avoid hunger.
     loop {
         match task
             .state
@@ -190,12 +186,11 @@ fn poll(task: Arc<SpawnTask>, woken: bool) {
         }
 
         let id = &*task as *const SpawnTask as usize;
-        let p: &'static _ = unsafe { &*(ptr::null_mut() as *mut Notifier) };
 
         match unsafe { &mut *task.handle.get() }
             .as_mut()
             .unwrap()
-            .poll_future_notify(&p, id)
+            .poll_future_notify(&cq.worker, id)
         {
             Err(_) | Ok(Async::Ready(_)) => {
                 task.state.store(COMPLETED, Ordering::SeqCst);
@@ -243,7 +238,7 @@ impl<'a> Executor<'a> {
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
         let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
-        let notify = Arc::new(SpawnTask::new(s, kicker, self.cq.worker_info().clone()));
-        poll(notify, false)
+        let notify = Arc::new(SpawnTask::new(s, kicker));
+        poll(self.cq, notify, false)
     }
 }
