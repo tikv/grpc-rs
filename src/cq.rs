@@ -11,14 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::UnsafeCell;
+use std::collections::VecDeque;
 use std::ptr;
-use std::sync::atomic::{AtomicIsize, Ordering, AtomicBool};
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 use std::thread::ThreadId;
 
-use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
-
 use crate::error::{Error, Result};
+use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
+use crate::task::UnfinishedWork;
 
 pub use crate::grpc_sys::grpc_completion_type as EventType;
 pub use crate::grpc_sys::grpc_event as Event;
@@ -134,36 +136,31 @@ impl<'a> Drop for CompletionQueueRef<'a> {
 
 pub struct WorkerInfo {
     id: ThreadId,
-    in_poll: AtomicBool,
+    pending_work: UnsafeCell<VecDeque<UnfinishedWork>>,
 }
+
+unsafe impl Sync for WorkerInfo {}
+unsafe impl Send for WorkerInfo {}
 
 impl WorkerInfo {
-    pub fn new(id: ThreadId) -> WorkerInfo {
+    pub fn new() -> WorkerInfo {
         WorkerInfo {
-            id,
-            in_poll: AtomicBool::new(false),
+            id: std::thread::current().id(),
+            pending_work: UnsafeCell::new(VecDeque::new()),
         }
     }
-    
-    pub fn begin_poll(&self, id: ThreadId) -> Option<PollLease> {
-        if self.id == id {
-            match self.in_poll.compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed) {
-                Ok(_) => Some(PollLease { info: self }),
-                Err(_) => None
-            }
-        } else {
+
+    pub fn push_work(&self, work: UnfinishedWork) -> Option<UnfinishedWork> {
+        if self.id == std::thread::current().id() {
+            unsafe { &mut *self.pending_work.get() }.push_back(work);
             None
+        } else {
+            Some(work)
         }
     }
-}
 
-pub struct PollLease<'a> {
-    info: &'a WorkerInfo,
-}
-
-impl<'a> Drop for PollLease<'a> {
-    fn drop(&mut self) {
-        self.info.in_poll.store(false, Ordering::Relaxed);
+    pub fn pop_work(&self) -> Option<UnfinishedWork> {
+        unsafe { &mut *self.pending_work.get() }.pop_back()
     }
 }
 
@@ -199,7 +196,7 @@ impl CompletionQueue {
         self.handle.shutdown()
     }
 
-    pub fn worker_info(&self) -> Arc<WorkerInfo> {
-        self.worker.clone()
+    pub fn worker_info(&self) -> &Arc<WorkerInfo> {
+        &self.worker
     }
 }

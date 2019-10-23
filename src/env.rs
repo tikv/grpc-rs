@@ -12,9 +12,9 @@
 // limitations under the License.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use std::sync::mpsc;
-use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
+use std::sync::Arc;
+use std::thread::{Builder as ThreadBuilder, JoinHandle};
 
 use crate::grpc_sys;
 
@@ -23,9 +23,9 @@ use crate::task::CallTag;
 
 // event loop
 fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
-    let id = thread::current().id();
     let cq = Arc::new(CompletionQueueHandle::new());
-    let cq = CompletionQueue::new(cq, Arc::new(WorkerInfo::new(id)));
+    let worker_info = Arc::new(WorkerInfo::new());
+    let cq = CompletionQueue::new(cq, worker_info);
     let _ = tx.send(cq.clone());
     loop {
         let e = cq.next();
@@ -39,6 +39,9 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
 
         tag.resolve(&cq, e.success != 0);
+        while let Some(work) = cq.worker_info().pop_work() {
+            work.finish();
+        }
     }
 }
 
