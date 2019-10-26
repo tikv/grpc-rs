@@ -1,3 +1,7 @@
+# grpcio-sys 0.4.6 - 2019-10-26
+
+- support gcc 9.2
+
 # 0.4.5 - 2019-09-24
 
 - Support resource quota
