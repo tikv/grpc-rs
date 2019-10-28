@@ -155,6 +155,7 @@ pub struct Metadata(GrpcMetadataArray);
 impl Metadata {
     fn with_capacity(cap: usize) -> Metadata {
         unsafe {
+            #[allow(deprecated)]
             let mut arr = mem::uninitialized();
             grpc_sys::grpcwrap_metadata_array_init(&mut arr, cap);
             Metadata(arr)

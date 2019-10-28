@@ -14,6 +14,8 @@
 // TODO: Remove it once Rust's tool_lints is stabilized.
 // There are some clippy lints in the generated protobuf files.
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
+#![allow(unknown_lints)]
+#![allow(bare_trait_objects)]
 
 extern crate futures;
 extern crate grpcio;

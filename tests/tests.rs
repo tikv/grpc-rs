@@ -11,6 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(unknown_lints)]
+#![allow(bare_trait_objects)]
+
 extern crate futures;
 extern crate grpcio;
 extern crate grpcio_proto;
