@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #![allow(unknown_lints)]
+#![allow(bare_trait_objects)]
 
 #[macro_use]
 extern crate futures;
