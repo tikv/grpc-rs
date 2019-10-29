@@ -16,6 +16,7 @@
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::{thread, time};
 
 use futures::{Future, Sink, Stream};
 use grpc::{
@@ -23,14 +24,20 @@ use grpc::{
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
     WriteFlags,
 };
-use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use grpc_proto::testing::services_grpc::BenchmarkService;
+use grpc_proto::testing::messages::{SimpleMessage, SimpleRequest, SimpleResponse};
+use grpc_proto::testing::services_grpc::{BenchmarkService, SimpleService};
 use grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
     let mut resp = SimpleResponse::default();
     resp.set_payload(payload);
+    resp
+}
+
+fn gen_resp_msg(req: &SimpleMessage) -> SimpleMessage {
+    let mut resp = SimpleMessage::new();
+    resp.set_body(vec![255; req.get_expect_size() as usize]);
     resp
 }
 
@@ -104,6 +111,41 @@ impl Generic {
         sink: DuplexSink<Vec<u8>>,
     ) {
         let f = sink.send_all(stream.map(|req| (req, WriteFlags::default())));
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "streaming", f)
+    }
+}
+
+#[derive(Clone)]
+pub struct SleepService {
+    pub keep_running: Arc<AtomicBool>,
+    pub sleep_time: Option<u64>,
+}
+
+impl SimpleService for SleepService {
+    fn unary_call(&mut self, ctx: RpcContext, req: SimpleMessage, sink: UnarySink<SimpleMessage>) {
+        let f = sink.success(gen_resp_msg(&req));
+        let sleep_time = self.sleep_time.unwrap();
+        if sleep_time > 0 {
+            thread::sleep(time::Duration::from_millis(sleep_time));
+        }
+        let keep_running = self.keep_running.clone();
+        spawn!(ctx, keep_running, "unary", f)
+    }
+
+    fn streaming_call(
+        &mut self,
+        ctx: RpcContext,
+        stream: RequestStream<SimpleMessage>,
+        sink: DuplexSink<SimpleMessage>,
+    ) {
+        let sleep_time = self.sleep_time.unwrap();
+        let f = sink.send_all(stream.map(move |req| {
+            if sleep_time > 0 {
+                thread::sleep(time::Duration::from_millis(sleep_time));
+            };
+            (gen_resp_msg(&req), WriteFlags::default())
+        }));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "streaming", f)
     }

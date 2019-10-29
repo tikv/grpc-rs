@@ -24,8 +24,8 @@ use grpc::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
 use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
-use grpc_proto::testing::messages::SimpleRequest;
-use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
+use grpc_proto::testing::messages::{SimpleMessage, SimpleRequest};
+use grpc_proto::testing::services_grpc::{BenchmarkServiceClient, SimpleServiceClient};
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
 use rand::distributions::Exp;
@@ -38,6 +38,13 @@ use crate::error::Error;
 use crate::util::{self, CpuRecorder, Histogram};
 
 type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
+
+fn gen_simple_msg(expect: i32, body: i32) -> SimpleMessage {
+    let mut msg = SimpleMessage::new();
+    msg.set_expect_size(expect);
+    msg.set_body(vec![255; body as usize]);
+    msg
+}
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::default();
@@ -311,6 +318,109 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
     }
 }
 
+/// An executor that executes protobuf requests.
+struct CustomExecutor<B> {
+    ctx: ExecutorContext<B>,
+    client: Arc<SimpleServiceClient>,
+    req: SimpleMessage,
+}
+
+impl<B: Backoff + Send + 'static> CustomExecutor<B> {
+    fn new(ctx: ExecutorContext<B>, channel: Channel, cfg: &ClientConfig) -> CustomExecutor<B> {
+        let payload_config = cfg.get_payload_config();
+        let simple_params = payload_config.get_simple_params();
+        CustomExecutor {
+            ctx,
+            client: Arc::new(SimpleServiceClient::new(channel)),
+            req: gen_simple_msg(simple_params.get_resp_size(), simple_params.get_req_size()),
+        }
+    }
+
+    fn execute_unary(mut self) {
+        thread::spawn(move || loop {
+            if !self.ctx.keep_running() {
+                break;
+            }
+            let latency_timer = Instant::now();
+            self.client.unary_call(&self.req).unwrap();
+            let elapsed = latency_timer.elapsed();
+            self.ctx.observe_latency(elapsed);
+            self.ctx.backoff();
+        });
+    }
+
+    fn execute_unary_async(self) {
+        let client = self.client.clone();
+        let keep_running = self.ctx.keep_running.clone();
+        let f = future::loop_fn(self, move |mut executor| {
+            let latency_timer = Instant::now();
+            let handler = executor.client.unary_call_async(&executor.req).unwrap();
+
+            handler.map_err(Error::from).and_then(move |_| {
+                let elapsed = latency_timer.elapsed();
+                executor.ctx.observe_latency(elapsed);
+                let mut time = executor.ctx.backoff_async();
+                let mut res = Some(executor);
+                future::poll_fn(move || {
+                    if let Some(ref mut t) = time {
+                        try_ready!(t.poll());
+                    }
+                    time.take();
+                    let executor = res.take().unwrap();
+                    let l = if executor.ctx.keep_running() {
+                        Loop::Continue(executor)
+                    } else {
+                        Loop::Break(())
+                    };
+                    Ok(Async::Ready(l))
+                })
+            })
+        });
+        spawn!(client, keep_running, "custom unary async", f)
+    }
+
+    fn execute_stream(self) {
+        let client = self.client.clone();
+        let keep_running = self.ctx.keep_running.clone();
+        let (sender, receiver) = self.client.streaming_call().unwrap();
+        let f = future::loop_fn(
+            (sender, self, receiver),
+            move |(sender, mut executor, receiver)| {
+                let latency_timer = Instant::now();
+                let send = sender.send((executor.req.clone(), WriteFlags::default()));
+                send.map_err(Error::from).and_then(move |sender| {
+                    receiver
+                        .into_future()
+                        .map_err(|(e, _)| Error::from(e))
+                        .and_then(move |(_, r)| {
+                            executor.ctx.observe_latency(latency_timer.elapsed());
+                            let mut time = executor.ctx.backoff_async();
+                            let mut res = Some((sender, executor, r));
+                            future::poll_fn(move || {
+                                if let Some(ref mut t) = time {
+                                    try_ready!(t.poll());
+                                }
+                                time.take();
+                                let r = res.take().unwrap();
+                                let l = if r.1.ctx.keep_running() {
+                                    Loop::Continue(r)
+                                } else {
+                                    Loop::Break(r)
+                                };
+                                Ok(Async::Ready(l))
+                            })
+                        })
+                })
+            },
+        )
+        .and_then(|(mut s, e, r)| {
+            future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
+        })
+        .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
+        spawn!(client, keep_running, "custom streaming", f);
+    }
+}
+
 fn execute<B: Backoff + Send + 'static>(
     ctx: ExecutorContext<B>,
     ch: Channel,
@@ -322,20 +432,32 @@ fn execute<B: Backoff + Send + 'static>(
             if cfg.get_payload_config().has_bytebuf_params() {
                 panic!("only async_client is supported for generic service.");
             }
-            RequestExecutor::new(ctx, ch, cfg).execute_unary()
+            if cfg.get_other_client_api().is_empty() {
+                RequestExecutor::new(ctx, ch, cfg).execute_unary()
+            } else {
+                CustomExecutor::new(ctx, ch, cfg).execute_unary()
+            }
         }
         ClientType::ASYNC_CLIENT => match cfg.get_rpc_type() {
             RpcType::UNARY => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     panic!("only streaming is supported for generic service.");
                 }
-                RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
+                if cfg.get_other_client_api().is_empty() {
+                    RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
+                } else {
+                    CustomExecutor::new(ctx, ch, cfg).execute_unary_async()
+                }
             }
             RpcType::STREAMING => {
-                if cfg.get_payload_config().has_bytebuf_params() {
-                    GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                if cfg.get_other_client_api().is_empty() {
+                    if cfg.get_payload_config().has_bytebuf_params() {
+                        GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                    } else {
+                        RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                    }
                 } else {
-                    RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                    CustomExecutor::new(ctx, ch, cfg).execute_stream()
                 }
             }
             _ => unimplemented!(),

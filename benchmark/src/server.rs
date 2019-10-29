@@ -17,11 +17,11 @@ use std::sync::Arc;
 
 use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
-use grpc_proto::testing::services_grpc::create_benchmark_service;
+use grpc_proto::testing::services_grpc::{create_benchmark_service, create_simple_service};
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::util as proto_util;
 
-use crate::bench::{self, Benchmark, Generic};
+use crate::bench::{self, Benchmark, Generic, SleepService};
 use crate::error::Result;
 use crate::util::{self, CpuRecorder};
 
@@ -53,6 +53,20 @@ impl Server {
             ServerType::ASYNC_GENERIC_SERVER => {
                 let g = Generic { keep_running };
                 bench::create_generic_service(g)
+            }
+            ServerType::OTHER_SERVER => {
+                let mut api = cfg.get_other_server_api().split_whitespace();
+                match api.next() {
+                    Some("sleep") => {
+                        let sleep_time = Some(api.next().unwrap().parse().unwrap());
+                        let f = SleepService {
+                            sleep_time,
+                            keep_running,
+                        };
+                        create_simple_service(f)
+                    }
+                    _ => unimplemented!(),
+                }
             }
             _ => unimplemented!(),
         };

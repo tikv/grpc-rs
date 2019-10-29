@@ -38,10 +38,37 @@ macro_rules! spawn {
 
 mod bench;
 mod client;
+pub mod driver;
 mod error;
+pub mod scenario;
 mod server;
 mod util;
 mod worker;
 
 pub use crate::util::log_util::init_log;
 pub use crate::worker::Worker;
+
+use futures::sync::oneshot;
+use futures::Future;
+use grpc::{Environment, ServerBuilder};
+use grpc_proto::testing::services_grpc::create_worker_service;
+use std::sync::Arc;
+
+pub fn create_worker(port: u16) {
+    let env = Arc::new(Environment::new(2));
+    let (tx, rx) = oneshot::channel();
+    let worker = Worker::new(tx);
+    let service = create_worker_service(worker);
+    let mut server = ServerBuilder::new(env)
+        .register_service(service)
+        .bind("[::]", port)
+        .build()
+        .unwrap();
+
+    for &(ref host, port) in server.bind_addrs() {
+        info!("listening on {}:{}", host, port);
+    }
+    server.start();
+    let _ = rx.wait();
+    let _ = server.shutdown().wait();
+}

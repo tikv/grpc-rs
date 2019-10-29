@@ -167,3 +167,10 @@ message ReconnectInfo {
   bool passed = 1;
   repeated int32 backoff_ms = 2;
 }
+
+message SimpleMessage {
+  // expected size to response
+  int32 expect_size = 1;
+  // message body
+  bytes body = 2;
+}

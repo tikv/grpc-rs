@@ -69,6 +69,11 @@ service WorkerService {
   rpc QuitWorker(Void) returns (Void);
 }
 
+service SimpleService {
+  rpc UnaryCall(SimpleMessage) returns (SimpleMessage);
+  rpc StreamingCall(stream SimpleMessage) returns (stream SimpleMessage);
+}
+
 service ReportQpsScenarioService {
   // Report results of a QPS test benchmark scenario.
   rpc ReportScenario(ScenarioResult) returns (Void);

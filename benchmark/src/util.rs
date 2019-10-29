@@ -147,14 +147,40 @@ pub fn dur_to_nanos(dur: Duration) -> f64 {
     dur.as_secs() as f64 * 1_000_000_000f64 + f64::from(dur.subsec_nanos())
 }
 
+pub fn average<T, F: Fn(&T) -> f64>(container: &[T], f: F) -> f64 {
+    sum(container, f) / container.len() as f64
+}
+
+pub fn sum<T, F: Fn(&T) -> f64>(container: &[T], f: F) -> f64 {
+    let mut r = 0f64;
+    for status in container {
+        r += f(status);
+    }
+    r
+}
+
+// template <class T, class F>
+// double sum(const T& container, F functor) {
+//   double r = 0;
+//   for (auto v = container.begin(); v != container.end(); v++) {
+//     r += functor(*v);
+//   }
+//   return r;
+// }
+
+// template <class T, class F>
+// double average(const T& container, F functor) {
+//   return sum(container, functor) / container.size();
+// }
+
 // Histogram accumulates values in the form of a histogram with
 // exponentially increased bucket sizes. See also: grpc/support/histogram.h.
 pub struct Histogram {
-    count: u32,
+    count: f64,
     sum: f64,
     sum_of_squares: f64,
-    min: f64,
-    max: f64,
+    min_seen: f64,
+    max_seen: f64,
     buckets: Vec<u32>,
     one_on_log_multiplier: f64,
     max_val: f64,
@@ -166,11 +192,11 @@ impl Histogram {
         let one_on_log_multiplier = 1.0 / multiplier.ln();
 
         let mut his = Histogram {
-            count: 0,
+            count: 0f64,
             sum: 0f64,
             sum_of_squares: 0f64,
-            min: f64::MAX,
-            max: f64::MIN,
+            min_seen: max_val,
+            max_seen: 0f64,
             buckets: vec![],
             one_on_log_multiplier,
             max_val,
@@ -183,14 +209,14 @@ impl Histogram {
     }
 
     pub fn observe(&mut self, value: f64) {
-        self.count += 1;
+        self.count += 1.0;
         self.sum += value;
         self.sum_of_squares += value * value;
-        if self.min > value {
-            self.min = value;
+        if self.min_seen > value {
+            self.min_seen = value;
         }
-        if self.max < value {
-            self.max = value;
+        if self.max_seen < value {
+            self.max_seen = value;
         }
         let bucket_idx = self.find_bucket(value);
         self.buckets[bucket_idx] += 1;
@@ -207,11 +233,11 @@ impl Histogram {
 
     pub fn report(&mut self, reset: bool) -> HistogramData {
         let mut data = HistogramData::default();
-        data.set_count(f64::from(self.count));
+        data.set_count(self.count);
         data.set_sum(self.sum);
         data.set_sum_of_squares(self.sum_of_squares);
-        data.set_min_seen(self.min);
-        data.set_max_seen(self.max);
+        data.set_min_seen(self.min_seen);
+        data.set_max_seen(self.max_seen);
         data.set_bucket(self.buckets.clone());
 
         if reset {
@@ -221,12 +247,69 @@ impl Histogram {
         data
     }
 
+    pub fn merge_proto(&mut self, data: &HistogramData) {
+        self.sum += data.get_sum();
+        self.sum_of_squares += data.get_sum_of_squares();
+        self.count += data.get_count();
+        if data.get_min_seen() < self.min_seen {
+            self.min_seen = data.get_min_seen();
+        }
+        if data.get_max_seen() > self.max_seen {
+            self.max_seen = data.get_max_seen();
+        }
+        let datas = data.get_bucket();
+        assert_eq!(datas.len(), self.buckets.len());
+        for (i, bucket) in self.buckets.iter_mut().enumerate() {
+            *bucket += datas[i];
+        }
+    }
+
+    pub fn fill_proto(&self, data: &mut HistogramData) {
+        let datas = data.mut_bucket();
+        for i in 0..self.buckets.len() {
+            datas.push(self.buckets[i]);
+        }
+        assert_eq!(datas.len(), self.buckets.len());
+        data.set_min_seen(self.min_seen);
+        data.set_max_seen(self.max_seen);
+        data.set_sum(self.sum);
+        data.set_sum_of_squares(self.sum_of_squares);
+        data.set_count(self.count);
+    }
+
+    pub fn get_count(&self) -> f64 {
+        self.count
+    }
+
+    // to do hard code (unfinished)
+    pub fn threshold_for_count_below(&self, count_below: f64) -> f64 {
+        let count_so_far: f64;
+        let lower_bound: f64;
+        let upper_bound: f64;
+        let lower_idx: usize;
+        let upper_idx: usize;
+        if self.get_count() == 0f64 {
+            return 0f64;
+        }
+        if count_below <= 0f64 {
+            return self.min_seen;
+        }
+        if count_below >= self.count {
+            return self.max_seen;
+        }
+        0.1
+    }
+
+    pub fn percentile(&self, pctile: f64) -> f64 {
+        self.threshold_for_count_below(self.get_count() * pctile / 100.0)
+    }
+
     fn clear(&mut self) {
-        self.count = 0;
+        self.count = 0f64;
         self.sum = 0f64;
         self.sum_of_squares = 0f64;
-        self.min = f64::MAX;
-        self.max = f64::MIN;
+        self.min_seen = f64::MAX;
+        self.max_seen = f64::MIN;
         for b in &mut self.buckets {
             *b = 0;
         }
