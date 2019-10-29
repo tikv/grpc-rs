@@ -183,6 +183,7 @@ pub struct Histogram {
     max_seen: f64,
     buckets: Vec<u32>,
     one_on_log_multiplier: f64,
+    multiplier: f64,
     max_val: f64,
 }
 
@@ -199,6 +200,7 @@ impl Histogram {
             max_seen: 0f64,
             buckets: vec![],
             one_on_log_multiplier,
+            multiplier,
             max_val,
         };
 
@@ -283,12 +285,8 @@ impl Histogram {
 
     // to do hard code (unfinished)
     pub fn threshold_for_count_below(&self, count_below: f64) -> f64 {
-        let count_so_far: f64;
-        let lower_bound: f64;
-        let upper_bound: f64;
-        let lower_idx: usize;
-        let upper_idx: usize;
-        if self.get_count() == 0f64 {
+        let mut count_so_far = 0f64;
+        if self.get_count() == 0.0 {
             return 0f64;
         }
         if count_below <= 0f64 {
@@ -297,7 +295,37 @@ impl Histogram {
         if count_below >= self.count {
             return self.max_seen;
         }
-        0.1
+        let mut lower_idx = 0;
+        while lower_idx < self.buckets.len() {
+            count_so_far += f64::from(self.buckets[lower_idx]);
+            if count_so_far >= count_below {
+                break;
+            }
+            lower_idx += 1;
+        }
+        let mut upper_idx = lower_idx + 1;
+        if (count_so_far - count_below).abs() < std::f64::EPSILON {
+            while upper_idx < self.buckets.len() {
+                if self.buckets[upper_idx] != 0 {
+                    break;
+                }
+                upper_idx += 1;
+            }
+            (self.multiplier.powi(lower_idx as i32) + self.multiplier.powi(upper_idx as i32)) / 2.0
+        } else {
+            let lower_bound = self.multiplier.powi(lower_idx as i32);
+            let upper_bound = self.multiplier.powi(lower_idx as i32 + 1);
+            let mid = upper_bound
+                - (upper_bound - lower_bound) * (count_so_far - count_below)
+                    / f64::from(self.buckets[lower_idx]);
+            if mid < lower_bound {
+                lower_bound
+            } else if mid > upper_bound {
+                upper_bound
+            } else {
+                mid
+            }
+        }
     }
 
     pub fn percentile(&self, pctile: f64) -> f64 {

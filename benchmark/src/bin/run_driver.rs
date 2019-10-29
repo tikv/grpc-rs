@@ -24,6 +24,6 @@ fn main() {
 
     info!("{:?}", addrs);
     // run test
-    run_worker(scenario::async_unary_1channel_1000rpcs_1mb(), addrs.clone());
+    run_worker(scenario::async_stream_8channel_320rpcs_64kb(), addrs.clone());
     info!("Control Driver Shutdown");
 }

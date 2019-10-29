@@ -46,7 +46,7 @@ pub fn run_worker(s: Scenario, mut worker_addrs: Vec<String>) -> ScenarioResult 
     // Connect to server workers
     let env = Arc::new(Environment::new(2));
     let mut servers = vec![];
-    for addr in worker_addrs.iter() {
+    for addr in worker_addrs.iter().take(num_servers) {
         let ch = ChannelBuilder::new(env.clone()).connect(addr.as_str());
         let client = WorkerServiceClient::new(ch);
         let (tx, rx) = client.run_server().unwrap();
@@ -341,6 +341,13 @@ fn postprocess_scenario_result(result: &mut ScenarioResult) {
     result
         .mut_summary()
         .set_qps_per_server_core(qps_per_server_core);
+
+    result.mut_summary().set_latency_50(his.percentile(50.0));
+    result.mut_summary().set_latency_90(his.percentile(90.0));
+    result.mut_summary().set_latency_95(his.percentile(95.0));
+    result.mut_summary().set_latency_99(his.percentile(99.0));
+    result.mut_summary().set_latency_999(his.percentile(999.0));
+
     let server_system_time = 100.0 * sum(result.get_server_stats(), |s| s.get_time_system())
         / sum(result.get_server_stats(), |s| s.get_time_elapsed());
     let server_user_time = 100.0 * sum(result.get_server_stats(), |s| s.get_time_user())
