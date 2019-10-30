@@ -114,9 +114,10 @@ impl SpawnTask {
                     Ordering::AcqRel,
                     Ordering::Acquire,
                 ) {
-                    Err(IDLE) => continue,
+                    Err(IDLE) | Err(POLLING) => continue,
                     _ => return false,
                 },
+                Err(IDLE) => continue,
                 _ => return false,
             }
         }
