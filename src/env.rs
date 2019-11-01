@@ -18,13 +18,13 @@ use std::thread::{Builder as ThreadBuilder, JoinHandle};
 
 use crate::grpc_sys;
 
-use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkerInfo};
+use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkQueue};
 use crate::task::CallTag;
 
 // event loop
 fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
     let cq = Arc::new(CompletionQueueHandle::new());
-    let worker_info = Arc::new(WorkerInfo::new());
+    let worker_info = Arc::new(WorkQueue::new());
     let cq = CompletionQueue::new(cq, worker_info);
     let _ = tx.send(cq.clone());
     loop {
@@ -39,7 +39,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
 
         tag.resolve(&cq, e.success != 0);
-        while let Some(work) = cq.worker.pop_work() {
+        while let Some(work) = unsafe { cq.worker.pop_work() } {
             work.finish(&cq);
         }
     }

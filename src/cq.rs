@@ -134,22 +134,37 @@ impl<'a> Drop for CompletionQueueRef<'a> {
     }
 }
 
-pub struct WorkerInfo {
+/// `WorkQueue` stores the unfinished work of a completion queue.
+///
+/// Every completion queue has a work queue, and every work queue belongs
+/// to exact one completion queue. `WorkQueue` is a short path for future
+/// notifications. When a future is ready to be polled, there are two way
+/// to notify it.
+/// 1. If it's in the same thread where the future is spawned, the future
+///    will be pushed into `WorkQueue` and be polled when current call tag
+///    is handled;
+/// 2. If not, the future will be wrapped as a call tag and pushed into
+///    completion queue and finially popped at the call to `grpc_completion_queue_next`.
+pub struct WorkQueue {
     id: ThreadId,
     pending_work: UnsafeCell<VecDeque<UnfinishedWork>>,
 }
 
-unsafe impl Sync for WorkerInfo {}
-unsafe impl Send for WorkerInfo {}
+unsafe impl Sync for WorkQueue {}
+unsafe impl Send for WorkQueue {}
 
-impl WorkerInfo {
-    pub fn new() -> WorkerInfo {
-        WorkerInfo {
+impl WorkQueue {
+    pub fn new() -> WorkQueue {
+        WorkQueue {
             id: std::thread::current().id(),
             pending_work: UnsafeCell::new(VecDeque::new()),
         }
     }
 
+    /// Pushes an unfinished work into the inner queue.
+    ///
+    /// If the method is not called from the same thread where it's created,
+    /// the work will returned and no work is pushed.
     pub fn push_work(&self, work: UnfinishedWork) -> Option<UnfinishedWork> {
         if self.id == thread::current().id() {
             unsafe { &mut *self.pending_work.get() }.push_back(work);
@@ -159,19 +174,23 @@ impl WorkerInfo {
         }
     }
 
-    pub fn pop_work(&self) -> Option<UnfinishedWork> {
-        unsafe { &mut *self.pending_work.get() }.pop_back()
+    /// Pops one unfinished work.
+    ///
+    /// It should only be called from the same thread where the queue is created.
+    /// Otherwise it leads to undefined behavior.
+    pub unsafe fn pop_work(&self) -> Option<UnfinishedWork> {
+        { &mut *self.pending_work.get() }.pop_back()
     }
 }
 
 #[derive(Clone)]
 pub struct CompletionQueue {
     handle: Arc<CompletionQueueHandle>,
-    pub(crate) worker: Arc<WorkerInfo>,
+    pub(crate) worker: Arc<WorkQueue>,
 }
 
 impl CompletionQueue {
-    pub fn new(handle: Arc<CompletionQueueHandle>, worker: Arc<WorkerInfo>) -> CompletionQueue {
+    pub fn new(handle: Arc<CompletionQueueHandle>, worker: Arc<WorkQueue>) -> CompletionQueue {
         CompletionQueue { handle, worker }
     }
 
