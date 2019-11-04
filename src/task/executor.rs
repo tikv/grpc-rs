@@ -110,10 +110,9 @@ impl SpawnTask {
         }
     }
 
-    /// Notify the completion queue.
-    ///
-    /// It only makes sense to call this function from the thread
-    /// that cq is not run on.
+    /// Marks the state of this task to NOTIFIED.
+    /// 
+    /// Returns true means the task was IDLE, needs to be scheduled.
     fn mark_notified(&self) -> bool {
         loop {
             match self.state.compare_exchange_weak(
@@ -208,7 +207,7 @@ fn poll(cq: &CompletionQueue, task: Arc<SpawnTask>, woken: bool) {
     loop {
         match task
             .state
-            .compare_exchange(init_state, POLLING, Ordering::SeqCst, Ordering::Acquire)
+            .compare_exchange(init_state, POLLING, Ordering::AcqRel, Ordering::Acquire)
         {
             Ok(_) => {}
             Err(COMPLETED) => return,
@@ -223,14 +222,14 @@ fn poll(cq: &CompletionQueue, task: Arc<SpawnTask>, woken: bool) {
             .poll_future_notify(&cq.worker, id)
         {
             Err(_) | Ok(Async::Ready(_)) => {
-                task.state.store(COMPLETED, Ordering::SeqCst);
+                task.state.store(COMPLETED, Ordering::Release);
                 unsafe { &mut *task.handle.get() }.take();
             }
             _ => {
                 match task.state.compare_exchange(
                     POLLING,
                     IDLE,
-                    Ordering::SeqCst,
+                    Ordering::AcqRel,
                     Ordering::Acquire,
                 ) {
                     Ok(_) => return,
