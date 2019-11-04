@@ -93,7 +93,7 @@ impl CompletionQueueHandle {
                 return;
             }
             // Make cnt negative to indicate that `shutdown` has been called.
-            // Because `cnt` is initialised to 1, so minus 1 to make it reach
+            // Because `cnt` is initialized to 1, so minus 1 to make it reach
             // toward 0. That is `new_cnt = -(cnt - 1) = -cnt + 1`.
             let new_cnt = -cnt + 1;
             if cnt
@@ -144,7 +144,7 @@ impl<'a> Drop for CompletionQueueRef<'a> {
 ///    will be pushed into `WorkQueue` and be polled when current call tag
 ///    is handled;
 /// 2. If not, the future will be wrapped as a call tag and pushed into
-///    completion queue and finially popped at the call to `grpc_completion_queue_next`.
+///    completion queue and finally popped at the call to `grpc_completion_queue_next`.
 pub struct WorkQueue {
     id: ThreadId,
     pending_work: UnsafeCell<VecDeque<UnfinishedWork>>,
@@ -153,11 +153,13 @@ pub struct WorkQueue {
 unsafe impl Sync for WorkQueue {}
 unsafe impl Send for WorkQueue {}
 
+const QUEUE_CAPACITY: usize = 4096;
+
 impl WorkQueue {
     pub fn new() -> WorkQueue {
         WorkQueue {
             id: std::thread::current().id(),
-            pending_work: UnsafeCell::new(VecDeque::new()),
+            pending_work: UnsafeCell::new(VecDeque::with_capacity(QUEUE_CAPACITY)),
         }
     }
 
@@ -179,6 +181,10 @@ impl WorkQueue {
     /// It should only be called from the same thread where the queue is created.
     /// Otherwise it leads to undefined behavior.
     pub unsafe fn pop_work(&self) -> Option<UnfinishedWork> {
+        let queue = &mut *self.pending_work.get();
+        if queue.capacity() > QUEUE_CAPACITY && queue.len() < queue.capacity() / 2 {
+            queue.shrink_to_fit();
+        }
         { &mut *self.pending_work.get() }.pop_back()
     }
 }

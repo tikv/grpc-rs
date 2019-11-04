@@ -186,10 +186,10 @@ impl Notify for WorkQueue {
     }
 }
 
-/// Work that should be differred to be handled.
+/// Work that should be deferred to be handled.
 ///
-/// Sometimes a work can't be done imediately as it might lead
-/// to resourse conflict, deadlock for example. So they will be
+/// Sometimes a work can't be done immediately as it might lead
+/// to resource conflict, deadlock for example. So they will be
 /// pushed into a queue and handled when current work is done.
 pub struct UnfinishedWork(Arc<SpawnTask>);
 
