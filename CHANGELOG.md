@@ -1,3 +1,13 @@
+# 0.5.0-alpha.5 - 2019-11-05
+
+- Fix segment fault under race contention (#367)
+- grpcio-compiler: remove protobuf-codegen dependency (#372)
+- Add resource quota support (#377)
+- Make metadata send (#363)
+- Fix openssl link failure on Mac OS (#387)
+- Fix compilation failure for latest gcc (#386)
+- Fix deadlock when spawn multiple linked futures in the same queue (#395)
+
 # 0.5.0-alpha.4 - 2019-08-12
 
 - Make proto compile on Windows
