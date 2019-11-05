@@ -111,7 +111,7 @@ impl SpawnTask {
     }
 
     /// Marks the state of this task to NOTIFIED.
-    /// 
+    ///
     /// Returns true means the task was IDLE, needs to be scheduled.
     fn mark_notified(&self) -> bool {
         loop {
@@ -216,6 +216,7 @@ fn poll(cq: &CompletionQueue, task: Arc<SpawnTask>, woken: bool) {
 
         let id = &*task as *const SpawnTask as usize;
 
+        // L208 "lock"s state, hence it's safe to get a mutable reference.
         match unsafe { &mut *task.handle.get() }
             .as_mut()
             .unwrap()

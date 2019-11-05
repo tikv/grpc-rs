@@ -26,7 +26,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
     let cq = Arc::new(CompletionQueueHandle::new());
     let worker_info = Arc::new(WorkQueue::new());
     let cq = CompletionQueue::new(cq, worker_info);
-    let _ = tx.send(cq.clone());
+    tx.send(cq.clone()).expect("send back completion queue");
     loop {
         let e = cq.next();
         match e.type_ {
