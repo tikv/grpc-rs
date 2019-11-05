@@ -11,16 +11,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! gRPC C Core binds a call to a completion queue, all the related readiness
+//! will be forwarded to the completion queue. This module utilizes the mechanism
+//! and using `Kicker` to wake up completion queue.
+//!
+//! Apparently, to minimize context switch, it's better to bind the future to the
+//! same completion queue as its inner call. Hence method `Executor::spawn` is provided.
+
+use std::cell::UnsafeCell;
+use std::mem;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-use std::thread::{self, ThreadId};
 
 use futures::executor::{self, Notify, Spawn};
 use futures::{Async, Future};
 
-use super::lock::SpinLock;
 use super::CallTag;
 use crate::call::Call;
-use crate::cq::CompletionQueue;
+use crate::cq::{CompletionQueue, WorkQueue};
 use crate::error::{Error, Result};
 use crate::grpc_sys::{self, grpc_call_error};
 
@@ -30,6 +38,7 @@ type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 /// Inner future is expected to be polled in the same thread as cq.
 type SpawnHandle = Option<Spawn<BoxFuture<(), ()>>>;
 
+/// `Kicker` wakes up the completion queue that the inner call binds to.
 pub(crate) struct Kicker {
     call: Call,
 }
@@ -39,7 +48,9 @@ impl Kicker {
         Kicker { call }
     }
 
-    /// Kick its completion queue.
+    /// Wakes up its completion queue.
+    ///
+    /// `tag` will be popped by `grpc_completion_queue_next` in the future.
     pub fn kick(&self, tag: Box<CallTag>) -> Result<()> {
         let _ref = self.call.cq.borrow()?;
         unsafe {
@@ -70,91 +81,166 @@ impl Clone for Kicker {
     }
 }
 
-struct NotifyContext {
-    kicked: bool,
+/// When a future is scheduled, it becomes IDLE. When it's ready to be polled,
+/// it will be notified via task.notify(), and marked as NOTIFIED. When executor
+/// begins to poll the future, it's marked as POLLING. When the executor finishes
+/// polling, the future can either be ready or not ready. In the former case, it's
+/// marked as COMPLETED. If it's latter, it's marked as IDLE again.
+///
+/// Note it's possible the future is notified during polling, in which case, executor
+/// should polling it when last polling is finished unless it returns ready.
+const NOTIFIED: u8 = 1;
+const IDLE: u8 = 2;
+const POLLING: u8 = 3;
+const COMPLETED: u8 = 4;
+
+/// Maintains the spawned future with state, so that it can be notified and polled efficiently.
+pub struct SpawnTask {
+    handle: UnsafeCell<SpawnHandle>,
+    state: AtomicU8,
     kicker: Kicker,
 }
 
-impl NotifyContext {
-    /// Notify the completion queue.
-    ///
-    /// It only makes sense to call this function from the thread
-    /// that cq is not run on.
-    fn notify(&mut self, tag: Box<CallTag>) {
-        match self.kicker.kick(tag) {
-            // If the queue is shutdown, then the tag will be notified
-            // eventually. So just skip here.
-            Err(Error::QueueShutdown) => (),
-            Err(e) => panic!("unexpected error when canceling call: {:?}", e),
-            _ => (),
+impl SpawnTask {
+    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker) -> SpawnTask {
+        SpawnTask {
+            handle: UnsafeCell::new(Some(s)),
+            state: AtomicU8::new(IDLE),
+            kicker,
         }
     }
+
+    /// Marks the state of this task to NOTIFIED.
+    ///
+    /// Returns true means the task was IDLE, needs to be scheduled.
+    fn mark_notified(&self) -> bool {
+        loop {
+            match self.state.compare_exchange_weak(
+                IDLE,
+                NOTIFIED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return true,
+                Err(POLLING) => match self.state.compare_exchange_weak(
+                    POLLING,
+                    NOTIFIED,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
+                    Err(IDLE) | Err(POLLING) => continue,
+                    // If it succeeds, then executor will poll the future again;
+                    // if it fails, then the future should be resolved. In both
+                    // cases, no need to notify the future, hence return false.
+                    _ => return false,
+                },
+                Err(IDLE) => continue,
+                _ => return false,
+            }
+        }
+    }
+}
+
+pub fn resolve(cq: &CompletionQueue, task: Arc<SpawnTask>, success: bool) {
+    // it should always be canceled for now.
+    assert!(success);
+    poll(cq, task, true);
 }
 
 /// A custom notify.
 ///
-/// It will poll the inner future directly if it's notified on the
+/// It will push the inner future to work_queue if it's notified on the
 /// same thread as inner cq.
-#[derive(Clone)]
-pub struct SpawnNotify {
-    ctx: Arc<SpinLock<NotifyContext>>,
-    handle: Arc<SpinLock<SpawnHandle>>,
-    worker_id: ThreadId,
-}
-
-impl SpawnNotify {
-    fn new(s: Spawn<BoxFuture<(), ()>>, kicker: Kicker, worker_id: ThreadId) -> SpawnNotify {
-        SpawnNotify {
-            worker_id,
-            handle: Arc::new(SpinLock::new(Some(s))),
-            ctx: Arc::new(SpinLock::new(NotifyContext {
-                kicked: false,
-                kicker,
-            })),
+impl Notify for WorkQueue {
+    fn notify(&self, id: usize) {
+        let task = unsafe { Arc::from_raw(id as *mut SpawnTask) };
+        if !task.mark_notified() {
+            mem::forget(task);
+            return;
         }
-    }
 
-    pub fn resolve(self, success: bool) {
-        // it should always be canceled for now.
-        assert!(success);
-        poll(&Arc::new(self.clone()), true);
-    }
-}
-
-impl Notify for SpawnNotify {
-    fn notify(&self, _: usize) {
-        if thread::current().id() == self.worker_id {
-            poll(&Arc::new(self.clone()), false)
-        } else {
-            let mut ctx = self.ctx.lock();
-            if ctx.kicked {
-                return;
+        // It can lead to deadlock if poll the future immediately. So we need to
+        // defer the work instead.
+        if let Some(UnfinishedWork(w)) = self.push_work(UnfinishedWork(task.clone())) {
+            match task.kicker.kick(Box::new(CallTag::Spawn(w))) {
+                // If the queue is shutdown, then the tag will be notified
+                // eventually. So just skip here.
+                Err(Error::QueueShutdown) => (),
+                Err(e) => panic!("unexpected error when canceling call: {:?}", e),
+                _ => (),
             }
-            ctx.notify(Box::new(CallTag::Spawn(self.clone())));
-            ctx.kicked = true;
         }
+        mem::forget(task);
+    }
+
+    fn clone_id(&self, id: usize) -> usize {
+        let task = unsafe { Arc::from_raw(id as *mut SpawnTask) };
+        let t = task.clone();
+        mem::forget(task);
+        Arc::into_raw(t) as usize
+    }
+
+    fn drop_id(&self, id: usize) {
+        unsafe { Arc::from_raw(id as *mut SpawnTask) };
+    }
+}
+
+/// Work that should be deferred to be handled.
+///
+/// Sometimes a work can't be done immediately as it might lead
+/// to resource conflict, deadlock for example. So they will be
+/// pushed into a queue and handled when current work is done.
+pub struct UnfinishedWork(Arc<SpawnTask>);
+
+impl UnfinishedWork {
+    pub fn finish(self, cq: &CompletionQueue) {
+        resolve(cq, self.0, true);
     }
 }
 
 /// Poll the future.
 ///
-/// `woken` indicates that if the cq is kicked by itself.
-fn poll(notify: &Arc<SpawnNotify>, woken: bool) {
-    let mut handle = notify.handle.lock();
-    if woken {
-        notify.ctx.lock().kicked = false;
-    }
-    if handle.is_none() {
-        // it's resolved, no need to poll again.
-        return;
-    }
-    match handle.as_mut().unwrap().poll_future_notify(notify, 0) {
-        Err(_) | Ok(Async::Ready(_)) => {
-            // Future stores notify, and notify contains future,
-            // hence circular reference. Take the future to break it.
-            handle.take();
+/// `woken` indicates that if the cq is waken up by itself.
+fn poll(cq: &CompletionQueue, task: Arc<SpawnTask>, woken: bool) {
+    let mut init_state = if woken { NOTIFIED } else { IDLE };
+    // TODO: maybe we need to break the loop to avoid hunger.
+    loop {
+        match task
+            .state
+            .compare_exchange(init_state, POLLING, Ordering::AcqRel, Ordering::Acquire)
+        {
+            Ok(_) => {}
+            Err(COMPLETED) => return,
+            Err(s) => panic!("unexpected state {}", s),
         }
-        _ => {}
+
+        let id = &*task as *const SpawnTask as usize;
+
+        // L208 "lock"s state, hence it's safe to get a mutable reference.
+        match unsafe { &mut *task.handle.get() }
+            .as_mut()
+            .unwrap()
+            .poll_future_notify(&cq.worker, id)
+        {
+            Err(_) | Ok(Async::Ready(_)) => {
+                task.state.store(COMPLETED, Ordering::Release);
+                unsafe { &mut *task.handle.get() }.take();
+            }
+            _ => {
+                match task.state.compare_exchange(
+                    POLLING,
+                    IDLE,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
+                    Ok(_) => return,
+                    Err(NOTIFIED) => {
+                        init_state = NOTIFIED;
+                    }
+                    Err(s) => panic!("unexpected state {}", s),
+                }
+            }
+        }
     }
 }
 
@@ -182,7 +268,7 @@ impl<'a> Executor<'a> {
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
         let s = executor::spawn(Box::new(f) as BoxFuture<_, _>);
-        let notify = Arc::new(SpawnNotify::new(s, kicker, self.cq.worker_id()));
-        poll(&notify, false)
+        let notify = Arc::new(SpawnTask::new(s, kicker));
+        poll(self.cq, notify, false)
     }
 }

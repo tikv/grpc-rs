@@ -12,18 +12,21 @@
 // limitations under the License.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc;
 use std::sync::Arc;
-use std::thread::{self, Builder as ThreadBuilder, JoinHandle};
+use std::thread::{Builder as ThreadBuilder, JoinHandle};
 
 use crate::grpc_sys;
 
-use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType};
+use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkQueue};
 use crate::task::CallTag;
 
 // event loop
-fn poll_queue(cq: Arc<CompletionQueueHandle>) {
-    let id = thread::current().id();
-    let cq = CompletionQueue::new(cq, id);
+fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
+    let cq = Arc::new(CompletionQueueHandle::new());
+    let worker_info = Arc::new(WorkQueue::new());
+    let cq = CompletionQueue::new(cq, worker_info);
+    tx.send(cq.clone()).expect("send back completion queue");
     loop {
         let e = cq.next();
         match e.type_ {
@@ -36,6 +39,9 @@ fn poll_queue(cq: Arc<CompletionQueueHandle>) {
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
 
         tag.resolve(&cq, e.success != 0);
+        while let Some(work) = unsafe { cq.worker.pop_work() } {
+            work.finish(&cq);
+        }
     }
 }
 
@@ -79,16 +85,18 @@ impl EnvBuilder {
         }
         let mut cqs = Vec::with_capacity(self.cq_count);
         let mut handles = Vec::with_capacity(self.cq_count);
+        let (tx, rx) = mpsc::channel();
         for i in 0..self.cq_count {
-            let cq = Arc::new(CompletionQueueHandle::new());
-            let cq_ = cq.clone();
+            let tx_i = tx.clone();
             let mut builder = ThreadBuilder::new();
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
-            let handle = builder.spawn(move || poll_queue(cq_)).unwrap();
-            cqs.push(CompletionQueue::new(cq, handle.thread().id()));
+            let handle = builder.spawn(move || poll_queue(tx_i)).unwrap();
             handles.push(handle);
+        }
+        for _ in 0..self.cq_count {
+            cqs.push(rx.recv().unwrap());
         }
 
         Environment {

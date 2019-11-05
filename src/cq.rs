@@ -11,14 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::UnsafeCell;
+use std::collections::VecDeque;
 use std::ptr;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
-use std::thread::ThreadId;
-
-use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
+use std::thread::{self, ThreadId};
 
 use crate::error::{Error, Result};
+use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
+use crate::task::UnfinishedWork;
 
 pub use crate::grpc_sys::grpc_completion_type as EventType;
 pub use crate::grpc_sys::grpc_event as Event;
@@ -91,7 +93,7 @@ impl CompletionQueueHandle {
                 return;
             }
             // Make cnt negative to indicate that `shutdown` has been called.
-            // Because `cnt` is initialised to 1, so minus 1 to make it reach
+            // Because `cnt` is initialized to 1, so minus 1 to make it reach
             // toward 0. That is `new_cnt = -(cnt - 1) = -cnt + 1`.
             let new_cnt = -cnt + 1;
             if cnt
@@ -132,15 +134,70 @@ impl<'a> Drop for CompletionQueueRef<'a> {
     }
 }
 
+/// `WorkQueue` stores the unfinished work of a completion queue.
+///
+/// Every completion queue has a work queue, and every work queue belongs
+/// to exact one completion queue. `WorkQueue` is a short path for future
+/// notifications. When a future is ready to be polled, there are two way
+/// to notify it.
+/// 1. If it's in the same thread where the future is spawned, the future
+///    will be pushed into `WorkQueue` and be polled when current call tag
+///    is handled;
+/// 2. If not, the future will be wrapped as a call tag and pushed into
+///    completion queue and finally popped at the call to `grpc_completion_queue_next`.
+pub struct WorkQueue {
+    id: ThreadId,
+    pending_work: UnsafeCell<VecDeque<UnfinishedWork>>,
+}
+
+unsafe impl Sync for WorkQueue {}
+unsafe impl Send for WorkQueue {}
+
+const QUEUE_CAPACITY: usize = 4096;
+
+impl WorkQueue {
+    pub fn new() -> WorkQueue {
+        WorkQueue {
+            id: std::thread::current().id(),
+            pending_work: UnsafeCell::new(VecDeque::with_capacity(QUEUE_CAPACITY)),
+        }
+    }
+
+    /// Pushes an unfinished work into the inner queue.
+    ///
+    /// If the method is not called from the same thread where it's created,
+    /// the work will returned and no work is pushed.
+    pub fn push_work(&self, work: UnfinishedWork) -> Option<UnfinishedWork> {
+        if self.id == thread::current().id() {
+            unsafe { &mut *self.pending_work.get() }.push_back(work);
+            None
+        } else {
+            Some(work)
+        }
+    }
+
+    /// Pops one unfinished work.
+    ///
+    /// It should only be called from the same thread where the queue is created.
+    /// Otherwise it leads to undefined behavior.
+    pub unsafe fn pop_work(&self) -> Option<UnfinishedWork> {
+        let queue = &mut *self.pending_work.get();
+        if queue.capacity() > QUEUE_CAPACITY && queue.len() < queue.capacity() / 2 {
+            queue.shrink_to_fit();
+        }
+        { &mut *self.pending_work.get() }.pop_back()
+    }
+}
+
 #[derive(Clone)]
 pub struct CompletionQueue {
     handle: Arc<CompletionQueueHandle>,
-    id: ThreadId,
+    pub(crate) worker: Arc<WorkQueue>,
 }
 
 impl CompletionQueue {
-    pub fn new(handle: Arc<CompletionQueueHandle>, id: ThreadId) -> CompletionQueue {
-        CompletionQueue { handle, id }
+    pub fn new(handle: Arc<CompletionQueueHandle>, worker: Arc<WorkQueue>) -> CompletionQueue {
+        CompletionQueue { handle, worker }
     }
 
     /// Blocks until an event is available, the completion queue is being shut down.
@@ -165,6 +222,6 @@ impl CompletionQueue {
     }
 
     pub fn worker_id(&self) -> ThreadId {
-        self.id
+        self.worker.id
     }
 }
