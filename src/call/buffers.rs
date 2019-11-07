@@ -106,29 +106,49 @@ impl Drop for GrpcByteBufferReader {
 
 /// Constructor function for a `grpc_slice` which wraps a Rust `Vec`.
 ///
-/// Safety: see `VecSliceRefCount::new`, the same applies here.
-unsafe fn vec_slice(v: Vec<u8>) -> Box<grpc_slice> {
+/// This function allocates a `VecSliceRefCount` on the heap and returns a pointer
+/// to the internal `grpc_slice`. That slice holds a pointer back to the
+/// `VecSliceRefCount`, so that everything can be tidied up in the end.
+///
+/// Safety: the returned `grpc_slice`'s `VecSliceRefCount` has a 0 refcount.
+/// It is the caller's responsibility to increment the refcount or either memory
+/// will be leaked or `vec_slice_unref` will panic.
+unsafe fn vec_slice(v: Vec<u8>) -> *mut grpc_slice {
     let mut data: MaybeUninit<grpc_sys::grpc_slice_grpc_slice_data> = MaybeUninit::zeroed();
-    *(*data.as_mut_ptr()).refcounted.as_mut() = grpc_sys::grpc_slice_grpc_slice_data_grpc_slice_refcounted {
-        bytes: v.as_ptr() as *const _ as *mut _,
-        length: v.len(),
-    };
-    let mut refcount = VecSliceRefCount::new(v);
-    let mut result = Box::new(grpc_slice {
-        refcount: ptr::null_mut(),
-        data: data.assume_init(),
+    *(*data.as_mut_ptr()).refcounted.as_mut() =
+        grpc_sys::grpc_slice_grpc_slice_data_grpc_slice_refcounted {
+            bytes: v.as_ptr() as *const _ as *mut _,
+            length: v.len(),
+        };
+
+    let mut refcount = Box::new(VecSliceRefCount {
+        vtable: &VEC_SLICE_VTABLE,
+        sub_refcount: ptr::null_mut(),
+        vec: v,
+        count: 0,
+        slice: grpc_slice {
+            refcount: ptr::null_mut(),
+            data: data.assume_init(),
+        },
+        _phantom: PhantomPinned,
     });
-    refcount.slice = result.as_mut();
-    result.refcount = Box::into_raw(refcount) as *mut _;
+    let result = &refcount.slice as *const _ as *mut _;
+    refcount.sub_refcount = &*refcount as *const _ as *mut _;
+    refcount.slice.refcount = &*refcount as *const _ as *mut _;
+    let _ = Box::into_raw(refcount);
+
     result
 }
 
-/// A `grpc_slice_refcount` structure to handle ref-counting and memory mangement
+/// A `grpc_slice_refcount` structure to handle ref-counting and memory management
 /// of `grpc_slice`s created by `vec_slice`.
 ///
 /// Note that `grpc_slice_refcount` must be a prefix of this type so that a pointer
 /// to `VecSliceRefCount` can be treated polymorphically as a pointer to
 /// `grpc_slice_refcount`.
+///
+/// Safety: `VecSliceRefCount::sub_refcount` is self-referential, therefore a
+/// `VecSliceRefCount` *must never be moved*.
 #[repr(C)]
 struct VecSliceRefCount {
     // 'vtable' pointer, should always point at VEC_SLICE_VTABLE.
@@ -139,33 +159,10 @@ struct VecSliceRefCount {
     vec: Vec<u8>,
     // Refcount.
     count: usize,
-    // Pointer to the slice this object is managing.
-    slice: *mut grpc_slice,
+    // The slice this object is managing.
+    slice: grpc_slice,
     // Because `sub_refcount` is self-referential.
     _phantom: PhantomPinned,
-}
-
-impl VecSliceRefCount {
-    /// Create a new `VecSliceRefCount`.
-    ///
-    /// Safety: the returned `VecSliceRefCount` has a 0 refcount. It is the
-    /// caller's responsibility to increment the refcount or either memory will
-    /// be leaked or `vec_slice_unref` will panic.
-    ///
-    /// `VecSliceRefCount::sub_refcount` is self-referential, therefore a
-    /// `VecSliceRefCount` *must never be moved*.
-    unsafe fn new(vec: Vec<u8>) -> Box<VecSliceRefCount> {
-        let mut result = Box::new(VecSliceRefCount {
-            vtable: &VEC_SLICE_VTABLE,
-            sub_refcount: ptr::null_mut(),
-            vec,
-            count: 0,
-            slice: ptr::null_mut(),
-            _phantom: PhantomPinned,
-        });
-        result.sub_refcount = &*result as *const _ as *mut _;
-        result
-    }
 }
 
 /// gRPC data structure proving functions for managing a `grpc_slice` created by
@@ -188,13 +185,11 @@ unsafe extern "C" fn vec_slice_unref(arg1: *mut ::std::os::raw::c_void) {
     let refcount = arg1 as *mut VecSliceRefCount;
     (*refcount).count -= 1;
     if (*refcount).count == 0 {
-        // Recreate the `Box`s we used to create the slice and refcount objects.
-        // Dropping them causes their data to be dropped, including the `Vec`
+        // Recreate the `Box` we used to create the refcount objects.
+        // Dropping it causes its data to be dropped, including the `Vec`
         // that was originally used to create the slice.
         let refcount = Box::from_raw(refcount);
-        let slice = Box::from_raw(refcount.slice);
         mem::drop(refcount);
-        mem::drop(slice);
     }
 }
 
@@ -378,7 +373,7 @@ impl MessageWriter {
         let mut vec = Vec::new();
         mem::swap(&mut self.write_buffer, &mut vec);
         let slice = vec_slice(vec);
-        grpc_sys::grpc_raw_byte_buffer_create(Box::into_raw(slice), 1)
+        grpc_sys::grpc_raw_byte_buffer_create(slice, 1)
     }
 }
 

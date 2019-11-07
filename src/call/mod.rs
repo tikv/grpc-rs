@@ -237,10 +237,7 @@ fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
     // on `ctx_ptr`.
     mem::forget(ctx);
 
-    (
-        ctx_ptr,
-        Box::into_raw(tag_box) as _,
-    )
+    (ctx_ptr, Box::into_raw(tag_box) as _)
 }
 
 /// A helper function that runs the batch call and checks the result.
