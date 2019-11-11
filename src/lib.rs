@@ -53,6 +53,7 @@ mod metadata;
 mod quota;
 mod server;
 mod task;
+mod util;
 
 pub use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
