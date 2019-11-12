@@ -105,3 +105,6 @@ script:
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
   - cargo test --features "openssl" --all
   - cargo test --features "openssl-vendored" --all
+  - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then
+      env RUST_BACKTRACE=1 RUSTFLAGS="-Z sanitizer=address" cargo test --all --target x86_64-unknown-linux-gnu;
+    fi

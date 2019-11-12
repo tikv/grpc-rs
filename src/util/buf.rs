@@ -15,8 +15,9 @@ use grpcio_sys::*;
 use std::ffi::c_void;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
-use std::mem::{self, MaybeUninit};
+use std::mem::{self, ManuallyDrop, MaybeUninit};
 use std::ptr;
+use std::sync::atomic::{self, AtomicUsize, Ordering};
 
 /// A convenient rust wrapper for the type `grpc_slice`.
 #[repr(C)]
@@ -128,20 +129,23 @@ impl PartialEq<GrpcSlice> for GrpcSlice {
 #[repr(C)]
 struct VecRefCount {
     rc: grpc_slice_refcount,
-    refs: gpr_refcount,
+    refs: AtomicUsize,
     v: Vec<u8>,
 }
 
 unsafe extern "C" fn vec_ref(rc_ptr: *mut c_void) {
-    gpr_ref(&mut (*(rc_ptr as *mut VecRefCount)).refs)
+    let rc_ptr = rc_ptr as *mut VecRefCount;
+    (*rc_ptr).refs.fetch_add(1, Ordering::Relaxed);
 }
 
 unsafe extern "C" fn vec_unref(rc_ptr: *mut c_void) {
     let rc_ptr = rc_ptr as *mut VecRefCount;
-    let rc = &mut *rc_ptr;
-    if gpr_unref(&mut rc.refs) != 0 {
-        Box::from_raw(rc_ptr);
+    if (*rc_ptr).refs.fetch_sub(1, Ordering::Release) != 1 {
+        return;
     }
+
+    atomic::fence(Ordering::Acquire);
+    Box::from_raw(rc_ptr);
 }
 
 /// The global vtable for vec.
@@ -182,11 +186,10 @@ impl From<Vec<u8>> for GrpcSlice {
                     vtable: &VEC_REF_COUNT_VTABLE,
                     sub_refcount: ptr::null_mut(),
                 },
-                refs: MaybeUninit::uninit().assume_init(),
+                refs: AtomicUsize::new(1),
                 v,
             });
             ref_count.rc.sub_refcount = &mut ref_count.rc;
-            gpr_ref_init(&mut ref_count.refs, 1);
             slice.0.refcount = Box::into_raw(mem::transmute(ref_count));
             slice
         }
@@ -211,7 +214,7 @@ impl<'a> From<&'a [GrpcSlice]> for GrpcByteBuffer {
     /// be `Clone::clone` into the buffer.
     fn from(slice: &'a [GrpcSlice]) -> Self {
         unsafe {
-            let s: &[grpc_slice] = mem::transmute(slice);
+            let s: &[grpc_slice] = &*(slice as *const _ as *const [grpc_slice]);
             // hack: see From<&GrpcSlice>.
             GrpcByteBuffer(grpc_raw_byte_buffer_create(s.as_ptr() as _, s.len()))
         }
@@ -222,6 +225,7 @@ impl<'a> From<&'a GrpcSlice> for GrpcByteBuffer {
     /// Create a buffer from the given single slice.
     ///
     /// A buffer, which length is 1, is allocated for the slice.
+    #[allow(clippy::cast_ref_to_mut)]
     fn from(s: &'a GrpcSlice) -> GrpcByteBuffer {
         unsafe {
             // hack: buffer_create accepts an mutable pointer to indicate it mutate
@@ -254,7 +258,7 @@ impl Drop for GrpcByteBuffer {
 pub struct GrpcByteBufferReader {
     reader: grpc_byte_buffer_reader,
     /// Current reading buffer.
-    slice: GrpcSlice,
+    slice: ManuallyDrop<GrpcSlice>,
     /// The offset of `slice` that has not been read.
     offset: usize,
     /// How many bytes pending for reading.
@@ -280,7 +284,7 @@ impl GrpcByteBufferReader {
 
             GrpcByteBufferReader {
                 reader: reader.assume_init(),
-                slice: GrpcSlice(s.assume_init()),
+                slice: ManuallyDrop::new(GrpcSlice(s.assume_init())),
                 offset: 0,
                 remain,
             }
@@ -290,8 +294,9 @@ impl GrpcByteBufferReader {
     /// Get the next slice from reader.
     fn load_next_slice(&mut self) {
         unsafe {
+            ManuallyDrop::drop(&mut self.slice);
             if 0 == grpc_byte_buffer_reader_next(&mut self.reader, &mut self.slice.0) {
-                self.slice = GrpcSlice::default();
+                self.slice = ManuallyDrop::new(GrpcSlice::default());
             }
         }
         self.offset = 0;
@@ -366,6 +371,7 @@ impl Drop for GrpcByteBufferReader {
     fn drop(&mut self) {
         unsafe {
             grpc_byte_buffer_reader_destroy(&mut self.reader);
+            ManuallyDrop::drop(&mut self.slice);
             grpc_byte_buffer_destroy(self.reader.buffer_in);
         }
     }
@@ -421,6 +427,12 @@ mod tests {
         assert_eq!(a.len(), slice.len());
         assert_eq!(&slice, &*a);
 
+        let a = vec![5; 64];
+        let slice = GrpcSlice::from(a.clone());
+        assert_eq!(a.as_slice(), slice.as_slice());
+        assert_eq!(a.len(), slice.len());
+        assert_eq!(&slice, &*a);
+
         let a = vec![];
         let slice = GrpcSlice::from(a);
         assert_eq!(empty, slice);
@@ -450,8 +462,8 @@ mod tests {
 
     #[test]
     fn test_message_reader() {
-        for len in 0..1024 + 1 {
-            for n_slice in 1..4 {
+        for len in 0..=1024 {
+            for n_slice in 1..=4 {
                 let source = vec![len as u8; len];
                 let expect = vec![len as u8; len * n_slice];
                 // Test read.
