@@ -133,7 +133,7 @@ struct VecRefCount {
 }
 
 unsafe extern "C" fn vec_ref(rc_ptr: *mut c_void) {
-    gpr_ref(&mut (&mut *(rc_ptr as *mut VecRefCount)).refs)
+    gpr_ref(&mut (*(rc_ptr as *mut VecRefCount)).refs)
 }
 
 unsafe extern "C" fn vec_unref(rc_ptr: *mut c_void) {
@@ -183,7 +183,7 @@ impl From<Vec<u8>> for GrpcSlice {
                     sub_refcount: ptr::null_mut(),
                 },
                 refs: MaybeUninit::uninit().assume_init(),
-                v: v,
+                v,
             });
             ref_count.rc.sub_refcount = &mut ref_count.rc;
             gpr_ref_init(&mut ref_count.refs, 1);
@@ -274,7 +274,7 @@ impl GrpcByteBufferReader {
             if 0 == grpc_byte_buffer_reader_next(reader.as_mut_ptr(), s.as_mut_ptr()) {
                 s.as_mut_ptr().write(grpc_empty_slice());
             }
-            let remain = grpc_byte_buffer_length((&mut *reader.as_mut_ptr()).buffer_out);
+            let remain = grpc_byte_buffer_length((*reader.as_mut_ptr()).buffer_out);
             // buf is stored inside `reader` as `buffer_in`, so do not drop it.
             mem::forget(buf);
 
