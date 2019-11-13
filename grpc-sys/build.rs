@@ -310,7 +310,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .whitelist_type(r"\bcensus_context.*")
         .whitelist_type(r"\bverify_peer_options.*")
         .whitelist_type(r"(__)?uint8_t")
-        .whitelist_type(r"size_t")
+        .whitelist_type(r"(__darwin_)?size_t")
         .whitelist_type(r"(__)?uint32_t")
         .whitelist_type(r"(__)?int64_t")
         .whitelist_type(r"(__)?int32_t")
