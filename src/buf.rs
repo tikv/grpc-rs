@@ -109,6 +109,9 @@ impl PartialEq<GrpcSlice> for GrpcSlice {
 ///
 /// Vec will be stored inside the struct so that it will be dropped automatically
 /// once the struct is dropped.
+///
+/// Note that the struct should not be moved if `sub_refcount` at `grpc_slice_refcount`
+/// points back to the `VecRefCount` itself.
 #[repr(C)]
 struct VecRefCount {
     rc: grpc_slice_refcount,
