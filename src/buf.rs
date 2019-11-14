@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use grpcio_sys::*;
+use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
@@ -20,6 +21,8 @@ use std::ptr;
 use std::sync::atomic::{self, AtomicUsize, Ordering};
 
 /// A convenient rust wrapper for the type `grpc_slice`.
+///
+/// It's expected that the slice should be initialized.
 #[repr(C)]
 pub struct GrpcSlice(grpc_slice);
 
@@ -199,10 +202,11 @@ impl<'a> From<&'a [GrpcSlice]> for GrpcByteBuffer {
     /// A buffer is allocated for the whole slice array, and every slice will
     /// be `Clone::clone` into the buffer.
     fn from(slice: &'a [GrpcSlice]) -> Self {
+        let len = slice.len();
         unsafe {
-            let s: &[grpc_slice] = &*(slice as *const _ as *const [grpc_slice]);
+            let s = slice.as_ptr() as *const grpc_slice as *const UnsafeCell<grpc_slice>;
             // hack: see From<&GrpcSlice>.
-            GrpcByteBuffer(grpc_raw_byte_buffer_create(s.as_ptr() as _, s.len()))
+            GrpcByteBuffer(grpc_raw_byte_buffer_create((*s).get(), len))
         }
     }
 }
@@ -218,8 +222,9 @@ impl<'a> From<&'a GrpcSlice> for GrpcByteBuffer {
             // ref count. Ref count is recorded by atomic variable, which is considered
             // `Sync` in rust. This is an interesting difference in what is *mutable*
             // between C++ and rust.
-            let s = &mut *(s as *const GrpcSlice as *mut GrpcSlice);
-            GrpcByteBuffer(grpc_raw_byte_buffer_create(&mut s.0, 1))
+            // Using `UnsafeCell` to avoid raw cast, which is UB.
+            let s = &*(s as *const GrpcSlice as *const grpc_slice as *const UnsafeCell<grpc_slice>);
+            GrpcByteBuffer(grpc_raw_byte_buffer_create((*s).get(), 1))
         }
     }
 }
