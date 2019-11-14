@@ -39,6 +39,7 @@ use grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate log;
 
+mod buf;
 mod call;
 mod channel;
 mod client;
@@ -53,7 +54,6 @@ mod metadata;
 mod quota;
 mod server;
 mod task;
-mod util;
 
 pub use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,

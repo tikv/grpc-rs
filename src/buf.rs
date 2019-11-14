@@ -24,13 +24,6 @@ use std::sync::atomic::{self, AtomicUsize, Ordering};
 pub struct GrpcSlice(grpc_slice);
 
 impl GrpcSlice {
-    /// Allocate a `GrpcSlice` with given length.
-    ///
-    /// It's unsafe to read from the slice as the content is uninitialized.
-    pub unsafe fn with_len(len: usize) -> GrpcSlice {
-        GrpcSlice(grpc_slice_malloc(len))
-    }
-
     /// Get the length of the data.
     pub fn len(&self) -> usize {
         unsafe {
@@ -52,16 +45,6 @@ impl GrpcSlice {
             } else {
                 let len = self.0.data.inlined.length;
                 &self.0.data.inlined.bytes[..len as usize]
-            }
-        }
-    }
-
-    pub fn as_ptr(&self) -> *const u8 {
-        unsafe {
-            if !self.0.refcount.is_null() {
-                self.0.data.refcounted.bytes
-            } else {
-                self.0.data.inlined.bytes.as_ptr()
             }
         }
     }
@@ -258,6 +241,9 @@ impl Drop for GrpcByteBuffer {
 pub struct GrpcByteBufferReader {
     reader: grpc_byte_buffer_reader,
     /// Current reading buffer.
+    // This is a temporary buffer that may need to be dropped before every
+    // iteration. So use `ManuallyDrop` to control the behavior more clean
+    // and precisely.
     slice: ManuallyDrop<GrpcSlice>,
     /// The offset of `slice` that has not been read.
     offset: usize,

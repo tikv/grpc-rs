@@ -22,11 +22,11 @@ use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
 use futures::{Async, Future, Poll};
 use libc::c_void;
 
+use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
-use crate::util::buf::{GrpcByteBuffer, GrpcByteBufferReader};
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
