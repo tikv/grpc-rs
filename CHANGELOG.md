@@ -1,3 +1,7 @@
+# grpcio-compiler 0.5.0-alpha.6 - 2019-11-13
+
+- Fix clippy warnings (#403)
+
 # 0.5.0-alpha.5 - 2019-11-05
 
 - Fix segment fault under race contention (#367)

@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-compiler"
-version = "0.5.0-alpha.5"
+version = "0.5.0-alpha.6"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -14,14 +14,14 @@ categories = ["network-programming"]
 [features]
 default = ["protobuf-codec"]
 protobuf-codec = []
-prost-codec = ["prost-build", "prost-types", "prost"]
+prost-codec = ["prost-build", "prost-types", "prost", "derive-new"]
 
 [dependencies]
 protobuf = "2"
 prost = { version = "0.5", optional = true }
 prost-build = { version = "0.5", optional = true }
 prost-types = { version = "0.5", optional = true }
-derive-new = "0.5"
+derive-new = { version = "0.5", optional = true }
 tempfile = "3.0"
 
 [[bin]]
