@@ -13,7 +13,7 @@
 
 use grpcio_sys::*;
 use std::cell::UnsafeCell;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr, CString};
 use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
 use std::mem::{self, ManuallyDrop, MaybeUninit};
@@ -54,6 +54,22 @@ impl GrpcSlice {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Creates a slice from static rust slice.
+    ///
+    /// Same as `From<&[u8]>` but without copying the buffer.
+    #[inline]
+    pub fn from_static_slice(s: &'static [u8]) -> GrpcSlice {
+        GrpcSlice(unsafe { grpc_slice_from_static_buffer(s.as_ptr() as _, s.len()) })
+    }
+
+    /// Creates a `GrpcSlice` from static rust str.
+    ///
+    /// Same as `from_str` but without allocation.
+    #[inline]
+    pub fn from_static_str(s: &'static str) -> GrpcSlice {
+        GrpcSlice::from_static_slice(s.as_bytes())
     }
 }
 
@@ -148,8 +164,7 @@ const VEC_REF_COUNT_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vta
 impl From<Vec<u8>> for GrpcSlice {
     /// Converts a `Vec<u8>` into `GrpcSlice`.
     ///
-    /// There will be a small allocation for custom vtable if the data length
-    /// is too large (23 bytes currently).
+    /// If v can't fit inline, there will be allocations.
     #[inline]
     fn from(mut v: Vec<u8>) -> GrpcSlice {
         let mut slice = GrpcSlice::default();
@@ -182,6 +197,59 @@ impl From<Vec<u8>> for GrpcSlice {
             slice.0.refcount = Box::into_raw(mem::transmute(ref_count));
             slice
         }
+    }
+}
+
+/// Creates a `GrpcSlice` from rust string.
+///
+/// If the string can't fit inline, there will be allocations.
+impl From<String> for GrpcSlice {
+    #[inline]
+    fn from(s: String) -> GrpcSlice {
+        GrpcSlice::from(s.into_bytes())
+    }
+}
+
+/// Creates a `GrpcSlice` from rust cstring.
+///
+/// If the cstring can't fit inline, there will be allocations.
+impl From<CString> for GrpcSlice {
+    #[inline]
+    fn from(s: CString) -> GrpcSlice {
+        GrpcSlice::from(s.into_bytes())
+    }
+}
+
+/// Creates a `GrpcSlice` from rust slice.
+///
+/// The data inside slice will be cloned. If the data can't fit inline,
+/// necessary buffer will be allocated.
+impl From<&'_ [u8]> for GrpcSlice {
+    #[inline]
+    fn from(s: &'_ [u8]) -> GrpcSlice {
+        GrpcSlice(unsafe { grpc_slice_from_copied_buffer(s.as_ptr() as _, s.len()) })
+    }
+}
+
+/// Creates a `GrpcSlice` from rust str.
+///
+/// The data inside str will be cloned. If the data can't fit inline,
+/// necessary buffer will be allocated.
+impl From<&'_ str> for GrpcSlice {
+    #[inline]
+    fn from(s: &'_ str) -> GrpcSlice {
+        GrpcSlice::from(s.as_bytes())
+    }
+}
+
+/// Creates a `GrpcSlice` from rust `CStr`.
+///
+/// The data inside `CStr` will be cloned. If the data can't fit inline,
+/// necessary buffer will be allocated.
+impl From<&'_ CStr> for GrpcSlice {
+    #[inline]
+    fn from(s: &'_ CStr) -> GrpcSlice {
+        GrpcSlice::from(s.to_bytes())
     }
 }
 
@@ -516,6 +584,21 @@ mod tests {
                 assert_eq!(0, reader.read(&mut [1]).unwrap());
             }
         }
+    }
+
+    #[test]
+    fn test_converter() {
+        let a = vec![1, 2, 3, 0];
+        assert_eq!(GrpcSlice::from(a.clone()).as_slice(), a.as_slice());
+        assert_eq!(GrpcSlice::from(a.as_slice()).as_slice(), a.as_slice());
+
+        let s = "abcd".to_owned();
+        assert_eq!(GrpcSlice::from(s.clone()).as_slice(), s.as_bytes());
+        assert_eq!(GrpcSlice::from(s.as_str()).as_slice(), s.as_bytes());
+
+        let cs = CString::new(s.clone()).unwrap();
+        assert_eq!(GrpcSlice::from(cs.clone()).as_slice(), s.as_bytes());
+        assert_eq!(GrpcSlice::from(cs.as_c_str()).as_slice(), s.as_bytes());
     }
 
     #[cfg(feature = "prost-codec")]
