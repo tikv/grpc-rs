@@ -1,4 +1,4 @@
-// Copyright 2018 TiKV Project Authors. Licensed under Apache-2.0.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};

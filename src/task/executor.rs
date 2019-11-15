@@ -1,4 +1,4 @@
-// Copyright 2018 TiKV Project Authors. Licensed under Apache-2.0.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 //! gRPC C Core binds a call to a completion queue, all the related readiness
 //! will be forwarded to the completion queue. This module utilizes the mechanism

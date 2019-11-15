@@ -1,4 +1,4 @@
-// Copyright 2018 TiKV Project Authors. Licensed under Apache-2.0.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 pub mod testing {
     include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
