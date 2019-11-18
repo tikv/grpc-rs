@@ -277,7 +277,6 @@ impl ServerBuilder {
     }
 
     /// Add additional configuration for each incoming channel.
-    #[doc(hidden)]
     pub fn channel_args(mut self, args: ChannelArgs) -> ServerBuilder {
         self.args = Some(args);
         self
