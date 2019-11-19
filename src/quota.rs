@@ -1,3 +1,5 @@
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
+
 use crate::grpc_sys::{self, grpc_resource_quota};
 use std::ffi::CString;
 use std::ptr;
