@@ -28,6 +28,7 @@ use grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate log;
 
+mod buf;
 mod call;
 mod channel;
 mod client;

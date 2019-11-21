@@ -283,7 +283,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         config = config.header(path);
     }
 
-    config
+    let cfg = config
         .header("grpc_wrap.cc")
         .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
@@ -298,6 +298,11 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .whitelist_type(r"\bgrpcwrap_.*")
         .whitelist_type(r"\bcensus_context.*")
         .whitelist_type(r"\bverify_peer_options.*")
+        .whitelist_type(r"(__)?uint8_t")
+        .whitelist_type(r"(__darwin_)?size_t")
+        .whitelist_type(r"(__)?uint32_t")
+        .whitelist_type(r"(__)?int64_t")
+        .whitelist_type(r"(__)?int32_t")
         .blacklist_function(r"\bgpr_mu_.*")
         .blacklist_function(r"\bgpr_cv_.*")
         .blacklist_function(r"\bgpr_once_.*")
@@ -305,11 +310,11 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .blacklist_type(r"gpr_cv")
         .blacklist_type(r"gpr_once")
         .constified_enum_module(r"grpc_status_code")
-        .no_copy("grpc_slice")
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
-        })
-        .generate()
+        });
+    println!("running {}", cfg.command_line_flags().join(" "));
+    cfg.generate()
         .expect("Unable to generate grpc bindings")
         .write_to_file(file_path)
         .expect("Couldn't write bindings!");
