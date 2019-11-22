@@ -4,7 +4,7 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::{cmp, ptr, slice};
+use std::{ptr, slice};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
