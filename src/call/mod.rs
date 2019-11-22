@@ -631,7 +631,6 @@ impl SinkBase {
 
         self.buf.clear();
         ser(t, &mut self.buf);
-
         if flags.get_buffer_hint() && self.send_metadata {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
