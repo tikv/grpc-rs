@@ -640,9 +640,8 @@ impl SinkBase {
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
         })?;
         // NOTE: Content of `self.buf` is copied into grpc internal.
-        if self.buf.capacity() > BUF_SHRINK_SIZE {
-            self.buf = Vec::with_capacity(BUF_SHRINK_SIZE);
-        }
+        self.buf.truncate(BUF_SHRINK_SIZE);
+        self.buf.shrink_to_fit();
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
