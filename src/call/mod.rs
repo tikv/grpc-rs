@@ -631,10 +631,6 @@ impl SinkBase {
 
         self.buf.clear();
         ser(t, &mut self.buf);
-        let shrink_to = cmp::max(self.buf.len() << 1, BUF_SHRINK_SIZE);
-        if self.buf.capacity() > shrink_to {
-            self.buf.shrink_to(shrink_to);
-        }
 
         if flags.get_buffer_hint() && self.send_metadata {
             // temporary fix: buffer hint with send meta will not send out any metadata.
@@ -644,6 +640,10 @@ impl SinkBase {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
         })?;
+        // NOTE: Content of `self.buf` is copied into grpc internal.
+        if self.buf.capacity() > BUF_SHRINK_SIZE {
+            self.buf = Vec::with_capacity(BUF_SHRINK_SIZE);
+        }
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
