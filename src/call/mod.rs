@@ -4,7 +4,7 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::{ptr, slice};
+use std::{cmp, ptr, slice};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
@@ -16,6 +16,9 @@ use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
+
+// By default buffers in `SinkBase` will be shrink to 4K size.
+const BUF_SHRINK_SIZE: usize = 1 << 12;
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -628,6 +631,11 @@ impl SinkBase {
 
         self.buf.clear();
         ser(t, &mut self.buf);
+        let shrink_to = cmp::max(self.buf.len() << 1, BUF_SHRINK_SIZE);
+        if self.buf.capacity() > shrink_to {
+            self.buf.shrink_to(shrink_to);
+        }
+
         if flags.get_buffer_hint() && self.send_metadata {
             // temporary fix: buffer hint with send meta will not send out any metadata.
             flags = flags.buffer_hint(false);
