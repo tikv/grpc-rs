@@ -31,11 +31,9 @@ before_script:
       brew update && brew install autoconf libtool shtool;
     fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
-      (
-        brew update && brew install openssl -f &&
-        export OPENSSL_ROOT_DIR=$(brew --prefix openssl) &&
-        export LIBRARY_PATH="$(brew --prefix openssl)/lib"
-      );
+      brew update && brew install openssl -f;
+      export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
+      export LIBRARY_PATH="$(brew --prefix openssl)/lib";
     else
       sudo apt-get update && sudo apt-get -y install libssl-dev;
     fi
@@ -60,6 +58,6 @@ script:
   - cargo build --no-default-features --features protobuf-codec
   - cargo build
   - cargo test --all
-  - cargo test --features "openssl" --all
+  - cargo test --features "openssl" --all -vvv
   - cargo test --features "openssl-vendored" --all
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
