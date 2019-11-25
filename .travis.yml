@@ -5,9 +5,6 @@ cache:
   directories:
     - $HOME/.cargo
     - $HOME/.cache
-    - $TRAVIS_BUILD_DIR/target
-before_cache:
-  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
 
 env:
   global:
@@ -33,7 +30,7 @@ before_script:
       brew update && brew install autoconf libtool shtool;
     fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
-      brew update && brew install openssl;
+      brew update && brew install openssl -f;
       export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
     else
       sudo apt-get update && sudo apt-get -y install libssl-dev;
@@ -61,3 +58,4 @@ script:
   - cargo test --all
   - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
   - cargo test --features "openssl" --all
+  - cargo test --features "openssl-vendored" --all

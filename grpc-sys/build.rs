@@ -16,6 +16,8 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::env::VarError;
+use std::io::prelude::*;
+use std::io::BufReader;
 use std::path::Path;
 use std::{env, fs, io};
 
@@ -64,8 +66,18 @@ fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
     Ok(entries.next().is_none())
 }
 
+fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    if s.starts_with(prefix) {
+        Some(s.trim_start_matches(prefix))
+    } else {
+        None
+    }
+}
+
 fn build_grpc(cc: &mut Build, library: &str) {
     prepare_grpc();
+
+    let mut third_party = vec!["cares/cares/lib", "zlib"];
 
     let dst = {
         let mut config = Config::new("grpc");
@@ -136,18 +148,15 @@ fn build_grpc(cc: &mut Build, library: &str) {
             // support alpn. And Google's gRPC checks for support of ALPN in plane
             // old Makefile, but not in CMake.
             config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
+            setup_openssl(&mut config)
+        } else if cfg!(feature = "secure") {
+            third_party.extend_from_slice(&["boringssl/ssl", "boringssl/crypto"]);
         }
         config.build_target(library).uses_cxx11().build()
     };
 
     let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
-    let third_party = vec![
-        "cares/cares/lib",
-        "zlib",
-        "boringssl/ssl",
-        "boringssl/crypto",
-    ];
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
             "bench" | "release" => {
@@ -183,9 +192,8 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        if cfg!(feature = "openssl") {
-            println!("cargo:rustc-link-lib=ssl");
-            println!("cargo:rustc-link-lib=crypto");
+        if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
+            figure_ssl_path(&build_dir);
         } else {
             println!("cargo:rustc-link-lib=static=ssl");
             println!("cargo:rustc-link-lib=static=crypto");
@@ -194,6 +202,55 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     cc.include("grpc/include");
 }
+
+fn figure_ssl_path(build_dir: &str) {
+    let path = format!("{}/CMakeCache.txt", build_dir);
+    let f = BufReader::new(std::fs::File::open(&path).unwrap());
+    let mut cnt = 0;
+    for l in f.lines() {
+        let l = l.unwrap();
+        let t = trim_start(&l, "OPENSSL_CRYPTO_LIBRARY:FILEPATH=")
+            .or_else(|| trim_start(&l, "OPENSSL_SSL_LIBRARY:FILEPATH="));
+        if let Some(s) = t {
+            let path = Path::new(s);
+            println!(
+                "cargo:rustc-link-search=native={}",
+                path.parent().unwrap().display()
+            );
+            cnt += 1;
+        }
+    }
+    if cnt != 2 {
+        panic!(
+            "CMake cache invalid, file {} contains {} ssl keys!",
+            path, cnt
+        );
+    }
+    println!("cargo:rustc-link-lib=ssl");
+    println!("cargo:rustc-link-lib=crypto");
+}
+
+#[cfg(feature = "openssl-vendored")]
+fn setup_openssl(config: &mut Config) {
+    // openssl-sys uses openssl-src to build the library. openssl-src uses
+    // configure/make to build the library which makes it hard to detect
+    // what's the actual path of the library. Here assumes the directory
+    // structure as follow (which is the behavior of 0.9.47):
+    // install_dir/
+    //     include/
+    //     lib/
+    // Remove the hack when sfackler/rust-openssl#1117 is resolved.
+    config.register_dep("openssl");
+    if env::var("DEP_OPENSSL_ROOT").is_err() {
+        let include_str = env::var("DEP_OPENSSL_INCLUDE").unwrap();
+        let include_dir = Path::new(&include_str);
+        let root_dir = format!("{}", include_dir.parent().unwrap().display());
+        env::set_var("DEP_OPENSSL_ROOT", &root_dir);
+    }
+}
+
+#[cfg(not(feature = "openssl-vendored"))]
+fn setup_openssl(_config: &mut Config) {}
 
 fn get_env(name: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={}", name);
