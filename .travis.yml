@@ -5,6 +5,7 @@ cache:
   directories:
     - $HOME/.cargo
     - $HOME/.cache
+    - $TRAVIS_BUILD_DIR/target
 
 env:
   global:
@@ -30,7 +31,7 @@ before_script:
       brew update && brew install autoconf libtool shtool;
     fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
-      brew update && brew install openssl -f;
+      brew update && brew install openssl;
       export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
     else
       sudo apt-get update && sudo apt-get -y install libssl-dev;
