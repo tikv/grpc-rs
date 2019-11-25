@@ -31,8 +31,9 @@ before_script:
       brew update && brew install autoconf libtool shtool;
     fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
-      brew update && brew install openssl;
+      brew update && brew install openssl -f;
       export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
+      export LIBRARY_PATH="$(brew --prefix openssl)/lib";
     else
       sudo apt-get update && sudo apt-get -y install libssl-dev;
     fi
@@ -47,7 +48,7 @@ before_script:
   - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-  - export LIBRARY_PATH="$HOME/.cache/lib"
+  - export LIBRARY_PATH="$HOME/.cache/lib":$LIBRARY_PATH
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
 script:

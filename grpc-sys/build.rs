@@ -222,8 +222,10 @@ fn figure_ssl_path(build_dir: &str) {
     }
     if cnt != 2 {
         panic!(
-            "CMake cache invalid, file {} contains {} ssl keys!",
-            path, cnt
+            "CMake cache invalid, file {} contains {} ssl keys!\nCMakeCache.txt:\n{}",
+            path,
+            cnt,
+            std::fs::read_to_string(&path).unwrap()
         );
     }
     println!("cargo:rustc-link-lib=ssl");
