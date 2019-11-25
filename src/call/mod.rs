@@ -28,6 +28,9 @@ use error::{Error, Result};
 
 pub use grpc_sys::GrpcStatusCode as RpcStatusCode;
 
+// By default buffers in `SinkBase` will be shrink to 4K size.
+const BUF_SHRINK_SIZE: usize = 4 * 1024;
+
 /// Method types supported by gRPC.
 #[derive(Clone, Copy)]
 pub enum MethodType {
@@ -593,6 +596,11 @@ impl SinkBase {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
         })?;
+        // NOTE: Content of `self.buf` is copied into grpc internal.
+        if self.buf.capacity() > BUF_SHRINK_SIZE {
+            self.buf.truncate(BUF_SHRINK_SIZE);
+            self.buf.shrink_to_fit();
+        }
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
