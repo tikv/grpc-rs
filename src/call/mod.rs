@@ -17,6 +17,9 @@ use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
+// By default buffers in `SinkBase` will be shrink to 4K size.
+const BUF_SHRINK_SIZE: usize = 4 * 1024;
+
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
 #[derive(PartialEq, Clone, Copy, Debug)]
@@ -636,6 +639,11 @@ impl SinkBase {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
         })?;
+        // NOTE: Content of `self.buf` is copied into grpc internal.
+        if self.buf.capacity() > BUF_SHRINK_SIZE {
+            self.buf.truncate(BUF_SHRINK_SIZE);
+            self.buf.shrink_to_fit();
+        }
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
