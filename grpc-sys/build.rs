@@ -153,6 +153,8 @@ fn build_grpc(cc: &mut Build, library: &str) {
             third_party.extend_from_slice(&["boringssl/ssl", "boringssl/crypto"]);
         }
         // config.very_verbose(true);
+        // Make CMakeCache.txt up to date.
+        config.always_configure(true);
         config.build_target(library).uses_cxx11().build()
     };
 
