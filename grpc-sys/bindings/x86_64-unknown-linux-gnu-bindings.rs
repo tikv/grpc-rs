@@ -143,10 +143,6 @@ pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &'static [u8; 33usize] =
 pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &'static [u8; 31usize] =
     b"GOOGLE_APPLICATION_CREDENTIALS\0";
 pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
-pub type __uint8_t = ::std::os::raw::c_uchar;
-pub type __int32_t = ::std::os::raw::c_int;
-pub type __uint32_t = ::std::os::raw::c_uint;
-pub type __int64_t = ::std::os::raw::c_long;
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC"]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
