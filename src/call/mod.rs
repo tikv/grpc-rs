@@ -228,7 +228,7 @@ fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
 }
 
 /// A helper function that runs the batch call and checks the result.
-fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
+fn check_run<F>(bt: BatchType, f: F) -> (BatchFuture, *mut CallTag)
 where
     F: FnOnce(*mut grpcwrap_batch_context, *mut c_void) -> grpc_call_error,
 {
@@ -236,12 +236,28 @@ where
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
     let code = f(batch_ptr, tag_ptr);
     if code != grpc_call_error::GRPC_CALL_OK {
-        unsafe {
-            Box::from_raw(tag_ptr);
-        }
+        drop(unsafe { Box::from_raw(tag_ptr) });
         panic!("create call fail: {:?}", code);
     }
-    cq_f
+    (cq_f, tag_ptr as *mut CallTag)
+}
+
+fn check_run_with_tag<F>(tag: *mut CallTag, f: F) -> (BatchFuture, *mut CallTag)
+where
+    F: FnOnce(*mut grpcwrap_batch_context, *mut c_void) -> grpc_call_error,
+{
+    unsafe {
+        let cq_f = match &*tag {
+            CallTag::Batch(promise) => promise.cq_future(),
+            _ => unreachable!(),
+        };
+        let ctx = (*tag).batch_ctx().unwrap().as_ptr();
+        let code = f(ctx, tag as *mut c_void);
+        if code != grpc_call_error::GRPC_CALL_OK {
+            panic!("create call fail: {:?}", code);
+        }
+        (cq_f, tag)
+    }
 }
 
 /// A Call represents an RPC.
@@ -271,7 +287,7 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
@@ -288,18 +304,26 @@ impl Call {
     /// Finish the rpc call from client.
     pub fn start_send_close_client(&mut self) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Finish, |_, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |_, tag| unsafe {
             grpc_sys::grpcwrap_call_send_close_from_client(self.call, tag)
         });
         Ok(f)
     }
 
     /// Receive a message asynchronously.
-    pub fn start_recv_message(&mut self) -> Result<BatchFuture> {
+    pub fn start_recv_message(&mut self, batch: &mut Option<Box<CallTag>>) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Read, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
-        });
+        let (f, tag) = if let Some(tag) = batch.take() {
+            let tag = Box::into_raw(tag);
+            check_run_with_tag(tag, |ctx, tag| unsafe {
+                grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
+            })
+        } else {
+            check_run(BatchType::Read, |ctx, tag| unsafe {
+                grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
+            })
+        };
+        *batch = Some(unsafe { Box::from_raw(tag) });
         Ok(f)
     }
 
@@ -308,7 +332,7 @@ impl Call {
     /// Future will finish once close is received by the server.
     pub fn start_server_side(&mut self) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
         });
         Ok(f)
@@ -327,7 +351,7 @@ impl Call {
         let (payload_ptr, payload_len) = payload
             .as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let details_ptr = status
                 .details
                 .as_ref()
@@ -487,7 +511,11 @@ struct StreamingBase {
     close_f: Option<BatchFuture>,
     msg_f: Option<BatchFuture>,
     read_done: bool,
+    tag: Option<Box<CallTag>>, // TODO(QUPENG): let Call holds it.
 }
+
+// Because it carrys a `CallTag`.
+unsafe impl Send for StreamingBase {}
 
 impl StreamingBase {
     fn new(close_f: Option<BatchFuture>) -> StreamingBase {
@@ -495,6 +523,7 @@ impl StreamingBase {
             close_f,
             msg_f: None,
             read_done: false,
+            tag: None,
         }
     }
 
@@ -539,7 +568,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.call(|c| c.call.start_recv_message())?;
+        let msg_f = call.call(|c| c.call.start_recv_message(&mut self.tag))?;
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)

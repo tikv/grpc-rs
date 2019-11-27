@@ -6,6 +6,7 @@ use std::sync::Arc;
 use super::Inner;
 use crate::call::{BatchContext, MessageReader, RpcStatusCode};
 use crate::error::Error;
+use crate::task::CqFuture;
 
 /// Batch job type.
 #[derive(PartialEq, Debug)]
@@ -36,6 +37,13 @@ impl Batch {
 
     pub fn context(&self) -> &BatchContext {
         &self.ctx
+    }
+
+    /// Create a future which will be notified after the batch is resolved.
+    pub fn cq_future(&self) -> CqFuture<Option<MessageReader>> {
+        let mut guard = self.inner.lock();
+        guard.reset();
+        CqFuture::new(self.inner.clone())
     }
 
     fn read_one_msg(&mut self, success: bool) {
@@ -82,7 +90,8 @@ impl Batch {
         task.map(|t| t.notify());
     }
 
-    pub fn resolve(mut self, success: bool) {
+    /// Return `true` means the tag can be reused.
+    pub fn resolve(&mut self, success: bool) -> bool {
         match self.ty {
             BatchType::CheckRead => {
                 assert!(success);
@@ -93,8 +102,10 @@ impl Batch {
             }
             BatchType::Read => {
                 self.read_one_msg(success);
+                return true;
             }
         }
+        false
     }
 }
 

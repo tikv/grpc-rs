@@ -104,7 +104,7 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
@@ -127,7 +127,7 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<(ClientCStreamSender<Req>, ClientCStreamReceiver<Resp>)> {
         let call = channel.create_call(method, &opt)?;
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
@@ -158,7 +158,7 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
@@ -187,7 +187,8 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<(ClientDuplexSender<Req>, ClientDuplexReceiver<Resp>)> {
         let call = channel.create_call(method, &opt)?;
-        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        // TODO(QUPENG): improve it.
+        let (cq_f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
@@ -457,7 +458,8 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
             // so msg_f must be either stale or not initialised yet.
             self.msg_f.take();
-            let msg_f = self.call.call(|c| c.call.start_recv_message())?;
+            // TODO(QUPENG): fix it.
+            let msg_f = self.call.call(|c| c.call.start_recv_message(&mut None))?;
             self.msg_f = Some(msg_f);
             if let Some(data) = bytes {
                 let msg = (self.resp_de)(data)?;

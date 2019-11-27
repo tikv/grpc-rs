@@ -13,7 +13,7 @@ use futures::{Async, Future, Poll};
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
-use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
+use self::promise::Shutdown as ShutdownPromise;
 use crate::call::server::RequestContext;
 use crate::call::{BatchContext, Call, MessageReader};
 use crate::cq::CompletionQueue;
@@ -22,7 +22,7 @@ use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
 pub use self::lock::SpinLock;
-pub use self::promise::BatchType;
+pub use self::promise::{Batch as BatchPromise, BatchType};
 
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
@@ -45,6 +45,12 @@ impl<T> NotifyHandle<T> {
         self.result = Some(res);
 
         self.task.take()
+    }
+
+    fn reset(&mut self) {
+        debug_assert!(self.task.is_none());
+        self.result = None;
+        self.stale = false;
     }
 }
 
@@ -168,17 +174,23 @@ impl CallTag {
             _ => None,
         }
     }
+}
 
-    /// Resolve the CallTag with given status.
-    pub fn resolve(self, cq: &CompletionQueue, success: bool) {
-        match self {
-            CallTag::Batch(prom) => prom.resolve(success),
-            CallTag::Request(cb) => cb.resolve(cq, success),
-            CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
-            CallTag::Abort(_) => {}
-            CallTag::Shutdown(prom) => prom.resolve(success),
-            CallTag::Spawn(notify) => self::executor::resolve(cq, notify, success),
+/// Resolve the CallTag with given status.
+pub fn resolve(tag: Box<CallTag>, cq: &CompletionQueue, success: bool) {
+    let raw = Box::into_raw(tag);
+    if let CallTag::Batch(ref mut prom) = unsafe { &mut *raw } {
+        if prom.resolve(success) {
+            return;
         }
+    }
+    match unsafe { *Box::from_raw(raw) } {
+        CallTag::Batch(_) => {} // Already handled on above.
+        CallTag::Request(cb) => cb.resolve(cq, success),
+        CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
+        CallTag::Abort(_) => {}
+        CallTag::Shutdown(prom) => prom.resolve(success),
+        CallTag::Spawn(notify) => self::executor::resolve(cq, notify, success),
     }
 }
 
@@ -218,11 +230,11 @@ mod tests {
         });
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        tag1.resolve(&env.pick_cq(), true);
+        resolve(Box::new(tag1), &env.pick_cq(), true);
         assert!(rx.recv().unwrap().is_ok());
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
-        tag2.resolve(&env.pick_cq(), false);
+        resolve(Box::new(tag2), &env.pick_cq(), false);
         match rx.recv() {
             Ok(Err(Error::ShutdownFailed)) => {}
             res => panic!("expect shutdown failed, but got {:?}", res),
