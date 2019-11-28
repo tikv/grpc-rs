@@ -5,6 +5,9 @@ cache:
   directories:
     - $HOME/.cargo
     - $HOME/.cache
+    - $TRAVIS_BUILD_DIR/target
+before_cache:
+  - find $TRAVIS_BUILD_DIR/target/debug -maxdepth 1 -type f -delete
 
 env:
   global:
@@ -26,12 +29,13 @@ before_script:
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
-      export CC=clang;
       brew update && brew install autoconf libtool shtool;
     fi
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then
       brew update && brew install openssl -f;
       export OPENSSL_ROOT_DIR=$(brew --prefix openssl);
+      export LIBRARY_PATH="$(brew --prefix openssl)/lib";
+      export CC=clang;
     else
       sudo apt-get update && sudo apt-get -y install libssl-dev;
     fi
@@ -46,7 +50,7 @@ before_script:
   - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-  - export LIBRARY_PATH="$HOME/.cache/lib"
+  - export LIBRARY_PATH="$HOME/.cache/lib":$LIBRARY_PATH
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
 script:
