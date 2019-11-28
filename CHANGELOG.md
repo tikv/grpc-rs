@@ -1,4 +1,4 @@
-# 0.4.7 - 2019-11-27
+# 0.4.7 - 2019-11-28
 
 - Fix a potential memory leak issue
 - Support openssl-vendored feature
