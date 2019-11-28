@@ -13,7 +13,7 @@ use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::task::{BatchFuture, BatchType, SpinLock};
+use crate::task::{BatchFuture, BatchType, CallTag, SpinLock};
 
 /// Update the flag bit in res.
 #[inline]
@@ -187,7 +187,6 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<(ClientDuplexSender<Req>, ClientDuplexReceiver<Resp>)> {
         let call = channel.create_call(method, &opt)?;
-        // TODO(QUPENG): improve it.
         let (cq_f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
@@ -411,7 +410,10 @@ struct ResponseStreamImpl<H, T> {
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
+    tag: *mut CallTag,
 }
+
+unsafe impl<H, T> Send for ResponseStreamImpl<H, T> {}
 
 impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
@@ -421,6 +423,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             read_done: false,
             finished: false,
             resp_de,
+            tag: ptr::null_mut(),
         }
     }
 
@@ -458,8 +461,8 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
             // so msg_f must be either stale or not initialised yet.
             self.msg_f.take();
-            // TODO(QUPENG): fix it.
-            let msg_f = self.call.call(|c| c.call.start_recv_message(&mut None))?;
+            let tag = &mut self.tag;
+            let msg_f = self.call.call(|c| c.call.start_recv_message(tag))?;
             self.msg_f = Some(msg_f);
             if let Some(data) = bytes {
                 let msg = (self.resp_de)(data)?;
@@ -473,6 +476,22 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     fn on_drop(&mut self) {
         if !self.read_done || !self.finished {
             self.cancel();
+        }
+    }
+}
+
+impl<H, T> Drop for ResponseStreamImpl<H, T> {
+    fn drop(&mut self) {
+        if self.tag.is_null() {
+            return;
+        }
+        let tag = unsafe { &*self.tag };
+        let in_resolving = match tag {
+            CallTag::Batch(ref prom) => prom.unref_batch(),
+            _ => unreachable!(),
+        };
+        if !in_resolving {
+            drop(unsafe { Box::from_raw(self.tag) });
         }
     }
 }

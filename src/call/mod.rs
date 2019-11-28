@@ -284,20 +284,32 @@ impl Call {
         msg: &[u8],
         write_flags: u32,
         initial_meta: bool,
+        batch: &mut *mut CallTag,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
-        let (f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(
-                self.call,
-                ctx,
-                msg.as_ptr() as _,
-                msg.len(),
-                write_flags,
-                i,
-                tag,
-            )
-        });
+        let c = self.call;
+        let ptr = msg.as_ptr() as _;
+        let len = msg.len();
+
+        let (f, tag) = if !batch.is_null() {
+            check_run_with_tag(*batch, |ctx, tag| unsafe {
+                match *(tag as *mut CallTag) {
+                    CallTag::Batch(ref prom) => prom.ref_batch(),
+                    _ => unreachable!(),
+                }
+                grpc_sys::grpcwrap_call_send_message(c, ctx, ptr, len, write_flags, i, tag)
+            })
+        } else {
+            check_run(BatchType::Finish, |ctx, tag| unsafe {
+                match *(tag as *mut CallTag) {
+                    CallTag::Batch(ref prom) => prom.ref_batch(),
+                    _ => unreachable!(),
+                }
+                grpc_sys::grpcwrap_call_send_message(c, ctx, ptr, len, write_flags, i, tag)
+            })
+        };
+        *batch = tag;
         Ok(f)
     }
 
@@ -311,19 +323,26 @@ impl Call {
     }
 
     /// Receive a message asynchronously.
-    pub fn start_recv_message(&mut self, batch: &mut Option<Box<CallTag>>) -> Result<BatchFuture> {
+    pub fn start_recv_message(&mut self, batch: &mut *mut CallTag) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let (f, tag) = if let Some(tag) = batch.take() {
-            let tag = Box::into_raw(tag);
-            check_run_with_tag(tag, |ctx, tag| unsafe {
+        let (f, tag) = if !batch.is_null() {
+            check_run_with_tag(*batch, |ctx, tag| unsafe {
+                match *(tag as *mut CallTag) {
+                    CallTag::Batch(ref prom) => prom.ref_batch(),
+                    _ => unreachable!(),
+                }
                 grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
             })
         } else {
             check_run(BatchType::Read, |ctx, tag| unsafe {
+                match *(tag as *mut CallTag) {
+                    CallTag::Batch(ref prom) => prom.ref_batch(),
+                    _ => unreachable!(),
+                }
                 grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
             })
         };
-        *batch = Some(unsafe { Box::from_raw(tag) });
+        *batch = tag;
         Ok(f)
     }
 
@@ -511,7 +530,9 @@ struct StreamingBase {
     close_f: Option<BatchFuture>,
     msg_f: Option<BatchFuture>,
     read_done: bool,
-    tag: Option<Box<CallTag>>, // TODO(QUPENG): let Call holds it.
+
+    // `tag` can be reused during the stream's lifetime.
+    tag: *mut CallTag,
 }
 
 // Because it carrys a `CallTag`.
@@ -523,7 +544,7 @@ impl StreamingBase {
             close_f,
             msg_f: None,
             read_done: false,
-            tag: None,
+            tag: ptr::null_mut(),
         }
     }
 
@@ -586,6 +607,22 @@ impl StreamingBase {
     }
 }
 
+impl Drop for StreamingBase {
+    fn drop(&mut self) {
+        if self.tag.is_null() {
+            return;
+        }
+        let tag = unsafe { &*self.tag };
+        let in_resolving = match tag {
+            CallTag::Batch(ref prom) => prom.unref_batch(),
+            _ => unreachable!(),
+        };
+        if !in_resolving {
+            drop(unsafe { Box::from_raw(self.tag) });
+        }
+    }
+}
+
 /// Flags for write operations.
 #[derive(Default, Clone, Copy)]
 pub struct WriteFlags {
@@ -632,7 +669,12 @@ struct SinkBase {
     batch_f: Option<BatchFuture>,
     buf: Vec<u8>,
     send_metadata: bool,
+
+    tag: *mut CallTag,
 }
+
+// Because it carrys a `CallTag`.
+unsafe impl Send for SinkBase {}
 
 impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
@@ -640,6 +682,7 @@ impl SinkBase {
             batch_f: None,
             buf: Vec::new(),
             send_metadata,
+            tag: ptr::null_mut(),
         }
     }
 
@@ -666,7 +709,7 @@ impl SinkBase {
         }
         let write_f = call.call(|c| {
             c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+                .start_send_message(&self.buf, flags.flags, self.send_metadata, &mut self.tag)
         })?;
         // NOTE: Content of `self.buf` is copied into grpc internal.
         if self.buf.capacity() > BUF_SHRINK_SIZE {

@@ -181,6 +181,7 @@ pub fn resolve(tag: Box<CallTag>, cq: &CompletionQueue, success: bool) {
     let raw = Box::into_raw(tag);
     if let CallTag::Batch(ref mut prom) = unsafe { &mut *raw } {
         if prom.resolve(success) {
+            // Return directly, skip to drop the `CallTag`.
             return;
         }
     }
