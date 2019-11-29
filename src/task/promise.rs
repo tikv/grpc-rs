@@ -102,6 +102,7 @@ impl Batch {
             }
             BatchType::Finish => {
                 self.finish_response(success);
+                drop(self.ctx.take_send_message());
                 return self.unref_batch();
             }
             BatchType::Read => {

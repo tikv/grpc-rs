@@ -182,6 +182,15 @@ impl BatchContext {
         }
     }
 
+    pub fn take_send_message(&self) -> Option<GrpcByteBuffer> {
+        let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_send_message(self.ctx) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { GrpcByteBuffer::from_raw(ptr) })
+        }
+    }
+
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
         let status = RpcStatusCode(unsafe {

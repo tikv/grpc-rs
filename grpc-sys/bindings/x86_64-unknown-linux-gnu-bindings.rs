@@ -5838,6 +5838,11 @@ extern "C" {
     pub fn grpcwrap_slice_length(slice: *const grpc_slice) -> usize;
 }
 extern "C" {
+    pub fn grpcwrap_batch_context_take_send_message(
+        ctx: *mut grpcwrap_batch_context,
+    ) -> *mut grpc_byte_buffer;
+}
+extern "C" {
     pub fn grpcwrap_batch_context_take_recv_message(
         ctx: *mut grpcwrap_batch_context,
     ) -> *mut grpc_byte_buffer;
