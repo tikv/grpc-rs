@@ -1,3 +1,8 @@
+# 0.4.7 - 2019-11-28
+
+- Fix a potential memory leak issue
+- Support openssl-vendored feature
+
 # 0.4.6 - 2019-10-26
 
 - support gcc 9.2
