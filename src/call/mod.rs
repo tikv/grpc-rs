@@ -739,3 +739,19 @@ impl SinkBase {
         Ok(Async::Ready(()))
     }
 }
+
+impl Drop for SinkBase {
+    fn drop(&mut self) {
+        if self.tag.is_null() {
+            return;
+        }
+        let tag = unsafe { &*self.tag };
+        let in_resolving = match tag {
+            CallTag::Batch(ref prom) => prom.unref_batch(),
+            _ => unreachable!(),
+        };
+        if !in_resolving {
+            drop(unsafe { Box::from_raw(self.tag) });
+        }
+    }
+}
