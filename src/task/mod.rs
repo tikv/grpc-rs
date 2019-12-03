@@ -195,6 +195,20 @@ pub fn resolve(tag: Box<CallTag>, cq: &CompletionQueue, success: bool) {
     }
 }
 
+/// Unref a `CallTag` which must be on heap.
+pub(crate) unsafe fn unref_raw_tag(tag: *mut CallTag) {
+    if tag.is_null() {
+        return;
+    }
+    let in_resolving = match *tag {
+        CallTag::Batch(ref prom) => prom.unref_batch(),
+        _ => false,
+    };
+    if !in_resolving {
+        drop(Box::from_raw(tag));
+    }
+}
+
 impl Debug for CallTag {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {

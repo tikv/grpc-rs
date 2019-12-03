@@ -13,7 +13,7 @@ use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::task::{BatchFuture, BatchType, CallTag, SpinLock};
+use crate::task::{unref_raw_tag, BatchFuture, BatchType, CallTag, SpinLock};
 
 /// Update the flag bit in res.
 #[inline]
@@ -482,17 +482,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
 impl<H, T> Drop for ResponseStreamImpl<H, T> {
     fn drop(&mut self) {
-        if self.tag.is_null() {
-            return;
-        }
-        let tag = unsafe { &*self.tag };
-        let in_resolving = match tag {
-            CallTag::Batch(ref prom) => prom.unref_batch(),
-            _ => unreachable!(),
-        };
-        if !in_resolving {
-            drop(unsafe { Box::from_raw(self.tag) });
-        }
+        unsafe { unref_raw_tag(self.tag) }
     }
 }
 

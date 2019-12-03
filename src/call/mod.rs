@@ -15,7 +15,7 @@ use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
-use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
+use crate::task::{self, unref_raw_tag, BatchFuture, BatchType, CallTag, SpinLock};
 
 // By default buffers in `SinkBase` will be shrink to 4K size.
 const BUF_SHRINK_SIZE: usize = 4 * 1024;
@@ -296,27 +296,21 @@ impl Call {
         batch: &mut *mut CallTag,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let i = if initial_meta { 1 } else { 0 };
-        let c = self.call;
         let ptr = msg.as_ptr() as _;
         let len = msg.len();
+        let i = if initial_meta { 1 } else { 0 };
+        let send_message = |ctx, tag| unsafe {
+            match *(tag as *mut CallTag) {
+                CallTag::Batch(ref prom) => prom.ref_batch(),
+                _ => unreachable!(),
+            }
+            grpc_sys::grpcwrap_call_send_message(self.call, ctx, ptr, len, write_flags, i, tag)
+        };
 
         let (f, tag) = if !batch.is_null() {
-            check_run_with_tag(*batch, |ctx, tag| unsafe {
-                match *(tag as *mut CallTag) {
-                    CallTag::Batch(ref prom) => prom.ref_batch(),
-                    _ => unreachable!(),
-                }
-                grpc_sys::grpcwrap_call_send_message(c, ctx, ptr, len, write_flags, i, tag)
-            })
+            check_run_with_tag(*batch, send_message)
         } else {
-            check_run(BatchType::Finish, |ctx, tag| unsafe {
-                match *(tag as *mut CallTag) {
-                    CallTag::Batch(ref prom) => prom.ref_batch(),
-                    _ => unreachable!(),
-                }
-                grpc_sys::grpcwrap_call_send_message(c, ctx, ptr, len, write_flags, i, tag)
-            })
+            check_run(BatchType::Finish, send_message)
         };
         *batch = tag;
         Ok(f)
@@ -334,22 +328,18 @@ impl Call {
     /// Receive a message asynchronously.
     pub fn start_recv_message(&mut self, batch: &mut *mut CallTag) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
+        let recv_message = |ctx, tag| unsafe {
+            match *(tag as *mut CallTag) {
+                CallTag::Batch(ref prom) => prom.ref_batch(),
+                _ => unreachable!(),
+            }
+            grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
+        };
+
         let (f, tag) = if !batch.is_null() {
-            check_run_with_tag(*batch, |ctx, tag| unsafe {
-                match *(tag as *mut CallTag) {
-                    CallTag::Batch(ref prom) => prom.ref_batch(),
-                    _ => unreachable!(),
-                }
-                grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
-            })
+            check_run_with_tag(*batch, recv_message)
         } else {
-            check_run(BatchType::Read, |ctx, tag| unsafe {
-                match *(tag as *mut CallTag) {
-                    CallTag::Batch(ref prom) => prom.ref_batch(),
-                    _ => unreachable!(),
-                }
-                grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
-            })
+            check_run(BatchType::Read, recv_message)
         };
         *batch = tag;
         Ok(f)
@@ -618,17 +608,7 @@ impl StreamingBase {
 
 impl Drop for StreamingBase {
     fn drop(&mut self) {
-        if self.tag.is_null() {
-            return;
-        }
-        let tag = unsafe { &*self.tag };
-        let in_resolving = match tag {
-            CallTag::Batch(ref prom) => prom.unref_batch(),
-            _ => unreachable!(),
-        };
-        if !in_resolving {
-            drop(unsafe { Box::from_raw(self.tag) });
-        }
+        unsafe { unref_raw_tag(self.tag) }
     }
 }
 
@@ -742,16 +722,6 @@ impl SinkBase {
 
 impl Drop for SinkBase {
     fn drop(&mut self) {
-        if self.tag.is_null() {
-            return;
-        }
-        let tag = unsafe { &*self.tag };
-        let in_resolving = match tag {
-            CallTag::Batch(ref prom) => prom.unref_batch(),
-            _ => unreachable!(),
-        };
-        if !in_resolving {
-            drop(unsafe { Box::from_raw(self.tag) });
-        }
+        unsafe { unref_raw_tag(self.tag) }
     }
 }

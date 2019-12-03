@@ -124,12 +124,6 @@ impl Batch {
     }
 }
 
-impl Drop for Batch {
-    fn drop(&mut self) {
-        self.unref_batch();
-    }
-}
-
 impl Debug for Batch {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Batch [{:?}]", self.ty)
