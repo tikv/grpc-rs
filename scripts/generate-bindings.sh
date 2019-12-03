@@ -7,3 +7,6 @@
 export UPDATE_BIND=1
 cargo build -p grpcio-sys --target x86_64-unknown-linux-gnu
 rustfmt grpc-sys/bindings/*
+if [ "$(uname -s)" == "Linux" ]; then
+  sed -i '/pub type .*= ::std::os::raw::.*/d' grpc-sys/bindings/*
+fi

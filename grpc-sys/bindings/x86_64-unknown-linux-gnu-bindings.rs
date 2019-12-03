@@ -143,10 +143,6 @@ pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &'static [u8; 33usize] =
 pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &'static [u8; 31usize] =
     b"GOOGLE_APPLICATION_CREDENTIALS\0";
 pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
-pub type __uint8_t = ::std::os::raw::c_uchar;
-pub type __int32_t = ::std::os::raw::c_int;
-pub type __uint32_t = ::std::os::raw::c_uint;
-pub type __int64_t = ::std::os::raw::c_long;
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC"]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -636,6 +632,11 @@ fn bindgen_test_layout_grpc_slice_grpc_slice_data() {
         )
     );
 }
+impl ::std::fmt::Debug for grpc_slice_grpc_slice_data {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(f, "grpc_slice_grpc_slice_data {{ union }}")
+    }
+}
 #[test]
 fn bindgen_test_layout_grpc_slice() {
     assert_eq!(
@@ -668,6 +669,15 @@ fn bindgen_test_layout_grpc_slice() {
             stringify!(data)
         )
     );
+}
+impl ::std::fmt::Debug for grpc_slice {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_slice {{ refcount: {:?}, data: {:?} }}",
+            self.refcount, self.data
+        )
+    }
 }
 #[doc = " Represents an expandable array of slices, to be interpreted as a"]
 #[doc = "single item."]
@@ -762,6 +772,11 @@ fn bindgen_test_layout_grpc_slice_buffer() {
         )
     );
 }
+impl ::std::fmt::Debug for grpc_slice_buffer {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write ! ( f , "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, count: {:?}, capacity: {:?}, length: {:?}, inlined: {:?} }}" , self . base_slices , self . slices , self . count , self . capacity , self . length , self . inlined )
+    }
+}
 #[repr(u32)]
 #[doc = " The clocks we support."]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -844,6 +859,7 @@ extern "C" {
     ) -> gpr_atm;
 }
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct gpr_event {
     pub state: gpr_atm,
 }
@@ -871,6 +887,7 @@ fn bindgen_test_layout_gpr_event() {
     );
 }
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct gpr_refcount {
     pub count: gpr_atm,
 }
@@ -898,6 +915,7 @@ fn bindgen_test_layout_gpr_refcount() {
     );
 }
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct gpr_stats_counter {
     pub value: gpr_atm,
 }
@@ -1468,6 +1486,11 @@ fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_bu
         )
     );
 }
+impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write ! ( f , "grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {{ compression: {:?}, slice_buffer: {:?} }}" , self . compression , self . slice_buffer )
+    }
+}
 #[test]
 fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data() {
     assert_eq!(
@@ -1513,6 +1536,11 @@ fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data() {
         )
     );
 }
+impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(f, "grpc_byte_buffer_grpc_byte_buffer_data {{ union }}")
+    }
+}
 #[test]
 fn bindgen_test_layout_grpc_byte_buffer() {
     assert_eq!(
@@ -1555,6 +1583,15 @@ fn bindgen_test_layout_grpc_byte_buffer() {
             stringify!(data)
         )
     );
+}
+impl ::std::fmt::Debug for grpc_byte_buffer {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_byte_buffer {{ reserved: {:?}, type: {:?}, data: {:?} }}",
+            self.reserved, self.type_, self.data
+        )
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1777,6 +1814,11 @@ fn bindgen_test_layout_grpc_arg_grpc_arg_value() {
         )
     );
 }
+impl ::std::fmt::Debug for grpc_arg_grpc_arg_value {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(f, "grpc_arg_grpc_arg_value {{ union }}")
+    }
+}
 #[test]
 fn bindgen_test_layout_grpc_arg() {
     assert_eq!(
@@ -1819,6 +1861,15 @@ fn bindgen_test_layout_grpc_arg() {
             stringify!(value)
         )
     );
+}
+impl ::std::fmt::Debug for grpc_arg {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_arg {{ type: {:?}, key: {:?}, value: {:?} }}",
+            self.type_, self.key, self.value
+        )
+    }
 }
 #[doc = " An array of arguments that can be passed around."]
 #[doc = ""]
@@ -2014,6 +2065,15 @@ fn bindgen_test_layout_grpc_metadata() {
         )
     );
 }
+impl ::std::fmt::Debug for grpc_metadata {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_metadata {{ key: {:?}, value: {:?}, flags: {:?}, internal_data: {:?} }}",
+            self.key, self.value, self.flags, self.internal_data
+        )
+    }
+}
 #[repr(u32)]
 #[doc = " The type of completion (for grpc_event)"]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -2207,6 +2267,11 @@ fn bindgen_test_layout_grpc_call_details() {
             stringify!(reserved)
         )
     );
+}
+impl ::std::fmt::Debug for grpc_call_details {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write ! ( f , "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, flags: {:?}, reserved: {:?} }}" , self . method , self . host , self . deadline , self . flags , self . reserved )
+    }
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -2834,6 +2899,11 @@ fn bindgen_test_layout_grpc_op_grpc_op_data() {
         )
     );
 }
+impl ::std::fmt::Debug for grpc_op_grpc_op_data {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(f, "grpc_op_grpc_op_data {{ union }}")
+    }
+}
 #[test]
 fn bindgen_test_layout_grpc_op() {
     assert_eq!(
@@ -2886,6 +2956,15 @@ fn bindgen_test_layout_grpc_op() {
             stringify!(data)
         )
     );
+}
+impl ::std::fmt::Debug for grpc_op {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_op {{ op: {:?}, flags: {:?}, reserved: {:?}, data: {:?} }}",
+            self.op, self.flags, self.reserved, self.data
+        )
+    }
 }
 #[doc = " Information requested from the channel."]
 #[repr(C)]
@@ -5429,6 +5508,14 @@ fn bindgen_test_layout_grpc_byte_buffer_reader_grpc_byte_buffer_reader_current()
         )
     );
 }
+impl ::std::fmt::Debug for grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {{ union }}"
+        )
+    }
+}
 #[test]
 fn bindgen_test_layout_grpc_byte_buffer_reader() {
     assert_eq!(
@@ -5475,6 +5562,15 @@ fn bindgen_test_layout_grpc_byte_buffer_reader() {
             stringify!(current)
         )
     );
+}
+impl ::std::fmt::Debug for grpc_byte_buffer_reader {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(
+            f,
+            "grpc_byte_buffer_reader {{ buffer_in: {:?}, buffer_out: {:?}, current: {:?} }}",
+            self.buffer_in, self.buffer_out, self.current
+        )
+    }
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -5589,6 +5685,11 @@ fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_2() {
         )
     );
 }
+impl ::std::fmt::Debug for grpcwrap_batch_context__bindgen_ty_2 {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write ! ( f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details )
+    }
+}
 #[test]
 fn bindgen_test_layout_grpcwrap_batch_context() {
     assert_eq!(
@@ -5691,6 +5792,11 @@ fn bindgen_test_layout_grpcwrap_batch_context() {
         )
     );
 }
+impl ::std::fmt::Debug for grpcwrap_batch_context {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write ! ( f , "grpcwrap_batch_context {{ send_initial_metadata: {:?}, send_message: {:?}, send_status_from_server: {:?}, recv_initial_metadata: {:?}, recv_message: {:?}, recv_status_on_client: {:?}, recv_close_on_server_cancelled: {:?} }}" , self . send_initial_metadata , self . send_message , self . send_status_from_server , self . recv_initial_metadata , self . recv_message , self . recv_status_on_client , self . recv_close_on_server_cancelled )
+    }
+}
 extern "C" {
     pub fn grpcwrap_batch_context_create() -> *mut grpcwrap_batch_context;
 }
@@ -5751,6 +5857,11 @@ fn bindgen_test_layout_grpcwrap_request_call_context() {
             stringify!(request_metadata)
         )
     );
+}
+impl ::std::fmt::Debug for grpcwrap_request_call_context {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write ! ( f , "grpcwrap_request_call_context {{ call: {:?}, call_details: {:?}, request_metadata: {:?} }}" , self . call , self . call_details , self . request_metadata )
+    }
 }
 extern "C" {
     pub fn grpcwrap_request_call_context_create() -> *mut grpcwrap_request_call_context;
