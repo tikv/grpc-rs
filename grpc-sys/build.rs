@@ -230,14 +230,16 @@ fn setup_libz(config: &mut Config) {
     config.register_dep("Z");
     // cmake script expect libz.a being under ${DEP_Z_ROOT}/lib, but libz-sys crate put it
     // under ${DEP_Z_ROOT}/build. Append the path to CMAKE_PREFIX_PATH to get around it.
-    env::set_var("CMAKE_PREFIX_PATH", {
-        let zlib_path = format!("{}/build", env::var("DEP_Z_ROOT").unwrap());
-        if let Ok(prefix_path) = env::var("CMAKE_PREFIX_PATH") {
-            format!("{};{}", prefix_path, zlib_path)
-        } else {
-            zlib_path
-        }
-    });
+    let zlib_root = env::var("DEP_Z_ROOT").unwrap();
+    let prefix_path = if let Ok(prefix_path) = env::var("CMAKE_PREFIX_PATH") {
+        format!("{};{}/build", prefix_path, zlib_root)
+    } else {
+        format!("{}/build", zlib_root)
+    };
+    // To avoid linking system library, set lib path explicitly.
+    println!("cargo:rustc-link-search=native={}/build", zlib_root);
+    println!("cargo:rustc-link-search=native={}/lib", zlib_root);
+    env::set_var("CMAKE_PREFIX_PATH", prefix_path);
 }
 
 #[cfg(feature = "openssl-vendored")]
