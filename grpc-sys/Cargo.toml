@@ -27,6 +27,7 @@ exclude = [
     "grpc/src/ruby/*",
     "grpc/vsprojects/*",
     "grpc/test/core/end2end/*",
+    "grpc/third_party/zlib/*",
     "grpc/third_party/abseil-cpp/*",
     "grpc/third_party/benchmark/*",
     "grpc/third_party/bloaty/*",
@@ -49,6 +50,7 @@ exclude = [
 [dependencies]
 libc = "0.2"
 openssl-sys = { version = "0.9", optional = true, features = ["vendored"] }
+libz-sys = { version = "1.0.25", features = ["static"] }
 
 [features]
 default = []
