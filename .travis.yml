@@ -16,7 +16,7 @@ rust:
 matrix:
   include:
   - os: windows
-    rust: stable
+    rust: stable-x86_64-pc-windows-msvc
     install:
       - mkdir -p $HOME/tools
       - export PATH="$HOME/tools/Go/bin:$HOME/tools/bin:$HOME/tools/perl/c/bin:$HOME/tools/perl/perl/bin/:$HOME/tools/perl/perl/site/bin:$PATH"
