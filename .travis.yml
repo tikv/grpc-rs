@@ -13,7 +13,7 @@ os:
 rust:
   - stable
   - beta
-  - nightly
+  - nightly-2019-09-05-x86_64-unknown-linux-gnu
 matrix:
   include:
   - os: osx
@@ -29,7 +29,8 @@ before_script:
   - export LIBRARY_PATH="$HOME/.cache/lib"
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 script:
-  - if [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then rustup component add clippy-preview --toolchain nightly && cargo clippy --all; fi
+  - if [[ $TRAVIS_RUST_VERSION == "nightly-2019-09-05-x86_64-unknown-linux-gnu" ]]; then rustup install $TRAVIS_RUST_VERSION && rustup default $TRAVIS_RUST_VERSION; fi
+  - if [[ $TRAVIS_RUST_VERSION == "nightly-2019-09-05-x86_64-unknown-linux-gnu" ]]; then rustup component add clippy-preview --toolchain $TRAVIS_RUST_VERSION && cargo clippy --all; fi
   - cargo build --no-default-features
   - cargo build --no-default-features --features protobuf-codec
   - cargo build
