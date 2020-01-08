@@ -6,8 +6,6 @@ use std::ffi::{c_void, CStr, CString};
 use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
 use std::mem::{self, ManuallyDrop, MaybeUninit};
-use std::ptr;
-use std::sync::atomic::{self, AtomicUsize, Ordering};
 
 /// A convenient rust wrapper for the type `grpc_slice`.
 ///
@@ -107,48 +105,9 @@ impl PartialEq<GrpcSlice> for GrpcSlice {
     }
 }
 
-/// `grpc_slice` use `grpc_slice_refcount` to trace the lifetime of inner data.
-///
-/// When ref count decreases to 0, there will be no access to the data.
-/// To utilize the mechanism, we need to define a struct which has
-/// `grpc_slice_refcount` type as the first field, so that it's safe to cast
-/// a pointer to the struct to `grpc_slice_refcount` and all ref/unref operations
-/// will be forwarded to our own implement.
-///
-/// Vec will be stored inside the struct so that it will be dropped automatically
-/// once the struct is dropped.
-///
-/// Note that the struct should not be moved if `sub_refcount` at `grpc_slice_refcount`
-/// points back to the `VecRefCount` itself.
-#[repr(C)]
-struct VecRefCount {
-    rc: grpc_slice_refcount,
-    refs: AtomicUsize,
-    v: Vec<u8>,
+unsafe extern "C" fn drop_vec(ptr: *mut c_void, len: usize) {
+    Vec::from_raw_parts(ptr as *mut u8, len, len);
 }
-
-unsafe extern "C" fn vec_ref(rc_ptr: *mut c_void) {
-    let rc_ptr = rc_ptr as *mut VecRefCount;
-    (*rc_ptr).refs.fetch_add(1, Ordering::Relaxed);
-}
-
-unsafe extern "C" fn vec_unref(rc_ptr: *mut c_void) {
-    let rc_ptr = rc_ptr as *mut VecRefCount;
-    if (*rc_ptr).refs.fetch_sub(1, Ordering::Release) != 1 {
-        return;
-    }
-
-    atomic::fence(Ordering::Acquire);
-    Box::from_raw(rc_ptr);
-}
-
-/// The global vtable for vec.
-const VEC_REF_COUNT_VTABLE: grpc_slice_refcount_vtable = grpc_slice_refcount_vtable {
-    ref_: Some(vec_ref),
-    unref: Some(vec_unref),
-    eq: Some(grpc_slice_default_eq_impl),
-    hash: Some(grpc_slice_default_hash_impl),
-};
 
 impl From<Vec<u8>> for GrpcSlice {
     /// Converts a `Vec<u8>` into `GrpcSlice`.
@@ -156,35 +115,23 @@ impl From<Vec<u8>> for GrpcSlice {
     /// If v can't fit inline, there will be allocations.
     #[inline]
     fn from(mut v: Vec<u8>) -> GrpcSlice {
-        let mut slice = GrpcSlice::default();
         if v.is_empty() {
-            return slice;
-        } else if v.len() <= mem::size_of_val(unsafe { &slice.0.data.inlined.bytes }) {
-            unsafe {
-                slice.0.data.inlined.length = v.len() as u8;
-                slice.0.data.inlined.bytes[..v.len()].copy_from_slice(&v);
-            }
-            return slice;
+            return GrpcSlice::default();
         }
-        unsafe {
-            slice.0.data = grpc_slice_grpc_slice_data {
-                refcounted: grpc_slice_grpc_slice_data_grpc_slice_refcounted {
-                    bytes: v.as_mut_ptr(),
-                    length: v.len(),
-                },
-            };
 
-            let mut ref_count = Box::new(VecRefCount {
-                rc: grpc_slice_refcount {
-                    vtable: &VEC_REF_COUNT_VTABLE,
-                    sub_refcount: ptr::null_mut(),
-                },
-                refs: AtomicUsize::new(1),
-                v,
-            });
-            ref_count.rc.sub_refcount = &mut ref_count.rc;
-            slice.0.refcount = Box::into_raw(mem::transmute(ref_count));
-            slice
+        if v.len() == v.capacity() {
+            let slice = unsafe {
+                grpcio_sys::grpc_slice_new_with_len(v.as_mut_ptr() as _, v.len(), Some(drop_vec))
+            };
+            mem::forget(v);
+            return GrpcSlice(slice);
+        }
+
+        unsafe {
+            GrpcSlice(grpcio_sys::grpc_slice_from_copied_buffer(
+                v.as_mut_ptr() as _,
+                v.len(),
+            ))
         }
     }
 }

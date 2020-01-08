@@ -178,6 +178,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static=address_sorting");
+    println!("cargo:rustc-link-lib=static=upb");
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
