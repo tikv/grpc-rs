@@ -1,5 +1,5 @@
 # 0.3.2 - 2020-01-08
-- fix a potential memory leak bug
+- shrink sink internal buffer if necessary
 
 # grpcio-sys 0.3.2 - 2019-09-10
 
