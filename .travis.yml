@@ -49,6 +49,7 @@ matrix:
 
   - os: osx
     rust: stable
+    osx_image: xcode10.2
 
 addons:
   apt:
