@@ -84,6 +84,7 @@ before_script:
         env prefix=$HOME/.cache make install_c
       );
     fi
+  - eval "$(gimme stable)"
   - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
