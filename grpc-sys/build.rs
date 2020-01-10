@@ -15,7 +15,7 @@ use cmake::Config;
 use pkg_config::{Config as PkgConfig, Library};
 use walkdir::WalkDir;
 
-const GRPC_VERSION: &'static str = "1.17.2";
+const GRPC_VERSION: &'static str = "1.26.0";
 
 fn probe_library(library: &str, cargo_metadata: bool) -> Library {
     match PkgConfig::new()
@@ -178,6 +178,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static=address_sorting");
+    println!("cargo:rustc-link-lib=static=upb");
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {

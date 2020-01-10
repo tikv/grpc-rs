@@ -49,6 +49,7 @@ matrix:
 
   - os: osx
     rust: stable
+    osx_image: xcode10.2
 
 addons:
   apt:
@@ -63,7 +64,7 @@ addons:
 
 before_script:
   - scripts/reset-submodule.cmd
-  - export GRPC_VERSION=1.17.2
+  - export GRPC_VERSION=1.26.0
   - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
   - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
   - if [[ $TRAVIS_OS_NAME == "osx" ]] && [[ ! -f $GRPC_HEADER ]]; then
@@ -84,6 +85,7 @@ before_script:
         env prefix=$HOME/.cache make install_c
       );
     fi
+  - eval "$(gimme stable)"
   - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
   - export LD_LIBRARY_PATH="$HOME/.cache/lib"
   - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
@@ -91,6 +93,7 @@ before_script:
   - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
 
 script:
+  - which go && go version
   - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
       rustup component add rustfmt && cargo fmt --all -- --check;
       scripts/generate-bindings.sh && git diff --exit-code HEAD;
