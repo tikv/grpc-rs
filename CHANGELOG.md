@@ -1,3 +1,6 @@
+# 0.3.2 - 2020-01-08
+- shrink sink internal buffer if necessary
+
 # grpcio-sys 0.3.2 - 2019-09-10
 
 - fix a segmentation fault bug in grpc c core
