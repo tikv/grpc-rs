@@ -22,12 +22,12 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use std::collections::HashMap;
+use std::io::Write;
 
 use protobuf;
 use protobuf::compiler_plugin;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
-use std::io::Write;
 
 struct CodeWriter<'a> {
     writer: &'a mut (dyn Write + 'a),
