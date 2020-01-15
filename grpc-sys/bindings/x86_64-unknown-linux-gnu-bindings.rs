@@ -6857,28 +6857,3 @@ extern "C" {
         tag: *mut ::std::os::raw::c_void,
     ) -> grpc_call_error;
 }
-extern "C" {
-    pub fn grpcwrap_override_default_ssl_roots(pem_root_certs: *const ::std::os::raw::c_char);
-}
-extern "C" {
-    pub fn grpcwrap_ssl_credentials_create(
-        pem_root_certs: *const ::std::os::raw::c_char,
-        key_cert_pair_cert_chain: *const ::std::os::raw::c_char,
-        key_cert_pair_private_key: *const ::std::os::raw::c_char,
-    ) -> *mut grpc_channel_credentials;
-}
-extern "C" {
-    pub fn grpcwrap_ssl_server_credentials_create(
-        pem_root_certs: *const ::std::os::raw::c_char,
-        key_cert_pair_cert_chain_array: *mut *const ::std::os::raw::c_char,
-        key_cert_pair_private_key_array: *mut *const ::std::os::raw::c_char,
-        num_key_cert_pairs: usize,
-        force_client_auth: ::std::os::raw::c_int,
-    ) -> *mut grpc_server_credentials;
-}
-extern "C" {
-    pub fn grpcwrap_sanity_check_slice(size: usize, align: usize);
-}
-extern "C" {
-    pub fn grpcwrap_sanity_check_byte_buffer_reader(size: usize, align: usize);
-}

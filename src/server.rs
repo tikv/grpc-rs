@@ -75,8 +75,8 @@ fn join_host_port(host: &str, port: u16) -> String {
 #[cfg(feature = "secure")]
 mod imp {
     use super::join_host_port;
-    use crate::credentials::ServerCredentials;
     use crate::grpc_sys::{self, grpc_server};
+    use crate::ServerCredentials;
 
     pub struct Binder {
         pub host: String,
@@ -338,7 +338,7 @@ impl ServerBuilder {
 
 #[cfg(feature = "secure")]
 mod secure_server {
-    use crate::credentials::ServerCredentials;
+    use crate::ServerCredentials;
 
     use super::{Binder, ServerBuilder};
 

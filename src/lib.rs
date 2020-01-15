@@ -34,13 +34,13 @@ mod channel;
 mod client;
 mod codec;
 mod cq;
-#[cfg(feature = "secure")]
-mod credentials;
 mod env;
 mod error;
 mod log_util;
 mod metadata;
 mod quota;
+#[cfg(feature = "secure")]
+mod security;
 mod server;
 mod task;
 
@@ -66,13 +66,13 @@ pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
 pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};
 
 pub use crate::codec::Marshaller;
-#[cfg(feature = "secure")]
-pub use crate::credentials::{
-    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
-};
 pub use crate::env::{EnvBuilder, Environment};
 pub use crate::error::{Error, Result};
 pub use crate::log_util::redirect_log;
 pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
 pub use crate::quota::ResourceQuota;
+#[cfg(feature = "secure")]
+pub use crate::security::{
+    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
+};
 pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
