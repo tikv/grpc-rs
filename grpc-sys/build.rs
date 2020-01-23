@@ -41,7 +41,6 @@ fn probe_library(library: &str, cargo_metadata: bool) -> Library {
 fn prepare_grpc() {
     let mut modules = vec![
         "grpc",
-        "grpc/third_party/zlib",
         "grpc/third_party/cares/cares",
         "grpc/third_party/address_sorting",
     ];
@@ -77,7 +76,7 @@ fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
 fn build_grpc(cc: &mut Build, library: &str) {
     prepare_grpc();
 
-    let mut third_party = vec!["cares/cares/lib", "zlib"];
+    let mut third_party = vec!["cares/cares/lib"];
 
     let dst = {
         let mut config = Config::new("grpc");
@@ -151,21 +150,16 @@ fn build_grpc(cc: &mut Build, library: &str) {
         } else if cfg!(feature = "secure") {
             third_party.extend_from_slice(&["boringssl/ssl", "boringssl/crypto"]);
         }
+        // Uses zlib from libz-sys.
+        setup_libz(&mut config);
         config.build_target(library).uses_cxx11().build()
     };
 
-    let mut zlib = "z";
     let build_dir = format!("{}/build", dst.display());
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
-            "bench" | "release" => {
-                zlib = "zlibstatic";
-                "Release"
-            }
-            _ => {
-                zlib = "zlibstaticd";
-                "Debug"
-            }
+            "bench" | "release" => "Release",
+            _ => "Debug",
         };
         println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
         for path in third_party {
@@ -184,7 +178,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
         }
     }
 
-    println!("cargo:rustc-link-lib=static={}", zlib);
+    println!("cargo:rustc-link-lib=static=z");
     println!("cargo:rustc-link-lib=static=cares");
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static=address_sorting");
@@ -229,6 +223,23 @@ fn figure_ssl_path(build_dir: &str) {
     }
     println!("cargo:rustc-link-lib=ssl");
     println!("cargo:rustc-link-lib=crypto");
+}
+
+fn setup_libz(config: &mut Config) {
+    config.define("gRPC_ZLIB_PROVIDER", "package");
+    config.register_dep("Z");
+    // cmake script expect libz.a being under ${DEP_Z_ROOT}/lib, but libz-sys crate put it
+    // under ${DEP_Z_ROOT}/build. Append the path to CMAKE_PREFIX_PATH to get around it.
+    let zlib_root = env::var("DEP_Z_ROOT").unwrap();
+    let prefix_path = if let Ok(prefix_path) = env::var("CMAKE_PREFIX_PATH") {
+        format!("{};{}/build", prefix_path, zlib_root)
+    } else {
+        format!("{}/build", zlib_root)
+    };
+    // To avoid linking system library, set lib path explicitly.
+    println!("cargo:rustc-link-search=native={}/build", zlib_root);
+    println!("cargo:rustc-link-search=native={}/lib", zlib_root);
+    env::set_var("CMAKE_PREFIX_PATH", prefix_path);
 }
 
 #[cfg(feature = "openssl-vendored")]

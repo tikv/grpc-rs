@@ -117,7 +117,7 @@ impl SpawnNotify {
     pub fn resolve(self, success: bool) {
         // it should always be canceled for now.
         assert!(success);
-        poll(&Arc::new(self.clone()), true);
+        poll(&Arc::new(self), true);
     }
 }
 
