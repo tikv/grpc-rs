@@ -108,11 +108,7 @@ impl<'a> Iterator for AuthPropertyIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // grpc_auth_property_iterator_next returns empty_iterator when self.iter is NULL
-        let prop = unsafe {
-            grpc_sys::grpc_auth_property_iterator_next(
-                &mut self.iter as *mut grpc_auth_property_iterator,
-            )
-        };
+        let prop = unsafe { grpc_sys::grpc_auth_property_iterator_next(&mut self.iter) };
         if prop.is_null() {
             None
         } else {
