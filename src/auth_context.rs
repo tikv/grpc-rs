@@ -27,33 +27,26 @@ pub struct AuthContext {
 }
 
 /// Binding to gRPC Core AuthContext
-/// If the server binds in non-secure mode, all functions will have a behaviour
-/// consistent with client not being authenticated, for ease of use and speed
 impl AuthContext {
-    /// Will be created even if grpc_call_auth_context is null
-    pub(crate) unsafe fn from_call_ptr(call: *mut grpc_call) -> Self {
+    pub(crate) unsafe fn from_call_ptr(call: *mut grpc_call) -> Option<Self> {
         let ctx = grpc_sys::grpc_call_auth_context(call);
-        AuthContext { ctx }
-    }
-
-    /// Whether gRPC Core returned an auth context.
-    pub fn is_auth_context_present(&self) -> bool {
-        !self.ctx.is_null()
+        if ctx.is_null() {
+            None
+        } else {
+            Some(AuthContext { ctx })
+        }
     }
 
     /// The name of the property gRPC Core has chosen as main peer identity property,
     /// if any.
     pub fn peer_identity_property_name(&self) -> Option<&str> {
-        if self.ctx.is_null() {
-            None
-        } else {
-            unsafe {
-                let p = grpc_sys::grpc_auth_context_peer_identity_property_name(self.ctx);
-                if p.is_null() {
-                    None
-                } else {
-                    Some(CStr::from_ptr(p).to_str().expect("valid UTF-8 data"))
-                }
+        assert!(!self.ctx.is_null());
+        unsafe {
+            let p = grpc_sys::grpc_auth_context_peer_identity_property_name(self.ctx);
+            if p.is_null() {
+                None
+            } else {
+                Some(CStr::from_ptr(p).to_str().expect("valid UTF-8 data"))
             }
         }
     }
@@ -62,17 +55,15 @@ impl AuthContext {
     /// considered valid by gRPC).
     /// `false` in non-secure scenarios.
     pub fn peer_is_authenticated(&self) -> bool {
-        if self.ctx.is_null() {
-            false
-        } else {
-            unsafe { grpc_sys::grpc_auth_context_peer_is_authenticated(self.ctx) != 0 }
-        }
+        assert!(!self.ctx.is_null());
+        unsafe { grpc_sys::grpc_auth_context_peer_is_authenticated(self.ctx) != 0 }
     }
 
     /// `AuthContext[peer_identity_property_name()]`
     ///
     /// There may be several of them (for instance if `x509_subject_alternative_name` is selected)
     pub fn peer_identity(&self) -> AuthPropertyIter {
+        assert!(!self.ctx.is_null());
         unsafe {
             // grpc_auth_context_peer_identity returns empty_iterator when self.ctx is NULL
             let iter = grpc_sys::grpc_auth_context_peer_identity(self.ctx);

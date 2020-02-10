@@ -22,20 +22,13 @@ impl Greeter for GreeterService {
         self.tx
             .send((
                 "AuthContextPresent".to_string(),
-                (if auth_context.is_auth_context_present() {
-                    "Y"
-                } else {
-                    "N"
-                })
-                .to_string(),
+                (if auth_context.is_some() { "Y" } else { "N" }).to_string(),
             ))
             .unwrap();
-        for (key, value) in ctx
-            .auth_context()
-            .into_iter()
-            .map(|x| x.str_pair().unwrap())
-        {
-            self.tx.send((key.to_owned(), value.to_owned())).unwrap();
+        if let Some(auth_context) = auth_context {
+            for (key, value) in auth_context.into_iter().map(|x| x.str_pair().unwrap()) {
+                self.tx.send((key.to_owned(), value.to_owned())).unwrap();
+            }
         }
 
         let mut resp = HelloReply::default();

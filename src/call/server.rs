@@ -165,7 +165,8 @@ impl RequestContext {
         }
     }
 
-    fn auth_context(&self) -> AuthContext {
+    /// If the server binds in non-secure mode, this will return None
+    fn auth_context(&self) -> Option<AuthContext> {
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
             AuthContext::from_call_ptr(call)
@@ -617,14 +618,8 @@ impl<'a> RpcContext<'a> {
 
     /// Wrapper around the gRPC Core AuthContext
     ///
-    /// Note that this doesn't return an option, for ease of use and performance
-    /// in secure binding scenarios.
-    /// (This has no use if the server binds in non-secure mode.)
-    ///
-    /// If the server binds in non-secure mode, methods will have a behaviour
-    /// consistent with client not being authenticated in a secure binding scenario.
-    /// (`peer_is_authenticated`=`false`, etc...)
-    pub fn auth_context(&self) -> AuthContext {
+    /// If the server binds in non-secure mode, this will return None
+    pub fn auth_context(&self) -> Option<AuthContext> {
         self.ctx.auth_context()
     }
 
