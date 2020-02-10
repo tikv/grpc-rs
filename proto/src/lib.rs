@@ -1,21 +1,30 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-#[allow(dead_code)]
-#[allow(clippy::all)]
 pub mod testing {
-    include!(concat!(env!("OUT_DIR"), "/grpc.testing.rs"));
-    include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.testing.rs"));
+    include!(concat!(env!("OUT_DIR"), "/testing/mod.rs"));
+
+    #[cfg(feature = "prost-codec")]
+    pub use self::grpc::testing::*;
+}
+
+pub mod example {
+    include!(concat!(env!("OUT_DIR"), "/example/mod.rs"));
+}
+
+pub mod health {
+    pub mod v1 {
+        include!(concat!(env!("OUT_DIR"), "/health/mod.rs"));
+
+        #[cfg(feature = "prost-codec")]
+        pub use self::grpc::health::v1::*;
+    }
+}
+
+#[cfg(feature = "prost-codec")]
+#[allow(clippy::large_enum_variant)]
+pub mod help {
+
+    use super::testing::*;
 
     // Wrapper functions for oneof fields.
     impl ClientArgs {
@@ -110,28 +119,6 @@ pub mod testing {
                 ::std::option::Option::Some(payload_config::Payload::BytebufParams(_)) => true,
                 _ => false,
             }
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub mod example {
-    pub mod helloworld {
-        include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
-        include!(concat!(env!("OUT_DIR"), "/wrapper_helloworld.rs"));
-    }
-    pub mod route_guide {
-        include!(concat!(env!("OUT_DIR"), "/routeguide.rs"));
-        include!(concat!(env!("OUT_DIR"), "/wrapper_routeguide.rs"));
-    }
-}
-
-#[allow(dead_code)]
-pub mod health {
-    pub mod v1 {
-        pub mod health {
-            include!(concat!(env!("OUT_DIR"), "/grpc.health.v1.rs"));
-            include!(concat!(env!("OUT_DIR"), "/wrapper_grpc.health.v1.rs"));
         }
     }
 }

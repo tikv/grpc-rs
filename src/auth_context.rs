@@ -5,7 +5,7 @@ use std::ffi::CStr;
 use std::marker::PhantomData;
 
 use crate::grpc_sys::{
-    self, GrpcAuthContext, GrpcAuthProperty, GrpcAuthPropertyIterator, GrpcCall,
+    self, grpc_auth_context, grpc_auth_property, grpc_auth_property_iterator, grpc_call,
 };
 
 /// To perform server-side authentication, gRPC exposes the authentication context
@@ -23,8 +23,8 @@ use crate::grpc_sys::{
 /// identity (e.g. for client certificate authentication this property will be
 /// `x509_common_name` or `x509_subject_alternative_name`).
 pub struct AuthContext<'a> {
-    ctx: *mut GrpcAuthContext,
-    _lifetime: PhantomData<&'a GrpcAuthContext>,
+    ctx: *mut grpc_auth_context,
+    _lifetime: PhantomData<&'a grpc_auth_context>,
 }
 
 /// Binding to gRPC Core AuthContext
@@ -32,7 +32,7 @@ pub struct AuthContext<'a> {
 /// consistent with client not being authenticated, for ease of use and speed
 impl<'a> AuthContext<'a> {
     /// Will be created even if grpc_call_auth_context is null
-    pub(crate) unsafe fn from_call_ptr(call: *mut GrpcCall) -> Self {
+    pub(crate) unsafe fn from_call_ptr(call: *mut grpc_call) -> Self {
         let ctx = grpc_sys::grpc_call_auth_context(call);
         AuthContext {
             ctx,
@@ -112,8 +112,8 @@ impl<'a> Drop for AuthContext<'a> {
 }
 
 pub struct AuthPropertyIter<'a> {
-    iter: GrpcAuthPropertyIterator,
-    _lifetime: PhantomData<&'a GrpcAuthPropertyIterator>,
+    iter: grpc_auth_property_iterator,
+    _lifetime: PhantomData<&'a grpc_auth_property_iterator>,
 }
 
 impl<'a> Iterator for AuthPropertyIter<'a> {
@@ -123,7 +123,7 @@ impl<'a> Iterator for AuthPropertyIter<'a> {
         // grpc_auth_property_iterator_next returns empty_iterator when self.iter is NULL
         let prop = unsafe {
             grpc_sys::grpc_auth_property_iterator_next(
-                &mut self.iter as *mut GrpcAuthPropertyIterator,
+                &mut self.iter as *mut grpc_auth_property_iterator,
             )
         };
         if prop.is_null() {
@@ -140,8 +140,8 @@ impl<'a> Iterator for AuthPropertyIter<'a> {
 /// Auth properties are elements of the AuthContext. They have a name
 /// (a key of type string) and a value which can be a string or binary data.
 pub struct AuthProperty<'a> {
-    prop: *const GrpcAuthProperty,
-    _lifetime: PhantomData<&'a GrpcAuthProperty>,
+    prop: *const grpc_auth_property,
+    _lifetime: PhantomData<&'a grpc_auth_property>,
 }
 
 impl<'a> AuthProperty<'a> {

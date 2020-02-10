@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 mod callback;
 mod executor;
@@ -23,7 +12,7 @@ use futures::task::{self, Task};
 use futures::{Async, Future, Poll};
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
-use self::executor::SpawnNotify;
+use self::executor::SpawnTask;
 use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
 use crate::call::server::RequestContext;
 use crate::call::{BatchContext, Call, MessageReader};
@@ -31,7 +20,7 @@ use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::server::RequestCallContext;
 
-pub(crate) use self::executor::{Executor, Kicker};
+pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
 pub use self::lock::SpinLock;
 pub use self::promise::BatchType;
 
@@ -126,7 +115,7 @@ pub enum CallTag {
     UnaryRequest(UnaryRequestCallback),
     Abort(Abort),
     Shutdown(ShutdownPromise),
-    Spawn(SpawnNotify),
+    Spawn(Arc<SpawnTask>),
 }
 
 impl CallTag {
@@ -188,7 +177,7 @@ impl CallTag {
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
-            CallTag::Spawn(notify) => notify.resolve(success),
+            CallTag::Spawn(notify) => self::executor::resolve(cq, notify, success),
         }
     }
 }

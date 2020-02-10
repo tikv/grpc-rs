@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 #[macro_use]
 extern crate log;
@@ -27,26 +16,26 @@ use std::time::Duration;
 
 use futures::{future, Future, Sink, Stream};
 use grpcio::*;
-use grpcio_proto::example::route_guide::RouteGuideClient;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
+use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
 use rand::Rng;
 
 fn new_point(lat: i32, lon: i32) -> Point {
-    let mut point = Point::new_();
+    let mut point = Point::default();
     point.set_latitude(lat);
     point.set_longitude(lon);
     point
 }
 
 fn new_rect(lat1: i32, lon1: i32, lat2: i32, lon2: i32) -> Rectangle {
-    let mut rect = Rectangle::new_();
+    let mut rect = Rectangle::default();
     rect.set_lo(new_point(lat1, lon1));
     rect.set_hi(new_point(lat2, lon2));
     rect
 }
 
 fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
-    let mut note = RouteNote::new_();
+    let mut note = RouteNote::default();
     note.set_location(new_point(lat, lon));
     note.set_message(msg.to_owned());
     note

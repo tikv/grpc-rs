@@ -1,0 +1,50 @@
+[package]
+name = "tests-and-examples"
+version = "0.1.0"
+edition = "2018"
+autoexamples = false
+
+[features]
+default = ["protobuf-codec"]
+protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
+prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec"]
+
+[dependencies]
+grpcio-sys = { path = "../grpc-sys", version = "0.5.0-alpha" }
+libc = "0.2"
+futures = "^0.1.15"
+protobuf = { version = "2.0", optional = true }
+prost = { version = "0.5", optional = true }
+bytes = { version = "0.4.11", optional = true }
+log = "0.4"
+grpcio = { path = "..", version = "0.5.0-alpha.3", default-features = false, features = ["secure"] }
+
+[dev-dependencies]
+serde_json = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+grpcio-proto = { path = "../proto", version = "0.5.0-alpha.3", default-features = false }
+rand = "0.4"
+slog = "2.0"
+slog-async = "2.1"
+slog-stdlog = "3.0"
+slog-scope = "4.0"
+slog-term = "2.2"
+
+[[example]]
+name = "route_guide_client"
+path = "examples/route_guide/client.rs"
+
+[[example]]
+name = "route_guide_server"
+path = "examples/route_guide/server.rs"
+
+[[example]]
+name = "greeter_client"
+path = "examples/hello_world/client.rs"
+
+[[example]]
+name = "greeter_server"
+path = "examples/hello_world/server.rs"
+
+

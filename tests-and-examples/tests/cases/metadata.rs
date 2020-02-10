@@ -1,19 +1,9 @@
-// Copyright 2018 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
@@ -34,7 +24,7 @@ impl Greeter for GreeterService {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
         }
 
-        let mut resp = HelloReply::new_();
+        let mut resp = HelloReply::default();
         resp.set_message(format!("hello {}", req.take_name()));
         ctx.spawn(
             sink.success(resp)
@@ -68,7 +58,7 @@ fn test_metadata() {
     let metadata = builder.build();
     let call_opt = CallOption::default().headers(metadata);
 
-    let mut req = HelloRequest::new_();
+    let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let resp = client.say_hello_opt(&req, call_opt).unwrap();
 

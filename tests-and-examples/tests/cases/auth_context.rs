@@ -1,6 +1,7 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
@@ -37,7 +38,7 @@ impl Greeter for GreeterService {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
         }
 
-        let mut resp = HelloReply::new_();
+        let mut resp = HelloReply::default();
         resp.set_message(format!("hello {}", req.take_name()));
         ctx.spawn(
             sink.success(resp)
@@ -73,11 +74,12 @@ fn test_auth_context() {
             CLIENT_KEY.as_bytes().to_owned(),
         )
         .build();
-    let ch =
-        ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), client_credentials);
+    let ch = ChannelBuilder::new(env)
+        .override_ssl_target("localhost")
+        .secure_connect(&format!("127.0.0.1:{}", port), client_credentials);
     let client = GreeterClient::new(ch);
 
-    let mut req = HelloRequest::new_();
+    let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let resp = client.say_hello(&req).unwrap();
 
@@ -124,10 +126,10 @@ fn test_no_crash_on_insecure() {
     server.start();
     let port = server.bind_addrs()[0].1;
 
-    let ch = ChannelBuilder::new(env).connect(&format!("localhost:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
-    let mut req = HelloRequest::new_();
+    let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let resp = client.say_hello(&req).unwrap();
 

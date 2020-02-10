@@ -1,88 +1,75 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 pub mod client;
 pub mod server;
 
-use std::io::{self, BufRead, ErrorKind, Read};
 use std::sync::Arc;
-use std::{cmp, mem, ptr, slice, usize};
+use std::{ptr, slice};
 
 use crate::cq::CompletionQueue;
-use crate::grpc_sys::{
-    self, GrpcBatchContext, GrpcByteBufferReader, GrpcCall, GrpcCallStatus, GrpcSlice,
-};
-#[cfg(feature = "prost-codec")]
-use bytes::Buf;
+use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
 use futures::{Async, Future, Poll};
 use libc::c_void;
 
+use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
+use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
 
-pub use crate::grpc_sys::GrpcStatusCode as RpcStatusCode;
+// By default buffers in `SinkBase` will be shrink to 4K size.
+const BUF_SHRINK_SIZE: usize = 4 * 1024;
 
-impl<'a> From<&'a mut GrpcByteBuffer> for GrpcByteBufferReader {
-    fn from(src: &'a mut GrpcByteBuffer) -> Self {
-        let mut reader;
-        unsafe {
-            reader = mem::zeroed();
-            let init_result = grpc_sys::grpc_byte_buffer_reader_init(&mut reader, src.raw);
-            assert_eq!(init_result, 1);
-        }
-        reader
+/// An gRPC status code structure.
+/// This type contains constants for all gRPC status codes.
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct RpcStatusCode(i32);
+
+impl From<i32> for RpcStatusCode {
+    fn from(code: i32) -> RpcStatusCode {
+        RpcStatusCode(code)
     }
 }
 
-pub struct GrpcByteBuffer {
-    pub raw: *mut grpc_sys::GrpcByteBuffer,
-}
-
-impl Default for GrpcByteBuffer {
-    fn default() -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_raw_byte_buffer_create(ptr::null_mut(), 0),
-            }
-        }
+impl Into<i32> for RpcStatusCode {
+    fn into(self) -> i32 {
+        self.0
     }
 }
 
-impl<'a> From<&'a mut [GrpcSlice]> for GrpcByteBuffer {
-    fn from(slice: &'a mut [GrpcSlice]) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_raw_byte_buffer_create(slice.as_mut_ptr(), slice.len()),
-            }
+macro_rules! status_codes {
+    (
+        $(
+            ($num:expr, $konst:ident);
+        )+
+    ) => {
+        impl RpcStatusCode {
+        $(
+            pub const $konst: RpcStatusCode = RpcStatusCode($num);
+        )+
         }
     }
 }
 
-impl Clone for GrpcByteBuffer {
-    fn clone(&self) -> Self {
-        unsafe {
-            GrpcByteBuffer {
-                raw: grpc_sys::grpc_byte_buffer_copy(self.raw),
-            }
-        }
-    }
-}
-
-impl Drop for GrpcByteBuffer {
-    fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_byte_buffer_destroy(self.raw) }
-    }
+status_codes! {
+    (GRPC_STATUS_OK, OK);
+    (GRPC_STATUS_CANCELLED, CANCELLED);
+    (GRPC_STATUS_UNKNOWN, UNKNOWN);
+    (GRPC_STATUS_INVALID_ARGUMENT, INVALID_ARGUMENT);
+    (GRPC_STATUS_DEADLINE_EXCEEDED, DEADLINE_EXCEEDED);
+    (GRPC_STATUS_NOT_FOUND, NOT_FOUND);
+    (GRPC_STATUS_ALREADY_EXISTS, ALREADY_EXISTS);
+    (GRPC_STATUS_PERMISSION_DENIED, PERMISSION_DENIED);
+    (GRPC_STATUS_RESOURCE_EXHAUSTED, RESOURCE_EXHAUSTED);
+    (GRPC_STATUS_FAILED_PRECONDITION, FAILED_PRECONDITION);
+    (GRPC_STATUS_ABORTED, ABORTED);
+    (GRPC_STATUS_OUT_OF_RANGE, OUT_OF_RANGE);
+    (GRPC_STATUS_UNIMPLEMENTED, UNIMPLEMENTED);
+    (GRPC_STATUS_INTERNAL, INTERNAL);
+    (GRPC_STATUS_UNAVAILABLE, UNAVAILABLE);
+    (GRPC_STATUS_DATA_LOSS, DATA_LOSS);
+    (GRPC_STATUS_UNAUTHENTICATED, UNAUTHENTICATED);
+    (GRPC_STATUS__DO_NOT_USE, DO_NOT_USE);
 }
 
 /// Method types supported by gRPC.
@@ -155,156 +142,24 @@ pub struct RpcStatus {
 
 impl RpcStatus {
     /// Create a new [`RpcStatus`].
-    pub fn new(status: RpcStatusCode, details: Option<String>) -> RpcStatus {
-        RpcStatus { status, details }
+    pub fn new<T: Into<RpcStatusCode>>(code: T, details: Option<String>) -> RpcStatus {
+        RpcStatus {
+            status: code.into(),
+            details,
+        }
     }
 
     /// Create a new [`RpcStatus`] that status code is Ok.
     pub fn ok() -> RpcStatus {
-        RpcStatus::new(RpcStatusCode::Ok, None)
+        RpcStatus::new(RpcStatusCode::OK, None)
     }
 }
 
-/// `MessageReader` is a zero-copy reader for the message payload.
-///
-/// To achieve zero-copy, use the BufRead API `fill_buf` and `consume`
-/// to operate the reader.
-pub struct MessageReader {
-    _buf: GrpcByteBuffer,
-    reader: GrpcByteBufferReader,
-    buffer_slice: GrpcSlice,
-    buffer_offset: usize,
-    length: usize,
-}
-
-impl MessageReader {
-    /// Get the available bytes count of the reader.
-    #[inline]
-    pub fn pending_bytes_count(&self) -> usize {
-        self.length
-    }
-}
-
-unsafe impl Sync for MessageReader {}
-unsafe impl Send for MessageReader {}
-
-impl Read for MessageReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let amt = {
-            let bytes = self.fill_buf()?;
-            if bytes.is_empty() {
-                return Ok(0);
-            }
-            let amt = cmp::min(buf.len(), bytes.len());
-            buf[..amt].copy_from_slice(&bytes[..amt]);
-            amt
-        };
-        self.consume(amt);
-        Ok(amt)
-    }
-
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
-        if self.length == 0 {
-            return Ok(0);
-        }
-        buf.reserve(self.length);
-        let start = buf.len();
-        let mut len = start;
-        unsafe {
-            buf.set_len(start + self.length);
-        }
-        let ret = loop {
-            match self.read(&mut buf[len..]) {
-                Ok(0) => break Ok(len - start),
-                Ok(n) => len += n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
-                Err(e) => break Err(e),
-            }
-        };
-        unsafe {
-            buf.set_len(len);
-        }
-        ret
-    }
-}
-
-impl BufRead for MessageReader {
-    fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        // Optimization for empty slice
-        if self.pending_bytes_count() == 0 {
-            return Ok(&[]);
-        }
-
-        // When finished reading current `buffer_slice`, start reading next slice
-        let buffer_len = self.buffer_slice.len();
-        if buffer_len == 0 || self.buffer_offset == buffer_len {
-            self.buffer_slice = self.reader.next_slice();
-            self.buffer_offset = 0;
-        }
-
-        debug_assert!(self.buffer_offset <= buffer_len);
-        Ok(self.buffer_slice.range_from(self.buffer_offset))
-    }
-
-    fn consume(&mut self, amt: usize) {
-        self.length -= amt;
-        self.buffer_offset += amt;
-    }
-}
-
-impl Drop for MessageReader {
-    fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpc_byte_buffer_reader_destroy(&mut self.reader);
-        }
-    }
-}
-
-#[cfg(feature = "prost-codec")]
-impl Buf for MessageReader {
-    fn remaining(&self) -> usize {
-        self.pending_bytes_count()
-    }
-
-    fn bytes(&self) -> &[u8] {
-        // This is similar but not identical to `BuffRead::fill_buf`, since `self`
-        // is not mutable, we can only return bytes up to the end of the current
-        // slice.
-
-        // Optimization for empty slice
-        if self.buffer_slice.is_empty() {
-            return &[];
-        }
-
-        debug_assert!(self.buffer_offset <= self.buffer_slice.len());
-        self.buffer_slice.range_from(self.buffer_offset)
-    }
-
-    fn advance(&mut self, mut cnt: usize) {
-        // Similar but not identical to `BufRead::consume`. We must also advance
-        // the buffer slice if we have exhausted the current slice.
-
-        // The number of bytes remaining in the current slice.
-        let mut remaining = self.buffer_slice.len() - self.buffer_offset;
-        while remaining <= cnt {
-            self.consume(remaining);
-            if self.pending_bytes_count() == 0 {
-                return;
-            }
-
-            cnt -= remaining;
-            self.buffer_slice = self.reader.next_slice();
-            self.buffer_offset = 0;
-            remaining = self.buffer_slice.len();
-        }
-
-        self.consume(cnt);
-    }
-}
+pub type MessageReader = GrpcByteBufferReader;
 
 /// Context for batch request.
 pub struct BatchContext {
-    ctx: *mut GrpcBatchContext,
+    ctx: *mut grpcwrap_batch_context,
 }
 
 impl BatchContext {
@@ -314,7 +169,7 @@ impl BatchContext {
         }
     }
 
-    pub fn as_ptr(&self) -> *mut GrpcBatchContext {
+    pub fn as_ptr(&self) -> *mut grpcwrap_batch_context {
         self.ctx
     }
 
@@ -323,15 +178,17 @@ impl BatchContext {
         if ptr.is_null() {
             None
         } else {
-            Some(GrpcByteBuffer { raw: ptr })
+            Some(unsafe { GrpcByteBuffer::from_raw(ptr) })
         }
     }
 
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
-        let status =
-            unsafe { grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx) };
-        let details = if status == RpcStatusCode::Ok {
+        let status = RpcStatusCode(unsafe {
+            grpc_sys::grpcwrap_batch_context_recv_status_on_client_status(self.ctx)
+        });
+
+        let details = if status == RpcStatusCode::OK {
             None
         } else {
             unsafe {
@@ -345,22 +202,13 @@ impl BatchContext {
             }
         };
 
-        RpcStatus { status, details }
+        RpcStatus::new(status, details)
     }
 
     /// Fetch the response bytes of the rpc call.
     pub fn recv_message(&mut self) -> Option<MessageReader> {
-        let mut buf = self.take_recv_message()?;
-        let reader = GrpcByteBufferReader::from(&mut buf);
-        let length = reader.len();
-
-        Some(MessageReader {
-            _buf: buf,
-            reader,
-            buffer_slice: Default::default(),
-            buffer_offset: 0,
-            length,
-        })
+        let buf = self.take_recv_message()?;
+        Some(GrpcByteBufferReader::new(buf))
     }
 }
 
@@ -371,7 +219,7 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
+fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
     let tag_box = Box::new(tag);
     (
         tag_box.batch_ctx().unwrap().as_ptr(),
@@ -382,12 +230,12 @@ fn box_batch_tag(tag: CallTag) -> (*mut GrpcBatchContext, *mut c_void) {
 /// A helper function that runs the batch call and checks the result.
 fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
 where
-    F: FnOnce(*mut GrpcBatchContext, *mut c_void) -> GrpcCallStatus,
+    F: FnOnce(*mut grpcwrap_batch_context, *mut c_void) -> grpc_call_error,
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
     let code = f(batch_ptr, tag_ptr);
-    if code != GrpcCallStatus::Ok {
+    if code != grpc_call_error::GRPC_CALL_OK {
         unsafe {
             Box::from_raw(tag_ptr);
         }
@@ -402,14 +250,14 @@ where
 /// set until it is invoked. After invoke, the Call can have messages
 /// written to it and read from it.
 pub struct Call {
-    pub call: *mut GrpcCall,
+    pub call: *mut grpc_call,
     pub cq: CompletionQueue,
 }
 
 unsafe impl Send for Call {}
 
 impl Call {
-    pub unsafe fn from_raw(call: *mut grpc_sys::GrpcCall, cq: CompletionQueue) -> Call {
+    pub unsafe fn from_raw(call: *mut grpc_sys::grpc_call, cq: CompletionQueue) -> Call {
         assert!(!call.is_null());
         Call { call, cq }
     }
@@ -488,7 +336,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
-                status.status,
+                status.status.into(),
                 details_ptr,
                 details_len,
                 ptr::null_mut(),
@@ -523,7 +371,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
                 batch_ptr,
-                status.status,
+                status.status.into(),
                 details_ptr,
                 details_len,
                 ptr::null_mut(),
@@ -534,7 +382,7 @@ impl Call {
                 tag_ptr as *mut c_void,
             )
         };
-        if code != GrpcCallStatus::Ok {
+        if code != grpc_call_error::GRPC_CALL_OK {
             unsafe {
                 Box::from_raw(tag_ptr);
             }
@@ -791,6 +639,11 @@ impl SinkBase {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
         })?;
+        // NOTE: Content of `self.buf` is copied into grpc internal.
+        if self.buf.capacity() > BUF_SHRINK_SIZE {
+            self.buf.truncate(BUF_SHRINK_SIZE);
+            self.buf.shrink_to_fit();
+        }
         self.batch_f = Some(write_f);
         self.send_metadata = false;
         Ok(true)
@@ -803,115 +656,5 @@ impl SinkBase {
 
         self.batch_f.take();
         Ok(Async::Ready(()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn make_message_reader(source: &[u8], n_slice: usize) -> MessageReader {
-        let mut slices = vec![From::from(source); n_slice];
-        let mut buf = GrpcByteBuffer::from(slices.as_mut_slice());
-        let reader = GrpcByteBufferReader::from(&mut buf);
-        let length = reader.len();
-
-        MessageReader {
-            _buf: buf,
-            reader,
-            buffer_slice: Default::default(),
-            buffer_offset: 0,
-            length,
-        }
-    }
-
-    #[test]
-    // Old code crashes under a very weird circumstance, due to a typo in `MessageReader::consume`
-    fn test_typo_len_offset() {
-        let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        // half of the size of `data`
-        const HALF_SIZE: usize = 4;
-        let mut reader = make_message_reader(&data, 1);
-        assert_eq!(reader.pending_bytes_count(), data.len());
-        // first 3 elements of `data`
-        let mut buf = [0; HALF_SIZE];
-        reader.read(&mut buf).unwrap();
-        assert_eq!(data[..HALF_SIZE], buf);
-        reader.read(&mut buf).unwrap();
-        assert_eq!(data[HALF_SIZE..], buf);
-    }
-
-    #[test]
-    fn test_message_reader() {
-        for len in 0..1024 + 1 {
-            for n_slice in 1..4 {
-                let source = vec![len as u8; len];
-                let expect = vec![len as u8; len * n_slice];
-                // Test read.
-                let mut reader = make_message_reader(&source, n_slice);
-                let mut dest = [0; 7];
-                let amt = reader.read(&mut dest).unwrap();
-
-                assert_eq!(
-                    dest[..amt],
-                    expect[..amt],
-                    "len: {}, nslice: {}",
-                    len,
-                    n_slice
-                );
-
-                // Read after move.
-                let mut box_reader = Box::new(reader);
-                let amt = box_reader.read(&mut dest).unwrap();
-                assert_eq!(
-                    dest[..amt],
-                    expect[..amt],
-                    "len: {}, nslice: {}",
-                    len,
-                    n_slice
-                );
-
-                // Test read_to_end.
-                let mut reader = make_message_reader(&source, n_slice);
-                let mut dest = vec![];
-                reader.read_to_end(&mut dest).unwrap();
-                assert_eq!(dest, expect, "len: {}, nslice: {}", len, n_slice);
-
-                assert_eq!(0, reader.pending_bytes_count());
-                assert_eq!(0, reader.read(&mut [1]).unwrap())
-            }
-        }
-    }
-
-    #[cfg(feature = "prost-codec")]
-    #[test]
-    fn test_buf_impl() {
-        for len in 0..1024 + 1 {
-            for n_slice in 1..4 {
-                let source = vec![len as u8; len];
-
-                let mut reader = make_message_reader(&source, n_slice);
-
-                let mut remaining = len * n_slice;
-                let mut count = 100;
-                while reader.remaining() > 0 {
-                    assert_eq!(remaining, reader.remaining());
-                    let bytes = Buf::bytes(&reader);
-                    bytes.iter().for_each(|b| assert_eq!(*b, len as u8));
-                    let mut read = bytes.len();
-                    // We don't have to advance by the whole amount we read.
-                    if read > 5 && len % 2 == 0 {
-                        read -= 5;
-                    }
-                    reader.advance(read);
-                    remaining -= read;
-                    count -= 1;
-                    assert!(count > 0);
-                }
-
-                assert_eq!(0, remaining);
-                assert_eq!(0, reader.remaining());
-            }
-        }
     }
 }

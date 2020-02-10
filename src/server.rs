@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
@@ -20,7 +9,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::grpc_sys::{self, GrpcCallStatus, GrpcServer};
+use crate::grpc_sys::{self, grpc_call_error, grpc_server};
 use futures::{Async, Future, Poll};
 
 use crate::call::server::*;
@@ -87,7 +76,7 @@ fn join_host_port(host: &str, port: u16) -> String {
 mod imp {
     use super::join_host_port;
     use crate::credentials::ServerCredentials;
-    use crate::grpc_sys::{self, GrpcServer};
+    use crate::grpc_sys::{self, grpc_server};
 
     pub struct Binder {
         pub host: String,
@@ -106,7 +95,7 @@ mod imp {
             Binder { host, port, cred }
         }
 
-        pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
+        pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
             let addr = join_host_port(&self.host, self.port);
             let port = match self.cred.take() {
                 None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
@@ -124,7 +113,7 @@ mod imp {
 #[cfg(not(feature = "secure"))]
 mod imp {
     use super::join_host_port;
-    use crate::grpc_sys::{self, GrpcServer};
+    use crate::grpc_sys::{self, grpc_server};
 
     pub struct Binder {
         pub host: String,
@@ -136,7 +125,7 @@ mod imp {
             Binder { host, port }
         }
 
-        pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
+        pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
             let addr = join_host_port(&self.host, self.port);
             grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _) as u16
         }
@@ -288,7 +277,6 @@ impl ServerBuilder {
     }
 
     /// Add additional configuration for each incoming channel.
-    #[doc(hidden)]
     pub fn channel_args(mut self, args: ChannelArgs) -> ServerBuilder {
         self.args = Some(args);
         self
@@ -371,7 +359,7 @@ mod secure_server {
 }
 
 struct ServerCore {
-    server: *mut GrpcServer,
+    server: *mut grpc_server,
     bind_addrs: Vec<(String, u16)>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
@@ -431,7 +419,7 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
             tag as *mut _,
         )
     };
-    if code != GrpcCallStatus::Ok {
+    if code != grpc_call_error::GRPC_CALL_OK {
         Box::from(tag);
         panic!("failed to request call: {:?}", code);
     }

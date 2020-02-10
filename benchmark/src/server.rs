@@ -1,24 +1,13 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use grpc::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, ShutdownFuture};
-use grpc_proto::testing::create_benchmark_service;
-use grpc_proto::testing::ServerStats;
-use grpc_proto::testing::{ServerConfig, ServerStatus, ServerType};
+use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
+use grpc_proto::testing::services_grpc::create_benchmark_service;
+use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::util as proto_util;
 
 use crate::bench::{self, Benchmark, Generic};
@@ -46,11 +35,11 @@ impl Server {
         let keep_running = Arc::new(AtomicBool::new(true));
         let keep_running1 = keep_running.clone();
         let service = match cfg.get_server_type() {
-            ServerType::AsyncServer => {
+            ServerType::ASYNC_SERVER => {
                 let b = Benchmark { keep_running };
                 create_benchmark_service(b)
             }
-            ServerType::AsyncGenericServer => {
+            ServerType::ASYNC_GENERIC_SERVER => {
                 let g = Generic { keep_running };
                 bench::create_generic_service(g)
             }
@@ -92,7 +81,7 @@ impl Server {
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
         let sample = self.recorder.cpu_time(reset);
 
-        let mut stats = ServerStats::new_();
+        let mut stats = ServerStats::default();
         stats.set_time_elapsed(sample.real_time);
         stats.set_time_user(sample.user_time);
         stats.set_time_system(sample.sys_time);
@@ -107,7 +96,7 @@ impl Server {
     }
 
     pub fn get_status(&self) -> ServerStatus {
-        let mut status = ServerStatus::new_();
+        let mut status = ServerStatus::default();
         status.set_port(i32::from(self.server.bind_addrs()[0].1));
         status.set_cores(util::cpu_num_cores() as i32);
         status

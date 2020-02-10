@@ -1,21 +1,12 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CStr;
 use std::sync::Arc;
 use std::{result, slice};
 
-use crate::grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallContext};
+use crate::grpc_sys::{
+    self, gpr_clock_type, gpr_timespec, grpc_call_error, grpcwrap_request_call_context,
+};
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
@@ -31,13 +22,13 @@ use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
 
 pub struct Deadline {
-    spec: GprTimespec,
+    spec: gpr_timespec,
 }
 
 impl Deadline {
-    fn new(spec: GprTimespec) -> Deadline {
+    fn new(spec: gpr_timespec) -> Deadline {
         let realtime_spec =
-            unsafe { grpc_sys::gpr_convert_clock_type(spec, GprClockType::Realtime) };
+            unsafe { grpc_sys::gpr_convert_clock_type(spec, gpr_clock_type::GPR_CLOCK_REALTIME) };
 
         Deadline {
             spec: realtime_spec,
@@ -46,7 +37,7 @@ impl Deadline {
 
     pub fn exceeded(&self) -> bool {
         unsafe {
-            let now = grpc_sys::gpr_now(GprClockType::Realtime);
+            let now = grpc_sys::gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME);
             grpc_sys::gpr_time_cmp(now, self.spec) >= 0
         }
     }
@@ -54,7 +45,7 @@ impl Deadline {
 
 /// Context for accepting a request.
 pub struct RequestContext {
-    ctx: *mut GrpcRequestCallContext,
+    ctx: *mut grpcwrap_request_call_context,
     request_call: Option<RequestCallContext>,
 }
 
@@ -106,7 +97,7 @@ impl RequestContext {
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(request_ctx);
             let code = grpc_sys::grpcwrap_call_recv_message(call, batch_ctx, tag_ptr as _);
-            if code != GrpcCallStatus::Ok {
+            if code != grpc_call_error::GRPC_CALL_OK {
                 Box::from_raw(tag_ptr);
                 // it should not failed.
                 panic!("try to receive message fail: {:?}", code);
@@ -118,7 +109,7 @@ impl RequestContext {
         self.request_call.take()
     }
 
-    pub fn as_ptr(&self) -> *mut GrpcRequestCallContext {
+    pub fn as_ptr(&self) -> *mut grpcwrap_request_call_context {
         self.ctx
     }
 
@@ -231,7 +222,7 @@ impl UnaryRequestContext {
             return execute(self.request, cq, reader, handler);
         }
 
-        let status = RpcStatus::new(RpcStatusCode::Internal, Some("No payload".to_owned()));
+        let status = RpcStatus::new(RpcStatusCode::INTERNAL, Some("No payload".to_owned()));
         self.request.call(cq.clone()).abort(&status)
     }
 }
@@ -677,7 +668,7 @@ pub fn execute_unary<P, Q, F>(
         Ok(f) => f,
         Err(e) => {
             let status = RpcStatus::new(
-                RpcStatusCode::Internal,
+                RpcStatusCode::INTERNAL,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
             call.abort(&status);
@@ -723,7 +714,7 @@ pub fn execute_server_streaming<P, Q, F>(
         Ok(t) => t,
         Err(e) => {
             let status = RpcStatus::new(
-                RpcStatusCode::Internal,
+                RpcStatusCode::INTERNAL,
                 Some(format!("Failed to deserialize response message: {:?}", e)),
             );
             call.abort(&status);
@@ -759,7 +750,7 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
     let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(&RpcStatus::new(RpcStatusCode::Unimplemented, None))
+    call.abort(&RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None))
 }
 
 // Helper function to call handler.

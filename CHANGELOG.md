@@ -1,3 +1,33 @@
+# grpcio-compiler 0.5.0-alpha.6 - 2019-11-13
+
+- Fix clippy warnings (#403)
+
+# 0.5.0-alpha.5 - 2019-11-05
+
+- Fix segment fault under race contention (#367)
+- grpcio-compiler: remove protobuf-codegen dependency (#372)
+- Add resource quota support (#377)
+- Make metadata send (#363)
+- Fix openssl link failure on Mac OS (#387)
+- Fix compilation failure for latest gcc (#386)
+- Fix deadlock when spawn multiple linked futures in the same queue (#395)
+
+# 0.5.0-alpha.4 - 2019-08-12
+
+- Make proto compile on Windows
+- Make status code readable
+- Remove clang requirement on x86_64 Linux
+
+# 0.5.0-alpha.3 - 2019-07-24
+
+- Fix circle dependencies to get round several cargo bugs
+- Fix generating bindgen failure
+
+# 0.5.0-alpha.2 - 2019-07-18
+
+- Support using vendored openssl
+- Use bindgen to generate code instead
+
 # 0.5.0-alpha.1 - 2019-04-08
 
 - Fix grpc_sys import when secure feature is disabled

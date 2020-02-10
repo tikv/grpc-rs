@@ -1,47 +1,25 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use grpcio::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
 
+#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
+use crate::testing::messages::{Payload, ResponseParameters};
+#[cfg(feature = "prost-codec")]
 use crate::testing::{Payload, ResponseParameters};
-use crate::testing::{Payload as ProstPayload, ResponseParameters as ProstResponseParams};
 
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
-    let mut payload = Payload::new_();
+    let mut payload = Payload::default();
     payload.set_body(vec![0; size]);
     payload
 }
-pub fn new_payload_prost(size: usize) -> ProstPayload {
-    ProstPayload {
-        r#type: 0,
-        body: vec![0; size],
-    }
-}
 
 pub fn new_parameters(size: i32) -> ResponseParameters {
-    let mut parameter = ResponseParameters::new_();
+    let mut parameter = ResponseParameters::default();
     parameter.set_size(size);
     parameter
-}
-pub fn new_parameters_prost(size: i32) -> ProstResponseParams {
-    ProstResponseParams {
-        size,
-        interval_us: 0,
-        compressed: None,
-    }
 }
 
 pub fn create_test_server_credentials() -> ServerCredentials {

@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,10 +12,10 @@ use futures::{future, Async, Future, Sink, Stream};
 use grpc::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
-use grpc_proto::testing::BenchmarkServiceClient;
-use grpc_proto::testing::ClientStats;
-use grpc_proto::testing::SimpleRequest;
-use grpc_proto::testing::{ClientConfig, ClientType, RpcType};
+use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
+use grpc_proto::testing::messages::SimpleRequest;
+use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
+use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
 use rand::distributions::Exp;
 use rand::distributions::Sample;
@@ -37,10 +26,10 @@ use crate::bench;
 use crate::error::Error;
 use crate::util::{self, CpuRecorder, Histogram};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
-    let mut req = SimpleRequest::new_();
+    let mut req = SimpleRequest::default();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
     req.set_payload(proto_util::new_payload(
@@ -318,20 +307,20 @@ fn execute<B: Backoff + Send + 'static>(
     cfg: &ClientConfig,
 ) {
     match client_type {
-        ClientType::SyncClient => {
+        ClientType::SYNC_CLIENT => {
             if cfg.get_payload_config().has_bytebuf_params() {
                 panic!("only async_client is supported for generic service.");
             }
             RequestExecutor::new(ctx, ch, cfg).execute_unary()
         }
-        ClientType::AsyncClient => match cfg.get_rpc_type() {
-            RpcType::Unary => {
+        ClientType::ASYNC_CLIENT => match cfg.get_rpc_type() {
+            RpcType::UNARY => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     panic!("only streaming is supported for generic service.");
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
-            RpcType::Streaming => {
+            RpcType::STREAMING => {
                 if cfg.get_payload_config().has_bytebuf_params() {
                     GenericExecutor::new(ctx, ch, cfg).execute_stream()
                 } else {
@@ -438,7 +427,7 @@ impl Client {
     }
 
     pub fn get_stats(&mut self, reset: bool) -> ClientStats {
-        let mut stats = ClientStats::new_();
+        let mut stats = ClientStats::default();
 
         let sample = self.recorder.cpu_time(reset);
         stats.set_time_elapsed(sample.real_time);

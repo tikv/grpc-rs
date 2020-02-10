@@ -1,31 +1,20 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CStr;
 
-use crate::grpc_sys::{self, GprLogFuncArgs, GprLogSeverity};
+use crate::grpc_sys::{self, gpr_log_func_args, gpr_log_severity};
 use log::{self, Level, LevelFilter, Record};
 
 #[inline]
-fn severity_to_log_level(severity: GprLogSeverity) -> Level {
+fn severity_to_log_level(severity: gpr_log_severity) -> Level {
     match severity {
-        GprLogSeverity::Debug => Level::Debug,
-        GprLogSeverity::Info => Level::Info,
-        GprLogSeverity::Error => Level::Error,
+        gpr_log_severity::GPR_LOG_SEVERITY_DEBUG => Level::Debug,
+        gpr_log_severity::GPR_LOG_SEVERITY_INFO => Level::Info,
+        gpr_log_severity::GPR_LOG_SEVERITY_ERROR => Level::Error,
     }
 }
 
-extern "C" fn delegate(c_args: *mut GprLogFuncArgs) {
+extern "C" fn delegate(c_args: *mut gpr_log_func_args) {
     let args = unsafe { &*c_args };
     let level = severity_to_log_level(args.severity);
     if !log_enabled!(level) {
@@ -56,9 +45,9 @@ pub fn redirect_log() {
             grpc_sys::gpr_set_log_function(None);
             return;
         },
-        LevelFilter::Error | LevelFilter::Warn => GprLogSeverity::Error,
-        LevelFilter::Info => GprLogSeverity::Info,
-        LevelFilter::Debug | LevelFilter::Trace => GprLogSeverity::Debug,
+        LevelFilter::Error | LevelFilter::Warn => gpr_log_severity::GPR_LOG_SEVERITY_ERROR,
+        LevelFilter::Info => gpr_log_severity::GPR_LOG_SEVERITY_INFO,
+        LevelFilter::Debug | LevelFilter::Trace => gpr_log_severity::GPR_LOG_SEVERITY_DEBUG,
     };
 
     unsafe {

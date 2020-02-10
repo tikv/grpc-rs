@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::sync::{Arc, Mutex};
 
@@ -17,10 +6,10 @@ use crate::error::Error;
 use futures::sync::oneshot::Sender;
 use futures::{future, Future, Sink, Stream};
 use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
-use grpc_proto::testing::WorkerService;
-use grpc_proto::testing::{
+use grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
+use grpc_proto::testing::services_grpc::WorkerService;
 
 use crate::client::Client;
 use crate::server::Server;
@@ -90,13 +79,13 @@ impl WorkerService for Worker {
                 let cfg = arg.as_ref().unwrap().get_setup();
                 info!("receive client setup: {:?}", cfg);
                 let client = Client::new(cfg);
-                sink.send((ClientStatus::new_(), WriteFlags::default()))
+                sink.send((ClientStatus::default(), WriteFlags::default()))
                     .and_then(|sink| {
                         stream.fold((sink, client), |(sink, mut client), arg| {
                             let mark = arg.get_mark();
                             info!("receive client mark: {:?}", mark);
                             let stats = client.get_stats(mark.get_reset());
-                            let mut status = ClientStatus::new_();
+                            let mut status = ClientStatus::default();
                             status.set_stats(stats);
                             sink.send((status, WriteFlags::default()))
                                 .map(|sink| (sink, client))
@@ -116,7 +105,7 @@ impl WorkerService for Worker {
 
     fn core_count(&mut self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
-        let mut resp = CoreResponse::new_();
+        let mut resp = CoreResponse::default();
         resp.set_cores(cpu_count as i32);
         ctx.spawn(
             sink.success(resp)
@@ -130,7 +119,7 @@ impl WorkerService for Worker {
             let _ = notifier.send(());
         }
         ctx.spawn(
-            sink.success(Void::new_())
+            sink.success(Void::default())
                 .map_err(|e| error!("failed to report quick worker: {:?}", e)),
         );
     }

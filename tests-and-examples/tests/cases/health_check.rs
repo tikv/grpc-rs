@@ -1,23 +1,13 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use futures::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;
+use grpcio_proto::health::v1::health_grpc::*;
 use std::collections::*;
 use std::sync::*;
 
-type StatusRegistry = HashMap<String, health_check_response::ServingStatus>;
+type StatusRegistry = HashMap<String, HealthCheckResponse_ServingStatus>;
 
 #[derive(Clone)]
 struct HealthService {
@@ -33,10 +23,10 @@ impl Health for HealthService {
     ) {
         let status = self.status.read().unwrap();
         let res = match status.get(req.get_service()) {
-            None => sink.fail(RpcStatus::new(RpcStatusCode::NotFound, None)),
+            None => sink.fail(RpcStatus::new(RpcStatusCode::NOT_FOUND, None)),
             Some(s) => {
-                let mut resp = HealthCheckResponse::new_();
-                resp.set_status_(*s);
+                let mut resp = HealthCheckResponse::default();
+                resp.set_status(*s);
                 sink.success(resp)
             }
         };
@@ -48,10 +38,10 @@ fn check_health(
     client: &HealthClient,
     status: &Arc<RwLock<StatusRegistry>>,
     service: &str,
-    exp: health_check_response::ServingStatus,
+    exp: HealthCheckResponse_ServingStatus,
 ) {
     status.write().unwrap().insert(service.to_owned(), exp);
-    let mut req = HealthCheckRequest::new_();
+    let mut req = HealthCheckRequest::default();
     req.set_service(service.to_owned());
     let status = client.check(&req).unwrap().get_status();
     assert_eq!(status, exp);
@@ -79,26 +69,26 @@ fn test_health_check() {
         &client,
         &status,
         "test",
-        health_check_response::ServingStatus::Serving,
+        HealthCheckResponse_ServingStatus::SERVING,
     );
     check_health(
         &client,
         &status,
         "test",
-        health_check_response::ServingStatus::NotServing,
+        HealthCheckResponse_ServingStatus::NOT_SERVING,
     );
     check_health(
         &client,
         &status,
         "test",
-        health_check_response::ServingStatus::Unknown,
+        HealthCheckResponse_ServingStatus::UNKNOWN,
     );
 
-    let mut req = HealthCheckRequest::new_();
+    let mut req = HealthCheckRequest::default();
     req.set_service("not-exist".to_owned());
     let err = client.check(&req).unwrap_err();
     match err {
-        Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::NotFound),
+        Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::NOT_FOUND),
         e => panic!("unexpected error: {:?}", e),
     }
 }

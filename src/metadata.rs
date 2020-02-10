@@ -1,17 +1,6 @@
-// Copyright 2018 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use crate::grpc_sys::{self, GrpcMetadataArray};
+use crate::grpc_sys::{self, grpc_metadata_array};
 use std::borrow::Cow;
 use std::{mem, slice, str};
 
@@ -150,14 +139,14 @@ impl MetadataBuilder {
 /// Metadata value can be ascii string or bytes. They are distinguish by the
 /// key suffix, key of bytes value should have suffix '-bin'.
 #[repr(C)]
-pub struct Metadata(GrpcMetadataArray);
+pub struct Metadata(grpc_metadata_array);
 
 impl Metadata {
     fn with_capacity(cap: usize) -> Metadata {
         unsafe {
-            let mut arr = mem::uninitialized();
-            grpc_sys::grpcwrap_metadata_array_init(&mut arr, cap);
-            Metadata(arr)
+            let mut arr = mem::MaybeUninit::uninit();
+            grpc_sys::grpcwrap_metadata_array_init(arr.as_mut_ptr(), cap);
+            Metadata(arr.assume_init())
         }
     }
 
@@ -217,6 +206,8 @@ impl Drop for Metadata {
         }
     }
 }
+
+unsafe impl Send for Metadata {}
 
 /// Immutable metadata iterator
 ///

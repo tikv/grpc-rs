@@ -1,21 +1,10 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CString;
 use std::ptr;
 
 use crate::error::{Error, Result};
-use crate::grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
+use crate::grpc_sys::{self, grpc_channel_credentials, grpc_server_credentials};
 use libc::c_char;
 
 fn clear_key_securely(key: &mut [u8]) {
@@ -120,11 +109,11 @@ impl Drop for ServerCredentialsBuilder {
 ///
 /// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
 pub struct ServerCredentials {
-    creds: *mut GrpcServerCredentials,
+    creds: *mut grpc_server_credentials,
 }
 
 impl ServerCredentials {
-    pub fn as_mut_ptr(&mut self) -> *mut GrpcServerCredentials {
+    pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {
         self.creds
     }
 }
@@ -216,11 +205,11 @@ impl Drop for ChannelCredentialsBuilder {
 /// Use [`ChannelCredentialsBuilder`] or [`ChannelCredentials::google_default_credentials`] to
 /// build a [`ChannelCredentials`].
 pub struct ChannelCredentials {
-    creds: *mut GrpcChannelCredentials,
+    creds: *mut grpc_channel_credentials,
 }
 
 impl ChannelCredentials {
-    pub fn as_mut_ptr(&mut self) -> *mut GrpcChannelCredentials {
+    pub fn as_mut_ptr(&mut self) -> *mut grpc_channel_credentials {
         self.creds
     }
 

@@ -1,19 +1,9 @@
-// Copyright 2018 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::atomic::*;
 use std::sync::*;
 use std::thread::{self, JoinHandle};
@@ -27,7 +17,7 @@ fn test_peer() {
     impl Greeter for PeerService {
         fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             let peer = ctx.peer();
-            let mut resp = HelloReply::new_();
+            let mut resp = HelloReply::default();
             resp.set_message(peer);
             ctx.spawn(
                 sink.success(resp)
@@ -48,7 +38,7 @@ fn test_peer() {
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
-    let req = HelloRequest::new_();
+    let req = HelloRequest::default();
     let resp = client.say_hello(&req).unwrap();
 
     assert!(resp.get_message().contains("127.0.0.1"), "{:?}", resp);
@@ -87,7 +77,7 @@ fn test_soundness() {
     impl Greeter for CounterService {
         fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             self.c.incr();
-            let resp = HelloReply::new_();
+            let resp = HelloReply::default();
             ctx.spawn(
                 sink.success(resp)
                     .map_err(|e| panic!("failed to reply {:?}", e)),
@@ -117,7 +107,7 @@ fn test_soundness() {
         let mut resps = Vec::with_capacity(3000);
         thread::spawn(move || {
             for _ in 0..3000 {
-                resps.push(client.say_hello_async(&HelloRequest::new_()).unwrap());
+                resps.push(client.say_hello_async(&HelloRequest::default()).unwrap());
             }
             future::join_all(resps).wait().unwrap();
         })

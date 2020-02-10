@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::thread;
 use std::time::Duration;
@@ -17,11 +6,11 @@ use std::time::Duration;
 use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures::{future, stream, Future, Sink, Stream};
 
-use grpc_proto::testing::Empty;
-use grpc_proto::testing::{
+use grpc_proto::testing::empty::Empty;
+use grpc_proto::testing::messages::{
     EchoStatus, SimpleRequest, StreamingInputCallRequest, StreamingOutputCallRequest,
 };
-use grpc_proto::testing::{TestServiceClient, UnimplementedServiceClient};
+use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::util;
 
 pub struct Client {
@@ -39,7 +28,7 @@ impl Client {
 
     pub fn empty_unary(&self) {
         print!("testing empty unary ... ");
-        let req = Empty::new_();
+        let req = Empty::default();
         let resp = self.client.empty_call(&req).unwrap();
         assert_eq!(req, resp);
         println!("pass");
@@ -47,7 +36,7 @@ impl Client {
 
     pub fn large_unary(&self) {
         print!("testing large unary ... ");
-        let mut req = SimpleRequest::new_();
+        let mut req = SimpleRequest::default();
         req.set_response_size(314_159);
         req.set_payload(util::new_payload(271_828));
         let resp = self.client.unary_call(&req).unwrap();
@@ -58,7 +47,7 @@ impl Client {
     pub fn client_streaming(&self) {
         print!("testing client streaming ... ");
         let reqs = vec![27182, 8, 1828, 45904].into_iter().map(|s| {
-            let mut req = StreamingInputCallRequest::new_();
+            let mut req = StreamingInputCallRequest::default();
             req.set_payload(util::new_payload(s));
             (req, WriteFlags::default())
         });
@@ -75,7 +64,7 @@ impl Client {
 
     pub fn server_streaming(&self) {
         print!("testing server streaming ... ");
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         let sizes = vec![31415, 9, 2653, 58979];
         for size in &sizes {
             req.mut_response_parameters()
@@ -96,7 +85,7 @@ impl Client {
         let (mut sender, mut receiver) = self.client.full_duplex_call().unwrap();
         let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
         for (resp_size, payload_size) in cases {
-            let mut req = StreamingOutputCallRequest::new_();
+            let mut req = StreamingOutputCallRequest::default();
             req.mut_response_parameters()
                 .push(util::new_parameters(resp_size));
             req.set_payload(util::new_payload(payload_size));
@@ -134,7 +123,7 @@ impl Client {
         thread::sleep(Duration::from_millis(10));
         sender.cancel();
         match receiver.wait().unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Cancelled),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
             e => panic!("expected cancel, but got: {:?}", e),
         }
         println!("pass");
@@ -143,7 +132,7 @@ impl Client {
     pub fn cancel_after_first_response(&self) {
         print!("testing cancel_after_first_response ... ");
         let (mut sender, mut receiver) = self.client.full_duplex_call().unwrap();
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         req.mut_response_parameters()
             .push(util::new_parameters(31415));
         req.set_payload(util::new_payload(27182));
@@ -159,7 +148,7 @@ impl Client {
         assert_eq!(resp.get_payload().get_body().len(), 31415);
         sender.cancel();
         match receiver.into_future().wait() {
-            Err((grpc::Error::RpcFailure(s), _)) => assert_eq!(s.status, RpcStatusCode::Cancelled),
+            Err((grpc::Error::RpcFailure(s), _)) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
             Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
             Ok((r, _)) => panic!("expected error, but got: {:?}", r),
         }
@@ -170,13 +159,13 @@ impl Client {
         print!("testing timeout_of_sleeping_server ... ");
         let opt = CallOption::default().timeout(Duration::from_millis(1));
         let (sender, receiver) = self.client.full_duplex_call_opt(opt).unwrap();
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         req.set_payload(util::new_payload(27182));
         // Keep the sender, so that receiver will not receive Cancelled error.
         let _sender = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
-                assert_eq!(s.status, RpcStatusCode::DeadlineExceeded)
+                assert_eq!(s.status, RpcStatusCode::DEADLINE_EXCEEDED)
             }
             Err((e, _)) => panic!("expected timeout, but got: {:?}", e),
             Ok((r, _)) => panic!("expected error: {:?}", r),
@@ -187,26 +176,26 @@ impl Client {
     pub fn status_code_and_message(&self) {
         print!("testing status_code_and_message ... ");
         let error_msg = "test status message";
-        let mut status = EchoStatus::new_();
+        let mut status = EchoStatus::default();
         status.set_code(2);
         status.set_message(error_msg.to_owned());
-        let mut req = SimpleRequest::new_();
+        let mut req = SimpleRequest::default();
         req.set_response_status(status.clone());
         match self.client.unary_call(&req).unwrap_err() {
             grpc::Error::RpcFailure(s) => {
-                assert_eq!(s.status, RpcStatusCode::Unknown);
+                assert_eq!(s.status, RpcStatusCode::UNKNOWN);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
             }
             e => panic!("expected rpc failure: {:?}", e),
         }
-        let mut req = StreamingOutputCallRequest::new_();
+        let mut req = StreamingOutputCallRequest::default();
         req.set_response_status(status);
         let (sender, receiver) = self.client.full_duplex_call().unwrap();
         // Keep the sender, so that receiver will not receive Cancelled error.
         let _sender = sender.send((req, WriteFlags::default())).wait();
         match receiver.into_future().wait() {
             Err((grpc::Error::RpcFailure(s), _)) => {
-                assert_eq!(s.status, RpcStatusCode::Unknown);
+                assert_eq!(s.status, RpcStatusCode::UNKNOWN);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
             }
             Err((e, _)) => panic!("expected rpc failure: {:?}", e),
@@ -217,8 +206,12 @@ impl Client {
 
     pub fn unimplemented_method(&self) {
         print!("testing unimplemented_method ... ");
-        match self.client.unimplemented_call(&Empty::new_()).unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
+        match self
+            .client
+            .unimplemented_call(&Empty::default())
+            .unwrap_err()
+        {
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::UNIMPLEMENTED),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");
@@ -227,8 +220,8 @@ impl Client {
     pub fn unimplemented_service(&self) {
         print!("testing unimplemented_service ... ");
         let client = UnimplementedServiceClient::new(self.channel.clone());
-        match client.unimplemented_call(&Empty::new_()).unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::Unimplemented),
+        match client.unimplemented_call(&Empty::default()).unwrap_err() {
+            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::UNIMPLEMENTED),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");

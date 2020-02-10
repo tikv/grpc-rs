@@ -1,15 +1,4 @@
-// Copyright 2018 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};
@@ -20,6 +9,7 @@ use futures::sync::mpsc;
 use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::example::route_guide_grpc::*;
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
 type BoxFuture = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
@@ -74,7 +64,7 @@ impl RouteGuide for CancelService {
 
         let f = rx
             .map(|_| {
-                let f = Feature::new_();
+                let f = Feature::default();
                 (f, WriteFlags::default())
             })
             .forward(sink.sink_map_err(|_| ()))
@@ -121,7 +111,7 @@ where
 {
     match rx.into_future().wait() {
         Err((Error::RpcFailure(s), _)) | Err((Error::RpcFinished(Some(s)), _)) => {
-            assert_eq!(s.status, RpcStatusCode::Cancelled)
+            assert_eq!(s.status, RpcStatusCode::CANCELLED)
         }
         Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
         Ok(_) => panic!("expected error, but got: Ok(_)"),
@@ -269,7 +259,7 @@ fn test_early_exit() {
     let (tx, rx) = std_mpsc::channel();
     *service.list_feature_listener.lock().unwrap() = Some(tx);
 
-    let rect = Rectangle::new_();
+    let rect = Rectangle::default();
     let l = client.list_features(&rect).unwrap();
     let f = l.into_future();
     match f.wait() {

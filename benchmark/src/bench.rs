@@ -1,15 +1,4 @@
-// Copyright 2017 PingCAP, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 #![allow(renamed_and_removed_lints)]
 
@@ -23,13 +12,13 @@ use grpc::{
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
     WriteFlags,
 };
-use grpc_proto::testing::BenchmarkService;
-use grpc_proto::testing::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
+use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::util;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
-    let mut resp = SimpleResponse::new_();
+    let mut resp = SimpleResponse::default();
     resp.set_payload(payload);
     resp
 }
@@ -63,7 +52,7 @@ impl BenchmarkService for Benchmark {
         _: RequestStream<SimpleRequest>,
         sink: ClientStreamingSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
@@ -74,7 +63,7 @@ impl BenchmarkService for Benchmark {
         _: SimpleRequest,
         sink: ServerStreamingSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
@@ -85,7 +74,7 @@ impl BenchmarkService for Benchmark {
         _: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None));
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
