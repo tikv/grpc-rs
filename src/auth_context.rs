@@ -22,22 +22,18 @@ use crate::grpc_sys::{
 /// gRPC Core. The interceptor also chooses which property key will act as the peer
 /// identity (e.g. for client certificate authentication this property will be
 /// `x509_common_name` or `x509_subject_alternative_name`).
-pub struct AuthContext<'a> {
+pub struct AuthContext {
     ctx: *mut grpc_auth_context,
-    _lifetime: PhantomData<&'a grpc_auth_context>,
 }
 
 /// Binding to gRPC Core AuthContext
 /// If the server binds in non-secure mode, all functions will have a behaviour
 /// consistent with client not being authenticated, for ease of use and speed
-impl<'a> AuthContext<'a> {
+impl AuthContext {
     /// Will be created even if grpc_call_auth_context is null
     pub(crate) unsafe fn from_call_ptr(call: *mut grpc_call) -> Self {
         let ctx = grpc_sys::grpc_call_auth_context(call);
-        AuthContext {
-            ctx,
-            _lifetime: PhantomData,
-        }
+        AuthContext { ctx }
     }
 
     /// Whether gRPC Core returned an auth context.
@@ -47,7 +43,7 @@ impl<'a> AuthContext<'a> {
 
     /// The name of the property gRPC Core has chosen as main peer identity property,
     /// if any.
-    pub fn peer_identity_property_name(&self) -> Option<&'a str> {
+    pub fn peer_identity_property_name(&self) -> Option<&str> {
         if self.ctx.is_null() {
             None
         } else {
@@ -88,7 +84,7 @@ impl<'a> AuthContext<'a> {
     }
 }
 
-impl<'a> IntoIterator for &AuthContext<'a> {
+impl<'a> IntoIterator for &'a AuthContext {
     type Item = AuthProperty<'a>;
     type IntoIter = AuthPropertyIter<'a>;
 
@@ -105,7 +101,7 @@ impl<'a> IntoIterator for &AuthContext<'a> {
     }
 }
 
-impl<'a> Drop for AuthContext<'a> {
+impl<'a> Drop for AuthContext {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_auth_context_release(self.ctx) }
     }
