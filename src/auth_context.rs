@@ -92,7 +92,7 @@ impl<'a> IntoIterator for &'a AuthContext {
     }
 }
 
-impl<'a> Drop for AuthContext {
+impl Drop for AuthContext {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_auth_context_release(self.ctx) }
     }
