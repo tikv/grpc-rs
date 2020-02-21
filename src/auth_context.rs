@@ -121,8 +121,10 @@ pub struct AuthProperty<'a> {
 }
 
 impl<'a> AuthProperty<'a> {
-    pub fn name(&self) -> Result<&'a str, std::str::Utf8Error> {
-        unsafe { CStr::from_ptr((*self.prop).name).to_str() }
+    pub fn name(&self) -> &'a str {
+        unsafe { CStr::from_ptr((*self.prop).name) }
+            .to_str()
+            .expect("Auth property name should be valid UTF-8 data")
     }
 
     pub fn value(&self) -> &'a [u8] {
