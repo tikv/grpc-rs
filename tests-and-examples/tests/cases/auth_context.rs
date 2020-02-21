@@ -26,7 +26,10 @@ impl Greeter for GreeterService {
             ))
             .unwrap();
         if let Some(auth_context) = auth_context {
-            for (key, value) in auth_context.into_iter().map(|x| x.str_pair().unwrap()) {
+            for (key, value) in auth_context
+                .into_iter()
+                .map(|x| (x.name().unwrap(), x.value_str().unwrap()))
+            {
                 self.tx.send((key.to_owned(), value.to_owned())).unwrap();
             }
         }

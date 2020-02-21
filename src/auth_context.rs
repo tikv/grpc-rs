@@ -121,12 +121,8 @@ pub struct AuthProperty<'a> {
 }
 
 impl<'a> AuthProperty<'a> {
-    pub fn name(&self) -> &'a str {
-        unsafe {
-            CStr::from_ptr((*self.prop).name)
-                .to_str()
-                .expect("Auth property name should be valid UTF-8 data")
-        }
+    pub fn name(&self) -> Result<&'a str, std::str::Utf8Error> {
+        unsafe { CStr::from_ptr((*self.prop).name).to_str() }
     }
 
     pub fn value(&self) -> &'a [u8] {
@@ -135,14 +131,7 @@ impl<'a> AuthProperty<'a> {
         }
     }
 
-    /// (name, value) tuple for easier pattern matching
-    pub fn pair(&self) -> (&'a str, &'a [u8]) {
-        (self.name(), self.value())
-    }
-
-    /// (name, value) tuple, but also trying to convert the value as an `&str`
-    pub fn str_pair(&self) -> Result<(&'a str, &'a str), std::str::Utf8Error> {
-        let value = std::str::from_utf8(self.value())?;
-        Ok((self.name(), value))
+    pub fn value_str(&self) -> Result<&'a str, std::str::Utf8Error> {
+        std::str::from_utf8(self.value())
     }
 }
