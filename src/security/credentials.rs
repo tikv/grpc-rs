@@ -1,10 +1,14 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CString;
-use std::ptr;
+use std::{mem, ptr};
 
 use crate::error::{Error, Result};
-use crate::grpc_sys::{self, grpc_channel_credentials, grpc_server_credentials};
+use crate::grpc_sys::grpc_ssl_client_certificate_request_type::*;
+use crate::grpc_sys::{
+    self, grpc_channel_credentials, grpc_server_credentials,
+    grpc_ssl_client_certificate_request_type,
+};
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -14,7 +18,7 @@ pub enum CertificateRequestType {
     /// The certificate presented by the client is not checked by the server at
     /// all. (A client may present a self signed or signed certificate or not
     /// present a certificate at all and any of those option would be accepted)
-    DontRequestClientCertificate = 0,
+    DontRequestClientCertificate = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE as u32,
     /// Server requests client certificate but does not enforce that the client
     /// presents a certificate.
     ///
@@ -24,7 +28,8 @@ pub enum CertificateRequestType {
     ///
     /// The client's key certificate pair must be valid for the SSL connection to
     /// be established.
-    RequestClientCertificateButDontVerify = 1,
+    RequestClientCertificateButDontVerify =
+        GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
     /// Server requests client certificate but does not enforce that the client
     /// presents a certificate.
     ///
@@ -35,7 +40,7 @@ pub enum CertificateRequestType {
     ///
     /// The client's key certificate pair must be valid for the SSL connection to
     /// be established.
-    RequestClientCertificateAndVerify = 2,
+    RequestClientCertificateAndVerify = GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY as u32,
     /// Server requests client certificate and enforces that the client presents a
     /// certificate.
     ///
@@ -45,7 +50,8 @@ pub enum CertificateRequestType {
     ///
     /// The client's key certificate pair must be valid for the SSL connection to
     /// be established.
-    RequestAndRequireClientCertificateButDontVerify = 3,
+    RequestAndRequireClientCertificateButDontVerify =
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
     /// Server requests client certificate and enforces that the client presents a
     /// certificate.
     ///
@@ -55,19 +61,14 @@ pub enum CertificateRequestType {
     ///
     /// The client's key certificate pair must be valid for the SSL connection to
     /// be established.
-    RequestAndRequireClientCertificateAndVerify = 4,
+    RequestAndRequireClientCertificateAndVerify =
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
 }
 
 impl CertificateRequestType {
     #[inline]
-    fn to_native(self) -> grpcio_sys::grpc_ssl_client_certificate_request_type {
-        match self {
-            CertificateRequestType::DontRequestClientCertificate => grpcio_sys::grpc_ssl_client_certificate_request_type::GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE,
-            CertificateRequestType::RequestClientCertificateButDontVerify => grpcio_sys::grpc_ssl_client_certificate_request_type::GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY,
-            CertificateRequestType::RequestClientCertificateAndVerify => grpcio_sys::grpc_ssl_client_certificate_request_type::GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY,
-            CertificateRequestType::RequestAndRequireClientCertificateButDontVerify => grpcio_sys::grpc_ssl_client_certificate_request_type::GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY,
-            CertificateRequestType::RequestAndRequireClientCertificateAndVerify => grpcio_sys::grpc_ssl_client_certificate_request_type::GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY,
-        }
+    fn to_native(self) -> grpc_ssl_client_certificate_request_type {
+        unsafe { mem::transmute(self) }
     }
 }
 
