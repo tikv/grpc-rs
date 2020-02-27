@@ -4,10 +4,11 @@ use std::ffi::CString;
 use std::{mem, ptr};
 
 use crate::error::{Error, Result};
+use crate::grpc_sys::grpc_ssl_certificate_config_reload_status::{self, *};
 use crate::grpc_sys::grpc_ssl_client_certificate_request_type::*;
 use crate::grpc_sys::{
     self, grpc_channel_credentials, grpc_server_credentials,
-    grpc_ssl_client_certificate_request_type,
+    grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
 };
 
 #[repr(u32)]
@@ -80,11 +81,69 @@ fn clear_key_securely(key: &mut [u8]) {
     }
 }
 
+#[repr(C)]
+struct UsrData {
+    initial_cert_cfg: *mut grpc_ssl_server_certificate_config,
+    cert_fetcher: Option<fn() -> Option<ServerCredentialsBuilder>>,
+    initial_cert_fetched: bool,
+}
+
+static mut FULLSTACK_USR_DATA: UsrData = UsrData {
+    initial_cert_cfg: std::ptr::null_mut(),
+    cert_fetcher: None,
+    initial_cert_fetched: false,
+};
+
+#[allow(unused_assignments)]
+extern "C" fn server_cert_fetcher_wrapper(
+    user_data: *mut std::os::raw::c_void,
+    config: *mut *mut grpc_ssl_server_certificate_config,
+) -> grpc_ssl_certificate_config_reload_status {
+    if user_data.is_null() {
+        panic!("fetcher user_data must be set up!");
+    }
+    let usr_data = unsafe { &mut *(user_data as *mut UsrData) };
+    let mut cert_config = std::ptr::null_mut();
+
+    if !usr_data.initial_cert_fetched {
+        cert_config = usr_data.initial_cert_cfg;
+        usr_data.initial_cert_cfg = std::ptr::null_mut();
+        usr_data.initial_cert_fetched = true;
+    } else {
+        // Todo: this is may be failed
+        let result = usr_data
+            .cert_fetcher
+            .expect("meet error when doing fetcher")();
+        if let Some(mut builder) = result {
+            let root_cert = builder
+                .root
+                .take()
+                .map_or_else(ptr::null_mut, CString::into_raw);
+            let new_config = unsafe {
+                grpcio_sys::grpc_ssl_server_certificate_config_create(
+                    root_cert,
+                    builder.key_cert_pairs.as_ptr(),
+                    builder.key_cert_pairs.len(),
+                )
+            };
+            cert_config = new_config;
+        } else {
+            return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
+        }
+    }
+
+    unsafe {
+        *config = cert_config;
+    }
+    GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW
+}
+
 /// [`ServerCredentials`] factory in order to configure the properties.
 pub struct ServerCredentialsBuilder {
     root: Option<CString>,
     key_cert_pairs: Vec<grpcio_sys::grpc_ssl_pem_key_cert_pair>,
     cer_request_type: CertificateRequestType,
+    force_client_auth: bool,
 }
 
 impl ServerCredentialsBuilder {
@@ -94,6 +153,7 @@ impl ServerCredentialsBuilder {
             root: None,
             key_cert_pairs: vec![],
             cer_request_type: CertificateRequestType::DontRequestClientCertificate,
+            force_client_auth: false,
         }
     }
 
@@ -106,6 +166,11 @@ impl ServerCredentialsBuilder {
     ) -> ServerCredentialsBuilder {
         self.root = Some(CString::new(cert).unwrap());
         self.cer_request_type = cer_request_type;
+        self
+    }
+
+    pub fn set_force_client_auth(mut self, b: bool) -> ServerCredentialsBuilder {
+        self.force_client_auth = b;
         self
     }
 
@@ -125,32 +190,66 @@ impl ServerCredentialsBuilder {
         self
     }
 
+    pub fn add_reload_fetcher(self, fetcher: fn() -> Option<Self>) {
+        unsafe {
+            FULLSTACK_USR_DATA.cert_fetcher = Some(fetcher);
+        }
+    }
+
     /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
     pub fn build(mut self) -> ServerCredentials {
         let root_cert = self
             .root
             .take()
             .map_or_else(ptr::null_mut, CString::into_raw);
-        let credentials = unsafe {
-            let cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
-                root_cert,
-                self.key_cert_pairs.as_ptr(),
-                self.key_cert_pairs.len(),
-            );
-            let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config(
-                self.cer_request_type.to_native(),
-                cfg,
-            );
-            grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt)
-        };
+        unsafe {
+            if FULLSTACK_USR_DATA.cert_fetcher.is_some() {
+                let initial_cert_cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
+                    root_cert,
+                    self.key_cert_pairs.as_ptr(),
+                    self.key_cert_pairs.len(),
+                );
 
-        if !root_cert.is_null() {
-            unsafe {
-                CString::from_raw(root_cert);
+                FULLSTACK_USR_DATA.initial_cert_cfg = initial_cert_cfg;
+
+                let opt = grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
+                    if self.force_client_auth {
+                        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
+                    } else {
+                        self.cer_request_type.to_native()
+                    },
+                    Some(server_cert_fetcher_wrapper),
+                    &mut FULLSTACK_USR_DATA as *mut UsrData as *mut std::ffi::c_void,
+                );
+                let credentials = grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt);
+                ServerCredentials {
+                    c_creds: credentials,
+                }
+            } else {
+                let cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
+                    root_cert,
+                    self.key_cert_pairs.as_ptr(),
+                    self.key_cert_pairs.len(),
+                );
+                let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config(
+                    if self.force_client_auth {
+                        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
+                    } else {
+                        self.cer_request_type.to_native()
+                    },
+                    cfg,
+                );
+                let credentials = grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt);
+
+                if !root_cert.is_null() {
+                    CString::from_raw(root_cert);
+                }
+
+                ServerCredentials {
+                    c_creds: credentials,
+                }
             }
         }
-
-        ServerCredentials { creds: credentials }
     }
 }
 
@@ -170,18 +269,18 @@ impl Drop for ServerCredentialsBuilder {
 ///
 /// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
 pub struct ServerCredentials {
-    creds: *mut grpc_server_credentials,
+    c_creds: *mut grpc_server_credentials,
 }
 
 impl ServerCredentials {
     pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {
-        self.creds
+        self.c_creds
     }
 }
 
 impl Drop for ServerCredentials {
     fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_server_credentials_release(self.creds) }
+        unsafe { grpc_sys::grpc_server_credentials_release(self.c_creds) }
     }
 }
 
