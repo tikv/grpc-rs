@@ -15,7 +15,7 @@ use cmake::Config;
 use pkg_config::{Config as PkgConfig, Library};
 use walkdir::WalkDir;
 
-const GRPC_VERSION: &'static str = "1.26.0";
+const GRPC_VERSION: &str = "1.26.0";
 
 fn probe_library(library: &str, cargo_metadata: bool) -> Library {
     match PkgConfig::new()
