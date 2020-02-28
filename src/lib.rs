@@ -73,6 +73,7 @@ pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
 pub use crate::quota::ResourceQuota;
 #[cfg(feature = "secure")]
 pub use crate::security::{
-    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
+    CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+    ServerCredentialsBuilder,
 };
 pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
