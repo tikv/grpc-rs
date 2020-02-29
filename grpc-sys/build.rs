@@ -79,12 +79,12 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
         }
-        if env::var("CARGO_CFG_TARGET_ENV").unwrap_or("".to_owned()) == "musl" {
+        if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
 
         // Cross-compile support for iOS
-        match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
+        match env::var("TARGET").unwrap().as_str() {
             "aarch64-apple-ios" => {
                 config
                     .define("CMAKE_OSX_SYSROOT", "iphoneos")
@@ -115,12 +115,9 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
         // Allow overriding of the target passed to cmake
         // (needed for Android crosscompile)
-        match env::var("CMAKE_TARGET_OVERRIDE") {
-            Ok(val) => {
-                config.target(&val);
-            }
-            Err(_) => {}
-        };
+        if let Ok(val) = env::var("CMAKE_TARGET_OVERRIDE") {
+            config.target(&val);
+        }
 
         // We don't need to generate install targets.
         config.define("gRPC_INSTALL", "false");
@@ -153,7 +150,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
 
     let build_dir = format!("{}/build", dst.display());
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-        let profile = match &*env::var("PROFILE").unwrap_or("debug".to_owned()) {
+        let profile = match &*env::var("PROFILE").unwrap() {
             "bench" | "release" => "Release",
             _ => "Debug",
         };
@@ -335,7 +332,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 fn config_binding_path(config: bindgen::Builder) {
     let file_path: PathBuf;
     println!("cargo:rerun-if-changed=bindings/x86_64-unknown-linux-gnu-bindings.rs");
-    match env::var("TARGET").unwrap_or("".to_owned()).as_str() {
+    match env::var("TARGET").unwrap().as_str() {
         "x86_64-unknown-linux-gnu" => {
             file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
