@@ -3,11 +3,9 @@
 pub mod client;
 pub mod server;
 
+use std::fmt::{self, Debug, Display};
 use std::sync::Arc;
-use std::{
-    fmt::{self, Display, Formatter},
-    ptr, slice,
-};
+use std::{ptr, slice};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
@@ -25,7 +23,7 @@ const BUF_SHRINK_SIZE: usize = 4 * 1024;
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct RpcStatusCode(i32);
 
 impl From<i32> for RpcStatusCode {
@@ -40,6 +38,12 @@ impl Into<i32> for RpcStatusCode {
     }
 }
 
+impl Display for RpcStatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
 macro_rules! status_codes {
     (
         $(
@@ -51,7 +55,8 @@ macro_rules! status_codes {
             pub const $konst: RpcStatusCode = RpcStatusCode($num);
         )+
         }
-        impl Display for RpcStatusCode {
+
+        impl Debug for RpcStatusCode {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 write!(
                     f,
@@ -157,12 +162,8 @@ pub struct RpcStatus {
 }
 
 impl Display for RpcStatus {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            fmt,
-            "RpcStatus {{ status: {}, details: {:?} }}",
-            self.status, self.details
-        )
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, fmt)
     }
 }
 
