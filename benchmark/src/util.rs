@@ -4,7 +4,6 @@ use std::f64;
 use std::time::{Duration, Instant};
 
 use grpc_proto::testing::stats::HistogramData;
-use grpc_sys;
 
 #[path = "../../tests-and-examples/examples/log_util.rs"]
 pub mod log_util;
