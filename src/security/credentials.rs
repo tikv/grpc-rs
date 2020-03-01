@@ -1,5 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::error::Error as StdError;
 use std::ffi::CString;
 use std::{mem, ptr};
 
@@ -70,7 +71,8 @@ pub enum CertificateRequestType {
 /// indicates that no reloading is needed, and
 /// [`Some(ServerCredentialsBuilder)`] indicates that reloading
 /// is needed.
-pub type CertFetcher = fn() -> std::io::Result<Option<ServerCredentialsBuilder>>;
+pub type CertFetcher =
+    fn() -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
 
 #[repr(C)]
 pub struct CertUsrData {
@@ -110,24 +112,30 @@ extern "C" fn server_cert_fetcher_wrapper(
         usr_data.initial_cert_fetched = true;
     } else {
         let result = (usr_data.cert_fetcher)();
-        if result.is_err() {
-            return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
-        }
-        if let Some(mut builder) = result.unwrap() {
-            let root_cert = builder
-                .root
-                .take()
-                .map_or_else(ptr::null_mut, CString::into_raw);
-            let new_config = unsafe {
-                grpcio_sys::grpc_ssl_server_certificate_config_create(
-                    root_cert,
-                    builder.key_cert_pairs.as_ptr(),
-                    builder.key_cert_pairs.len(),
-                )
-            };
-            _cert_config = new_config;
-        } else {
-            return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
+
+        match result {
+            Err(e) => {
+                warn!("cert_fetcher met some errors: {}", e);
+                return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
+            }
+            Ok(ret) => {
+                if let Some(mut builder) = ret {
+                    let root_cert = builder
+                        .root
+                        .take()
+                        .map_or_else(ptr::null_mut, CString::into_raw);
+                    let new_config = unsafe {
+                        grpcio_sys::grpc_ssl_server_certificate_config_create(
+                            root_cert,
+                            builder.key_cert_pairs.as_ptr(),
+                            builder.key_cert_pairs.len(),
+                        )
+                    };
+                    _cert_config = new_config;
+                } else {
+                    return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
+                }
+            }
         }
     }
     unsafe {
