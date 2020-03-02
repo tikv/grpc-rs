@@ -105,7 +105,7 @@ impl RouteGuide for CancelService {
     }
 }
 
-fn check_cancel<S, T>(rx: S)
+fn check_cancel<S, T>(rx: S, sink: bool)
 where
     S: Stream<Item = T, Error = Error>,
 {
@@ -113,6 +113,7 @@ where
         Err((Error::RpcFailure(s), _)) | Err((Error::RpcFinished(Some(s)), _)) => {
             assert_eq!(s.status, RpcStatusCode::CANCELLED)
         }
+        Err((Error::RemoteStopped, _)) if sink => return,
         Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
         Ok(_) => panic!("expected error, but got: Ok(_)"),
     }
@@ -134,8 +135,6 @@ fn prepare_suite() -> (CancelService, RouteGuideClient, Server) {
 }
 
 #[test]
-// FIXME(#242) Intermittent test.
-#[cfg_attr(feature = "openssl", ignore)]
 fn test_client_cancel_on_dropping() {
     let (service, client, _server) = prepare_suite();
 
@@ -150,11 +149,11 @@ fn test_client_cancel_on_dropping() {
     }));
     let (tx, rx) = client.record_route().unwrap();
     drop(tx);
-    check_cancel(rx.into_stream());
+    check_cancel(rx.into_stream(), false);
 
     let (tx, rx) = client.record_route().unwrap();
     drop(rx);
-    check_cancel(tx.send(Default::default()).into_stream());
+    check_cancel(tx.send(Default::default()).into_stream(), true);
 
     // Duplex streaming.
     *service.record_route_handler.lock().unwrap() = Some(Box::new(|stream, sink| {
@@ -167,11 +166,11 @@ fn test_client_cancel_on_dropping() {
     }));
     let (tx, rx) = client.route_chat().unwrap();
     drop(tx);
-    check_cancel(rx);
+    check_cancel(rx, false);
 
     let (tx, rx) = client.route_chat().unwrap();
     drop(rx);
-    check_cancel(tx.send(Default::default()).into_stream());
+    check_cancel(tx.send(Default::default()).into_stream(), true);
 }
 
 #[test]
@@ -180,11 +179,11 @@ fn test_server_cancel_on_dropping() {
 
     // Unary
     let rx = client.get_feature_async(&Default::default()).unwrap();
-    check_cancel(rx.into_stream());
+    check_cancel(rx.into_stream(), false);
 
     // Server streaming
     let rx = client.list_features(&Default::default()).unwrap();
-    check_cancel(rx);
+    check_cancel(rx, false);
 
     // Start the call, keep the stream and drop the sink.
     fn drop_sink<S, R, T>(stream: S, sink: T) -> BoxFuture
@@ -232,25 +231,25 @@ fn test_server_cancel_on_dropping() {
     *service.record_route_handler.lock().unwrap() =
         Some(Box::new(|stream, sink| drop_sink(stream, sink)));
     let (_tx, rx) = client.record_route().unwrap();
-    check_cancel(rx.into_stream());
+    check_cancel(rx.into_stream(), false);
 
     // Client streaming, drop stream.
     *service.record_route_handler.lock().unwrap() =
         Some(Box::new(|stream, sink| drop_stream(stream, sink)));
     let (_tx, rx) = client.record_route().unwrap();
-    check_cancel(rx.into_stream());
+    check_cancel(rx.into_stream(), false);
 
     // Duplex streaming, drop sink.
     *service.route_chat_handler.lock().unwrap() =
         Some(Box::new(|stream, sink| drop_sink(stream, sink)));
     let (_tx, rx) = client.route_chat().unwrap();
-    check_cancel(rx);
+    check_cancel(rx, false);
 
     // Duplex streaming, drop stream.
     *service.route_chat_handler.lock().unwrap() =
         Some(Box::new(|stream, sink| drop_stream(stream, sink)));
     let (_tx, rx) = client.route_chat().unwrap();
-    check_cancel(rx);
+    check_cancel(rx, false);
 }
 
 #[test]

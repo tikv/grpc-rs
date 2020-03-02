@@ -23,7 +23,6 @@
 
 use std::collections::HashMap;
 
-use protobuf;
 use protobuf::compiler_plugin;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
