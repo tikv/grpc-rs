@@ -1,7 +1,7 @@
 use futures::Future;
 use grpcio::{
     CertificateRequestType, ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext,
-    ServerBuilder, ServerCredentialsBuilder, UnarySink,
+    ServerBuilder, ServerCredentialsBuilder, UnarySink, UsrFetcher,
 };
 use std::fs;
 use std::io::Read;
@@ -25,26 +25,32 @@ impl Greeter for GreeterService {
     }
 }
 
-static mut RELOADED: bool = false;
-
-fn reload_new() -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-    if unsafe { RELOADED } {
-        return Ok(None);
-    }
-    let new_cred = ServerCredentialsBuilder::new()
-        .add_cert(PD_CRT.into(), PD_KEY.into())
-        .root_cert(CA_CRT, CertificateRequestType::DontRequestClientCertificate);
-    unsafe {
-        RELOADED = true;
-    }
-    Ok(Some(new_cred))
+struct DataReloadNew {
+    reload: bool,
 }
 
-fn fail_open() -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-    let mut f = fs::File::open("Forsaken/Land")?;
-    let mut content = String::new();
-    f.read_to_string(&mut content)?;
-    Ok(None)
+impl UsrFetcher for DataReloadNew {
+    fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
+        if self.reload {
+            return Ok(None);
+        }
+        let new_cred = ServerCredentialsBuilder::new()
+            .add_cert(PD_CRT.into(), PD_KEY.into())
+            .root_cert(CA_CRT, CertificateRequestType::DontRequestClientCertificate);
+        self.reload = true;
+        Ok(Some(new_cred))
+    }
+}
+
+struct DataMeetFail {}
+
+impl UsrFetcher for DataMeetFail {
+    fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
+        let mut f = fs::File::open("Forsaken/Land")?;
+        let mut content = String::new();
+        f.read_to_string(&mut content)?;
+        Ok(None)
+    }
 }
 
 #[test]
@@ -53,8 +59,7 @@ fn test_reload_new() {
     let cred = ServerCredentialsBuilder::new()
         .add_cert(SERVER_CRT.into(), SERVER_KEY.into())
         .root_cert(CA_CRT, CertificateRequestType::DontRequestClientCertificate)
-        .add_reload_fetcher(reload_new)
-        .build();
+        .build_with_fetcher(Box::new(DataReloadNew { reload: false }));
     let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
@@ -84,8 +89,7 @@ fn test_reload_fail_open() {
     let cred = ServerCredentialsBuilder::new()
         .add_cert(SERVER_CRT.into(), SERVER_KEY.into())
         .root_cert(CA_CRT, CertificateRequestType::DontRequestClientCertificate)
-        .add_reload_fetcher(fail_open)
-        .build();
+        .build_with_fetcher(Box::new(DataMeetFail {}));
     let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)

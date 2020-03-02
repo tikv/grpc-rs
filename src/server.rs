@@ -18,7 +18,6 @@ use crate::channel::ChannelArgs;
 use crate::cq::CompletionQueue;
 use crate::env::Environment;
 use crate::error::{Error, Result};
-use crate::security::CertUsrData;
 use crate::task::{CallTag, CqFuture};
 use crate::RpcContext;
 
@@ -77,7 +76,6 @@ fn join_host_port(host: &str, port: u16) -> String {
 mod imp {
     use super::join_host_port;
     use crate::grpc_sys::{self, grpc_server};
-    use crate::security::CertUsrData;
     use crate::ServerCredentials;
 
     pub struct Binder {
@@ -108,10 +106,6 @@ mod imp {
                 ),
             };
             port as u16
-        }
-
-        pub fn take_cert_user_data(&mut self) -> Option<Box<CertUsrData>> {
-            self.cred.as_mut().unwrap().take_cert_user_data()
         }
     }
 }
@@ -309,11 +303,7 @@ impl ServerBuilder {
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let mut bind_addrs = Vec::with_capacity(self.binders.len());
-            let mut container = vec![];
             for mut binder in self.binders.drain(..) {
-                if let Some(data) = binder.take_cert_user_data() {
-                    container.push(data);
-                }
                 let bind_port = binder.bind(server);
                 if bind_port == 0 {
                     grpc_sys::grpc_server_destroy(server);
@@ -341,7 +331,6 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
-                _cert_user_data_container: container,
             })
         }
     }
@@ -456,12 +445,10 @@ impl Future for ShutdownFuture {
 /// A single server can serve arbitrary number of services and can listen on more than one port.
 ///
 /// Use [`ServerBuilder`] to build a [`Server`].
-#[allow(clippy::vec_box)]
 pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    _cert_user_data_container: Vec<Box<CertUsrData>>,
 }
 
 impl Server {
