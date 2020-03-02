@@ -481,7 +481,7 @@ mod secure_channel {
 
     use crate::grpc_sys;
 
-    use crate::credentials::ChannelCredentials;
+    use crate::ChannelCredentials;
 
     use super::{Channel, ChannelBuilder, Options};
 

@@ -24,7 +24,6 @@
 use std::collections::HashMap;
 use std::io::Write;
 
-use protobuf;
 use protobuf::compiler_plugin;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
@@ -44,7 +43,7 @@ impl<'a> CodeWriter<'a> {
 
     pub fn write_line<S: AsRef<str>>(&mut self, line: S) {
         (if line.as_ref().is_empty() {
-            self.writer.write_all("\n".as_bytes())
+            self.writer.write_all(b"\n")
         } else {
             let s: String = [self.indent.as_ref(), line.as_ref(), "\n"].concat();
             self.writer.write_all(s.as_bytes())
