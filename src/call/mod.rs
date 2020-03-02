@@ -22,7 +22,7 @@ const BUF_SHRINK_SIZE: usize = 4 * 1024;
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct RpcStatusCode(i32);
 
 impl From<i32> for RpcStatusCode {
