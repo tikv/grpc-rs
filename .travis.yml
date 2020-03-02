@@ -105,7 +105,7 @@ script:
   - cargo build --no-default-features --features prost-codec
   - cargo build
   - cargo test --all
-  - GRPCIO_SYS_USE_PKG_CONFIG=1 cargo test --all
+  - GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
   - cargo test --features "openssl" --all
   - cargo test --features "openssl-vendored" --all
   - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "nightly" ]]; then

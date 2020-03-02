@@ -4,8 +4,6 @@ use crate::grpc_sys::{self, grpc_metadata_array};
 use std::borrow::Cow;
 use std::{mem, slice, str};
 
-use libc;
-
 use crate::error::{Error, Result};
 
 fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
