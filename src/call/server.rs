@@ -10,6 +10,7 @@ use crate::grpc_sys::{
 use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
+use crate::auth_context::AuthContext;
 use crate::call::{
     BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
 };
@@ -161,6 +162,14 @@ impl RequestContext {
                 .to_owned();
             grpc_sys::gpr_free(p as _);
             peer
+        }
+    }
+
+    /// If the server binds in non-secure mode, this will return None
+    fn auth_context(&self) -> Option<AuthContext> {
+        unsafe {
+            let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
+            AuthContext::from_call_ptr(call)
         }
     }
 }
@@ -605,6 +614,13 @@ impl<'a> RpcContext<'a> {
 
     pub fn peer(&self) -> String {
         self.ctx.peer()
+    }
+
+    /// Wrapper around the gRPC Core AuthContext
+    ///
+    /// If the server binds in non-secure mode, this will return None
+    pub fn auth_context(&self) -> Option<AuthContext> {
+        self.ctx.auth_context()
     }
 
     /// Spawn the future into current gRPC poll thread.

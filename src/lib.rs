@@ -28,6 +28,7 @@ use grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate log;
 
+mod auth_context;
 mod buf;
 mod call;
 mod channel;
@@ -65,6 +66,7 @@ pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
 #[cfg(feature = "prost-codec")]
 pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};
 
+pub use crate::auth_context::{AuthContext, AuthProperty, AuthPropertyIter};
 pub use crate::codec::Marshaller;
 pub use crate::env::{EnvBuilder, Environment};
 pub use crate::error::{Error, Result};
@@ -73,6 +75,7 @@ pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
 pub use crate::quota::ResourceQuota;
 #[cfg(feature = "secure")]
 pub use crate::security::{
-    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
+    CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+    ServerCredentialsBuilder,
 };
 pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

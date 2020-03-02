@@ -3,5 +3,6 @@
 mod credentials;
 
 pub use self::credentials::{
-    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
+    CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+    ServerCredentialsBuilder,
 };
