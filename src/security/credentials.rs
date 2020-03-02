@@ -121,7 +121,8 @@ extern "C" fn server_cert_fetcher_wrapper(
                     let root_cert = builder
                         .root
                         .take()
-                        .map_or_else(ptr::null_mut, CString::into_raw);
+                        .expect("root_cert is forbidden to be NULL in replace_server_handshaker")
+                        .into_raw();
                     let new_config = unsafe {
                         grpcio_sys::grpc_ssl_server_certificate_config_create(
                             root_cert,
@@ -217,6 +218,9 @@ impl ServerCredentialsBuilder {
             .map_or_else(ptr::null_mut, CString::into_raw);
         unsafe {
             if self.cert_usr_data.is_some() {
+                if root_cert.is_null() {
+                    panic!("root_cert is forbidden to be NULL in replace_server_handshaker");
+                }
                 let mut data = self.cert_usr_data.take().unwrap();
                 let initial_cert_cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
                     root_cert,
