@@ -131,6 +131,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "protobuf-codec")]
     fn test_camel_name() {
         let cases = vec![
             ("AsyncRequest", "AsyncRequest"),

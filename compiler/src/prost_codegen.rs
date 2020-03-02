@@ -1,13 +1,15 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use super::util::{fq_grpc, to_snake_case, MethodType};
+use std::io::{Error, ErrorKind, Read};
+use std::path::Path;
+use std::{fs, io, process::Command};
+
 use derive_new::new;
 use prost::Message;
 use prost_build::{protoc, protoc_include, Config, Method, Service, ServiceGenerator};
 use prost_types::FileDescriptorSet;
-use std::io::{Error, ErrorKind, Read};
-use std::path::Path;
-use std::{fs, io, process::Command};
+
+use crate::util::{fq_grpc, to_snake_case, MethodType};
 
 /// Returns the names of all packages compiled.
 pub fn compile_protos<P>(protos: &[P], includes: &[P], out_dir: &str) -> io::Result<Vec<String>>
@@ -50,7 +52,7 @@ where
 
     let mut buf = Vec::new();
     fs::File::open(descriptor_set)?.read_to_end(&mut buf)?;
-    let descriptor_set = FileDescriptorSet::decode(&buf)?;
+    let descriptor_set = FileDescriptorSet::decode(buf.as_slice())?;
 
     // Get the package names from the descriptor set.
     let mut packages: Vec<_> = descriptor_set
