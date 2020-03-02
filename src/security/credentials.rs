@@ -75,10 +75,10 @@ pub type CertFetcher =
     fn() -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
 
 #[repr(C)]
+#[derive(Clone)]
 pub struct CertUsrData {
-    initial_cert_cfg: *mut grpc_ssl_server_certificate_config,
+    initial_cert_cfg: Option<Box<grpc_ssl_server_certificate_config>>,
     cert_fetcher: CertFetcher,
-    initial_cert_fetched: bool,
 }
 
 impl CertificateRequestType {
@@ -106,10 +106,8 @@ extern "C" fn server_cert_fetcher_wrapper(
     let usr_data: &mut CertUsrData = unsafe { &mut *(user_data as *mut CertUsrData) };
     let mut _cert_config = std::ptr::null_mut();
 
-    if !usr_data.initial_cert_fetched {
-        _cert_config = usr_data.initial_cert_cfg;
-        usr_data.initial_cert_cfg = std::ptr::null_mut();
-        usr_data.initial_cert_fetched = true;
+    if usr_data.initial_cert_cfg.is_some() {
+        _cert_config = Box::into_raw(usr_data.initial_cert_cfg.take().unwrap());
     } else {
         let result = (usr_data.cert_fetcher)();
 
@@ -204,9 +202,8 @@ impl ServerCredentialsBuilder {
     /// ServerCredentialsBuilder in fetcher is only used to be creating cert config.
     pub fn add_reload_fetcher(mut self, fetcher: CertFetcher) -> ServerCredentialsBuilder {
         let data = Box::new(CertUsrData {
-            initial_cert_cfg: std::ptr::null_mut(),
+            initial_cert_cfg: None,
             cert_fetcher: fetcher,
-            initial_cert_fetched: false,
         });
         self.cert_usr_data = Some(data);
         self
@@ -226,7 +223,7 @@ impl ServerCredentialsBuilder {
                     self.key_cert_pairs.as_ptr(),
                     self.key_cert_pairs.len(),
                 );
-                data.initial_cert_cfg = initial_cert_cfg;
+                data.initial_cert_cfg = Some(Box::from_raw(initial_cert_cfg));
                 let p_data = Box::into_raw(data);
                 let opt = grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
                     if self.force_client_auth {
