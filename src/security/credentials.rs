@@ -1,11 +1,76 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CString;
-use std::ptr;
+use std::{mem, ptr};
 
 use crate::error::{Error, Result};
-use crate::grpc_sys::{self, grpc_channel_credentials, grpc_server_credentials};
-use libc::c_char;
+use crate::grpc_sys::grpc_ssl_client_certificate_request_type::*;
+use crate::grpc_sys::{
+    self, grpc_channel_credentials, grpc_server_credentials,
+    grpc_ssl_client_certificate_request_type,
+};
+
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CertificateRequestType {
+    /// Server does not request client certificate.
+    ///
+    /// The certificate presented by the client is not checked by the server at
+    /// all. (A client may present a self signed or signed certificate or not
+    /// present a certificate at all and any of those option would be accepted)
+    DontRequestClientCertificate = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE as u32,
+    /// Server requests client certificate but does not enforce that the client
+    /// presents a certificate.
+    ///
+    /// If the client presents a certificate, the client authentication is left to
+    /// the application (the necessary metadata will be available to the
+    /// application via authentication context properties, see grpc_auth_context).
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestClientCertificateButDontVerify =
+        GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
+    /// Server requests client certificate but does not enforce that the client
+    /// presents a certificate.
+    ///
+    /// If the client presents a certificate, the client authentication is done by
+    /// the gRPC framework. (For a successful connection the client needs to either
+    /// present a certificate that can be verified against the root certificate
+    /// configured by the server or not present a certificate at all)
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestClientCertificateAndVerify = GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY as u32,
+    /// Server requests client certificate and enforces that the client presents a
+    /// certificate.
+    ///
+    /// If the client presents a certificate, the client authentication is left to
+    /// the application (the necessary metadata will be available to the
+    /// application via authentication context properties, see grpc_auth_context).
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestAndRequireClientCertificateButDontVerify =
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
+    /// Server requests client certificate and enforces that the client presents a
+    /// certificate.
+    ///
+    /// The certificate presented by the client is verified by the gRPC framework.
+    /// (For a successful connection the client needs to present a certificate that
+    /// can be verified against the root certificate configured by the server)
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestAndRequireClientCertificateAndVerify =
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
+}
+
+impl CertificateRequestType {
+    #[inline]
+    fn to_native(self) -> grpc_ssl_client_certificate_request_type {
+        unsafe { mem::transmute(self) }
+    }
+}
 
 fn clear_key_securely(key: &mut [u8]) {
     unsafe {
@@ -18,9 +83,8 @@ fn clear_key_securely(key: &mut [u8]) {
 /// [`ServerCredentials`] factory in order to configure the properties.
 pub struct ServerCredentialsBuilder {
     root: Option<CString>,
-    cert_chains: Vec<*mut c_char>,
-    private_keys: Vec<*mut c_char>,
-    force_client_auth: bool,
+    key_cert_pairs: Vec<grpcio_sys::grpc_ssl_pem_key_cert_pair>,
+    cer_request_type: CertificateRequestType,
 }
 
 impl ServerCredentialsBuilder {
@@ -28,9 +92,8 @@ impl ServerCredentialsBuilder {
     pub fn new() -> ServerCredentialsBuilder {
         ServerCredentialsBuilder {
             root: None,
-            cert_chains: vec![],
-            private_keys: vec![],
-            force_client_auth: false,
+            key_cert_pairs: vec![],
+            cer_request_type: CertificateRequestType::DontRequestClientCertificate,
         }
     }
 
@@ -39,10 +102,10 @@ impl ServerCredentialsBuilder {
     pub fn root_cert<S: Into<Vec<u8>>>(
         mut self,
         cert: S,
-        force_client_auth: bool,
+        cer_request_type: CertificateRequestType,
     ) -> ServerCredentialsBuilder {
         self.root = Some(CString::new(cert).unwrap());
-        self.force_client_auth = force_client_auth;
+        self.cer_request_type = cer_request_type;
         self
     }
 
@@ -54,10 +117,11 @@ impl ServerCredentialsBuilder {
             clear_key_securely(&mut private_key);
             private_key = nil_key;
         }
-        self.cert_chains
-            .push(CString::new(cert).unwrap().into_raw());
-        self.private_keys
-            .push(CString::new(private_key).unwrap().into_raw());
+        self.key_cert_pairs
+            .push(grpcio_sys::grpc_ssl_pem_key_cert_pair {
+                private_key: CString::new(private_key).unwrap().into_raw(),
+                cert_chain: CString::new(cert).unwrap().into_raw(),
+            });
         self
     }
 
@@ -67,18 +131,17 @@ impl ServerCredentialsBuilder {
             .root
             .take()
             .map_or_else(ptr::null_mut, CString::into_raw);
-        let cert_chains = self.cert_chains.as_mut_ptr();
-        let private_keys = self.private_keys.as_mut_ptr();
-        let force_auth = if self.force_client_auth { 1 } else { 0 };
-
         let credentials = unsafe {
-            grpc_sys::grpcwrap_ssl_server_credentials_create(
+            let cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
                 root_cert,
-                cert_chains as _,
-                private_keys as _,
-                self.cert_chains.len(),
-                force_auth,
-            )
+                self.key_cert_pairs.as_ptr(),
+                self.key_cert_pairs.len(),
+            );
+            let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config(
+                self.cer_request_type.to_native(),
+                cfg,
+            );
+            grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt)
         };
 
         if !root_cert.is_null() {
@@ -93,14 +156,12 @@ impl ServerCredentialsBuilder {
 
 impl Drop for ServerCredentialsBuilder {
     fn drop(&mut self) {
-        for cert in self.cert_chains.drain(..) {
+        for pair in self.key_cert_pairs.drain(..) {
             unsafe {
-                CString::from_raw(cert);
+                CString::from_raw(pair.cert_chain as *mut _);
+                let s = CString::from_raw(pair.private_key as *mut _);
+                clear_key_securely(&mut s.into_bytes_with_nul());
             }
-        }
-        for key in self.private_keys.drain(..) {
-            let s = unsafe { CString::from_raw(key) };
-            clear_key_securely(&mut s.into_bytes_with_nul());
         }
     }
 }
@@ -171,8 +232,27 @@ impl ChannelCredentialsBuilder {
             |(cert, key)| (cert.into_raw(), key.into_raw()),
         );
 
-        let creds =
-            unsafe { grpc_sys::grpcwrap_ssl_credentials_create(root_ptr, cert_ptr, key_ptr) };
+        let mut pair = grpcio_sys::grpc_ssl_pem_key_cert_pair {
+            private_key: key_ptr,
+            cert_chain: cert_ptr,
+        };
+        let creds = unsafe {
+            if cert_ptr.is_null() {
+                grpcio_sys::grpc_ssl_credentials_create_ex(
+                    root_ptr,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                )
+            } else {
+                grpcio_sys::grpc_ssl_credentials_create_ex(
+                    root_ptr,
+                    &mut pair,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                )
+            }
+        };
 
         if !root_ptr.is_null() {
             unsafe {
