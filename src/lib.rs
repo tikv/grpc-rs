@@ -76,6 +76,6 @@ pub use crate::quota::ResourceQuota;
 #[cfg(feature = "secure")]
 pub use crate::security::{
     CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
-    ServerCredentialsBuilder, UsrFetcher,
+    ServerCredentialsBuilder, UserFetcher,
 };
 pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};

@@ -11,6 +11,7 @@ use crate::grpc_sys::{
     self, grpc_channel_credentials, grpc_server_credentials,
     grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
 };
+use crate::server::ForUserData;
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -70,16 +71,18 @@ pub enum CertificateRequestType {
 /// User-provided callback function for reload cert. [`None`] indicates that
 /// no reloading is needed, and [`Some(ServerCredentialsBuilder)`] indicates
 /// that reloading is needed.
-pub trait UsrFetcher {
+pub trait UserFetcher {
     fn fetch(&mut self)
         -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
 }
 
 #[repr(C)]
-pub struct CertUsrData {
+pub struct CertUserData {
     initial_cert_cfg: Option<Box<grpc_ssl_server_certificate_config>>,
-    cert_fetcher: Box<dyn UsrFetcher + Send>,
+    cert_fetcher: Box<dyn UserFetcher + Send>,
 }
+
+impl ForUserData for CertUserData {}
 
 impl CertificateRequestType {
     #[inline]
@@ -103,7 +106,7 @@ unsafe extern "C" fn server_cert_fetcher_wrapper(
     if user_data.is_null() {
         panic!("fetcher user_data must be set up!");
     }
-    let usr_data: &mut CertUsrData = &mut *(user_data as *mut CertUsrData);
+    let usr_data: &mut CertUserData = &mut *(user_data as *mut CertUserData);
     if usr_data.initial_cert_cfg.is_some() {
         *config = Box::into_raw(usr_data.initial_cert_cfg.take().unwrap());
     } else {
@@ -189,7 +192,10 @@ impl ServerCredentialsBuilder {
 
     /// Finalize the [`ServerCredentialsBuilder`] with a user-defined fetcher
     /// and build the [`ServerCredentials`].
-    pub fn build_with_fetcher(mut self, usr_data: Box<dyn UsrFetcher + Send>) -> ServerCredentials {
+    pub fn build_with_fetcher(
+        mut self,
+        usr_data: Box<dyn UserFetcher + Send>,
+    ) -> ServerCredentials {
         let root_cert = self
             .root
             .take()
@@ -204,7 +210,7 @@ impl ServerCredentialsBuilder {
                 self.key_cert_pairs.len(),
             )
         };
-        let data = Box::new(CertUsrData {
+        let data = Box::new(CertUserData {
             initial_cert_cfg: Some(unsafe { Box::from_raw(initial_cert_cfg) }),
             cert_fetcher: usr_data,
         });
@@ -231,6 +237,7 @@ impl ServerCredentialsBuilder {
 
         ServerCredentials {
             c_creds: credentials,
+            cert_user_data: Some(unsafe { Box::from_raw(p_data) }),
         }
     }
 
@@ -261,6 +268,7 @@ impl ServerCredentialsBuilder {
 
         ServerCredentials {
             c_creds: credentials,
+            cert_user_data: None,
         }
     }
 }
@@ -282,11 +290,16 @@ impl Drop for ServerCredentialsBuilder {
 /// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
 pub struct ServerCredentials {
     c_creds: *mut grpc_server_credentials,
+    cert_user_data: Option<Box<CertUserData>>,
 }
 
 impl ServerCredentials {
     pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {
         self.c_creds
+    }
+
+    pub fn take_cert_user_data(&mut self) -> Option<Box<CertUserData>> {
+        self.cert_user_data.take()
     }
 }
 

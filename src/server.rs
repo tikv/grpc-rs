@@ -72,6 +72,8 @@ fn join_host_port(host: &str, port: u16) -> String {
     }
 }
 
+pub trait ForUserData {}
+
 #[cfg(feature = "secure")]
 mod imp {
     use super::join_host_port;
@@ -254,6 +256,7 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
+    user_data: Vec<Box<dyn ForUserData + Send>>,
 }
 
 impl ServerBuilder {
@@ -265,6 +268,7 @@ impl ServerBuilder {
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
+            user_data: vec![],
         }
     }
 
@@ -331,6 +335,7 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
+                _user_data: self.user_data,
             })
         }
     }
@@ -350,8 +355,11 @@ mod secure_server {
             mut self,
             host: S,
             port: u16,
-            c: ServerCredentials,
+            mut c: ServerCredentials,
         ) -> ServerBuilder {
+            if let Some(d) = c.take_cert_user_data() {
+                self.user_data.push(d);
+            }
             self.binders.push(Binder::with_cred(host.into(), port, c));
             self
         }
@@ -449,6 +457,7 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
+    _user_data: Vec<Box<dyn ForUserData + Send>>,
 }
 
 impl Server {
