@@ -57,7 +57,7 @@ matrix:
     install:
       - if ! which go 2>/dev/null; then
           wget https://dl.google.com/go/go1.13.8.linux-arm64.tar.gz;
-          tar -xf go1.13.8.linux-arm64.tar.gz;
+          tar -xf go1.13.8.linux-arm64.tar.gz -C $HOME;
           export PATH="$HOME/go/bin:$PATH";
           export GO_ROOT=$HOME/go;
         fi
