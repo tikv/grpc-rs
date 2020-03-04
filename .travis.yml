@@ -67,19 +67,6 @@ matrix:
         packages:
           - libunwind-dev
 
-  - os: linux
-    arch: amd64
-    addons:
-      apt:
-        update: true
-        sources:
-          - llvm-toolchain-xenial-7
-        packages:
-          - clang-tidy-7
-          - llvm-7-dev
-          - libclang-7-dev
-          - clang-7
-
 before_script:
   - scripts/reset-submodule.cmd
   - export GRPC_VERSION=1.26.0
