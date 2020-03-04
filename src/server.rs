@@ -364,7 +364,7 @@ mod secure_server {
     };
 
     impl ServerBuilder {
-        /// Bind to an address for secure connection.
+        /// Bind to an address with credentials for secure connection.
         ///
         /// This function can be called multiple times to bind to multiple ports.
         pub fn bind_with_cred<S: Into<String>>(
@@ -378,6 +378,9 @@ mod secure_server {
             self
         }
 
+        /// Bind to an address with fetchers provided by users for secure connection.
+        ///
+        /// This function can be called multiple times to bind to multiple ports.
         pub fn bind_with_fetcher<S: Into<String>>(
             mut self,
             host: S,
