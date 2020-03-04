@@ -4,7 +4,10 @@ pub mod client;
 pub mod server;
 
 use std::sync::Arc;
-use std::{ptr, slice};
+use std::{
+    fmt::{self, Display, Formatter},
+    ptr, slice,
+};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
@@ -40,13 +43,26 @@ impl Into<i32> for RpcStatusCode {
 macro_rules! status_codes {
     (
         $(
-            ($num:expr, $konst:ident);
+            ($num:path, $konst:ident);
         )+
     ) => {
         impl RpcStatusCode {
         $(
             pub const $konst: RpcStatusCode = RpcStatusCode($num);
         )+
+        }
+        impl Display for RpcStatusCode {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(
+                    f,
+                    "{}-{}",
+                    self.0,
+                    match self {
+                        $(RpcStatusCode($num) => stringify!($konst),)+
+                        RpcStatusCode(_) => "INVALID_STATUS_CODE",
+                    }
+                )
+            }
         }
     }
 }
@@ -138,6 +154,16 @@ pub struct RpcStatus {
 
     /// Optional detail string.
     pub details: Option<String>,
+}
+
+impl Display for RpcStatus {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            fmt,
+            "RpcStatus {{ status: {}, details: {:?} }}",
+            self.status, self.details
+        )
+    }
 }
 
 impl RpcStatus {
