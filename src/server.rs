@@ -18,8 +18,6 @@ use crate::channel::ChannelArgs;
 use crate::cq::CompletionQueue;
 use crate::env::Environment;
 use crate::error::{Error, Result};
-#[cfg(feature = "secure")]
-use crate::security::CertUserData;
 use crate::task::{CallTag, CqFuture};
 use crate::RpcContext;
 
@@ -78,23 +76,40 @@ fn join_host_port(host: &str, port: u16) -> String {
 mod imp {
     use super::join_host_port;
     use crate::grpc_sys::{self, grpc_server};
+    use crate::security::ServerCredentialsFetcher;
     use crate::ServerCredentials;
 
     pub struct Binder {
         pub host: String,
         pub port: u16,
         cred: Option<ServerCredentials>,
+        _user_fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
     }
 
     impl Binder {
         pub fn new(host: String, port: u16) -> Binder {
             let cred = None;
-            Binder { host, port, cred }
+            Binder {
+                host,
+                port,
+                cred,
+                _user_fetcher: None,
+            }
         }
 
-        pub fn with_cred(host: String, port: u16, cred: ServerCredentials) -> Binder {
+        pub fn with_cred(
+            host: String,
+            port: u16,
+            cred: ServerCredentials,
+            _user_fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
+        ) -> Binder {
             let cred = Some(cred);
-            Binder { host, port, cred }
+            Binder {
+                host,
+                port,
+                cred,
+                _user_fetcher,
+            }
         }
 
         pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
@@ -256,9 +271,6 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    #[cfg(feature = "secure")]
-    #[allow(clippy::vec_box)]
-    user_data: Vec<Box<CertUserData>>,
 }
 
 impl ServerBuilder {
@@ -270,8 +282,6 @@ impl ServerBuilder {
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
-            #[cfg(feature = "secure")]
-            user_data: vec![],
         }
     }
 
@@ -310,14 +320,14 @@ impl ServerBuilder {
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
             let mut bind_addrs = Vec::with_capacity(self.binders.len());
-            for mut binder in self.binders.drain(..) {
+            for binder in self.binders.iter_mut() {
                 let bind_port = binder.bind(server);
                 if bind_port == 0 {
                     grpc_sys::grpc_server_destroy(server);
-                    return Err(Error::BindFail(binder.host, binder.port));
+                    return Err(Error::BindFail(binder.host.clone(), binder.port));
                 }
 
-                bind_addrs.push((binder.host, bind_port as u16));
+                bind_addrs.push((binder.host.clone(), bind_port as u16));
             }
 
             for cq in self.env.completion_queues() {
@@ -338,8 +348,7 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
-                #[cfg(feature = "secure")]
-                _user_data: self.user_data,
+                _binders: self.binders,
             })
         }
     }
@@ -347,7 +356,7 @@ impl ServerBuilder {
 
 #[cfg(feature = "secure")]
 mod secure_server {
-    use super::{Binder, CertUserData, ServerBuilder};
+    use super::{Binder, ServerBuilder};
     use crate::grpc_sys;
     use crate::security::{
         server_cert_fetcher_wrapper, CertificateRequestType, ServerCredentials,
@@ -364,7 +373,8 @@ mod secure_server {
             port: u16,
             c: ServerCredentials,
         ) -> ServerBuilder {
-            self.binders.push(Binder::with_cred(host.into(), port, c));
+            self.binders
+                .push(Binder::with_cred(host.into(), port, c, None));
             self
         }
 
@@ -375,19 +385,20 @@ mod secure_server {
             user_data: Box<dyn ServerCredentialsFetcher + Send>,
             cer_request_type: CertificateRequestType,
         ) -> ServerBuilder {
-            let user_data_ptr = Box::into_raw(Box::new(CertUserData::new(user_data)));
+            let user_data_wrap = Box::new(user_data);
+            let user_data_wrap_ptr = Box::into_raw(user_data_wrap);
             let opt = unsafe {
                 grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
                     cer_request_type.to_native(),
                     Some(server_cert_fetcher_wrapper),
-                    user_data_ptr as _,
+                    user_data_wrap_ptr as _,
                 )
             };
             let cred = unsafe { grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt) };
             let c = ServerCredentials::new(cred);
-            let data = unsafe { Box::from_raw(user_data_ptr) };
-            self.user_data.push(data);
-            self.binders.push(Binder::with_cred(host.into(), port, c));
+            let user_data = unsafe { Box::from_raw(user_data_wrap_ptr) };
+            self.binders
+                .push(Binder::with_cred(host.into(), port, c, Some(user_data)));
             self
         }
     }
@@ -484,9 +495,7 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    #[cfg(feature = "secure")]
-    #[allow(clippy::vec_box)]
-    _user_data: Vec<Box<CertUserData>>,
+    _binders: Vec<Binder>,
 }
 
 impl Server {

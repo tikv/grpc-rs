@@ -75,16 +75,6 @@ pub trait ServerCredentialsFetcher {
         -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
 }
 
-pub struct CertUserData {
-    data: Box<dyn ServerCredentialsFetcher + Send>,
-}
-
-impl CertUserData {
-    pub fn new(data: Box<dyn ServerCredentialsFetcher + Send>) -> CertUserData {
-        CertUserData { data }
-    }
-}
-
 impl CertificateRequestType {
     #[inline]
     pub fn to_native(self) -> grpc_ssl_client_certificate_request_type {
@@ -107,8 +97,10 @@ pub unsafe extern "C" fn server_cert_fetcher_wrapper(
     if user_data.is_null() {
         panic!("fetcher user_data must be set up!");
     }
-    let d: &mut CertUserData = &mut *(user_data as *mut CertUserData);
-    let result = d.data.fetch();
+    #[allow(clippy::borrowed_box)]
+    let f: &mut Box<dyn ServerCredentialsFetcher> =
+        &mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>);
+    let result = f.fetch();
     match result {
         Err(e) => {
             warn!("cert_fetcher met some errors: {}", e);
@@ -232,6 +224,8 @@ impl Drop for ServerCredentialsBuilder {
 pub struct ServerCredentials {
     c_creds: *mut grpc_server_credentials,
 }
+
+unsafe impl Send for ServerCredentials {}
 
 impl ServerCredentials {
     pub fn new(c_creds: *mut grpc_server_credentials) -> ServerCredentials {

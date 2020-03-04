@@ -3,7 +3,7 @@
 mod credentials;
 
 pub use self::credentials::{
-    server_cert_fetcher_wrapper, CertUserData, CertificateRequestType, ChannelCredentials,
+    server_cert_fetcher_wrapper, CertificateRequestType, ChannelCredentials,
     ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
     ServerCredentialsFetcher,
 };
