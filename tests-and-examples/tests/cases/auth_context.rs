@@ -60,7 +60,7 @@ fn test_auth_context() {
         .build();
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind_secure("127.0.0.1", 0, server_credentials)
+        .bind_with_cred("127.0.0.1", 0, server_credentials)
         .build()
         .unwrap();
     server.start();

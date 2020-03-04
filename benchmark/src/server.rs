@@ -60,7 +60,7 @@ impl Server {
             builder = builder.channel_args(ch_builder.build_args());
         }
         builder = if cfg.has_security_params() {
-            builder.bind_secure(
+            builder.bind_with_cred(
                 "[::]",
                 cfg.get_port() as u16,
                 proto_util::create_test_server_credentials(),

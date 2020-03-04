@@ -1,7 +1,7 @@
 use futures::Future;
 use grpcio::{
     CertificateRequestType, ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext,
-    ServerBuilder, ServerCredentialsBuilder, UnarySink, UserFetcher,
+    ServerBuilder, ServerCredentialsBuilder, ServerCredentialsFetcher, UnarySink,
 };
 use std::fs;
 use std::io::Read;
@@ -34,31 +34,13 @@ fn get_ca_crt() -> String {
     buf
 }
 
-fn get_server_crt() -> String {
-    let mut buf = String::new();
-    fs::File::open("certs/server.crt")
-        .unwrap()
-        .read_to_string(&mut buf)
-        .unwrap();
-    buf
+struct DataInitial {
+    flag: bool,
 }
 
-fn get_server_key() -> String {
-    let mut buf = String::new();
-    fs::File::open("certs/server.key")
-        .unwrap()
-        .read_to_string(&mut buf)
-        .unwrap();
-    buf
-}
-
-struct DataReloadNew {
-    reload: bool,
-}
-
-impl UserFetcher for DataReloadNew {
+impl ServerCredentialsFetcher for DataInitial {
     fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-        if self.reload {
+        if self.flag {
             return Ok(None);
         }
         let mut pd_crt = String::new();
@@ -70,36 +52,50 @@ impl UserFetcher for DataReloadNew {
         let new_cred = ServerCredentialsBuilder::new()
             .add_cert(pd_crt.into(), pd_key.into())
             .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
-        self.reload = true;
+        self.flag = true;
         Ok(Some(new_cred))
     }
 }
 
-struct DataMeetFail {}
+struct DataMeetFail {
+    flag: bool,
+}
 
-impl UserFetcher for DataMeetFail {
+impl ServerCredentialsFetcher for DataMeetFail {
     fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-        let mut f = fs::File::open("Forsaken/Land")?;
-        let mut content = String::new();
-        f.read_to_string(&mut content)?;
-        Ok(None)
+        if self.flag {
+            let mut f = fs::File::open("Forsaken/Land")?;
+            let mut content = String::new();
+            f.read_to_string(&mut content)?;
+            return Ok(None);
+        } else {
+            let mut pd_crt = String::new();
+            fs::File::open("certs/pd.crt")?.read_to_string(&mut pd_crt)?;
+            let mut pd_key = String::new();
+            fs::File::open("certs/pd.key")?.read_to_string(&mut pd_key)?;
+            let mut ca_crt = String::new();
+            fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
+            let new_cred = ServerCredentialsBuilder::new()
+                .add_cert(pd_crt.into(), pd_key.into())
+                .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
+            self.flag = true;
+            Ok(Some(new_cred))
+        }
     }
 }
 
 #[test]
 fn test_reload_new() {
     let env = Arc::new(EnvBuilder::new().build());
-    let cred = ServerCredentialsBuilder::new()
-        .add_cert(get_server_crt().into(), get_server_key().into())
-        .root_cert(
-            get_ca_crt(),
-            CertificateRequestType::DontRequestClientCertificate,
-        )
-        .build_with_fetcher(Box::new(DataReloadNew { reload: false }));
     let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind_secure("localhost", 0, cred)
+        .bind_with_fetcher(
+            "localhost",
+            0,
+            Box::new(DataInitial { flag: false }),
+            CertificateRequestType::DontRequestClientCertificate,
+        )
         .build()
         .unwrap();
     server.start();
@@ -122,17 +118,15 @@ fn test_reload_new() {
 #[test]
 fn test_reload_fail_open() {
     let env = Arc::new(EnvBuilder::new().build());
-    let cred = ServerCredentialsBuilder::new()
-        .add_cert(get_server_crt().into(), get_server_key().into())
-        .root_cert(
-            get_ca_crt(),
-            CertificateRequestType::DontRequestClientCertificate,
-        )
-        .build_with_fetcher(Box::new(DataMeetFail {}));
     let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind_secure("localhost", 0, cred)
+        .bind_with_fetcher(
+            "localhost",
+            0,
+            Box::new(DataMeetFail { flag: false }),
+            CertificateRequestType::DontRequestClientCertificate,
+        )
         .build()
         .unwrap();
     server.start();
