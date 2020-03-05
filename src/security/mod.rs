@@ -3,7 +3,8 @@
 mod credentials;
 
 pub use self::credentials::{
-    server_cert_fetcher_wrapper, CertificateRequestType, ChannelCredentials,
-    ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
-    ServerCredentialsFetcher,
+    CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+    ServerCredentialsBuilder, ServerCredentialsFetcher,
 };
+
+pub(crate) use self::credentials::server_cert_fetcher_wrapper;

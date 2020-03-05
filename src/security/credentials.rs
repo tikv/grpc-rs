@@ -77,7 +77,7 @@ pub trait ServerCredentialsFetcher {
 
 impl CertificateRequestType {
     #[inline]
-    pub fn to_native(self) -> grpc_ssl_client_certificate_request_type {
+    pub(crate) fn to_native(self) -> grpc_ssl_client_certificate_request_type {
         unsafe { mem::transmute(self) }
     }
 }
@@ -90,7 +90,7 @@ fn clear_key_securely(key: &mut [u8]) {
     }
 }
 
-pub unsafe extern "C" fn server_cert_fetcher_wrapper(
+pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
     user_data: *mut std::os::raw::c_void,
     config: *mut *mut grpc_ssl_server_certificate_config,
 ) -> grpc_ssl_certificate_config_reload_status {

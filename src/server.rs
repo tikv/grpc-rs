@@ -83,7 +83,7 @@ mod imp {
         pub host: String,
         pub port: u16,
         cred: Option<ServerCredentials>,
-        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
+        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher>>>,
     }
 
     impl Binder {
@@ -101,7 +101,7 @@ mod imp {
             host: String,
             port: u16,
             cred: ServerCredentials,
-            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
+            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher>>>,
         ) -> Binder {
             let cred = Some(cred);
             Binder {
@@ -382,7 +382,7 @@ mod secure_server {
             mut self,
             host: S,
             port: u16,
-            fetcher: Box<dyn ServerCredentialsFetcher + Send>,
+            fetcher: Box<dyn ServerCredentialsFetcher>,
             cer_request_type: CertificateRequestType,
         ) -> ServerBuilder {
             let fetcher_wrap = Box::new(fetcher);
