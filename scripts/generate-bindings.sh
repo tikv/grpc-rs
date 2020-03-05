@@ -5,7 +5,7 @@
 # The generated bindings will overwrite grpc-sys/bindings/*
 
 if [ "$ARCH" == "" ]; then
-    ARCH=`uname -m`
+    ARCH=`uname -p`
 fi
 export UPDATE_BIND=1
 cargo build -p grpcio-sys --target ${ARCH}-unknown-linux-gnu
