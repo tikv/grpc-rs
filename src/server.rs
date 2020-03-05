@@ -83,7 +83,7 @@ mod imp {
         pub host: String,
         pub port: u16,
         cred: Option<ServerCredentials>,
-        _user_fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
+        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
     }
 
     impl Binder {
@@ -93,7 +93,7 @@ mod imp {
                 host,
                 port,
                 cred,
-                _user_fetcher: None,
+                _fetcher: None,
             }
         }
 
@@ -101,14 +101,14 @@ mod imp {
             host: String,
             port: u16,
             cred: ServerCredentials,
-            _user_fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
+            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send>>>,
         ) -> Binder {
             let cred = Some(cred);
             Binder {
                 host,
                 port,
                 cred,
-                _user_fetcher,
+                _fetcher,
             }
         }
 
@@ -385,23 +385,23 @@ mod secure_server {
             mut self,
             host: S,
             port: u16,
-            user_data: Box<dyn ServerCredentialsFetcher + Send>,
+            fetcher: Box<dyn ServerCredentialsFetcher + Send>,
             cer_request_type: CertificateRequestType,
         ) -> ServerBuilder {
-            let user_data_wrap = Box::new(user_data);
-            let user_data_wrap_ptr = Box::into_raw(user_data_wrap);
+            let fetcher_wrap = Box::new(fetcher);
+            let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
             let opt = unsafe {
                 grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
                     cer_request_type.to_native(),
                     Some(server_cert_fetcher_wrapper),
-                    user_data_wrap_ptr as _,
+                    fetcher_wrap_ptr as _,
                 )
             };
             let cred = unsafe { grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt) };
             let c = ServerCredentials::new(cred);
-            let user_data = unsafe { Box::from_raw(user_data_wrap_ptr) };
+            let f = unsafe { Box::from_raw(fetcher_wrap_ptr) };
             self.binders
-                .push(Binder::with_cred(host.into(), port, c, Some(user_data)));
+                .push(Binder::with_cred(host.into(), port, c, Some(f)));
             self
         }
     }
