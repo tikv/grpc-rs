@@ -34,26 +34,41 @@ fn get_ca_crt() -> String {
     buf
 }
 
-struct DataInitial {
+struct DataReload {
     flag: bool,
+    reload: bool,
 }
 
-impl ServerCredentialsFetcher for DataInitial {
+impl ServerCredentialsFetcher for DataReload {
     fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-        if self.flag {
+        if self.reload {
             return Ok(None);
         }
-        let mut pd_crt = String::new();
-        fs::File::open("certs/pd.crt")?.read_to_string(&mut pd_crt)?;
-        let mut pd_key = String::new();
-        fs::File::open("certs/pd.key")?.read_to_string(&mut pd_key)?;
-        let mut ca_crt = String::new();
-        fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
-        let new_cred = ServerCredentialsBuilder::new()
-            .add_cert(pd_crt.into(), pd_key.into())
-            .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
-        self.flag = true;
-        Ok(Some(new_cred))
+        if !self.flag {
+            let mut peer_1_crt = String::new();
+            fs::File::open("certs/peer_1.crt")?.read_to_string(&mut peer_1_crt)?;
+            let mut peer_1_key = String::new();
+            fs::File::open("certs/peer_1.key")?.read_to_string(&mut peer_1_key)?;
+            let mut ca_crt = String::new();
+            fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
+            let new_cred = ServerCredentialsBuilder::new()
+                .add_cert(peer_1_crt.into(), peer_1_key.into())
+                .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
+            self.flag = true;
+            Ok(Some(new_cred))
+        } else {
+            let mut peer_2_crt = String::new();
+            fs::File::open("certs/peer_2.crt")?.read_to_string(&mut peer_2_crt)?;
+            let mut peer_2_key = String::new();
+            fs::File::open("certs/peer_2.key")?.read_to_string(&mut peer_2_key)?;
+            let mut ca_crt = String::new();
+            fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
+            let new_cred = ServerCredentialsBuilder::new()
+                .add_cert(peer_2_crt.into(), peer_2_key.into())
+                .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
+            self.flag = true;
+            Ok(Some(new_cred))
+        }
     }
 }
 
@@ -69,14 +84,14 @@ impl ServerCredentialsFetcher for DataMeetFail {
             f.read_to_string(&mut content)?;
             return Ok(None);
         } else {
-            let mut pd_crt = String::new();
-            fs::File::open("certs/pd.crt")?.read_to_string(&mut pd_crt)?;
-            let mut pd_key = String::new();
-            fs::File::open("certs/pd.key")?.read_to_string(&mut pd_key)?;
+            let mut peer_1_crt = String::new();
+            fs::File::open("certs/peer_1.crt")?.read_to_string(&mut peer_1_crt)?;
+            let mut peer_1_key = String::new();
+            fs::File::open("certs/peer_1.key")?.read_to_string(&mut peer_1_key)?;
             let mut ca_crt = String::new();
             fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
             let new_cred = ServerCredentialsBuilder::new()
-                .add_cert(pd_crt.into(), pd_key.into())
+                .add_cert(peer_1_crt.into(), peer_1_key.into())
                 .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
             self.flag = true;
             Ok(Some(new_cred))
@@ -93,7 +108,10 @@ fn test_reload_new() {
         .bind_with_fetcher(
             "localhost",
             0,
-            Box::new(DataInitial { flag: false }),
+            Box::new(DataReload {
+                flag: false,
+                reload: false,
+            }),
             CertificateRequestType::DontRequestClientCertificate,
         )
         .build()

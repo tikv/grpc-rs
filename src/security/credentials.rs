@@ -67,9 +67,13 @@ pub enum CertificateRequestType {
         GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
 }
 
-/// User-provided callback function for reload cert. [`None`] indicates that
+/// User-provided callback function for reloading cert. [`None`] indicates that
 /// no reloading is needed, and [`Some(ServerCredentialsBuilder)`] indicates
 /// that reloading is needed.
+///
+/// The fetcher will be called to fetch certificates during initialization and
+/// addition for handshakers. And fetch() returns error encountered when trying
+/// to construct the certificate configuration that are mostly [`std::io::Error`].
 pub trait ServerCredentialsFetcher {
     fn fetch(&mut self)
         -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
@@ -103,7 +107,7 @@ pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
     let result = f.fetch();
     match result {
         Err(e) => {
-            warn!("cert_fetcher met some errors: {}", e);
+            warn!("cert_fetcher met error: {}", e);
             return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
         }
         Ok(ret) => {
@@ -200,9 +204,7 @@ impl ServerCredentialsBuilder {
             }
         }
 
-        ServerCredentials {
-            c_creds: credentials,
-        }
+        ServerCredentials { creds: credentials }
     }
 }
 
@@ -222,27 +224,25 @@ impl Drop for ServerCredentialsBuilder {
 ///
 /// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
 pub struct ServerCredentials {
-    c_creds: *mut grpc_server_credentials,
+    creds: *mut grpc_server_credentials,
 }
 
 unsafe impl Send for ServerCredentials {}
 
 impl ServerCredentials {
-    pub fn new(c_creds: *mut grpc_server_credentials) -> ServerCredentials {
-        ServerCredentials { c_creds }
+    pub(crate) unsafe fn frow_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
+        ServerCredentials { creds }
     }
 
     pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {
-        self.c_creds
+        self.creds
     }
 }
 
 impl Drop for ServerCredentials {
     fn drop(&mut self) {
-        if !self.c_creds.is_null() {
-            unsafe {
-                grpc_sys::grpc_server_credentials_release(self.c_creds);
-            }
+        unsafe {
+            grpc_sys::grpc_server_credentials_release(self.creds);
         }
     }
 }

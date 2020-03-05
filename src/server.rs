@@ -2,8 +2,7 @@
 
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
-use std::fmt;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::net::{IpAddr, SocketAddr};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -150,6 +149,12 @@ mod imp {
 }
 
 use self::imp::Binder;
+
+impl Debug for Binder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Binder {{ host: {}, port: {} }}", self.host, self.port)
+    }
+}
 
 /// [`Service`] factory in order to configure the properties.
 ///
@@ -395,7 +400,7 @@ mod secure_server {
                 )
             };
             let cred = unsafe { grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt) };
-            let c = ServerCredentials::new(cred);
+            let c = unsafe { ServerCredentials::frow_raw(cred) };
             let f = unsafe { Box::from_raw(fetcher_wrap_ptr) };
             self.binders
                 .push(Binder::with_cred(host.into(), port, c, Some(f)));
@@ -564,7 +569,7 @@ impl Drop for Server {
 
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Server {:?}", self.bind_addrs().collect::<Vec<(_, _)>>())
+        write!(f, "Server {:?}", self.core.binders)
     }
 }
 
