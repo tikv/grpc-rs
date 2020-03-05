@@ -105,10 +105,7 @@ script:
     fi
   # clang-tidy-7 is not available on aarch64, so just skip lint
   - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ `uname -p` != "aarch64" ]]; then
-      scripts/lint-grpc-sys.sh;
-    fi
-  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then
-      git diff-index --quiet HEAD; 
+      scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD;
     fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi
   - cargo build --no-default-features
