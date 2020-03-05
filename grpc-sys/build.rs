@@ -331,12 +331,13 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path(config: bindgen::Builder) {
     let file_path: PathBuf;
-    println!("cargo:rerun-if-changed=bindings/x86_64-unknown-linux-gnu-bindings.rs");
-    match env::var("TARGET").unwrap().as_str() {
-        "x86_64-unknown-linux-gnu" => {
+    let target = env::var("TARGET").unwrap();
+    println!("cargo:rerun-if-changed=bindings/{}-bindings.rs", &target);
+    match target.as_str() {
+        "x86_64-unknown-linux-gnu" | "aarch64-unknown-linux-gnu" => {
             file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
-                .join("x86_64-unknown-linux-gnu-bindings.rs");
+                .join(format!("{}-bindings.rs", &target));
             if env::var("UPDATE_BIND").map(|s| s == "1").unwrap_or(false) {
                 bindgen_grpc(config, &file_path);
             }
