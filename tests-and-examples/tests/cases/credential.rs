@@ -100,7 +100,7 @@ fn test_reload_new() {
         .unwrap();
     server.start();
 
-    let port = server.bind_addrs()[0].1;
+    let port = server.bind_addrs().next().unwrap().1;
     let cred = ChannelCredentialsBuilder::new()
         .root_cert(get_ca_crt().into())
         .build();
@@ -131,7 +131,7 @@ fn test_reload_fail_open() {
         .unwrap();
     server.start();
 
-    let port = server.bind_addrs()[0].1;
+    let port = server.bind_addrs().next().unwrap().1;
     let cred = ChannelCredentialsBuilder::new()
         .root_cert(get_ca_crt().into())
         .build();

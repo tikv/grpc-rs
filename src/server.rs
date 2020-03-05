@@ -319,15 +319,13 @@ impl ServerBuilder {
             .map_or_else(ptr::null, ChannelArgs::as_ptr);
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            let mut bind_addrs = Vec::with_capacity(self.binders.len());
             for binder in self.binders.iter_mut() {
                 let bind_port = binder.bind(server);
                 if bind_port == 0 {
                     grpc_sys::grpc_server_destroy(server);
                     return Err(Error::BindFail(binder.host.clone(), binder.port));
                 }
-
-                bind_addrs.push((binder.host.clone(), bind_port as u16));
+                binder.port = bind_port;
             }
 
             for cq in self.env.completion_queues() {
@@ -344,11 +342,10 @@ impl ServerBuilder {
                 core: Arc::new(ServerCore {
                     server,
                     shutdown: AtomicBool::new(false),
-                    bind_addrs,
+                    binders: self.binders,
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
-                _binders: self.binders,
             })
         }
     }
@@ -409,7 +406,7 @@ mod secure_server {
 
 struct ServerCore {
     server: *mut grpc_server,
-    bind_addrs: Vec<(String, u16)>,
+    binders: Vec<Binder>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
 }
@@ -498,7 +495,6 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    _binders: Vec<Binder>,
 }
 
 impl Server {
@@ -550,9 +546,9 @@ impl Server {
         }
     }
 
-    /// Get binded addresses.
-    pub fn bind_addrs(&self) -> &[(String, u16)] {
-        &self.core.bind_addrs
+    /// Get binded addresses pairs.
+    pub fn bind_addrs(&self) -> impl ExactSizeIterator<Item = (&String, &u16)> {
+        self.core.binders.iter().map(|b| (&b.host, &b.port))
     }
 }
 
@@ -568,7 +564,7 @@ impl Drop for Server {
 
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Server {:?}", self.core.bind_addrs)
+        write!(f, "Server {:?}", self.bind_addrs().collect::<Vec<(_, _)>>())
     }
 }
 

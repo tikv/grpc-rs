@@ -49,7 +49,7 @@ fn main() {
         .build()
         .unwrap();
 
-    for &(ref host, port) in server.bind_addrs() {
+    for (host, port) in server.bind_addrs() {
         info!("listening on {}:{}", host, port);
     }
 
