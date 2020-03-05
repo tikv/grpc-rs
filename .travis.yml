@@ -103,9 +103,12 @@ script:
       rustup component add rustfmt && cargo fmt --all -- --check;
       scripts/generate-bindings.sh && git diff --exit-code HEAD;
     fi
-  # clang-tidy-7 is not available on aarch64, so just skip this step
-  - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ `uname -p` != "aarch64" ]];
-      then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; 
+  # clang-tidy-7 is not available on aarch64, so just skip lint on aarch64
+  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then 
+      if [[ `uname -p` != "aarch64" ]]; then
+        scripts/lint-grpc-sys.sh;  
+      fi  
+      git diff-index --quiet HEAD; 
     fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi
   - cargo build --no-default-features
