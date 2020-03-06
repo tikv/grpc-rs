@@ -5,7 +5,7 @@ use grpcio::{
 };
 use std::fs;
 use std::io::Read;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
@@ -35,16 +35,17 @@ fn get_ca_crt() -> String {
 }
 
 struct DataReload {
-    flag: bool,
-    reload: bool,
+    flag: Arc<Mutex<(bool, bool)>>,
 }
 
 impl ServerCredentialsFetcher for DataReload {
-    fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-        if self.reload {
+    fn fetch(&self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
+        let mut guard_flag = self.flag.lock().unwrap();
+        if (*guard_flag).1 {
             return Ok(None);
         }
-        if !self.flag {
+
+        if !(*guard_flag).0 {
             let mut peer_1_crt = String::new();
             fs::File::open("certs/peer_1.crt")?.read_to_string(&mut peer_1_crt)?;
             let mut peer_1_key = String::new();
@@ -54,7 +55,7 @@ impl ServerCredentialsFetcher for DataReload {
             let new_cred = ServerCredentialsBuilder::new()
                 .add_cert(peer_1_crt.into(), peer_1_key.into())
                 .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
-            self.flag = true;
+            (*guard_flag).0 = true;
             Ok(Some(new_cred))
         } else {
             let mut peer_2_crt = String::new();
@@ -66,19 +67,20 @@ impl ServerCredentialsFetcher for DataReload {
             let new_cred = ServerCredentialsBuilder::new()
                 .add_cert(peer_2_crt.into(), peer_2_key.into())
                 .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
-            self.flag = true;
+            (*guard_flag).1 = true;
             Ok(Some(new_cred))
         }
     }
 }
 
 struct DataMeetFail {
-    flag: bool,
+    flag: Arc<Mutex<bool>>,
 }
 
 impl ServerCredentialsFetcher for DataMeetFail {
-    fn fetch(&mut self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
-        if self.flag {
+    fn fetch(&self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
+        let mut guard_flag = self.flag.lock().unwrap();
+        if *guard_flag {
             let mut f = fs::File::open("Forsaken/Land")?;
             let mut content = String::new();
             f.read_to_string(&mut content)?;
@@ -93,7 +95,7 @@ impl ServerCredentialsFetcher for DataMeetFail {
             let new_cred = ServerCredentialsBuilder::new()
                 .add_cert(peer_1_crt.into(), peer_1_key.into())
                 .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
-            self.flag = true;
+            *guard_flag = true;
             Ok(Some(new_cred))
         }
     }
@@ -109,8 +111,7 @@ fn test_reload_new() {
             "localhost",
             0,
             Box::new(DataReload {
-                flag: false,
-                reload: false,
+                flag: Arc::new(Mutex::new((false, false))),
             }),
             CertificateRequestType::DontRequestClientCertificate,
         )
@@ -142,7 +143,9 @@ fn test_reload_fail_open() {
         .bind_with_fetcher(
             "localhost",
             0,
-            Box::new(DataMeetFail { flag: false }),
+            Box::new(DataMeetFail {
+                flag: Arc::new(Mutex::new(false)),
+            }),
             CertificateRequestType::DontRequestClientCertificate,
         )
         .build()

@@ -82,7 +82,7 @@ mod imp {
         pub host: String,
         pub port: u16,
         cred: Option<ServerCredentials>,
-        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher>>>,
+        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
     }
 
     impl Binder {
@@ -100,7 +100,7 @@ mod imp {
             host: String,
             port: u16,
             cred: ServerCredentials,
-            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher>>>,
+            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
         ) -> Binder {
             let cred = Some(cred);
             Binder {
@@ -383,11 +383,14 @@ mod secure_server {
         /// Bind to an address with fetchers provided by users for secure connection.
         ///
         /// This function can be called multiple times to bind to multiple ports.
+        ///
+        /// There may be multiple threads calling fetcher on the same address. Make
+        /// sure that your fetcher is thread-safe.
         pub fn bind_with_fetcher<S: Into<String>>(
             mut self,
             host: S,
             port: u16,
-            fetcher: Box<dyn ServerCredentialsFetcher>,
+            fetcher: Box<dyn ServerCredentialsFetcher + Send + Sync>,
             cer_request_type: CertificateRequestType,
         ) -> ServerBuilder {
             let fetcher_wrap = Box::new(fetcher);

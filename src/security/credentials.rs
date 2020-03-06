@@ -67,16 +67,17 @@ pub enum CertificateRequestType {
         GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
 }
 
-/// User-provided callback function for reloading cert. [`None`] indicates that
-/// no reloading is needed, and [`Some(ServerCredentialsBuilder)`] indicates
-/// that reloading is needed.
+/// User-provided callback function for reloading cert. The fetcher will be
+/// called to fetch certificates during initialization and addition for
+/// handshakers.
 ///
-/// The fetcher will be called to fetch certificates during initialization and
-/// addition for handshakers. And fetch() returns error encountered when trying
-/// to construct the certificate configuration that are mostly [`std::io::Error`].
+/// [`None`] indicates that no certificate configuration required to fetch,
+/// which means that returning [`None`] when initialization will fail to load
+/// the certificate correctly. [`Some(ServerCredentialsBuilder)`] indicates
+/// that fetching is needed. gRPC will continue to use the previous certificate
+/// configuration if fetch() returns any error.
 pub trait ServerCredentialsFetcher {
-    fn fetch(&mut self)
-        -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
+    fn fetch(&self) -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
 }
 
 impl CertificateRequestType {
