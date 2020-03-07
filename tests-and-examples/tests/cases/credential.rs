@@ -25,13 +25,29 @@ impl Greeter for GreeterService {
     }
 }
 
-fn get_ca_crt() -> String {
-    let mut buf = String::new();
-    fs::File::open("certs/ca.crt")
+fn read_root_crt() -> Result<String, std::io::Error> {
+    let mut root = String::new();
+    fs::File::open("certs/root.crt")
         .unwrap()
-        .read_to_string(&mut buf)
+        .read_to_string(&mut root)
         .unwrap();
-    buf
+    Ok(root)
+}
+
+fn read_server1_creds() -> Result<(String, String), std::io::Error> {
+    let mut server1_crt = String::new();
+    let mut server1_key = String::new();
+    fs::File::open("certs/server1.crt")?.read_to_string(&mut server1_crt)?;
+    fs::File::open("certs/server1.key")?.read_to_string(&mut server1_key)?;
+    Ok((server1_crt, server1_key))
+}
+
+fn read_server2_creds() -> Result<(String, String), std::io::Error> {
+    let mut server2_crt = String::new();
+    let mut server2_key = String::new();
+    fs::File::open("certs/server2.crt")?.read_to_string(&mut server2_crt)?;
+    fs::File::open("certs/server2.key")?.read_to_string(&mut server2_key)?;
+    Ok((server2_crt, server2_key))
 }
 
 struct DataReload {
@@ -44,29 +60,20 @@ impl ServerCredentialsFetcher for DataReload {
         if (*guard_flag).1 {
             return Ok(None);
         }
-
         if !(*guard_flag).0 {
-            let mut peer_1_crt = String::new();
-            fs::File::open("certs/peer_1.crt")?.read_to_string(&mut peer_1_crt)?;
-            let mut peer_1_key = String::new();
-            fs::File::open("certs/peer_1.key")?.read_to_string(&mut peer_1_key)?;
-            let mut ca_crt = String::new();
-            fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
+            let root = read_root_crt()?;
+            let (server1_crt, server1_key) = read_server1_creds()?;
             let new_cred = ServerCredentialsBuilder::new()
-                .add_cert(peer_1_crt.into(), peer_1_key.into())
-                .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
+                .add_cert(server1_crt.into(), server1_key.into())
+                .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
             (*guard_flag).0 = true;
             Ok(Some(new_cred))
         } else {
-            let mut peer_2_crt = String::new();
-            fs::File::open("certs/peer_2.crt")?.read_to_string(&mut peer_2_crt)?;
-            let mut peer_2_key = String::new();
-            fs::File::open("certs/peer_2.key")?.read_to_string(&mut peer_2_key)?;
-            let mut ca_crt = String::new();
-            fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
+            let root = read_root_crt()?;
+            let (server2_crt, server2_key) = read_server2_creds()?;
             let new_cred = ServerCredentialsBuilder::new()
-                .add_cert(peer_2_crt.into(), peer_2_key.into())
-                .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
+                .add_cert(server2_crt.into(), server2_key.into())
+                .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
             (*guard_flag).1 = true;
             Ok(Some(new_cred))
         }
@@ -81,20 +88,15 @@ impl ServerCredentialsFetcher for DataMeetFail {
     fn fetch(&self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
         let mut guard_flag = self.flag.lock().unwrap();
         if *guard_flag {
-            let mut f = fs::File::open("Forsaken/Land")?;
-            let mut content = String::new();
-            f.read_to_string(&mut content)?;
-            return Ok(None);
+            // Should return io::Error here.
+            let _f = fs::File::open("Forsaken/Land")?;
+            unimplemented!("You cannot execute here");
         } else {
-            let mut peer_1_crt = String::new();
-            fs::File::open("certs/peer_1.crt")?.read_to_string(&mut peer_1_crt)?;
-            let mut peer_1_key = String::new();
-            fs::File::open("certs/peer_1.key")?.read_to_string(&mut peer_1_key)?;
-            let mut ca_crt = String::new();
-            fs::File::open("certs/ca.crt")?.read_to_string(&mut ca_crt)?;
+            let root = read_root_crt()?;
+            let (server1_crt, server1_key) = read_server1_creds()?;
             let new_cred = ServerCredentialsBuilder::new()
-                .add_cert(peer_1_crt.into(), peer_1_key.into())
-                .root_cert(ca_crt, CertificateRequestType::DontRequestClientCertificate);
+                .add_cert(server1_crt.into(), server1_key.into())
+                .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
             *guard_flag = true;
             Ok(Some(new_cred))
         }
@@ -121,12 +123,12 @@ fn test_reload_new() {
 
     let port = server.bind_addrs().next().unwrap().1;
     let cred = ChannelCredentialsBuilder::new()
-        .root_cert(get_ca_crt().into())
+        .root_cert(read_root_crt().unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), cred);
     let client = GreeterClient::new(ch);
 
-    for _ in 0..10 {
+    for _ in 0..3 {
         let mut req = HelloRequest::default();
         req.set_name("world".to_owned());
         let reply = client.say_hello(&req).expect("rpc");
@@ -154,12 +156,12 @@ fn test_reload_fail_open() {
 
     let port = server.bind_addrs().next().unwrap().1;
     let cred = ChannelCredentialsBuilder::new()
-        .root_cert(get_ca_crt().into())
+        .root_cert(read_root_crt().unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), cred);
     let client = GreeterClient::new(ch);
 
-    for _ in 0..10 {
+    for _ in 0..3 {
         let mut req = HelloRequest::default();
         req.set_name("world".to_owned());
         let reply = client.say_hello(&req).expect("rpc");
