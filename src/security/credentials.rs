@@ -102,9 +102,8 @@ pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
     if user_data.is_null() {
         panic!("fetcher user_data must be set up!");
     }
-    #[allow(clippy::borrowed_box)]
-    let f: &mut Box<dyn ServerCredentialsFetcher> =
-        &mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>);
+    let f: &mut dyn ServerCredentialsFetcher =
+        (&mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
     let result = f.fetch();
     match result {
         Err(e) => {
