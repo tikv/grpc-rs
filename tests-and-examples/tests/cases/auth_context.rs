@@ -96,7 +96,10 @@ fn test_auth_context() {
         ("x509_common_name".to_owned(), "grpc-client-1".to_owned())
     );
     let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    assert_eq!(keys, ("x509_pem_cert".to_owned(), client_crt));
+    assert_eq!(
+        keys,
+        ("x509_pem_cert".to_owned(), client_crt.replace("\r\n", "\n"))
+    );
     let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(keys, ("ssl_session_reused".to_owned(), "false".to_owned()));
     let _empty_keys: mpsc::RecvTimeoutError = rx

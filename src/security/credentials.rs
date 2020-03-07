@@ -111,20 +111,8 @@ pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
             return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
         }
         Ok(ret) => {
-            if let Some(mut builder) = ret {
-                let root_cert = match builder.root.take() {
-                    None => {
-                        warn!("root_cert is forbidden to be NULL in replace_server_handshaker");
-                        return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
-                    }
-                    Some(s) => s.into_raw(),
-                };
-                let new_config = grpcio_sys::grpc_ssl_server_certificate_config_create(
-                    root_cert,
-                    builder.key_cert_pairs.as_ptr(),
-                    builder.key_cert_pairs.len(),
-                );
-                CString::from_raw(root_cert);
+            if let Some(builder) = ret {
+                let new_config = builder.build_config();
                 *config = new_config;
             } else {
                 return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
@@ -179,30 +167,33 @@ impl ServerCredentialsBuilder {
         self
     }
 
-    /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
-    pub fn build(mut self) -> ServerCredentials {
+    /// Finalize the [`ServerCredentialsBuilder`] and build the
+    /// [`*mut grpcio_sys::bindings::grpc_ssl_server_certificate_config`].
+    unsafe fn build_config(mut self) -> *mut grpcio_sys::grpc_ssl_server_certificate_config {
         let root_cert = self
             .root
             .take()
             .map_or_else(ptr::null_mut, CString::into_raw);
+        let cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
+            root_cert,
+            self.key_cert_pairs.as_ptr(),
+            self.key_cert_pairs.len(),
+        );
+        if !root_cert.is_null() {
+            CString::from_raw(root_cert);
+        }
+        cfg
+    }
+
+    /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
+    pub fn build(self) -> ServerCredentials {
         let credentials = unsafe {
-            let cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
-                root_cert,
-                self.key_cert_pairs.as_ptr(),
-                self.key_cert_pairs.len(),
-            );
             let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config(
                 self.cer_request_type.to_native(),
-                cfg,
+                self.build_config(),
             );
             grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt)
         };
-
-        if !root_cert.is_null() {
-            unsafe {
-                CString::from_raw(root_cert);
-            }
-        }
 
         ServerCredentials { creds: credentials }
     }
