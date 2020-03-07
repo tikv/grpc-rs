@@ -51,16 +51,21 @@ matrix:
     rust: stable
     osx_image: xcode10.2
 
-addons:
-  apt:
-    update: true
-    sources:
-      - llvm-toolchain-xenial-7
-    packages:
-      - clang-tidy-7
-      - llvm-7-dev
-      - libclang-7-dev
-      - clang-7
+  - os: linux
+    arch: arm64
+    rust: stable
+    install:
+      - if ! which go 2>/dev/null; then
+          wget https://dl.google.com/go/go1.13.8.linux-arm64.tar.gz;
+          tar -xf go1.13.8.linux-arm64.tar.gz -C $HOME;
+          export PATH="$HOME/go/bin:$PATH";
+          export GO_ROOT=$HOME/go;
+        fi
+    addons:
+      apt:
+        update: true
+        packages:
+          - libunwind-dev
 
 before_script:
   - scripts/reset-submodule.cmd
@@ -98,7 +103,10 @@ script:
       rustup component add rustfmt && cargo fmt --all -- --check;
       scripts/generate-bindings.sh && git diff --exit-code HEAD;
     fi
-  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD; fi
+  # clang-tidy-7 is not available on aarch64, so just skip lint
+  - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ `uname -p` != "aarch64" ]]; then
+      scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD;
+    fi
   - if [[ $TRAVIS_RUST_VERSION == "stable" ]]; then rustup component add clippy && cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all; fi
   - cargo build --no-default-features
   - cargo build --no-default-features --features protobuf-codec

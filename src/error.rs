@@ -1,7 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::fmt::{self, Display, Formatter};
-use std::{error, result};
+use std::{error, fmt, result};
 
 use crate::call::RpcStatus;
 use crate::grpc_sys::grpc_call_error;
@@ -36,37 +35,25 @@ pub enum Error {
     InvalidMetadata(String),
 }
 
-impl Display for Error {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
-        write!(fmt, "{:?}", self)
+impl fmt::Display for Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::RpcFailure(RpcStatus { status, details }) => match details {
+                Some(details) => write!(fmt, "RpcFailure: {} {}", status, details),
+                None => write!(fmt, "RpcFailure: {}", status),
+            },
+            other_error => write!(fmt, "{:?}", other_error),
+        }
     }
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Codec(_) => "gRPC Codec Error",
-            Error::CallFailure(_) => "gRPC Call Error",
-            Error::RpcFailure(_) => "gRPC Request Error",
-            Error::RpcFinished(_) => "gRPC Finish Error",
-            Error::RemoteStopped => "Remote is stopped.",
-            Error::ShutdownFailed => "Failed to shutdown.",
-            Error::BindFail(_, _) => "gRPC Bind Error",
-            Error::QueueShutdown => "gRPC completion queue shutdown",
-            Error::GoogleAuthenticationFailed => "Could not create google default credentials.",
-            Error::InvalidMetadata(_) => "invalid format of metadata",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             Error::Codec(ref e) => Some(e.as_ref()),
             _ => None,
         }
     }
-
-    // TODO: impl `Error::source`, but it may break backward compatibility,
-    // Eg. TiKV still uses nightly-2018-07-18, which does not compile.
 }
 
 #[cfg(feature = "protobuf-codec")]
@@ -95,12 +82,11 @@ mod tests {
 
     use super::Error;
 
-    #[allow(deprecated)]
     #[test]
     fn test_convert() {
         let error = ProtobufError::WireError(WireError::UnexpectedEof);
         let e: Error = error.into();
-        assert_eq!(e.description(), "gRPC Codec Error");
-        assert!(e.cause().is_some());
+        assert_eq!(e.to_string(), "Codec(WireError(UnexpectedEof))");
+        assert!(e.source().is_some());
     }
 }
