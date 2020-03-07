@@ -67,16 +67,15 @@ pub enum CertificateRequestType {
         GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
 }
 
-/// User-provided callback function for reloading cert. The fetcher will be
-/// called to fetch certificates during initialization and addition for
-/// handshakers.
-///
-/// [`None`] indicates that no certificate configuration required to fetch,
-/// which means that returning [`None`] when initialization will fail to load
-/// the certificate correctly. [`Some(ServerCredentialsBuilder)`] indicates
-/// that fetching is needed. gRPC will continue to use the previous certificate
-/// configuration if fetch() returns any error.
+/// Traits to retrieve updated SSL server certificates, private keys, and trusted CAs
+/// (for client authentication).
 pub trait ServerCredentialsFetcher {
+    /// Retrieves updated credentials.
+    ///
+    /// The method will be called during server initialization and every time a new
+    /// connection is about to be accepted. When returning `None` or error, gRPC
+    /// will continue to use the previous certificates returned by the method. If no
+    /// valid credentials is returned during initialization, the server will fail to start.
     fn fetch(&self) -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
 }
 
@@ -106,17 +105,16 @@ pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
         (&mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
     let result = f.fetch();
     match result {
+        Ok(Some(builder)) => {
+            let new_config = builder.build_config();
+            *config = new_config;
+        }
+        Ok(None) => {
+            return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
+        }
         Err(e) => {
             warn!("cert_fetcher met error: {}", e);
             return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
-        }
-        Ok(ret) => {
-            if let Some(builder) = ret {
-                let new_config = builder.build_config();
-                *config = new_config;
-            } else {
-                return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
-            }
         }
     }
     GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW

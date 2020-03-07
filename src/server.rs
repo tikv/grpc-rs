@@ -380,12 +380,10 @@ mod secure_server {
             self
         }
 
-        /// Bind to an address with fetchers provided by users for secure connection.
+        /// Bind to an address for secure connection.
         ///
-        /// This function can be called multiple times to bind to multiple ports.
-        ///
-        /// There may be multiple threads calling fetcher on the same address. Make
-        /// sure that your fetcher is thread-safe.
+        /// The required credentials will be fetched using provided `fetcher`. This
+        /// function can be called multiple times to bind to multiple ports.
         pub fn bind_with_fetcher<S: Into<String>>(
             mut self,
             host: S,
@@ -395,18 +393,21 @@ mod secure_server {
         ) -> ServerBuilder {
             let fetcher_wrap = Box::new(fetcher);
             let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
-            let opt = unsafe {
-                grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
+            let (sc, fb) = unsafe {
+                let opt = grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
                     cer_request_type.to_native(),
                     Some(server_cert_fetcher_wrapper),
                     fetcher_wrap_ptr as _,
+                );
+                (
+                    ServerCredentials::frow_raw(
+                        grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt),
+                    ),
+                    Box::from_raw(fetcher_wrap_ptr),
                 )
             };
-            let cred = unsafe { grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt) };
-            let c = unsafe { ServerCredentials::frow_raw(cred) };
-            let f = unsafe { Box::from_raw(fetcher_wrap_ptr) };
             self.binders
-                .push(Binder::with_cred(host.into(), port, c, Some(f)));
+                .push(Binder::with_cred(host.into(), port, sc, Some(fb)));
             self
         }
     }

@@ -2,11 +2,12 @@ use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
-use std::fs;
-use std::io::Read;
+
 use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
+
+use tests_and_examples::util::{read_cert_pair, read_single_crt};
 
 #[derive(Clone)]
 struct GreeterService {
@@ -50,10 +51,10 @@ fn test_auth_context() {
     let env = Arc::new(EnvBuilder::new().build());
     let (tx, rx) = mpsc::channel();
     let service = create_greeter(GreeterService { tx: tx });
-    let (server_crt, server_key) = read_server1_creds().unwrap();
+    let (server_crt, server_key) = read_cert_pair("server1").unwrap();
     let server_credentials = grpcio::ServerCredentialsBuilder::new()
         .root_cert(
-            read_root_crt().unwrap(),
+            read_single_crt("root").unwrap(),
             CertificateRequestType::RequestClientCertificateAndVerify,
         )
         .add_cert(server_crt.into(), server_key.into())
@@ -66,9 +67,9 @@ fn test_auth_context() {
     server.start();
     let port = server.bind_addrs().next().unwrap().1;
 
-    let (client_crt, client_key) = read_client1_creds().unwrap();
+    let (client_crt, client_key) = read_cert_pair("client1").unwrap();
     let client_credentials = ChannelCredentialsBuilder::new()
-        .root_cert(read_root_crt().unwrap().into())
+        .root_cert(read_single_crt("root").unwrap().into())
         .cert(client_crt.clone().into(), client_key.into())
         .build();
     let ch = ChannelBuilder::new(env)
@@ -135,29 +136,4 @@ fn test_no_crash_on_insecure() {
     let _empty_keys: mpsc::RecvTimeoutError = rx
         .recv_timeout(Duration::from_millis(100))
         .expect_err("Received auth context even though not authenticated");
-}
-
-fn read_root_crt() -> std::result::Result<String, std::io::Error> {
-    let mut root = String::new();
-    fs::File::open("certs/root.crt")
-        .unwrap()
-        .read_to_string(&mut root)
-        .unwrap();
-    Ok(root)
-}
-
-fn read_server1_creds() -> std::result::Result<(String, String), std::io::Error> {
-    let mut server1_crt = String::new();
-    let mut server1_key = String::new();
-    fs::File::open("certs/server1.crt")?.read_to_string(&mut server1_crt)?;
-    fs::File::open("certs/server1.key")?.read_to_string(&mut server1_key)?;
-    Ok((server1_crt, server1_key))
-}
-
-fn read_client1_creds() -> std::result::Result<(String, String), std::io::Error> {
-    let mut client1_crt = String::new();
-    let mut client1_key = String::new();
-    fs::File::open("certs/client1.crt")?.read_to_string(&mut client1_crt)?;
-    fs::File::open("certs/client1.key")?.read_to_string(&mut client1_key)?;
-    Ok((client1_crt, client1_key))
 }
