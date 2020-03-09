@@ -1,3 +1,5 @@
+// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
+
 use futures::Future;
 use grpcio::{
     CertificateRequestType, ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext,
@@ -99,17 +101,19 @@ fn test_reload_new() {
     let port = server.bind_addrs().next().unwrap().1;
 
     // To connect the server whose CN is "remotehost"
-    let cred = ChannelCredentialsBuilder::new()
-        .root_cert(read_single_crt("root").unwrap().into())
-        .build();
-    let ch = ChannelBuilder::new(env)
-        .override_ssl_target("remotehost")
-        .secure_connect(&format!("localhost:{}", port), cred);
-    let client = GreeterClient::new(ch);
-    let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
-    let reply = client.say_hello(&req).expect("rpc");
-    assert_eq!(reply.get_message(), "Hello world");
+    for _ in 0..1000 {
+        let cred = ChannelCredentialsBuilder::new()
+            .root_cert(read_single_crt("root").unwrap().into())
+            .build();
+        let ch = ChannelBuilder::new(env.clone())
+            .override_ssl_target("remotehost")
+            .secure_connect(&format!("localhost:{}", port), cred);
+        let client = GreeterClient::new(ch);
+        let mut req = HelloRequest::default();
+        req.set_name("world".to_owned());
+        let reply = client.say_hello(&req).expect("rpc");
+        assert_eq!(reply.get_message(), "Hello world");
+    }
 }
 
 #[test]
