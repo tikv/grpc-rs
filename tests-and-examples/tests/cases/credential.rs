@@ -9,19 +9,13 @@ use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread;
 use tests_and_examples::util::{read_cert_pair, read_single_crt};
 
 #[derive(Clone)]
-struct GreeterService {
-    inital: Arc<AtomicBool>,
-}
+struct GreeterService;
 
 impl Greeter for GreeterService {
     fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
-        // This is to wait for the next connection.
-        self.inital.store(true, Ordering::Relaxed);
-        std::thread::sleep(std::time::Duration::from_secs(1));
         let msg = format!("Hello {}", req.get_name());
         let mut resp = HelloReply::default();
         resp.set_message(msg);
@@ -82,10 +76,7 @@ impl ServerCredentialsFetcher for DataReloadFail {
 #[test]
 fn test_reload_new() {
     let env = Arc::new(EnvBuilder::new().build());
-    let inital = Arc::new(AtomicBool::new(false));
-    let service = create_greeter(GreeterService {
-        inital: inital.clone(),
-    });
+    let service = create_greeter(GreeterService);
     let switch = Arc::new(AtomicBool::new(false));
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
@@ -102,49 +93,43 @@ fn test_reload_new() {
     server.start();
     let port = server.bind_addrs().next().unwrap().1;
 
-    // To connect the server whose CN is "localhost"
-    let p = port.clone();
-    let e = env.clone();
-    let h1 = thread::spawn(move || {
-        let cred = ChannelCredentialsBuilder::new()
-            .root_cert(read_single_crt("root").unwrap().into())
-            .build();
-        let ch = ChannelBuilder::new(e).secure_connect(&format!("localhost:{}", p), cred);
-        let client = GreeterClient::new(ch);
-        let mut req = HelloRequest::default();
-        req.set_name("world".to_owned());
-        let reply = client.say_hello(&req).expect("rpc");
-        assert_eq!(reply.get_message(), "Hello world");
-    });
-    // To connect the server whose CN is "remotehost"
-    let p = port.clone();
-    let e = env.clone();
-    let h2 = thread::spawn(move || {
-        let cred = ChannelCredentialsBuilder::new()
-            .root_cert(read_single_crt("root").unwrap().into())
-            .build();
-        let ch = ChannelBuilder::new(e)
-            .override_ssl_target("remotehost")
-            .secure_connect(&format!("localhost:{}", p), cred);
-        let client = GreeterClient::new(ch);
-        let mut req = HelloRequest::default();
-        req.set_name("world".to_owned());
-        while !inital.load(Ordering::Relaxed) {}
-        switch.store(true, Ordering::Relaxed);
-        let reply = client.say_hello(&req).expect("rpc");
-        assert_eq!(reply.get_message(), "Hello world");
-    });
+    // To connect the server whose CN is "localhost".
+    let cred = ChannelCredentialsBuilder::new()
+        .root_cert(read_single_crt("root").unwrap().into())
+        .build();
+    let ch = ChannelBuilder::new(env.clone())
+        .secure_connect(&format!("localhost:{}", port.clone()), cred);
+    let client1 = GreeterClient::new(ch);
+    let mut req = HelloRequest::default();
+    req.set_name("world".to_owned());
+    let reply = client1.say_hello(&req).expect("rpc");
+    assert_eq!(reply.get_message(), "Hello world");
 
-    h1.join().unwrap();
-    h2.join().unwrap();
+    // To connect the server whose CN is "remotehost".
+    switch.store(true, Ordering::Relaxed);
+    let cred = ChannelCredentialsBuilder::new()
+        .root_cert(read_single_crt("root").unwrap().into())
+        .build();
+    let ch = ChannelBuilder::new(env.clone())
+        .override_ssl_target("remotehost")
+        .secure_connect(&format!("localhost:{}", port.clone()), cred);
+    let client2 = GreeterClient::new(ch);
+    let mut req = HelloRequest::default();
+    req.set_name("world".to_owned());
+    let reply = client2.say_hello(&req).expect("rpc");
+    assert_eq!(reply.get_message(), "Hello world");
+
+    // To connect the server whose CN is "localhost" again.
+    let mut req = HelloRequest::default();
+    req.set_name("world".to_owned());
+    let reply = client1.say_hello(&req).expect("rpc");
+    assert_eq!(reply.get_message(), "Hello world");
 }
 
 #[test]
 fn test_reload_fail() {
     let env = Arc::new(EnvBuilder::new().build());
-    let service = create_greeter(GreeterService {
-        inital: Arc::new(AtomicBool::new(false)),
-    });
+    let service = create_greeter(GreeterService {});
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind_with_fetcher(
@@ -166,7 +151,7 @@ fn test_reload_fail() {
     let ch = ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), cred);
     let client = GreeterClient::new(ch);
 
-    for _ in 0..3 {
+    for _ in 0..10 {
         let mut req = HelloRequest::default();
         req.set_name("world".to_owned());
         let reply = client.say_hello(&req).expect("rpc");
