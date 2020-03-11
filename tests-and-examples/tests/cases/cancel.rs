@@ -58,8 +58,11 @@ impl RouteGuide for CancelService {
         let (tx, rx) = mpsc::unbounded();
 
         thread::spawn(move || loop {
-            tx.unbounded_send(1).unwrap();
-            thread::sleep(Duration::from_secs(5));
+            if tx.unbounded_send(1).is_ok() {
+                thread::sleep(Duration::from_secs(5));
+            } else {
+                break;
+            }
         });
 
         let f = rx
