@@ -119,7 +119,7 @@ fn test_reload_new() {
     let reply = client2.say_hello(&req).expect("rpc");
     assert_eq!(reply.get_message(), "Hello world");
 
-    // To connect the server whose CN is "localhost" again.
+    // Existing connection is still going to work.
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let reply = client1.say_hello(&req).expect("rpc");
@@ -129,7 +129,7 @@ fn test_reload_new() {
 #[test]
 fn test_reload_fail() {
     let env = Arc::new(EnvBuilder::new().build());
-    let service = create_greeter(GreeterService {});
+    let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind_with_fetcher(
