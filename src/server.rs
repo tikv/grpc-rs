@@ -556,8 +556,8 @@ impl Server {
     }
 
     /// Get binded addresses pairs.
-    pub fn bind_addrs(&self) -> impl ExactSizeIterator<Item = (&String, &u16)> {
-        self.core.binders.iter().map(|b| (&b.host, &b.port))
+    pub fn bind_addrs(&self) -> impl ExactSizeIterator<Item = (&String, u16)> {
+        self.core.binders.iter().map(|b| (&b.host, b.port))
     }
 }
 
