@@ -53,13 +53,13 @@ fn main() {
 
     builder = if use_tls {
         let creds = util::create_test_server_credentials();
-        builder.bind_secure(host, port, creds)
+        builder.bind_with_cred(host, port, creds)
     } else {
         builder.bind(host, port)
     };
 
     let mut server = builder.build().unwrap();
-    for &(ref host, port) in server.bind_addrs() {
+    for (host, port) in server.bind_addrs() {
         info!("listening on {}:{}", host, port);
     }
     server.start();

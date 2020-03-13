@@ -60,7 +60,7 @@ fn test_health_check() {
         .build()
         .unwrap();
     server.start();
-    let (_, port) = server.bind_addrs()[0];
+    let (_, port) = server.bind_addrs().next().unwrap();
 
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = HealthClient::new(ch);

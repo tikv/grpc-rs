@@ -60,7 +60,7 @@ impl Server {
             builder = builder.channel_args(ch_builder.build_args());
         }
         builder = if cfg.has_security_params() {
-            builder.bind_secure(
+            builder.bind_with_cred(
                 "[::]",
                 cfg.get_port() as u16,
                 proto_util::create_test_server_credentials(),
@@ -97,7 +97,7 @@ impl Server {
 
     pub fn get_status(&self) -> ServerStatus {
         let mut status = ServerStatus::default();
-        status.set_port(i32::from(self.server.bind_addrs()[0].1));
+        status.set_port(i32::from(self.server.bind_addrs().next().unwrap().1));
         status.set_cores(util::cpu_num_cores() as i32);
         status
     }
