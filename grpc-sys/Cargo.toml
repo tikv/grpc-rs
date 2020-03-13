@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.5.0-alpha.5"
+version = "0.5.0"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -34,7 +34,9 @@ exclude = [
     "grpc/third_party/boringssl/fuzz/*",
     "grpc/third_party/boringssl/crypto/cipher_extra/test/*",
     "grpc/third_party/boringssl/third_party/android-cmake/*",
-    "grpc/third_party/boringssl/util/*",
+    "grpc/third_party/boringssl/third_party/wycheproof_testvectors",
+    "grpc/third_party/boringssl/third_party/googletest",
+    "!grpc/third_party/boringssl/third_party/googletest/src/gtest-all.cc",
     "grpc/third_party/boringssl-with-bazel/*",
     "grpc/third_party/gflags/*",
     "grpc/third_party/googletest/*",
@@ -45,6 +47,10 @@ exclude = [
     "grpc/third_party/rake-compiler-dock/*",
     "grpc/third_party/toolchan/*",
     "grpc/tools/run_tests/generated/*",
+    "grpc/test/core/",
+    "!grpc/test/core/security/*.cc",
+    "!grpc/test/core/util/cmdline.cc",
+    "grpc/test/cpp",
 ]
 
 [dependencies]
