@@ -15,7 +15,7 @@ macro_rules! mk_test {
 
             builder = if $use_tls {
                 let creds = util::create_test_server_credentials();
-                builder.bind_secure("127.0.0.1", 0, creds)
+                builder.bind_with_cred("127.0.0.1", 0, creds)
             } else {
                 builder.bind("127.0.0.1", 0)
             };
@@ -26,7 +26,7 @@ macro_rules! mk_test {
             let builder =
                 ChannelBuilder::new(env.clone()).override_ssl_target("foo.test.google.fr");
             let channel = {
-                let (ref host, port) = server.bind_addrs()[0];
+                let (host, port) = server.bind_addrs().next().unwrap();
                 if $use_tls {
                     let creds = util::create_test_channel_credentials();
                     builder.secure_connect(&format!("{}:{}", host, port), creds)
