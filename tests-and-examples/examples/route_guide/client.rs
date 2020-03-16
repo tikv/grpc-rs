@@ -18,7 +18,7 @@ use futures::{future, Future, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
 use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 
 fn new_point(lat: i32, lon: i32) -> Point {
     let mut point = Point::default();
@@ -91,7 +91,7 @@ fn record_route(client: &RouteGuideClient) {
     let mut rng = rand::thread_rng();
     let (mut sink, receiver) = client.record_route().unwrap();
     for _ in 0..10 {
-        let f = rng.choose(&features).unwrap();
+        let f = features.choose(&mut rng).unwrap();
         let point = f.get_location();
         info!("Visiting {}", util::format_point(point));
         sink = sink

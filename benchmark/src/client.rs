@@ -17,9 +17,9 @@ use grpc_proto::testing::messages::SimpleRequest;
 use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
 use grpc_proto::testing::stats::ClientStats;
 use grpc_proto::util as proto_util;
-use rand::distributions::Exp;
-use rand::distributions::Sample;
-use rand::{self, SeedableRng, XorShiftRng};
+use rand::{self, SeedableRng};
+use rand_distr::{Distribution, Exp};
+use rand_xorshift::XorShiftRng;
 use tokio_timer::{Sleep, Timer};
 
 use crate::bench;
@@ -53,7 +53,7 @@ impl Backoff for ClosedLoop {
 
 /// A timer that generates Poisson process load.
 struct Poisson {
-    exp: Exp,
+    exp: Exp<f64>,
     r: XorShiftRng,
     last_time: Instant,
 }
@@ -61,7 +61,7 @@ struct Poisson {
 impl Poisson {
     fn new(offered_load: f64) -> Poisson {
         Poisson {
-            exp: Exp::new(offered_load),
+            exp: Exp::new(offered_load).unwrap(),
             r: XorShiftRng::from_seed(rand::random()),
             last_time: Instant::now(),
         }

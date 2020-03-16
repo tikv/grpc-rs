@@ -15,13 +15,15 @@ grpcio-proto = { path = "../proto", default-features = false }
 futures = "0.1"
 libc = "0.2"
 grpcio-sys = { path = "../grpc-sys" }
-rand = "0.3"
+rand = "0.7"
+rand_distr = "0.2"
+rand_xorshift = "0.2"
 tokio-timer = "0.1"
 clap = "2.23"
-log = "0.3"
+log = "0.4"
 slog = "2.0"
 slog-async = "2.1"
-slog-stdlog = "3.0"
+slog-stdlog = "4.0"
 slog-scope = "4.0"
 slog-term = "2.2"
 
