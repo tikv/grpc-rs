@@ -1,3 +1,17 @@
+# 0.5.0
+
+- Make `build_args` and `channel_args` public (#405)
+- Reclaim buffer memory after sending message (#407)
+- Support ppcle64 (#410)
+- Use libz-sys instead of bundle one (#420)
+- Update gRPC c core to v1.26.0 (#425)
+- Support Authentication (#322)
+- Update `Error` trait to latest version (#428)
+- Update serveral outdated dependencies (#426)
+- Better display and debug implement for status code and errors (#433, #437)
+- Generate bindings for aarch64 target (#430)
+- Support reloading certificates online (440)
+
 # grpcio-compiler 0.5.0-alpha.6 - 2019-11-13
 
 - Fix clippy warnings (#403)
