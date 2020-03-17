@@ -9,7 +9,6 @@ use futures::sync::mpsc;
 use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
-use grpcio_proto::example::route_guide_grpc::*;
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
 type BoxFuture = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;

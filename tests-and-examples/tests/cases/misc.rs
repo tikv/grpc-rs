@@ -3,7 +3,6 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::atomic::*;
 use std::sync::*;
 use std::thread::{self, JoinHandle};

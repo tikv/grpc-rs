@@ -20,7 +20,6 @@ use grpcio::*;
 
 use crate::util::*;
 use grpcio_proto::example::route_guide::*;
-use grpcio_proto::example::route_guide_grpc::*;
 
 #[derive(Clone)]
 struct RouteGuideService {

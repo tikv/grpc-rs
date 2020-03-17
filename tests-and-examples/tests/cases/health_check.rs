@@ -3,7 +3,6 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;
-use grpcio_proto::health::v1::health_grpc::*;
 use std::collections::*;
 use std::sync::*;
 
