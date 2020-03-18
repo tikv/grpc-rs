@@ -22,6 +22,10 @@ fn main() {
                 Some(format!("{}", dent.path().display()).replace('\\', "/"))
             })
             .collect();
-        protobuf_build::generate_files(&["proto".to_owned()], &files, &out_dir);
+        protobuf_build::Builder::new()
+            .includes(&["proto".to_owned()])
+            .files(&files)
+            .out_dir(&out_dir)
+            .generate();
     }
 }

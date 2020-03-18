@@ -6,7 +6,6 @@ use grpcio::{
     ServerBuilder, ServerCredentialsBuilder, ServerCredentialsFetcher, UnarySink,
 };
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::example::helloworld_grpc::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tests_and_examples::util::{read_cert_pair, read_single_crt};
