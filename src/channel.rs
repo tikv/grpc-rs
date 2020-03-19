@@ -26,37 +26,6 @@ pub use crate::grpc_sys::{
     grpc_compression_level as CompressionLevel, grpc_connectivity_state as ConnectivityState,
 };
 
-// hack: add a '\0' to be compatible with c string without extra allocation.
-const OPT_DEFAULT_AUTHORITY: &[u8] = b"grpc.default_authority\0";
-const OPT_MAX_CONCURRENT_STREAMS: &[u8] = b"grpc.max_concurrent_streams\0";
-const OPT_MAX_RECEIVE_MESSAGE_LENGTH: &[u8] = b"grpc.max_receive_message_length\0";
-const OPT_MAX_SEND_MESSAGE_LENGTH: &[u8] = b"grpc.max_send_message_length\0";
-const OPT_MAX_RECONNECT_BACKOFF_MS: &[u8] = b"grpc.max_reconnect_backoff_ms\0";
-const OPT_INITIAL_RECONNECT_BACKOFF_MS: &[u8] = b"grpc.initial_reconnect_backoff_ms\0";
-const OPT_HTTP2_INITIAL_SEQUENCE_NUMBER: &[u8] = b"grpc.http2.initial_sequence_number\0";
-const OPT_SO_REUSE_PORT: &[u8] = b"grpc.so_reuseport\0";
-const OPT_STREAM_INITIAL_WINDOW_SIZE: &[u8] = b"grpc.http2.lookahead_bytes\0";
-const OPT_TCP_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_read_chunk_size\0";
-const OPT_TCP_MIN_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_min_read_chunk_size\0";
-const OPT_TCP_MAX_READ_CHUNK_SIZE: &[u8] = b"grpc.experimental.tcp_max_read_chunk_size\0";
-const OPT_HTTP2_WRITE_BUFFER_SIZE: &[u8] = b"grpc.http2.write_buffer_size\0";
-const OPT_HTTP2_MAX_FRAME_SIZE: &[u8] = b"grpc.http2.max_frame_size\0";
-const OPT_HTTP2_BDP_PROBE: &[u8] = b"grpc.http2.bdp_probe\0";
-const OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &[u8] =
-    b"grpc.http2.min_time_between_pings_ms\0";
-const OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &[u8] =
-    b"grpc.http2.min_ping_interval_without_data_ms\0";
-const OPT_HTTP2_MAX_PINGS_WITHOUT_DATA: &[u8] = b"grpc.http2.max_pings_without_data\0";
-const OPT_HTTP2_MAX_PING_STRIKES: &[u8] = b"grpc.http2.max_ping_strikes\0";
-const OPT_DEFALUT_COMPRESSION_ALGORITHM: &[u8] = b"grpc.default_compression_algorithm\0";
-const OPT_DEFAULT_COMPRESSION_LEVEL: &[u8] = b"grpc.default_compression_level\0";
-const OPT_KEEPALIVE_TIME_MS: &[u8] = b"grpc.keepalive_time_ms\0";
-const OPT_KEEPALIVE_TIMEOUT_MS: &[u8] = b"grpc.keepalive_timeout_ms\0";
-const OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8] = b"grpc.keepalive_permit_without_calls\0";
-const OPT_OPTIMIZATION_TARGET: &[u8] = b"grpc.optimization_target\0";
-const PRIMARY_USER_AGENT_STRING: &[u8] = b"grpc.primary_user_agent\0";
-const OPT_GRPC_ARG_LB_POLICY_NAME: &[u8] = b"grpc.lb_policy_name\0";
-
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
     let version = env!("CARGO_PKG_VERSION");
@@ -116,7 +85,7 @@ impl ChannelBuilder {
     pub fn default_authority<S: Into<Vec<u8>>>(mut self, authority: S) -> ChannelBuilder {
         let authority = CString::new(authority).unwrap();
         self.options.insert(
-            Cow::Borrowed(OPT_DEFAULT_AUTHORITY),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_DEFAULT_AUTHORITY),
             Options::String(authority),
         );
         self
@@ -126,7 +95,7 @@ impl ChannelBuilder {
     pub fn set_resource_quota(mut self, quota: ResourceQuota) -> ChannelBuilder {
         unsafe {
             self.options.insert(
-                Cow::Borrowed(grpc_sys::GRPC_ARG_RESOURCE_QUOTA),
+                Cow::Borrowed(grpcio_sys::GRPC_ARG_RESOURCE_QUOTA),
                 Options::Pointer(quota, grpc_sys::grpc_resource_quota_arg_vtable()),
             );
         }
@@ -136,7 +105,7 @@ impl ChannelBuilder {
     /// Set maximum number of concurrent incoming streams to allow on a HTTP/2 connection.
     pub fn max_concurrent_stream(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_MAX_CONCURRENT_STREAMS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_MAX_CONCURRENT_STREAMS),
             Options::Integer(num),
         );
         self
@@ -145,7 +114,7 @@ impl ChannelBuilder {
     /// Set maximum message length that the channel can receive. `usize::MAX` means unlimited.
     pub fn max_receive_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_MAX_RECEIVE_MESSAGE_LENGTH),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH),
             Options::Integer(len),
         );
         self
@@ -154,7 +123,7 @@ impl ChannelBuilder {
     /// Set maximum message length that the channel can send. `-1` means unlimited.
     pub fn max_send_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_MAX_SEND_MESSAGE_LENGTH),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_MAX_SEND_MESSAGE_LENGTH),
             Options::Integer(len),
         );
         self
@@ -163,7 +132,7 @@ impl ChannelBuilder {
     /// Set maximum time between subsequent connection attempts.
     pub fn max_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_MAX_RECONNECT_BACKOFF_MS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_MAX_RECONNECT_BACKOFF_MS),
             Options::Integer(dur_to_ms(backoff)),
         );
         self
@@ -172,7 +141,7 @@ impl ChannelBuilder {
     /// Set time between the first and second connection attempts.
     pub fn initial_reconnect_backoff(mut self, backoff: Duration) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_INITIAL_RECONNECT_BACKOFF_MS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS),
             Options::Integer(dur_to_ms(backoff)),
         );
         self
@@ -181,7 +150,7 @@ impl ChannelBuilder {
     /// Set initial sequence number for HTTP/2 transports.
     pub fn https_initial_seq_number(mut self, number: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_INITIAL_SEQUENCE_NUMBER),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_INITIAL_SEQUENCE_NUMBER),
             Options::Integer(number),
         );
         self
@@ -191,7 +160,7 @@ impl ChannelBuilder {
     /// values help throughput on high-latency connections.
     pub fn stream_initial_window_size(mut self, window_size: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_STREAM_INITIAL_WINDOW_SIZE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_STREAM_LOOKAHEAD_BYTES),
             Options::Integer(window_size),
         );
         self
@@ -202,7 +171,7 @@ impl ChannelBuilder {
     pub fn primary_user_agent(mut self, agent: &str) -> ChannelBuilder {
         let agent_string = format_user_agent_string(agent);
         self.options.insert(
-            Cow::Borrowed(PRIMARY_USER_AGENT_STRING),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_PRIMARY_USER_AGENT_STRING),
             Options::String(agent_string),
         );
         self
@@ -211,15 +180,17 @@ impl ChannelBuilder {
     /// Set whether to allow the use of `SO_REUSEPORT` if available. Defaults to `true`.
     pub fn reuse_port(mut self, reuse: bool) -> ChannelBuilder {
         let opt = if reuse { 1 } else { 0 };
-        self.options
-            .insert(Cow::Borrowed(OPT_SO_REUSE_PORT), Options::Integer(opt));
+        self.options.insert(
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_ALLOW_REUSEPORT),
+            Options::Integer(opt),
+        );
         self
     }
 
     /// Set the size of slice to try and read from the wire each time.
     pub fn tcp_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_TCP_READ_CHUNK_SIZE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_TCP_READ_CHUNK_SIZE),
             Options::Integer(bytes),
         );
         self
@@ -228,7 +199,7 @@ impl ChannelBuilder {
     /// Set the minimum size of slice to try and read from the wire each time.
     pub fn tcp_min_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_TCP_MIN_READ_CHUNK_SIZE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_TCP_MIN_READ_CHUNK_SIZE),
             Options::Integer(bytes),
         );
         self
@@ -237,7 +208,7 @@ impl ChannelBuilder {
     /// Set the maximum size of slice to try and read from the wire each time.
     pub fn tcp_max_read_chunk_size(mut self, bytes: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_TCP_MAX_READ_CHUNK_SIZE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_TCP_MAX_READ_CHUNK_SIZE),
             Options::Integer(bytes),
         );
         self
@@ -247,7 +218,7 @@ impl ChannelBuilder {
     /// write_buffer_hint is set. This is an upper bound.
     pub fn http2_write_buffer_size(mut self, size: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_WRITE_BUFFER_SIZE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_WRITE_BUFFER_SIZE),
             Options::Integer(size),
         );
         self
@@ -259,7 +230,7 @@ impl ChannelBuilder {
     /// blocking for small messages.
     pub fn http2_max_frame_size(mut self, size: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_MAX_FRAME_SIZE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_MAX_FRAME_SIZE),
             Options::Integer(size),
         );
         self
@@ -268,7 +239,7 @@ impl ChannelBuilder {
     /// Set whether to enable BDP probing.
     pub fn http2_bdp_probe(mut self, enable: bool) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_BDP_PROBE),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_BDP_PROBE),
             Options::Integer(enable as i32),
         );
         self
@@ -281,7 +252,7 @@ impl ChannelBuilder {
         interval: Duration,
     ) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS),
             Options::Integer(dur_to_ms(interval)),
         );
         self
@@ -294,7 +265,7 @@ impl ChannelBuilder {
         interval: Duration,
     ) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS),
             Options::Integer(dur_to_ms(interval)),
         );
         self
@@ -305,7 +276,7 @@ impl ChannelBuilder {
     /// sending a data frame or header frame)
     pub fn http2_max_pings_without_data(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_MAX_PINGS_WITHOUT_DATA),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA),
             Options::Integer(num),
         );
         self
@@ -316,7 +287,7 @@ impl ChannelBuilder {
     /// number of misbehaving pings)
     pub fn http2_max_ping_strikes(mut self, num: i32) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_HTTP2_MAX_PING_STRIKES),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_HTTP2_MAX_PING_STRIKES),
             Options::Integer(num),
         );
         self
@@ -325,7 +296,7 @@ impl ChannelBuilder {
     /// Set default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_DEFALUT_COMPRESSION_ALGORITHM),
+            Cow::Borrowed(grpcio_sys::GRPC_COMPRESSION_CHANNEL_DEFAULT_ALGORITHM),
             Options::Integer(algo as i32),
         );
         self
@@ -334,7 +305,7 @@ impl ChannelBuilder {
     /// Set default compression level for the channel.
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_DEFAULT_COMPRESSION_LEVEL),
+            Cow::Borrowed(grpcio_sys::GRPC_COMPRESSION_CHANNEL_DEFAULT_LEVEL),
             Options::Integer(level as i32),
         );
         self
@@ -344,7 +315,7 @@ impl ChannelBuilder {
     /// if the transport is still alive.
     pub fn keepalive_time(mut self, timeout: Duration) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_KEEPALIVE_TIME_MS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_KEEPALIVE_TIME_MS),
             Options::Integer(dur_to_ms(timeout)),
         );
         self
@@ -354,7 +325,7 @@ impl ChannelBuilder {
     /// not receive the ping ack, it will close the transport.
     pub fn keepalive_timeout(mut self, timeout: Duration) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_KEEPALIVE_TIMEOUT_MS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_KEEPALIVE_TIMEOUT_MS),
             Options::Integer(dur_to_ms(timeout)),
         );
         self
@@ -363,7 +334,7 @@ impl ChannelBuilder {
     /// Is it permissible to send keepalive pings without any outstanding streams.
     pub fn keepalive_permit_without_calls(mut self, allow: bool) -> ChannelBuilder {
         self.options.insert(
-            Cow::Borrowed(OPT_KEEPALIVE_PERMIT_WITHOUT_CALLS),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS),
             Options::Integer(allow as i32),
         );
         self
@@ -378,7 +349,7 @@ impl ChannelBuilder {
             OptTarget::Throughput => CString::new("throughput"),
         };
         self.options.insert(
-            Cow::Borrowed(OPT_OPTIMIZATION_TARGET),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_OPTIMIZATION_TARGET),
             Options::String(val.unwrap()),
         );
         self
@@ -393,7 +364,7 @@ impl ChannelBuilder {
             LbPolicy::RoundRobin => CString::new("round_robin"),
         };
         self.options.insert(
-            Cow::Borrowed(OPT_GRPC_ARG_LB_POLICY_NAME),
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_LB_POLICY_NAME),
             Options::String(val.unwrap()),
         );
         self
@@ -455,7 +426,9 @@ impl ChannelBuilder {
     }
 
     fn prepare_connect_args(&mut self) -> ChannelArgs {
-        if let Entry::Vacant(e) = self.options.entry(Cow::Borrowed(PRIMARY_USER_AGENT_STRING)) {
+        if let Entry::Vacant(e) = self.options.entry(Cow::Borrowed(
+            grpcio_sys::GRPC_ARG_PRIMARY_USER_AGENT_STRING,
+        )) {
             e.insert(Options::String(format_user_agent_string("")));
         }
         self.build_args()
