@@ -8,23 +8,23 @@ use std::sync::*;
 use std::thread::{self, JoinHandle};
 use std::time::*;
 
+#[derive(Clone)]
+struct PeerService;
+
+impl Greeter for PeerService {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        let peer = ctx.peer();
+        let mut resp = HelloReply::default();
+        resp.set_message(peer);
+        ctx.spawn(
+            sink.success(resp)
+                .map_err(|e| panic!("failed to reply {:?}", e)),
+        );
+    }
+}
+
 #[test]
 fn test_peer() {
-    #[derive(Clone)]
-    struct PeerService;
-
-    impl Greeter for PeerService {
-        fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
-            let peer = ctx.peer();
-            let mut resp = HelloReply::default();
-            resp.set_message(peer);
-            ctx.spawn(
-                sink.success(resp)
-                    .map_err(|e| panic!("failed to reply {:?}", e)),
-            );
-        }
-    }
-
     let env = Arc::new(EnvBuilder::new().build());
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
@@ -128,4 +128,39 @@ fn test_soundness() {
         thread::sleep(Duration::from_millis(50));
     }
     assert_eq!(counter.load(Ordering::SeqCst), 9000);
+}
+
+#[test]
+fn test_uds() {
+    struct Defer(&'static str);
+
+    impl Drop for Defer {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(self.0);
+        }
+    }
+    let socket_path = Defer("test_socket");
+
+    let env = Arc::new(EnvBuilder::new().build());
+    let service = create_greeter(PeerService);
+
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind(format!("unix:{}", socket_path.0), 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let ch = ChannelBuilder::new(env).connect(&format!("unix:{}", socket_path.0));
+    let client = GreeterClient::new(ch);
+
+    let req = HelloRequest::default();
+    let resp = client.say_hello(&req).unwrap();
+
+    assert_eq!(
+        resp.get_message(),
+        format!("unix:{}", socket_path.0),
+        "{:?}",
+        resp
+    );
 }
