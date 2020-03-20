@@ -130,8 +130,9 @@ fn test_soundness() {
     assert_eq!(counter.load(Ordering::SeqCst), 9000);
 }
 
+#[cfg(unix)]
 #[test]
-fn test_uds() {
+fn test_unix_domain_socket() {
     struct Defer(&'static str);
 
     impl Drop for Defer {
@@ -150,7 +151,6 @@ fn test_uds() {
         .build()
         .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
     let ch = ChannelBuilder::new(env).connect(&format!("unix:{}", socket_path.0));
     let client = GreeterClient::new(ch);
 
