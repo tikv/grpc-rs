@@ -21,7 +21,7 @@ This project is still under development. The following features with the check m
 - [x] Health check
 - [ ] Reflection
 - [X] Authentication
-- [ ] Load balance
+- [ ] Load balance, client side is fully supported, server side load report is not implemented yet.
 
 ## Prerequisites
 
