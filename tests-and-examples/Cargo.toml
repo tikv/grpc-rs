@@ -47,4 +47,10 @@ path = "examples/hello_world/client.rs"
 name = "greeter_server"
 path = "examples/hello_world/server.rs"
 
+[[example]]
+name = "lb_greeter_client"
+path = "examples/load_balancing/client.rs"
 
+[[example]]
+name = "lb_greeter_server"
+path = "examples/load_balancing/server.rs"
