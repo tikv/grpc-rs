@@ -65,7 +65,7 @@ where
 /// "[host]:port", depending on whether the host is an IPv6 literal.
 fn join_host_port(host: &str, port: u16) -> String {
     if host.starts_with("unix:") {
-        host.to_owned()
+        format!("{}\0", host)
     } else if let Ok(ip) = host.parse::<IpAddr>() {
         format!("{}\0", SocketAddr::new(ip, port))
     } else {
