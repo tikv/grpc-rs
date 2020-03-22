@@ -4,12 +4,14 @@ use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 use std::net::{IpAddr, SocketAddr};
+use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use crate::grpc_sys::{self, grpc_call_error, grpc_server};
-use futures::{Async, Future, Poll};
+use futures::future::Future;
+use futures::task::{Context, Poll};
 
 use crate::call::server::*;
 use crate::call::{MessageReader, Method, MethodType};
@@ -486,12 +488,10 @@ pub struct ShutdownFuture {
 }
 
 impl Future for ShutdownFuture {
-    type Item = ();
-    type Error = Error;
+    type Output = Result<()>;
 
-    fn poll(&mut self) -> Poll<(), Error> {
-        try_ready!(self.cq_f.poll());
-        Ok(Async::Ready(()))
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        Pin::new(&mut self.cq_f).poll(cx)
     }
 }
 
@@ -567,7 +567,7 @@ impl Drop for Server {
         // TODO: don't wait here
         let f = self.shutdown();
         self.cancel_all_calls();
-        let _ = f.wait();
+        let _ = futures::executor::block_on(f);
     }
 }
 

@@ -1,9 +1,12 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::sync::oneshot::{self, Sender};
-use futures::*;
+use futures::channel::oneshot::{self, Sender};
+use futures::executor::block_on;
+use futures::prelude::*;
+use futures::task::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use std::pin::Pin;
 use std::sync::*;
 use std::thread;
 use std::time::*;
@@ -23,18 +26,16 @@ impl Greeter for GreeterService {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
         let name = req.take_name();
-        let f = rx
-            .map_err(|_| panic!("should receive message"))
-            .join(lazy(move || {
-                *tx_lock.lock().unwrap() = Some(tx);
-                Ok(())
-            }))
-            .and_then(move |(greet, _)| {
-                let mut resp = HelloReply::default();
-                resp.set_message(format!("{} {}", greet, name));
-                sink.success(resp)
-                    .map_err(|e| panic!("failed to reply {:?}", e))
-            });
+        let f = async move {
+            *tx_lock.lock().unwrap() = Some(tx);
+            let greet = rx.await?;
+            let mut resp = HelloReply::default();
+            resp.set_message(format!("{} {}", greet, name));
+            sink.success(resp).await?;
+            Ok(())
+        }
+        .map_err(|e: Box<dyn std::error::Error>| panic!("failed to handle request: {:?}", e))
+        .map(|_| ());
         ctx.spawn(f)
     }
 }
@@ -65,21 +66,21 @@ fn test_kick() {
         tx.take().unwrap().send("hello".to_owned()).unwrap();
         break;
     }
-    let reply = f.wait().expect("rpc");
+    let reply = block_on(f).expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
 
     // Spawn a future in the client.
     let (tx1, rx2) = spawn_chianed_channel(&client);
     thread::sleep(Duration::from_millis(10));
     let _ = tx1.send(77);
-    assert_eq!(rx2.wait().unwrap(), 77);
+    assert_eq!(block_on(rx2).unwrap(), 77);
 
     // Drop the client before a future is resolved.
     let (tx1, rx2) = spawn_chianed_channel(&client);
     drop(client);
     thread::sleep(Duration::from_millis(10));
     let _ = tx1.send(88);
-    assert_eq!(rx2.wait().unwrap(), 88);
+    assert_eq!(block_on(rx2).unwrap(), 88);
 }
 
 fn spawn_chianed_channel(
@@ -87,11 +88,11 @@ fn spawn_chianed_channel(
 ) -> (oneshot::Sender<usize>, oneshot::Receiver<usize>) {
     let (tx1, rx1) = oneshot::channel();
     let (tx2, rx2) = oneshot::channel();
-    let f = rx1
-        .map(|n| {
+    let f = rx1.map(|n| {
+        if let Ok(n) = n {
             let _ = tx2.send(n);
-        })
-        .map_err(|_| ());
+        }
+    });
     client.spawn(f);
 
     (tx1, rx2)
@@ -109,36 +110,31 @@ impl Greeter for DeadLockService {
         mut req: HelloRequest,
         sink: UnarySink<HelloReply>,
     ) {
-        let chan = Arc::default();
+        let chan = Arc::new(Mutex::new(NaiveChannel {
+            data: None,
+            waker: None,
+        }));
         let tx = NaiveSender { chan };
         let rx = NaiveReceiver {
             chan: tx.chan.clone(),
         };
         let name = req.take_name();
         let reporter = self.reporter.clone();
-        ctx.spawn(
-            rx.map_err(|_| panic!("should receive message"))
-                .and_then(move |greet| {
-                    let mut resp = HelloReply::default();
-                    resp.set_message(format!("{} {}", greet, name));
-                    sink.success(resp)
-                        .map_err(|e| panic!("failed to reply {:?}", e))
-                        .map(move |_| {
-                            let _ = reporter.send(());
-                        })
-                }),
-        );
-        ctx.spawn(lazy(|| {
-            tx.send("hello".to_owned())
-                .map_err(|_| panic!("failed to send message"))
+        ctx.spawn(rx.then(|greet| async move {
+            let mut resp = HelloReply::default();
+            resp.set_message(format!("{} {}", greet, name));
+            if let Err(e) = sink.success(resp).await {
+                panic!("failed to reply {:?}", e);
+            }
+            let _ = reporter.send(());
         }));
+        ctx.spawn(async move { tx.send("hello".to_owned()).await });
     }
 }
 
-#[derive(Default)]
 struct NaiveChannel<T> {
     data: Option<T>,
-    task: Option<task::Task>,
+    waker: Option<Waker>,
 }
 
 struct NaiveSender<T> {
@@ -146,8 +142,8 @@ struct NaiveSender<T> {
 }
 
 impl<T> NaiveSender<T> {
-    fn send(self, t: T) -> impl Future<Item = (), Error = ()> {
-        lazy(move || {
+    fn send(self, t: T) -> impl Future<Output = ()> {
+        async move {
             let timer = Instant::now();
             while timer.elapsed() < Duration::from_secs(3) {
                 let mut chan = match self.chan.try_lock() {
@@ -156,13 +152,13 @@ impl<T> NaiveSender<T> {
                 };
 
                 chan.data = Some(t);
-                if let Some(t) = chan.task.take() {
-                    t.notify();
+                if let Some(t) = chan.waker.take() {
+                    t.wake();
                 }
-                return Ok(());
+                return;
             }
             panic!("failed to acquire lock for sender after 3 seconds.");
-        })
+        }
     }
 }
 
@@ -171,10 +167,9 @@ struct NaiveReceiver<T> {
 }
 
 impl<T> Future for NaiveReceiver<T> {
-    type Item = T;
-    type Error = ();
+    type Output = T;
 
-    fn poll(&mut self) -> Poll<T, ()> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<T> {
         let timer = Instant::now();
         while timer.elapsed() < Duration::from_secs(3) {
             let mut chan = match self.chan.try_lock() {
@@ -182,10 +177,10 @@ impl<T> Future for NaiveReceiver<T> {
                 Err(_) => continue,
             };
             if let Some(t) = chan.data.take() {
-                return Ok(Async::Ready(t));
+                return Poll::Ready(t);
             }
-            chan.task = Some(task::current());
-            return Ok(Async::NotReady);
+            chan.waker = Some(cx.waker().clone());
+            return Poll::Pending;
         }
         panic!("failed to acquire lock for receiver after 3 seconds.");
     }
@@ -222,6 +217,6 @@ fn test_deadlock() {
         eprintln!("failed to wait for the case to finish: {:?}", e);
         std::process::exit(1);
     }
-    let reply = f.wait().expect("rpc");
+    let reply = block_on(f).expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
 }

@@ -8,7 +8,7 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 [grpcio]: https://github.com/pingcap/grpc-rs/
 [gRPC]: https://grpc.io/
 [gRPC Core]: https://github.com/grpc/grpc
-[futures-rs]: https://github.com/rust-lang-nursery/futures-rs
+[futures-rs]: https://github.com/rust-lang/futures-rs
 
 ## Optional features
 
@@ -22,8 +22,6 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 #![allow(clippy::cast_lossless)]
 #![allow(clippy::option_map_unit_fn)]
 
-#[macro_use]
-extern crate futures;
 use grpcio_sys as grpc_sys;
 #[macro_use]
 extern crate log;

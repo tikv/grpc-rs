@@ -1,6 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::*;
+use futures::prelude::*;
 use grpcio::*;
 use grpcio_proto::health::v1::health::*;
 use std::collections::*;
@@ -29,7 +29,10 @@ impl Health for HealthService {
                 sink.success(resp)
             }
         };
-        ctx.spawn(res.map_err(|e| println!("failed to report result: {:?}", e)));
+        ctx.spawn(
+            res.map_err(|e| println!("failed to report result: {:?}", e))
+                .map(|_| ()),
+        );
     }
 }
 

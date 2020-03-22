@@ -1,10 +1,9 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::thread;
 use std::time::Duration;
 
 use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
-use futures::{future, stream, Future, Sink, Stream};
+use futures::prelude::*;
 
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{
@@ -26,43 +25,43 @@ impl Client {
         }
     }
 
-    pub fn empty_unary(&self) {
+    pub async fn empty_unary(&self) -> grpcio::Result<()> {
         print!("testing empty unary ... ");
         let req = Empty::default();
-        let resp = self.client.empty_call(&req).unwrap();
+        let resp = self.client.empty_call_async(&req)?.await?;
         assert_eq!(req, resp);
         println!("pass");
+        Ok(())
     }
 
-    pub fn large_unary(&self) {
+    pub async fn large_unary(&self) -> grpcio::Result<()> {
         print!("testing large unary ... ");
         let mut req = SimpleRequest::default();
         req.set_response_size(314_159);
         req.set_payload(util::new_payload(271_828));
-        let resp = self.client.unary_call(&req).unwrap();
+        let resp = self.client.unary_call_async(&req)?.await?;
         assert_eq!(314_159, resp.get_payload().get_body().len());
         println!("pass");
+        Ok(())
     }
 
-    pub fn client_streaming(&self) {
+    pub async fn client_streaming(&self) -> grpcio::Result<()> {
         print!("testing client streaming ... ");
-        let reqs = vec![27182, 8, 1828, 45904].into_iter().map(|s| {
+        let payload_size = vec![27182usize, 8, 1828, 45904];
+        let (mut sender, receiver) = self.client.streaming_input_call()?;
+        for size in payload_size {
             let mut req = StreamingInputCallRequest::default();
-            req.set_payload(util::new_payload(s));
-            (req, WriteFlags::default())
-        });
-        let (sender, receiver) = self.client.streaming_input_call().unwrap();
-        // Keep the sender, so that receiver will not receive Cancelled error.
-        let _sender = sender
-            .send_all(stream::iter_ok::<_, grpc::Error>(reqs))
-            .wait()
-            .unwrap();
-        let resp = receiver.wait().unwrap();
+            req.set_payload(util::new_payload(size));
+            sender.send((req, WriteFlags::default())).await?;
+        }
+        sender.close().await?;
+        let resp = receiver.await?;
         assert_eq!(74922, resp.get_aggregated_payload_size());
         println!("pass");
+        Ok(())
     }
 
-    pub fn server_streaming(&self) {
+    pub async fn server_streaming(&self) -> grpcio::Result<()> {
         print!("testing server streaming ... ");
         let mut req = StreamingOutputCallRequest::default();
         let sizes = vec![31415, 9, 2653, 58979];
@@ -70,110 +69,98 @@ impl Client {
             req.mut_response_parameters()
                 .push(util::new_parameters(*size));
         }
-        let resp = self.client.streaming_output_call(&req).unwrap();
-        let resp_sizes = resp
-            .map(|r| r.get_payload().get_body().len() as i32)
-            .collect()
-            .wait()
-            .unwrap();
-        assert_eq!(resp_sizes, sizes);
+        let mut resp = self.client.streaming_output_call(&req)?;
+        let mut i = 0;
+        while let Some(r) = resp.try_next().await? {
+            assert_eq!(r.get_payload().get_body().len(), sizes[i] as usize);
+            i += 1;
+        }
+        assert_eq!(sizes.len(), i);
         println!("pass");
+        Ok(())
     }
 
-    pub fn ping_pong(&self) {
+    pub async fn ping_pong(&self) -> grpcio::Result<()> {
         print!("testing ping pong ... ");
-        let (mut sender, mut receiver) = self.client.full_duplex_call().unwrap();
+        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
         let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
         for (resp_size, payload_size) in cases {
             let mut req = StreamingOutputCallRequest::default();
             req.mut_response_parameters()
                 .push(util::new_parameters(resp_size));
             req.set_payload(util::new_payload(payload_size));
-            sender = sender.send((req, WriteFlags::default())).wait().unwrap();
-            let resp = match receiver.into_future().wait() {
-                Ok((resp, recv)) => {
-                    receiver = recv;
-                    resp.unwrap()
-                }
-                Err((e, _)) => panic!("{:?}", e),
-            };
+            sender.send((req, WriteFlags::default())).await?;
+            let resp = receiver.try_next().await?.unwrap();
             assert_eq!(resp.get_payload().get_body().len(), resp_size as usize);
         }
-        future::poll_fn(|| sender.close()).wait().unwrap();
-        match receiver.into_future().wait() {
-            Ok((resp, _)) => assert!(resp.is_none()),
-            Err((e, _)) => panic!("{:?}", e),
-        }
+        sender.close().await?;
+        assert_eq!(receiver.try_next().await?, None);
         println!("pass");
+        Ok(())
     }
 
-    pub fn empty_stream(&self) {
+    pub async fn empty_stream(&self) -> grpcio::Result<()> {
         print!("testing empty stream ... ");
-        let (mut sender, receiver) = self.client.full_duplex_call().unwrap();
-        future::poll_fn(|| sender.close()).wait().unwrap();
-        let resps = receiver.collect().wait().unwrap();
-        assert!(resps.is_empty());
+        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
+        sender.close().await?;
+        assert_eq!(receiver.try_next().await?, None);
         println!("pass");
+        Ok(())
     }
 
-    pub fn cancel_after_begin(&self) {
+    pub async fn cancel_after_begin(&self) -> grpcio::Result<()> {
         print!("testing cancel_after_begin ... ");
-        let (mut sender, receiver) = self.client.streaming_input_call().unwrap();
+        let (mut sender, receiver) = self.client.streaming_input_call()?;
         // so request has been sent.
-        thread::sleep(Duration::from_millis(10));
+        futures_timer::Delay::new(Duration::from_millis(10)).await;
         sender.cancel();
-        match receiver.wait().unwrap_err() {
+        match receiver.await.unwrap_err() {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
             e => panic!("expected cancel, but got: {:?}", e),
         }
         println!("pass");
+        Ok(())
     }
 
-    pub fn cancel_after_first_response(&self) {
+    pub async fn cancel_after_first_response(&self) -> grpcio::Result<()> {
         print!("testing cancel_after_first_response ... ");
-        let (mut sender, mut receiver) = self.client.full_duplex_call().unwrap();
+        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
         let mut req = StreamingOutputCallRequest::default();
         req.mut_response_parameters()
             .push(util::new_parameters(31415));
         req.set_payload(util::new_payload(27182));
-        sender = sender.send((req, WriteFlags::default())).wait().unwrap();
-        let resp = match receiver.into_future().wait() {
-            Ok((r, recv)) => {
-                receiver = recv;
-                r.unwrap()
-            }
-            Err((e, _)) => panic!("{:?}", e),
-        };
-
+        sender.send((req, WriteFlags::default())).await?;
+        let resp = receiver.try_next().await?.unwrap();
         assert_eq!(resp.get_payload().get_body().len(), 31415);
         sender.cancel();
-        match receiver.into_future().wait() {
-            Err((grpc::Error::RpcFailure(s), _)) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
-            Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
-            Ok((r, _)) => panic!("expected error, but got: {:?}", r),
+        match receiver.try_next().await {
+            Err(grpc::Error::RpcFailure(s)) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
+            Err(e) => panic!("expected cancel, but got: {:?}", e),
+            Ok(r) => panic!("expected error, but got: {:?}", r),
         }
         println!("pass");
+        Ok(())
     }
 
-    pub fn timeout_on_sleeping_server(&self) {
+    pub async fn timeout_on_sleeping_server(&self) -> grpcio::Result<()> {
         print!("testing timeout_of_sleeping_server ... ");
         let opt = CallOption::default().timeout(Duration::from_millis(1));
-        let (sender, receiver) = self.client.full_duplex_call_opt(opt).unwrap();
+        let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
         let mut req = StreamingOutputCallRequest::default();
         req.set_payload(util::new_payload(27182));
-        // Keep the sender, so that receiver will not receive Cancelled error.
-        let _sender = sender.send((req, WriteFlags::default())).wait();
-        match receiver.into_future().wait() {
-            Err((grpc::Error::RpcFailure(s), _)) => {
+        let _ = sender.send((req, WriteFlags::default())).await;
+        match receiver.try_next().await {
+            Err(grpc::Error::RpcFailure(s)) => {
                 assert_eq!(s.status, RpcStatusCode::DEADLINE_EXCEEDED)
             }
-            Err((e, _)) => panic!("expected timeout, but got: {:?}", e),
-            Ok((r, _)) => panic!("expected error: {:?}", r),
+            Err(e) => panic!("expected timeout, but got: {:?}", e),
+            Ok(r) => panic!("expected error: {:?}", r),
         }
         println!("pass");
+        Ok(())
     }
 
-    pub fn status_code_and_message(&self) {
+    pub async fn status_code_and_message(&self) -> grpcio::Result<()> {
         print!("testing status_code_and_message ... ");
         let error_msg = "test status message";
         let mut status = EchoStatus::default();
@@ -181,7 +168,7 @@ impl Client {
         status.set_message(error_msg.to_owned());
         let mut req = SimpleRequest::default();
         req.set_response_status(status.clone());
-        match self.client.unary_call(&req).unwrap_err() {
+        match self.client.unary_call_async(&req)?.await.unwrap_err() {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.status, RpcStatusCode::UNKNOWN);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
@@ -190,55 +177,63 @@ impl Client {
         }
         let mut req = StreamingOutputCallRequest::default();
         req.set_response_status(status);
-        let (sender, receiver) = self.client.full_duplex_call().unwrap();
-        // Keep the sender, so that receiver will not receive Cancelled error.
-        let _sender = sender.send((req, WriteFlags::default())).wait();
-        match receiver.into_future().wait() {
-            Err((grpc::Error::RpcFailure(s), _)) => {
+        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
+        sender.send((req, WriteFlags::default())).await?;
+        match receiver.try_next().await {
+            Err(grpc::Error::RpcFailure(s)) => {
                 assert_eq!(s.status, RpcStatusCode::UNKNOWN);
                 assert_eq!(s.details.as_ref().unwrap(), error_msg);
             }
-            Err((e, _)) => panic!("expected rpc failure: {:?}", e),
-            Ok((r, _)) => panic!("error expected, but got: {:?}", r),
+            Err(e) => panic!("expected rpc failure: {:?}", e),
+            Ok(r) => panic!("error expected, but got: {:?}", r),
         }
         println!("pass");
+        Ok(())
     }
 
-    pub fn unimplemented_method(&self) {
+    pub async fn unimplemented_method(&self) -> grpcio::Result<()> {
         print!("testing unimplemented_method ... ");
         match self
             .client
-            .unimplemented_call(&Empty::default())
+            .unimplemented_call_async(&Empty::default())?
+            .await
             .unwrap_err()
         {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::UNIMPLEMENTED),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");
+        Ok(())
     }
 
-    pub fn unimplemented_service(&self) {
+    pub async fn unimplemented_service(&self) -> grpcio::Result<()> {
         print!("testing unimplemented_service ... ");
         let client = UnimplementedServiceClient::new(self.channel.clone());
-        match client.unimplemented_call(&Empty::default()).unwrap_err() {
+        match client
+            .unimplemented_call_async(&Empty::default())?
+            .await
+            .unwrap_err()
+        {
             grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::UNIMPLEMENTED),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");
+        Ok(())
     }
 
-    pub fn test_all(&self) {
-        self.empty_unary();
-        self.large_unary();
-        self.client_streaming();
-        self.server_streaming();
-        self.ping_pong();
-        self.empty_stream();
-        self.cancel_after_begin();
-        self.cancel_after_first_response();
-        self.timeout_on_sleeping_server();
-        self.status_code_and_message();
-        self.unimplemented_method();
-        self.unimplemented_service();
+    pub async fn test_all(&self) -> grpcio::Result<()> {
+        self.empty_unary().await?;
+        self.large_unary().await?;
+        self.client_streaming().await?;
+        self.server_streaming().await?;
+        self.ping_pong().await?;
+        self.empty_stream().await?;
+        self.cancel_after_begin().await?;
+        self.cancel_after_first_response().await?;
+        self.timeout_on_sleeping_server().await?;
+        self.status_code_and_message().await?;
+        self.unimplemented_method().await?;
+        self.unimplemented_service().await?;
+        Ok(())
     }
 }
