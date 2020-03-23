@@ -494,7 +494,7 @@ impl ShareCall {
     }
 }
 
-/// A helper trait that allows executing function on the inernal `ShareCall` struct.
+/// A helper trait that allows executing function on the internal `ShareCall` struct.
 trait ShareCallHolder {
     fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R;
 }
@@ -648,7 +648,7 @@ impl SinkBase {
         mut flags: WriteFlags,
         ser: SerializeFn<T>,
     ) -> Result<()> {
-        // `start_send` is sopposed to be called after `poll_ready` returns ready.
+        // `start_send` is supposed to be called after `poll_ready` returns ready.
         assert!(self.batch_f.is_none());
 
         self.buf.clear();

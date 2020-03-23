@@ -147,15 +147,12 @@ impl TestService for InteropTestService {
                 // Client timeout 1ms is too short for grpcio. The server
                 // can response in 1ms. To make the test stable, the server
                 // sleeps 1s explicitly.
-                let dur = if req.get_payload().get_body().len() == 27182
+                if req.get_payload().get_body().len() == 27182
                     && req.get_response_parameters().is_empty()
                     && !req.has_response_status()
                 {
-                    Duration::from_secs(1)
-                } else {
-                    Duration::from_secs(0)
-                };
-                Delay::new(dur).await;
+                    Delay::new(Duration::from_secs(1)).await;
+                }
                 sink.send((resp, WriteFlags::default())).await?;
             }
             sink.close().await?;

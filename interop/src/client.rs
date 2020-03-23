@@ -178,7 +178,7 @@ impl Client {
         let mut req = StreamingOutputCallRequest::default();
         req.set_response_status(status);
         let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-        sender.send((req, WriteFlags::default())).await?;
+        let _ = sender.send((req, WriteFlags::default())).await;
         match receiver.try_next().await {
             Err(grpc::Error::RpcFailure(s)) => {
                 assert_eq!(s.status, RpcStatusCode::UNKNOWN);
