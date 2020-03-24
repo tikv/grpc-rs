@@ -1,11 +1,13 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::fmt::{self, Debug, Formatter};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use super::Inner;
 use crate::call::{BatchContext, MessageReader, RpcStatusCode};
 use crate::error::Error;
+use crate::task::CqFuture;
 
 /// Batch job type.
 #[derive(PartialEq, Debug)]
@@ -23,6 +25,7 @@ pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
     inner: Arc<Inner<Option<MessageReader>>>,
+    ref_count: AtomicUsize,
 }
 
 impl Batch {
@@ -31,11 +34,19 @@ impl Batch {
             ty,
             ctx: BatchContext::new(),
             inner,
+            ref_count: AtomicUsize::new(1),
         }
     }
 
     pub fn context(&self) -> &BatchContext {
         &self.ctx
+    }
+
+    /// Create a future which will be notified after the batch is resolved.
+    pub fn cq_future(&self) -> CqFuture<Option<MessageReader>> {
+        let mut guard = self.inner.lock();
+        guard.reset();
+        CqFuture::new(self.inner.clone())
     }
 
     fn read_one_msg(&mut self, success: bool) {
@@ -82,7 +93,8 @@ impl Batch {
         task.map(|t| t.notify());
     }
 
-    pub fn resolve(mut self, success: bool) {
+    /// Return `true` means the tag can be reused.
+    pub fn resolve(&mut self, success: bool) -> bool {
         match self.ty {
             BatchType::CheckRead => {
                 assert!(success);
@@ -90,11 +102,25 @@ impl Batch {
             }
             BatchType::Finish => {
                 self.finish_response(success);
+                drop(self.ctx.take_send_message());
+                return self.unref_batch();
             }
             BatchType::Read => {
                 self.read_one_msg(success);
+                return self.unref_batch();
             }
         }
+        false
+    }
+
+    /// Ref the `Batch` before call `grpc_call_start_batch`.
+    pub fn ref_batch(&self) {
+        self.ref_count.fetch_add(1, Ordering::Release);
+    }
+
+    /// Return `true` means the tag can be reused.
+    pub fn unref_batch(&self) -> bool {
+        self.ref_count.fetch_sub(1, Ordering::AcqRel) > 1
     }
 }
 

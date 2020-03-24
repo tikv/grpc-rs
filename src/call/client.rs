@@ -13,7 +13,7 @@ use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::task::{BatchFuture, BatchType, SpinLock};
+use crate::task::{unref_raw_tag, BatchFuture, BatchType, CallTag, SpinLock};
 
 /// Update the flag bit in res.
 #[inline]
@@ -104,7 +104,7 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
@@ -127,7 +127,7 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<(ClientCStreamSender<Req>, ClientCStreamReceiver<Resp>)> {
         let call = channel.create_call(method, &opt)?;
-        let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_client_streaming(
                 call.call,
                 ctx,
@@ -158,7 +158,7 @@ impl Call {
         let call = channel.create_call(method, &opt)?;
         let mut payload = vec![];
         (method.req_ser())(req, &mut payload);
-        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
@@ -187,7 +187,7 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<(ClientDuplexSender<Req>, ClientDuplexReceiver<Resp>)> {
         let call = channel.create_call(method, &opt)?;
-        let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (cq_f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_duplex_streaming(
                 call.call,
                 ctx,
@@ -410,7 +410,10 @@ struct ResponseStreamImpl<H, T> {
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
+    tag: *mut CallTag,
 }
+
+unsafe impl<H, T> Send for ResponseStreamImpl<H, T> {}
 
 impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
     fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
@@ -420,6 +423,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             read_done: false,
             finished: false,
             resp_de,
+            tag: ptr::null_mut(),
         }
     }
 
@@ -457,7 +461,8 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
             // so msg_f must be either stale or not initialised yet.
             self.msg_f.take();
-            let msg_f = self.call.call(|c| c.call.start_recv_message())?;
+            let tag = &mut self.tag;
+            let msg_f = self.call.call(|c| c.call.start_recv_message(tag))?;
             self.msg_f = Some(msg_f);
             if let Some(data) = bytes {
                 let msg = (self.resp_de)(data)?;
@@ -472,6 +477,12 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
         if !self.read_done || !self.finished {
             self.cancel();
         }
+    }
+}
+
+impl<H, T> Drop for ResponseStreamImpl<H, T> {
+    fn drop(&mut self) {
+        unsafe { unref_raw_tag(self.tag) }
     }
 }
 

@@ -16,7 +16,7 @@ use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
-use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
+use crate::task::{self, unref_raw_tag, BatchFuture, BatchType, CallTag, SpinLock};
 
 // By default buffers in `SinkBase` will be shrink to 4K size.
 const BUF_SHRINK_SIZE: usize = 4 * 1024;
@@ -209,6 +209,15 @@ impl BatchContext {
         }
     }
 
+    pub fn take_send_message(&self) -> Option<GrpcByteBuffer> {
+        let ptr = unsafe { grpc_sys::grpcwrap_batch_context_take_send_message(self.ctx) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { GrpcByteBuffer::from_raw(ptr) })
+        }
+    }
+
     /// Get the status of the rpc call.
     pub fn rpc_status(&self) -> RpcStatus {
         let status = RpcStatusCode(unsafe {
@@ -255,7 +264,7 @@ fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
 }
 
 /// A helper function that runs the batch call and checks the result.
-fn check_run<F>(bt: BatchType, f: F) -> BatchFuture
+fn check_run<F>(bt: BatchType, f: F) -> (BatchFuture, *mut CallTag)
 where
     F: FnOnce(*mut grpcwrap_batch_context, *mut c_void) -> grpc_call_error,
 {
@@ -263,12 +272,28 @@ where
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
     let code = f(batch_ptr, tag_ptr);
     if code != grpc_call_error::GRPC_CALL_OK {
-        unsafe {
-            Box::from_raw(tag_ptr);
-        }
+        drop(unsafe { Box::from_raw(tag_ptr) });
         panic!("create call fail: {:?}", code);
     }
-    cq_f
+    (cq_f, tag_ptr as *mut CallTag)
+}
+
+fn check_run_with_tag<F>(tag: *mut CallTag, f: F) -> (BatchFuture, *mut CallTag)
+where
+    F: FnOnce(*mut grpcwrap_batch_context, *mut c_void) -> grpc_call_error,
+{
+    unsafe {
+        let cq_f = match &*tag {
+            CallTag::Batch(promise) => promise.cq_future(),
+            _ => unreachable!(),
+        };
+        let ctx = (*tag).batch_ctx().unwrap().as_ptr();
+        let code = f(ctx, tag as *mut c_void);
+        if code != grpc_call_error::GRPC_CALL_OK {
+            panic!("create call fail: {:?}", code);
+        }
+        (cq_f, tag)
+    }
 }
 
 /// A Call represents an RPC.
@@ -295,38 +320,55 @@ impl Call {
         msg: &[u8],
         write_flags: u32,
         initial_meta: bool,
+        batch: &mut *mut CallTag,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
+        let ptr = msg.as_ptr() as _;
+        let len = msg.len();
         let i = if initial_meta { 1 } else { 0 };
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(
-                self.call,
-                ctx,
-                msg.as_ptr() as _,
-                msg.len(),
-                write_flags,
-                i,
-                tag,
-            )
-        });
+        let send_message = |ctx, tag| unsafe {
+            match *(tag as *mut CallTag) {
+                CallTag::Batch(ref prom) => prom.ref_batch(),
+                _ => unreachable!(),
+            }
+            grpc_sys::grpcwrap_call_send_message(self.call, ctx, ptr, len, write_flags, i, tag)
+        };
+
+        let (f, tag) = if !batch.is_null() {
+            check_run_with_tag(*batch, send_message)
+        } else {
+            check_run(BatchType::Finish, send_message)
+        };
+        *batch = tag;
         Ok(f)
     }
 
     /// Finish the rpc call from client.
     pub fn start_send_close_client(&mut self) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Finish, |_, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |_, tag| unsafe {
             grpc_sys::grpcwrap_call_send_close_from_client(self.call, tag)
         });
         Ok(f)
     }
 
     /// Receive a message asynchronously.
-    pub fn start_recv_message(&mut self) -> Result<BatchFuture> {
+    pub fn start_recv_message(&mut self, batch: &mut *mut CallTag) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Read, |ctx, tag| unsafe {
+        let recv_message = |ctx, tag| unsafe {
+            match *(tag as *mut CallTag) {
+                CallTag::Batch(ref prom) => prom.ref_batch(),
+                _ => unreachable!(),
+            }
             grpc_sys::grpcwrap_call_recv_message(self.call, ctx, tag)
-        });
+        };
+
+        let (f, tag) = if !batch.is_null() {
+            check_run_with_tag(*batch, recv_message)
+        } else {
+            check_run(BatchType::Read, recv_message)
+        };
+        *batch = tag;
         Ok(f)
     }
 
@@ -335,7 +377,7 @@ impl Call {
     /// Future will finish once close is received by the server.
     pub fn start_server_side(&mut self) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_serverside(self.call, ctx, tag)
         });
         Ok(f)
@@ -354,7 +396,7 @@ impl Call {
         let (payload_ptr, payload_len) = payload
             .as_ref()
             .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
-        let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let (f, _) = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let details_ptr = status
                 .details
                 .as_ref()
@@ -514,7 +556,13 @@ struct StreamingBase {
     close_f: Option<BatchFuture>,
     msg_f: Option<BatchFuture>,
     read_done: bool,
+
+    // `tag` can be reused during the stream's lifetime.
+    tag: *mut CallTag,
 }
+
+// Because it carrys a `CallTag`.
+unsafe impl Send for StreamingBase {}
 
 impl StreamingBase {
     fn new(close_f: Option<BatchFuture>) -> StreamingBase {
@@ -522,6 +570,7 @@ impl StreamingBase {
             close_f,
             msg_f: None,
             read_done: false,
+            tag: ptr::null_mut(),
         }
     }
 
@@ -566,7 +615,7 @@ impl StreamingBase {
 
         // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
-        let msg_f = call.call(|c| c.call.start_recv_message())?;
+        let msg_f = call.call(|c| c.call.start_recv_message(&mut self.tag))?;
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
             self.poll(call, true)
@@ -581,6 +630,12 @@ impl StreamingBase {
         if !self.read_done || self.close_f.is_some() {
             call.call(|c| c.call.cancel());
         }
+    }
+}
+
+impl Drop for StreamingBase {
+    fn drop(&mut self) {
+        unsafe { unref_raw_tag(self.tag) }
     }
 }
 
@@ -630,7 +685,12 @@ struct SinkBase {
     batch_f: Option<BatchFuture>,
     buf: Vec<u8>,
     send_metadata: bool,
+
+    tag: *mut CallTag,
 }
+
+// Because it carrys a `CallTag`.
+unsafe impl Send for SinkBase {}
 
 impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
@@ -638,6 +698,7 @@ impl SinkBase {
             batch_f: None,
             buf: Vec::new(),
             send_metadata,
+            tag: ptr::null_mut(),
         }
     }
 
@@ -664,7 +725,7 @@ impl SinkBase {
         }
         let write_f = call.call(|c| {
             c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+                .start_send_message(&self.buf, flags.flags, self.send_metadata, &mut self.tag)
         })?;
         // NOTE: Content of `self.buf` is copied into grpc internal.
         if self.buf.capacity() > BUF_SHRINK_SIZE {
@@ -683,5 +744,11 @@ impl SinkBase {
 
         self.batch_f.take();
         Ok(Async::Ready(()))
+    }
+}
+
+impl Drop for SinkBase {
+    fn drop(&mut self) {
+        unsafe { unref_raw_tag(self.tag) }
     }
 }

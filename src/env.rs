@@ -8,7 +8,7 @@ use std::thread::{Builder as ThreadBuilder, JoinHandle};
 use crate::grpc_sys;
 
 use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkQueue};
-use crate::task::CallTag;
+use crate::task::{self, CallTag};
 
 // event loop
 fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
@@ -26,8 +26,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
         }
 
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
-
-        tag.resolve(&cq, e.success != 0);
+        task::resolve(tag, &cq, e.success != 0);
         while let Some(work) = unsafe { cq.worker.pop_work() } {
             work.finish(&cq);
         }
