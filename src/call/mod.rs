@@ -538,7 +538,7 @@ impl StreamingBase {
             let mut finished = false;
             if let Some(close_f) = &mut self.close_f {
                 if let Poll::Ready(_) = Pin::new(close_f).poll(cx)? {
-                    // don't return immediately, there maybe pending data.
+                    // Don't return immediately, there may be pending data.
                     finished = true;
                 }
             }

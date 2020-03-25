@@ -567,9 +567,13 @@ impl Drop for Server {
     fn drop(&mut self) {
         // if the server is not shutdown completely, destroy a server will core.
         // TODO: don't wait here
-        let f = self.shutdown();
+        let f = if self.core.shutdown.load(Ordering::SeqCst) {
+            Some(self.shutdown())
+        } else {
+            None
+        };
         self.cancel_all_calls();
-        let _ = futures::executor::block_on(f);
+        let _ = f.map(futures::executor::block_on);
     }
 }
 

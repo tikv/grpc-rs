@@ -28,6 +28,9 @@ impl Client {
     }
 
     /// Create a synchronized unary RPC call.
+    ///
+    /// It uses futures::executor::block_on to wait for the futures. It's recommended to use
+    /// the asynchronous version.
     pub fn unary_call<Req, Resp>(
         &self,
         method: &Method<Req, Resp>,

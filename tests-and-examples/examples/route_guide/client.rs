@@ -130,8 +130,7 @@ async fn route_chat(client: &RouteGuideClient) -> Result<()> {
         Ok(()) as Result<_>
     };
     let (sr, rr) = futures::join!(send, receive);
-    sr?;
-    rr?;
+    sr.and(rr)?;
     Ok(())
 }
 

@@ -8,7 +8,7 @@ extern crate interop;
 use crate::grpc::{ChannelBuilder, ChannelCredentialsBuilder, Environment};
 use crate::grpc_proto::util;
 use clap::{App, Arg};
-use futures::executor::block_on;
+use futures::executor;
 use std::sync::Arc;
 
 use interop::Client;
@@ -84,7 +84,7 @@ fn main() {
     };
 
     let client = Client::new(channel);
-    block_on(run_test(client, case)).unwrap();
+    executor::block_on(run_test(client, case)).unwrap();
 }
 
 async fn run_test(client: Client, case: Option<&str>) -> grpcio::Result<()> {

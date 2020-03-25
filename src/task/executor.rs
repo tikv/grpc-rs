@@ -89,6 +89,9 @@ pub struct SpawnTask {
     queue: Arc<WorkQueue>,
 }
 
+/// `SpawnTask` access is guarded by `state` field, which guarantees Sync.
+///
+/// Sync is required by `ArcWake`.
 unsafe impl Sync for SpawnTask {}
 
 impl SpawnTask {
