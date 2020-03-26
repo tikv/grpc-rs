@@ -333,9 +333,13 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 fn config_binding_path(config: bindgen::Builder) {
     let file_path: PathBuf;
     let target = env::var("TARGET").unwrap();
-    println!("cargo:rerun-if-changed=bindings/{}-bindings.rs", &target);
     match target.as_str() {
         "x86_64-unknown-linux-gnu" | "aarch64-unknown-linux-gnu" => {
+            // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
+            // directive when we expect the target-specific pre-generated binding file to be
+            // present.
+            println!("cargo:rerun-if-changed=bindings/{}-bindings.rs", &target);
+
             file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
                 .join(format!("{}-bindings.rs", &target));
