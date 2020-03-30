@@ -1,4 +1,10 @@
-# 0.5.0
+# 0.5.1 - 2020-03-20
+
+- Clarify load balancing status (#445)
+- Support unix domain socket (#446)
+- Build: fix rebuild rules for no prebuilt bindings (#450)
+
+# 0.5.0 - 2019-03-16
 
 - Make `build_args` and `channel_args` public (#405)
 - Reclaim buffer memory after sending message (#407)
