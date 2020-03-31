@@ -473,8 +473,7 @@ grpcwrap_channel_args_destroy(grpc_channel_args* args) {
       gpr_free(args->args[i].key);
       if (args->args[i].type == GRPC_ARG_STRING) {
         gpr_free(args->args[i].value.string);
-      }
-      else if (args->args[i].type == GRPC_ARG_POINTER) {
+      } else if (args->args[i].type == GRPC_ARG_POINTER) {
         args->args[i].value.pointer.vtable->destroy(
             args->args[i].value.pointer.p);
       }
@@ -783,8 +782,8 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_initial_metadata(
     ready to poll.
     THREAD SAFETY: grpcwrap_call_kick_completion_queue is thread-safe
     because it does not change the call's state. */
-GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_kick_completion_queue(
-    grpc_call* call, void* tag) {
+GPR_EXPORT grpc_call_error GPR_CALLTYPE
+grpcwrap_call_kick_completion_queue(grpc_call* call, void* tag) {
   // Empty batch grpc_op kicks call's completion queue immediately.
   return grpc_call_start_batch(call, NULL, 0, tag, NULL);
 }
@@ -834,7 +833,8 @@ grpcwrap_ssl_credentials_create(const char* pem_root_certs,
   if (key_cert_pair_cert_chain || key_cert_pair_private_key) {
     key_cert_pair.cert_chain = key_cert_pair_cert_chain;
     key_cert_pair.private_key = key_cert_pair_private_key;
-    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL, NULL);
+    return grpc_ssl_credentials_create(pem_root_certs, &key_cert_pair, NULL,
+                                       NULL);
   } else {
     GPR_ASSERT(!key_cert_pair_cert_chain);
     GPR_ASSERT(!key_cert_pair_private_key);
@@ -870,6 +870,33 @@ grpcwrap_ssl_server_credentials_create(
       NULL);
   gpr_free(key_cert_pairs);
   return creds;
+}
+
+GPR_EXPORT grpc_ssl_server_certificate_config* GPR_CALLTYPE
+grpcwrap_ssl_server_certificate_config_create(
+    const char* pem_root_certs, const char** key_cert_pair_cert_chain_array,
+    const char** key_cert_pair_private_key_array, size_t num_key_cert_pairs) {
+  size_t i;
+  grpc_ssl_server_certificate_config* config;
+  grpc_ssl_pem_key_cert_pair* key_cert_pairs =
+      (grpc_ssl_pem_key_cert_pair*)gpr_malloc(
+          sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
+  memset(key_cert_pairs, 0,
+         sizeof(grpc_ssl_pem_key_cert_pair) * num_key_cert_pairs);
+
+  for (i = 0; i < num_key_cert_pairs; i++) {
+    if (key_cert_pair_cert_chain_array[i] ||
+        key_cert_pair_private_key_array[i]) {
+      key_cert_pairs[i].cert_chain = key_cert_pair_cert_chain_array[i];
+      key_cert_pairs[i].private_key = key_cert_pair_private_key_array[i];
+    }
+  }
+
+  config = grpc_ssl_server_certificate_config_create(
+      pem_root_certs, key_cert_pairs, num_key_cert_pairs);
+
+  gpr_free(key_cert_pairs);
+  return config;
 }
 
 #endif

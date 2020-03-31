@@ -70,7 +70,7 @@ fn main() {
     };
 
     let mut server = builder.build().unwrap();
-    for &(ref host, port) in server.bind_addrs() {
+    for (host, port) in server.bind_addrs() {
         info!("listening on {}:{}", host, port);
     }
     server.start();

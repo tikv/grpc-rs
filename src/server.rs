@@ -86,24 +86,40 @@ fn join_host_port(host: &str, port: u16) -> String {
 #[cfg(feature = "secure")]
 mod imp {
     use super::join_host_port;
-    use credentials::ServerCredentials;
+    use credentials::{ServerCredentials, ServerCredentialsFetcher};
     use grpc_sys::{self, GrpcServer};
 
     pub struct Binder {
         pub host: String,
         pub port: u16,
         cred: Option<ServerCredentials>,
+        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
     }
 
     impl Binder {
         pub fn new(host: String, port: u16) -> Binder {
             let cred = None;
-            Binder { host, port, cred }
+            Binder {
+                host,
+                port,
+                cred,
+                _fetcher: None,
+            }
         }
 
-        pub fn with_cred(host: String, port: u16, cred: ServerCredentials) -> Binder {
+        pub fn with_cred(
+            host: String,
+            port: u16,
+            cred: ServerCredentials,
+            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
+        ) -> Binder {
             let cred = Some(cred);
-            Binder { host, port, cred }
+            Binder {
+                host,
+                port,
+                cred,
+                _fetcher,
+            }
         }
 
         pub unsafe fn bind(&mut self, server: *mut GrpcServer) -> u16 {
@@ -144,6 +160,12 @@ mod imp {
 }
 
 use self::imp::Binder;
+
+impl Debug for Binder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Binder {{ host: {}, port: {} }}", self.host, self.port)
+    }
+}
 
 /// [`Service`] factory in order to configure the properties.
 ///
@@ -312,15 +334,13 @@ impl ServerBuilder {
             .map_or_else(ptr::null, |args| args.as_ptr());
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            let mut bind_addrs = Vec::with_capacity(self.binders.len());
-            for mut binder in self.binders.drain(..) {
+            for binder in self.binders.iter_mut() {
                 let bind_port = binder.bind(server);
                 if bind_port == 0 {
                     grpc_sys::grpc_server_destroy(server);
-                    return Err(Error::BindFail(binder.host, binder.port));
+                    return Err(Error::BindFail(binder.host.clone(), binder.port));
                 }
-
-                bind_addrs.push((binder.host, bind_port as u16));
+                binder.port = bind_port;
             }
 
             for cq in self.env.completion_queues() {
@@ -337,7 +357,7 @@ impl ServerBuilder {
                 core: Arc::new(ServerCore {
                     server,
                     shutdown: AtomicBool::new(false),
-                    bind_addrs,
+                    binders: self.binders,
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
@@ -348,9 +368,11 @@ impl ServerBuilder {
 
 #[cfg(feature = "secure")]
 mod secure_server {
-    use credentials::ServerCredentials;
-
     use super::{Binder, ServerBuilder};
+    use credentials::{
+        server_cert_fetcher_wrapper, CertificateRequestType, ServerCredentials,
+        ServerCredentialsFetcher,
+    };
 
     impl ServerBuilder {
         /// Bind to an address for secure connection.
@@ -362,7 +384,39 @@ mod secure_server {
             port: u16,
             c: ServerCredentials,
         ) -> ServerBuilder {
-            self.binders.push(Binder::with_cred(host.into(), port, c));
+            self.binders
+                .push(Binder::with_cred(host.into(), port, c, None));
+            self
+        }
+
+        /// Bind to an address for secure connection.
+        ///
+        /// The required credentials will be fetched using provided `fetcher`. This
+        /// function can be called multiple times to bind to multiple ports.
+        pub fn bind_with_fetcher<S: Into<String>>(
+            mut self,
+            host: S,
+            port: u16,
+            fetcher: Box<dyn ServerCredentialsFetcher + Send + Sync>,
+            cer_request_type: CertificateRequestType,
+        ) -> ServerBuilder {
+            let fetcher_wrap = Box::new(fetcher);
+            let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
+            let (sc, fb) = unsafe {
+                let opt = grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
+                    cer_request_type.to_native(),
+                    Some(server_cert_fetcher_wrapper),
+                    fetcher_wrap_ptr as _,
+                );
+                (
+                    ServerCredentials::frow_raw(
+                        grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt),
+                    ),
+                    Box::from_raw(fetcher_wrap_ptr),
+                )
+            };
+            self.binders
+                .push(Binder::with_cred(host.into(), port, sc, Some(fb)));
             self
         }
     }
@@ -370,7 +424,7 @@ mod secure_server {
 
 struct ServerCore {
     server: *mut GrpcServer,
-    bind_addrs: Vec<(String, u16)>,
+    binders: Vec<Binder>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
 }
@@ -510,9 +564,9 @@ impl Server {
         }
     }
 
-    /// Get binded addresses.
-    pub fn bind_addrs(&self) -> &[(String, u16)] {
-        &self.core.bind_addrs
+    /// Get binded addresses pairs.
+    pub fn bind_addrs(&self) -> impl ExactSizeIterator<Item = (&String, u16)> {
+        self.core.binders.iter().map(|b| (&b.host, b.port))
     }
 }
 
@@ -528,7 +582,7 @@ impl Drop for Server {
 
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Server {:?}", self.core.bind_addrs)
+        write!(f, "Server {:?}", self.core.binders)
     }
 }
 

@@ -82,6 +82,7 @@ pub use codec::Marshaller;
 #[cfg(feature = "secure")]
 pub use credentials::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
+    ServerCredentialsFetcher,CertificateRequestType
 };
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};

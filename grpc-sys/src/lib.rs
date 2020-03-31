@@ -705,7 +705,160 @@ mod secure_component {
             num_pairs: size_t,
             force_client_auth: c_int,
         ) -> *mut GrpcServerCredentials;
+        pub fn grpcwrap_ssl_server_certificate_config_create(
+            root_certs: *const c_char,
+            cert_chain_array: *mut *const c_char,
+            private_key_array: *mut *const c_char,
+            num_pairs: size_t,
+        ) -> *mut grpc_ssl_server_certificate_config;
         pub fn grpc_server_credentials_release(credentials: *mut GrpcServerCredentials);
+    }
+
+    #[repr(u32)]
+    #[doc = " Callback results for dynamically loading a SSL certificate config."]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    #[allow(non_camel_case_types)]
+    pub enum grpc_ssl_certificate_config_reload_status {
+        GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED = 0,
+        GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW = 1,
+        GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL = 2,
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct grpc_ssl_server_certificate_config {
+        _unused: [u8; 0],
+    }
+
+    extern "C" {
+        #[doc = " Creates a grpc_ssl_server_certificate_config object."]
+        #[doc = "- pem_roots_cert is the NULL-terminated string containing the PEM encoding of"]
+        #[doc = "the client root certificates. This parameter may be NULL if the server does"]
+        #[doc = "not want the client to be authenticated with SSL."]
+        #[doc = "- pem_key_cert_pairs is an array private key / certificate chains of the"]
+        #[doc = "server. This parameter cannot be NULL."]
+        #[doc = "- num_key_cert_pairs indicates the number of items in the private_key_files"]
+        #[doc = "and cert_chain_files parameters. It must be at least 1."]
+        #[doc = "- It is the caller's responsibility to free this object via"]
+        #[doc = "grpc_ssl_server_certificate_config_destroy()."]
+        pub fn grpc_ssl_server_certificate_config_create(
+            pem_root_certs: *const ::std::os::raw::c_char,
+            pem_key_cert_pairs: *const grpc_ssl_pem_key_cert_pair,
+            num_key_cert_pairs: usize,
+        ) -> *mut grpc_ssl_server_certificate_config;
+    }
+
+    #[doc = " Object that holds a private key / certificate chain pair in PEM format."]
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct grpc_ssl_pem_key_cert_pair {
+        #[doc = " private_key is the NULL-terminated string containing the PEM encoding of"]
+        #[doc = "the client's private key."]
+        pub private_key: *const ::std::os::raw::c_char,
+        #[doc = " cert_chain is the NULL-terminated string containing the PEM encoding of"]
+        #[doc = "the client's certificate chain."]
+        pub cert_chain: *const ::std::os::raw::c_char,
+    }
+
+    extern "C" {
+        #[doc = " Creates an options object using a certificate config fetcher. Use this"]
+        #[doc = "method to reload the certificates and keys of the SSL server without"]
+        #[doc = "interrupting the operation of the server. Initial certificate config will be"]
+        #[doc = "fetched during server initialization."]
+        #[doc = "- user_data parameter, if not NULL, contains opaque data which will be passed"]
+        #[doc = "to the fetcher (see definition of"]
+        #[doc = "grpc_ssl_server_certificate_config_callback)."]
+        pub fn grpc_ssl_server_credentials_create_options_using_config_fetcher(
+            client_certificate_request: grpc_ssl_client_certificate_request_type,
+            cb: grpc_ssl_server_certificate_config_callback,
+            user_data: *mut ::std::os::raw::c_void,
+        ) -> *mut grpc_ssl_server_credentials_options;
+    }
+
+    #[repr(u32)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    #[allow(non_camel_case_types)]
+    pub enum grpc_ssl_client_certificate_request_type {
+        #[doc = " Server does not request client certificate."]
+        #[doc = "The certificate presented by the client is not checked by the server at"]
+        #[doc = "all. (A client may present a self signed or signed certificate or not"]
+        #[doc = "present a certificate at all and any of those option would be accepted)"]
+        GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE = 0,
+        #[doc = " Server requests client certificate but does not enforce that the client"]
+        #[doc = "presents a certificate."]
+        #[doc = ""]
+        #[doc = "If the client presents a certificate, the client authentication is left to"]
+        #[doc = "the application (the necessary metadata will be available to the"]
+        #[doc = "application via authentication context properties, see grpc_auth_context)."]
+        #[doc = ""]
+        #[doc = "The client's key certificate pair must be valid for the SSL connection to"]
+        #[doc = "be established."]
+        GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY = 1,
+        #[doc = " Server requests client certificate but does not enforce that the client"]
+        #[doc = "presents a certificate."]
+        #[doc = ""]
+        #[doc = "If the client presents a certificate, the client authentication is done by"]
+        #[doc = "the gRPC framework. (For a successful connection the client needs to either"]
+        #[doc = "present a certificate that can be verified against the root certificate"]
+        #[doc = "configured by the server or not present a certificate at all)"]
+        #[doc = ""]
+        #[doc = "The client's key certificate pair must be valid for the SSL connection to"]
+        #[doc = "be established."]
+        GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY = 2,
+        #[doc = " Server requests client certificate and enforces that the client presents a"]
+        #[doc = "certificate."]
+        #[doc = ""]
+        #[doc = "If the client presents a certificate, the client authentication is left to"]
+        #[doc = "the application (the necessary metadata will be available to the"]
+        #[doc = "application via authentication context properties, see grpc_auth_context)."]
+        #[doc = ""]
+        #[doc = "The client's key certificate pair must be valid for the SSL connection to"]
+        #[doc = "be established."]
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY = 3,
+        #[doc = " Server requests client certificate and enforces that the client presents a"]
+        #[doc = "certificate."]
+        #[doc = ""]
+        #[doc = "The certificate presented by the client is verified by the gRPC framework."]
+        #[doc = "(For a successful connection the client needs to present a certificate that"]
+        #[doc = "can be verified against the root certificate configured by the server)"]
+        #[doc = ""]
+        #[doc = "The client's key certificate pair must be valid for the SSL connection to"]
+        #[doc = "be established."]
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY = 4,
+    }
+
+    #[doc = " Callback to retrieve updated SSL server certificates, private keys, and"]
+    #[doc = "trusted CAs (for client authentication)."]
+    #[doc = "- user_data parameter, if not NULL, contains opaque data to be used by the"]
+    #[doc = "callback."]
+    #[doc = "- Use grpc_ssl_server_certificate_config_create to create the config."]
+    #[doc = "- The caller assumes ownership of the config."]
+    #[allow(non_camel_case_types)]
+    pub type grpc_ssl_server_certificate_config_callback = ::std::option::Option<
+        unsafe extern "C" fn(
+            user_data: *mut ::std::os::raw::c_void,
+            config: *mut *mut grpc_ssl_server_certificate_config,
+        ) -> grpc_ssl_certificate_config_reload_status,
+    >;
+
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct grpc_ssl_server_credentials_options {
+        _unused: [u8; 0],
+    }
+
+    extern "C" {
+        #[doc = " Creates an SSL server_credentials object using the provided options struct."]
+        #[doc = "- Takes ownership of the options parameter."]
+        pub fn grpc_ssl_server_credentials_create_with_options(
+            options: *mut grpc_ssl_server_credentials_options,
+        ) -> *mut grpc_server_credentials;
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct grpc_server_credentials {
+        _unused: [u8; 0],
     }
 }
 

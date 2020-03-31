@@ -11,12 +11,92 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::error::Error as StdError;
 use std::ffi::CString;
 use std::ptr;
 
 use error::{Error, Result};
-use grpc_sys::{self, GrpcChannelCredentials, GrpcServerCredentials};
+use grpc_sys::{
+    self, grpc_server_credentials,
+    grpc_ssl_certificate_config_reload_status::{self, *},
+    grpc_ssl_client_certificate_request_type::{self, *},
+    grpc_ssl_server_certificate_config, GrpcChannelCredentials, GrpcServerCredentials,
+};
 use libc::c_char;
+
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CertificateRequestType {
+    /// Server does not request client certificate.
+    ///
+    /// The certificate presented by the client is not checked by the server at
+    /// all. (A client may present a self signed or signed certificate or not
+    /// present a certificate at all and any of those option would be accepted)
+    DontRequestClientCertificate = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE as u32,
+    /// Server requests client certificate but does not enforce that the client
+    /// presents a certificate.
+    ///
+    /// If the client presents a certificate, the client authentication is left to
+    /// the application (the necessary metadata will be available to the
+    /// application via authentication context properties, see grpc_auth_context).
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestClientCertificateButDontVerify =
+        GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
+    /// Server requests client certificate but does not enforce that the client
+    /// presents a certificate.
+    ///
+    /// If the client presents a certificate, the client authentication is done by
+    /// the gRPC framework. (For a successful connection the client needs to either
+    /// present a certificate that can be verified against the root certificate
+    /// configured by the server or not present a certificate at all)
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestClientCertificateAndVerify = GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY as u32,
+    /// Server requests client certificate and enforces that the client presents a
+    /// certificate.
+    ///
+    /// If the client presents a certificate, the client authentication is left to
+    /// the application (the necessary metadata will be available to the
+    /// application via authentication context properties, see grpc_auth_context).
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestAndRequireClientCertificateButDontVerify =
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
+    /// Server requests client certificate and enforces that the client presents a
+    /// certificate.
+    ///
+    /// The certificate presented by the client is verified by the gRPC framework.
+    /// (For a successful connection the client needs to present a certificate that
+    /// can be verified against the root certificate configured by the server)
+    ///
+    /// The client's key certificate pair must be valid for the SSL connection to
+    /// be established.
+    RequestAndRequireClientCertificateAndVerify =
+        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
+}
+
+impl CertificateRequestType {
+    #[inline]
+    pub(crate) fn to_native(self) -> grpc_ssl_client_certificate_request_type {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+/// Traits to retrieve updated SSL server certificates, private keys, and trusted CAs
+/// (for client authentication).
+pub trait ServerCredentialsFetcher {
+    /// Retrieves updated credentials.
+    ///
+    /// The method will be called during server initialization and every time a new
+    /// connection is about to be accepted. When returning `None` or error, gRPC
+    /// will continue to use the previous certificates returned by the method. If no
+    /// valid credentials is returned during initialization, the server will fail to start.
+    fn fetch(&self) -> std::result::Result<Option<ServerCredentialsBuilder>, Box<dyn StdError>>;
+}
 
 fn clear_key_securely(key: &mut [u8]) {
     unsafe {
@@ -24,6 +104,32 @@ fn clear_key_securely(key: &mut [u8]) {
             ptr::write_volatile(b, 0)
         }
     }
+}
+
+pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
+    user_data: *mut std::os::raw::c_void,
+    config: *mut *mut grpc_ssl_server_certificate_config,
+) -> grpc_ssl_certificate_config_reload_status {
+    if user_data.is_null() {
+        panic!("fetcher user_data must be set up!");
+    }
+    let f: &mut dyn ServerCredentialsFetcher =
+        (&mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
+    let result = f.fetch();
+    match result {
+        Ok(Some(builder)) => {
+            let new_config = builder.build_config();
+            *config = new_config;
+        }
+        Ok(None) => {
+            return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED;
+        }
+        Err(e) => {
+            warn!("cert_fetcher met error: {}", e);
+            return GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL;
+        }
+    }
+    GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW
 }
 
 /// [`ServerCredentials`] factory in order to configure the properties.
@@ -70,6 +176,25 @@ impl ServerCredentialsBuilder {
         self.private_keys
             .push(CString::new(private_key).unwrap().into_raw());
         self
+    }
+
+    /// Finalize the [`ServerCredentialsBuilder`] and build the
+    /// [`*mut grpcio_sys::bindings::grpc_ssl_server_certificate_config`].
+    unsafe fn build_config(mut self) -> *mut grpcio_sys::grpc_ssl_server_certificate_config {
+        let root_cert = self
+            .root
+            .take()
+            .map_or_else(ptr::null_mut, CString::into_raw);
+        let cfg = grpcio_sys::grpcwrap_ssl_server_certificate_config_create(
+            root_cert,
+            self.cert_chains.as_mut_ptr() as _,
+            self.private_keys.as_mut_ptr() as _,
+            self.cert_chains.len(),
+        );
+        if !root_cert.is_null() {
+            CString::from_raw(root_cert);
+        }
+        cfg
     }
 
     /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
@@ -123,7 +248,13 @@ pub struct ServerCredentials {
     creds: *mut GrpcServerCredentials,
 }
 
+unsafe impl Send for ServerCredentials {}
+
 impl ServerCredentials {
+    pub(crate) unsafe fn frow_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
+        ServerCredentials { creds: creds as _ }
+    }
+
     pub fn as_mut_ptr(&mut self) -> *mut GrpcServerCredentials {
         self.creds
     }

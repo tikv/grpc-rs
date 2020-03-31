@@ -61,7 +61,7 @@ fn test_auth_context() {
         .build()
         .unwrap();
     server.start();
-    let port = server.bind_addrs()[0].1;
+    let port = server.bind_addrs().next().unwrap().1;
 
     let client_credentials = ChannelCredentialsBuilder::new()
         .root_cert(CA_CRT.as_bytes().to_owned())
@@ -120,7 +120,7 @@ fn test_no_crash_on_insecure() {
         .build()
         .unwrap();
     server.start();
-    let port = server.bind_addrs()[0].1;
+    let port = server.bind_addrs().next().unwrap().1;
 
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
