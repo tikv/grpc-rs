@@ -369,10 +369,8 @@ impl ServerBuilder {
 #[cfg(feature = "secure")]
 mod secure_server {
     use super::{Binder, ServerBuilder};
-    use credentials::{
-        server_cert_fetcher_wrapper, CertificateRequestType, ServerCredentials,
-        ServerCredentialsFetcher,
-    };
+    use credentials::{server_cert_fetcher_wrapper, ServerCredentials, ServerCredentialsFetcher};
+    use grpc_sys::grpc_ssl_client_certificate_request_type::*;
 
     impl ServerBuilder {
         /// Bind to an address for secure connection.
@@ -398,13 +396,17 @@ mod secure_server {
             host: S,
             port: u16,
             fetcher: Box<dyn ServerCredentialsFetcher + Send + Sync>,
-            cer_request_type: CertificateRequestType,
+            force_auth: bool,
         ) -> ServerBuilder {
             let fetcher_wrap = Box::new(fetcher);
             let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
             let (sc, fb) = unsafe {
                 let opt = grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
-                    cer_request_type.to_native(),
+                    if force_auth {
+                        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
+                    } else {
+                        GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE
+                    },
                     Some(server_cert_fetcher_wrapper),
                     fetcher_wrap_ptr as _,
                 );

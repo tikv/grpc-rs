@@ -2,8 +2,8 @@
 
 use futures::Future;
 use grpcio::{
-    CertificateRequestType, ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext,
-    ServerBuilder, ServerCredentialsBuilder, ServerCredentialsFetcher, UnarySink,
+    ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext, ServerBuilder,
+    ServerCredentialsBuilder, ServerCredentialsFetcher, UnarySink,
 };
 use grpcio_proto::example::helloworld::*;
 use grpcio_proto::example::helloworld_grpc::*;
@@ -87,7 +87,7 @@ fn test_reload_new() {
             Box::new(DataReload {
                 switch: switch.clone(),
             }),
-            CertificateRequestType::DontRequestClientCertificate,
+            false,
         )
         .build()
         .unwrap();
@@ -139,7 +139,7 @@ fn test_reload_fail() {
             Box::new(DataReloadFail {
                 initial: AtomicBool::new(false),
             }),
-            CertificateRequestType::DontRequestClientCertificate,
+            false,
         )
         .build()
         .unwrap();

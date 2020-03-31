@@ -19,72 +19,9 @@ use error::{Error, Result};
 use grpc_sys::{
     self, grpc_server_credentials,
     grpc_ssl_certificate_config_reload_status::{self, *},
-    grpc_ssl_client_certificate_request_type::{self, *},
     grpc_ssl_server_certificate_config, GrpcChannelCredentials, GrpcServerCredentials,
 };
 use libc::c_char;
-
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CertificateRequestType {
-    /// Server does not request client certificate.
-    ///
-    /// The certificate presented by the client is not checked by the server at
-    /// all. (A client may present a self signed or signed certificate or not
-    /// present a certificate at all and any of those option would be accepted)
-    DontRequestClientCertificate = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE as u32,
-    /// Server requests client certificate but does not enforce that the client
-    /// presents a certificate.
-    ///
-    /// If the client presents a certificate, the client authentication is left to
-    /// the application (the necessary metadata will be available to the
-    /// application via authentication context properties, see grpc_auth_context).
-    ///
-    /// The client's key certificate pair must be valid for the SSL connection to
-    /// be established.
-    RequestClientCertificateButDontVerify =
-        GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
-    /// Server requests client certificate but does not enforce that the client
-    /// presents a certificate.
-    ///
-    /// If the client presents a certificate, the client authentication is done by
-    /// the gRPC framework. (For a successful connection the client needs to either
-    /// present a certificate that can be verified against the root certificate
-    /// configured by the server or not present a certificate at all)
-    ///
-    /// The client's key certificate pair must be valid for the SSL connection to
-    /// be established.
-    RequestClientCertificateAndVerify = GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY as u32,
-    /// Server requests client certificate and enforces that the client presents a
-    /// certificate.
-    ///
-    /// If the client presents a certificate, the client authentication is left to
-    /// the application (the necessary metadata will be available to the
-    /// application via authentication context properties, see grpc_auth_context).
-    ///
-    /// The client's key certificate pair must be valid for the SSL connection to
-    /// be established.
-    RequestAndRequireClientCertificateButDontVerify =
-        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY as u32,
-    /// Server requests client certificate and enforces that the client presents a
-    /// certificate.
-    ///
-    /// The certificate presented by the client is verified by the gRPC framework.
-    /// (For a successful connection the client needs to present a certificate that
-    /// can be verified against the root certificate configured by the server)
-    ///
-    /// The client's key certificate pair must be valid for the SSL connection to
-    /// be established.
-    RequestAndRequireClientCertificateAndVerify =
-        GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY as u32,
-}
-
-impl CertificateRequestType {
-    #[inline]
-    pub(crate) fn to_native(self) -> grpc_ssl_client_certificate_request_type {
-        unsafe { std::mem::transmute(self) }
-    }
-}
 
 /// Traits to retrieve updated SSL server certificates, private keys, and trusted CAs
 /// (for client authentication).
