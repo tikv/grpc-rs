@@ -1,4 +1,8 @@
-# 0.5.1 - 2020-03-20
+# grpcio-sys 0.5.2 - 2020-03-31
+
+- Downgrade bindgen version to be backward compatible. (#452)
+
+# 0.5.1 - 2020-03-30
 
 - Clarify load balancing status (#445)
 - Support unix domain socket (#446)
