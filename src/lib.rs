@@ -81,8 +81,8 @@ pub use codec::pb_codec::{de as pb_de, ser as pb_ser};
 pub use codec::Marshaller;
 #[cfg(feature = "secure")]
 pub use credentials::{
-    ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
-    ServerCredentialsFetcher,CertificateRequestType
+    CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
+    ServerCredentialsBuilder, ServerCredentialsFetcher,
 };
 pub use env::{EnvBuilder, Environment};
 pub use error::{Error, Result};
