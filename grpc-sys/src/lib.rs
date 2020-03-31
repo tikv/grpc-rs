@@ -712,6 +712,83 @@ mod secure_component {
 #[cfg(feature = "secure")]
 pub use secure_component::*;
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_auth_context {
+    _unused: [u8; 0],
+}
+
+#[doc = " value, if not NULL, is guaranteed to be NULL terminated."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_auth_property {
+    pub name: *mut ::std::os::raw::c_char,
+    pub value: *mut ::std::os::raw::c_char,
+    pub value_length: usize,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_auth_property_iterator {
+    pub ctx: *const grpc_auth_context,
+    pub index: usize,
+    pub name: *const ::std::os::raw::c_char,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_call {
+    _unused: [u8; 0],
+}
+
+extern "C" {
+    #[doc = " Gets the auth context from the call. Caller needs to call"]
+    #[doc = "grpc_auth_context_release on the returned context."]
+    pub fn grpc_call_auth_context(call: *mut grpc_call) -> *mut grpc_auth_context;
+}
+
+extern "C" {
+    #[doc = " Gets the name of the property that indicates the peer identity. Will return"]
+    #[doc = "NULL if the peer is not authenticated."]
+    pub fn grpc_auth_context_peer_identity_property_name(
+        ctx: *const grpc_auth_context,
+    ) -> *const ::std::os::raw::c_char;
+}
+
+extern "C" {
+    #[doc = " Returns 1 if the peer is authenticated, 0 otherwise."]
+    pub fn grpc_auth_context_peer_is_authenticated(
+        ctx: *const grpc_auth_context,
+    ) -> ::std::os::raw::c_int;
+}
+
+extern "C" {
+    #[doc = " Gets the peer identity. Returns an empty iterator (first _next will return"]
+    #[doc = "NULL) if the peer is not authenticated."]
+    pub fn grpc_auth_context_peer_identity(
+        ctx: *const grpc_auth_context,
+    ) -> grpc_auth_property_iterator;
+}
+
+extern "C" {
+    #[doc = " Iterates over the auth context."]
+    pub fn grpc_auth_context_property_iterator(
+        ctx: *const grpc_auth_context,
+    ) -> grpc_auth_property_iterator;
+}
+
+extern "C" {
+    #[doc = " Returns NULL when the iterator is at the end."]
+    pub fn grpc_auth_property_iterator_next(
+        it: *mut grpc_auth_property_iterator,
+    ) -> *const grpc_auth_property;
+}
+
+extern "C" {
+    #[doc = " Releases the auth context returned from grpc_call_auth_context."]
+    pub fn grpc_auth_context_release(context: *mut grpc_auth_context);
+}
+
 // TODO: more tests.
 #[cfg(test)]
 mod tests {

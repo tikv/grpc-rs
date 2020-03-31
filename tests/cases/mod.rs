@@ -16,3 +16,4 @@ mod health_check;
 mod kick;
 mod metadata;
 mod misc;
+mod auth_context;

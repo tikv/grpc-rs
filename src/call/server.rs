@@ -20,6 +20,7 @@ use grpc_sys::{self, GprClockType, GprTimespec, GrpcCallStatus, GrpcRequestCallC
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use async::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
+use auth_context::AuthContext;
 use call::{BatchContext, Call, MethodType, RpcStatusCode, SinkBase, StreamingBase};
 use codec::{DeserializeFn, SerializeFn};
 use cq::CompletionQueue;
@@ -168,6 +169,14 @@ impl RequestContext {
                 .to_owned();
             grpc_sys::gpr_free(p as _);
             peer
+        }
+    }
+
+    /// If the server binds in non-secure mode, this will return None
+    fn auth_context(&self) -> Option<AuthContext> {
+        unsafe {
+            let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
+            AuthContext::from_call_ptr(call as _)
         }
     }
 }
@@ -606,6 +615,13 @@ impl<'a> RpcContext<'a> {
 
     pub fn peer(&self) -> String {
         self.ctx.peer()
+    }
+
+    /// Wrapper around the gRPC Core AuthContext
+    ///
+    /// If the server binds in non-secure mode, this will return None
+    pub fn auth_context(&self) -> Option<AuthContext> {
+        self.ctx.auth_context()
     }
 
     /// Spawn the future into current gRPC poll thread.

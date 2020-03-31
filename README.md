@@ -20,7 +20,7 @@ This project is still under development. The following features with the check m
 - [ ] Custom metadata
 - [x] Health check
 - [ ] Reflection
-- [ ] Authentication
+- [x] Authentication
 - [ ] Load balance
 
 ## Prerequisites

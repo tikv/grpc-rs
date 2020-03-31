@@ -46,6 +46,7 @@ extern crate log;
 extern crate protobuf;
 
 mod async;
+mod auth_context;
 mod call;
 mod channel;
 mod client;
@@ -60,6 +61,7 @@ mod metadata;
 mod quota;
 mod server;
 
+pub use auth_context::{AuthContext, AuthProperty, AuthPropertyIter};
 pub use call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver, StreamingCallSink,
