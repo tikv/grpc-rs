@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.5.0"
+version = "0.5.2"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -70,4 +70,5 @@ cc = "1.0"
 cmake = "0.1.40"
 pkg-config = "0.3"
 walkdir = "2.2.9"
-bindgen = { version = "0.53.2", default-features = false, features = ["runtime"] }
+# Because of rust-lang/cargo#5237, bindgen should not be upgraded util a minor or major release.
+bindgen = { version = "0.51.0", default-features = false }
