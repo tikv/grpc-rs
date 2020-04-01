@@ -129,6 +129,17 @@ impl Environment {
         let idx = self.idx.fetch_add(1, Ordering::Relaxed);
         self.cqs[idx % self.cqs.len()].clone()
     }
+
+    /// Shutdown the completion queues and join all threads
+    pub fn shutdown_and_join(&mut self) {
+        for cq in self.completion_queues() {
+            cq.shutdown();
+        }
+
+        for handle in self._handles.drain(..) {
+            handle.join().unwrap();
+        }
+    }
 }
 
 impl Drop for Environment {
@@ -163,12 +174,6 @@ mod tests {
         }
 
         assert_eq!(env.completion_queues().len(), 2);
-        for cq in env.completion_queues() {
-            cq.shutdown();
-        }
-
-        for handle in env._handles.drain(..) {
-            handle.join().unwrap();
-        }
+        env.shutdown_and_join();
     }
 }
