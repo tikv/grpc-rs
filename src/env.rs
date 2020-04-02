@@ -29,7 +29,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
 
         tag.resolve(&cq, e.success != 0);
         while let Some(work) = unsafe { cq.worker.pop_work() } {
-            work.finish(&cq);
+            work.finish();
         }
     }
 }

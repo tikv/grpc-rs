@@ -6,10 +6,11 @@ mod lock;
 mod promise;
 
 use std::fmt::{self, Debug, Formatter};
+use std::pin::Pin;
 use std::sync::Arc;
 
-use futures::task::{self, Task};
-use futures::{Async, Future, Poll};
+use futures::future::Future;
+use futures::task::{Context, Poll, Waker};
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
@@ -27,7 +28,7 @@ pub use self::promise::BatchType;
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
     result: Option<Result<T>>,
-    task: Option<Task>,
+    waker: Option<Waker>,
     stale: bool,
 }
 
@@ -35,16 +36,16 @@ impl<T> NotifyHandle<T> {
     fn new() -> NotifyHandle<T> {
         NotifyHandle {
             result: None,
-            task: None,
+            waker: None,
             stale: false,
         }
     }
 
     /// Set the result and notify future if necessary.
-    fn set_result(&mut self, res: Result<T>) -> Option<Task> {
+    fn set_result(&mut self, res: Result<T>) -> Option<Waker> {
         self.result = Some(res);
 
-        self.task.take()
+        self.waker.take()
     }
 }
 
@@ -81,10 +82,9 @@ impl<T> CqFuture<T> {
 }
 
 impl<T> Future for CqFuture<T> {
-    type Item = T;
-    type Error = Error;
+    type Output = Result<T>;
 
-    fn poll(&mut self) -> Poll<T, Error> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let mut guard = self.inner.lock();
         if guard.stale {
             panic!("Resolved future is not supposed to be polled again.");
@@ -92,15 +92,15 @@ impl<T> Future for CqFuture<T> {
 
         if let Some(res) = guard.result.take() {
             guard.stale = true;
-            return Ok(Async::Ready(res?));
+            return Poll::Ready(res);
         }
 
         // So the task has not been finished yet, add notification hook.
-        if guard.task.is_none() || !guard.task.as_ref().unwrap().will_notify_current() {
-            guard.task = Some(task::current());
+        if guard.waker.is_none() || !guard.waker.as_ref().unwrap().will_wake(cx.waker()) {
+            guard.waker = Some(cx.waker().clone());
         }
 
-        Ok(Async::NotReady)
+        Poll::Pending
     }
 }
 
@@ -177,7 +177,7 @@ impl CallTag {
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
             CallTag::Shutdown(prom) => prom.resolve(success),
-            CallTag::Spawn(notify) => self::executor::resolve(cq, notify, success),
+            CallTag::Spawn(notify) => self::executor::resolve(notify, success),
         }
     }
 }
@@ -203,6 +203,7 @@ mod tests {
 
     use super::*;
     use crate::env::Environment;
+    use futures::executor::block_on;
 
     #[test]
     fn test_resolve() {
@@ -213,8 +214,8 @@ mod tests {
         let (tx, rx) = mpsc::channel();
 
         let handler = thread::spawn(move || {
-            tx.send(cq_f1.wait()).unwrap();
-            tx.send(cq_f2.wait()).unwrap();
+            tx.send(block_on(cq_f1)).unwrap();
+            tx.send(block_on(cq_f2)).unwrap();
         });
 
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);

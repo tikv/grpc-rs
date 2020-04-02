@@ -1,6 +1,7 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::*;
+use futures::executor::block_on;
+use futures::prelude::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use std::sync::atomic::*;
@@ -18,7 +19,8 @@ impl Greeter for PeerService {
         resp.set_message(peer);
         ctx.spawn(
             sink.success(resp)
-                .map_err(|e| panic!("failed to reply {:?}", e)),
+                .map_err(|e| panic!("failed to reply {:?}", e))
+                .map(|_| ()),
         );
     }
 }
@@ -79,7 +81,8 @@ fn test_soundness() {
             let resp = HelloReply::default();
             ctx.spawn(
                 sink.success(resp)
-                    .map_err(|e| panic!("failed to reply {:?}", e)),
+                    .map_err(|e| panic!("failed to reply {:?}", e))
+                    .map(|_| ()),
             );
         }
     }
@@ -108,7 +111,7 @@ fn test_soundness() {
             for _ in 0..3000 {
                 resps.push(client.say_hello_async(&HelloRequest::default()).unwrap());
             }
-            future::join_all(resps).wait().unwrap();
+            block_on(futures::future::try_join_all(resps)).unwrap();
         })
     };
     let j1 = spawn_reqs(env.clone());
@@ -117,7 +120,7 @@ fn test_soundness() {
     j1.join().unwrap();
     j2.join().unwrap();
     j3.join().unwrap();
-    server.shutdown().wait().unwrap();
+    block_on(server.shutdown()).unwrap();
     drop(server);
     drop(env);
     for _ in 0..100 {

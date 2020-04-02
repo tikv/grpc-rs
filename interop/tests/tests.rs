@@ -37,13 +37,14 @@ macro_rules! mk_test {
 
             let client = Client::new(channel);
 
-            client.$func();
+            block_on(client.$func()).unwrap();
         }
     };
     ($func:ident) => {
         mod $func {
             use std::sync::Arc;
 
+            use futures::executor::block_on;
             use grpc::{ChannelBuilder, Environment, ServerBuilder};
             use grpc_proto::testing::test_grpc::create_test_service;
             use grpc_proto::util;

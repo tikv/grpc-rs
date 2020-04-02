@@ -1,6 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::Future;
+use futures::prelude::*;
 use grpcio::{
     CertificateRequestType, ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext,
     ServerBuilder, ServerCredentialsBuilder, ServerCredentialsFetcher, UnarySink,
@@ -20,7 +20,8 @@ impl Greeter for GreeterService {
         resp.set_message(msg);
         let f = sink
             .success(resp)
-            .map_err(move |e| panic!("failed to reply {:?}", e));
+            .map_err(move |e| panic!("failed to reply {:?}", e))
+            .map(|_| ());
         ctx.spawn(f)
     }
 }

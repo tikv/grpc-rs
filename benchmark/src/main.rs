@@ -14,8 +14,8 @@ use std::sync::Arc;
 
 use benchmark::{init_log, Worker};
 use clap::{App, Arg};
-use futures::sync::oneshot;
-use futures::Future;
+use futures::channel::oneshot;
+use futures::executor::block_on;
 use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::services_grpc::create_worker_service;
 use rand::Rng;
@@ -55,7 +55,6 @@ fn main() {
 
     server.start();
 
-    let _ = rx.wait();
-
-    let _ = server.shutdown().wait();
+    let _ = block_on(rx);
+    let _ = block_on(server.shutdown());
 }

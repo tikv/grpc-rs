@@ -1,11 +1,16 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::pin::Pin;
 use std::ptr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::grpc_sys;
-use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
+use futures::ready;
+use futures::sink::Sink;
+use futures::stream::Stream;
+use futures::task::{Context, Poll};
+use std::future::Future;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::call::{check_run, Call, MessageReader, Method};
@@ -243,13 +248,12 @@ impl<T> ClientUnaryReceiver<T> {
 }
 
 impl<T> Future for ClientUnaryReceiver<T> {
-    type Item = T;
-    type Error = Error;
+    type Output = Result<T>;
 
-    fn poll(&mut self) -> Poll<T, Error> {
-        let data = try_ready!(self.resp_f.poll());
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+        let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
         let t = self.resp_de(data.unwrap())?;
-        Ok(Async::Ready(t))
+        Poll::Ready(Ok(t))
     }
 }
 
@@ -291,17 +295,16 @@ impl<T> Drop for ClientCStreamReceiver<T> {
 }
 
 impl<T> Future for ClientCStreamReceiver<T> {
-    type Item = T;
-    type Error = Error;
+    type Output = Result<T>;
 
-    fn poll(&mut self) -> Poll<T, Error> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
         let data = {
             let mut call = self.call.lock();
-            try_ready!(call.poll_finish())
+            ready!(call.poll_finish(cx)?)
         };
         let t = (self.resp_de)(data.unwrap())?;
         self.finished = true;
-        Ok(Async::Ready(t))
+        Poll::Ready(Ok(t))
     }
 }
 
@@ -345,49 +348,49 @@ impl<P> Drop for StreamingCallSink<P> {
     }
 }
 
-impl<Req> Sink for StreamingCallSink<Req> {
-    type SinkItem = (Req, WriteFlags);
-    type SinkError = Error;
+impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
+    type Error = Error;
 
-    fn start_send(&mut self, (msg, flags): Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
+    #[inline]
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
+        Pin::new(&mut self.sink_base).poll_ready(cx)
+    }
+
+    #[inline]
+    fn start_send(mut self: Pin<&mut Self>, (msg, flags): (Req, WriteFlags)) -> Result<()> {
         {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
-        self.sink_base
-            .start_send(&mut self.call, &msg, flags, self.req_ser)
-            .map(|s| {
-                if s {
-                    AsyncSink::Ready
-                } else {
-                    AsyncSink::NotReady((msg, flags))
-                }
-            })
+        let t = &mut *self;
+        Pin::new(&mut t.sink_base).start_send(&mut t.call, &msg, flags, t.req_ser)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Error> {
+    #[inline]
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
         {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
-        self.sink_base.poll_complete()
+        Pin::new(&mut self.sink_base).poll_ready(cx)
     }
 
-    fn close(&mut self) -> Poll<(), Error> {
-        let mut call = self.call.lock();
-        if self.close_f.is_none() {
-            try_ready!(self.sink_base.poll_complete());
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
+        let t = &mut *self;
+        let mut call = t.call.lock();
+        if t.close_f.is_none() {
+            ready!(Pin::new(&mut t.sink_base).poll_ready(cx)?);
 
             let close_f = call.call.start_send_close_client()?;
-            self.close_f = Some(close_f);
+            t.close_f = Some(close_f);
         }
 
-        if let Async::NotReady = self.close_f.as_mut().unwrap().poll()? {
+        if let Poll::Pending = Pin::new(t.close_f.as_mut().unwrap()).poll(cx)? {
             // if call is finished, can return early here.
             call.check_alive()?;
-            return Ok(Async::NotReady);
+            return Poll::Pending;
         }
-        Ok(Async::Ready(()))
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -412,7 +415,7 @@ struct ResponseStreamImpl<H, T> {
     resp_de: DeserializeFn<T>,
 }
 
-impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
+impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
     fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
         ResponseStreamImpl {
             call,
@@ -427,11 +430,12 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
         self.call.call(|c| c.call.cancel())
     }
 
-    fn poll(&mut self) -> Poll<Option<T>, Error> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Result<T>>> {
         if !self.finished {
-            let finished = &mut self.finished;
-            self.call.call(|c| {
-                let res = c.poll_finish().map(|_| ());
+            let t = &mut *self;
+            let finished = &mut t.finished;
+            let _ = t.call.call(|c| {
+                let res = c.poll_finish(cx);
                 *finished = c.finished;
                 res
             })?;
@@ -440,8 +444,8 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
         let mut bytes = None;
         loop {
             if !self.read_done {
-                if let Some(ref mut msg_f) = self.msg_f {
-                    bytes = try_ready!(msg_f.poll());
+                if let Some(msg_f) = &mut self.msg_f {
+                    bytes = ready!(Pin::new(msg_f).poll(cx)?);
                     if bytes.is_none() {
                         self.read_done = true;
                     }
@@ -450,9 +454,9 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
 
             if self.read_done {
                 if self.finished {
-                    return Ok(Async::Ready(None));
+                    return Poll::Ready(None);
                 }
-                return Ok(Async::NotReady);
+                return Poll::Pending;
             }
 
             // so msg_f must be either stale or not initialised yet.
@@ -461,7 +465,7 @@ impl<H: ShareCallHolder, T> ResponseStreamImpl<H, T> {
             self.msg_f = Some(msg_f);
             if let Some(data) = bytes {
                 let msg = (self.resp_de)(data)?;
-                return Ok(Async::Ready(Some(msg)));
+                return Poll::Ready(Some(Ok(msg)));
             }
         }
     }
@@ -499,11 +503,11 @@ impl<Resp> ClientSStreamReceiver<Resp> {
 }
 
 impl<Resp> Stream for ClientSStreamReceiver<Resp> {
-    type Item = Resp;
-    type Error = Error;
+    type Item = Result<Resp>;
 
-    fn poll(&mut self) -> Poll<Option<Resp>, Error> {
-        self.imp.poll()
+    #[inline]
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.imp).poll(cx)
     }
 }
 
@@ -540,11 +544,10 @@ impl<Resp> Drop for ClientDuplexReceiver<Resp> {
 }
 
 impl<Resp> Stream for ClientDuplexReceiver<Resp> {
-    type Item = Resp;
-    type Error = Error;
+    type Item = Result<Resp>;
 
-    fn poll(&mut self) -> Poll<Option<Resp>, Error> {
-        self.imp.poll()
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.imp).poll(cx)
     }
 }
 

@@ -1,17 +1,16 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::Future;
-
 use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
 };
 use crate::call::{Call, Method};
 use crate::channel::Channel;
+use crate::error::Result;
 use crate::task::Executor;
 use crate::task::Kicker;
-
-use crate::error::Result;
+use futures::executor::block_on;
+use futures::Future;
 
 /// A generic client for making RPC calls.
 #[derive(Clone)]
@@ -29,14 +28,16 @@ impl Client {
     }
 
     /// Create a synchronized unary RPC call.
+    ///
+    /// It uses futures::executor::block_on to wait for the futures. It's recommended to use
+    /// the asynchronous version.
     pub fn unary_call<Req, Resp>(
         &self,
         method: &Method<Req, Resp>,
         req: &Req,
         opt: CallOption,
     ) -> Result<Resp> {
-        let f = self.unary_call_async(method, req, opt)?;
-        f.wait()
+        block_on(self.unary_call_async(method, req, opt)?)
     }
 
     /// Create an asynchronized unary RPC call.
@@ -91,7 +92,7 @@ impl Client {
     /// sure there is no heavy work in the future.
     pub fn spawn<F>(&self, f: F)
     where
-        F: Future<Item = (), Error = ()> + Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
         let kicker = self.kicker.clone();
         Executor::new(self.channel.cq()).spawn(f, kicker)
