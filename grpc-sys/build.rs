@@ -130,17 +130,6 @@ fn build_grpc(cc: &mut Build, library: &str) {
         if cfg!(feature = "openssl") {
             config.define("gRPC_SSL_PROVIDER", "package");
             config.define("EMBED_OPENSSL", "false");
-            // check if openssl provided from system support ALPN
-            if !cfg!(feature = "openssl-vendored")
-                && Build::new()
-                    .file("grpc/test/build/openssl-alpn.c")
-                    .cargo_metadata(false)
-                    .cpp(true)
-                    .try_compile("check_alpn")
-                    .is_err()
-            {
-                config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
-            }
             setup_openssl(&mut config)
         } else if cfg!(feature = "secure") {
             third_party.extend_from_slice(&["boringssl/ssl", "boringssl/crypto"]);
@@ -261,7 +250,18 @@ fn setup_openssl(config: &mut Config) {
 }
 
 #[cfg(not(feature = "openssl-vendored"))]
-fn setup_openssl(_config: &mut Config) {}
+fn setup_openssl(config: &mut Config) {
+    // check if openssl provided from system support ALPN
+    if Build::new()
+        .file("grpc/test/build/openssl-alpn.c")
+        .cargo_metadata(false)
+        .cpp(true)
+        .try_compile("check_alpn")
+        .is_err()
+    {
+        config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
+    }
+}
 
 fn get_env(name: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={}", name);
