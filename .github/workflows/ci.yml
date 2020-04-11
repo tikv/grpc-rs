@@ -10,7 +10,7 @@ jobs:
 
   Linux-stable:
     name: Linux-stable
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "--deny=warnings"
@@ -35,7 +35,7 @@ jobs:
 
   Linux-nightly:
     name: Linux-nightly
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "--deny=warnings"
