@@ -109,14 +109,11 @@ jobs:
       RUSTFLAGS: "--deny=warnings"
     steps:
     - uses: actions/checkout@v2
-    # TODO: openssl in mac meet something wrong
-    - run: brew update && brew upgrade openssl@1.1 && ls "/usr/local/opt/openssl@1.1/"
-    - run: ls "/usr/local/opt/openssl@1.1/include"
-    - run: ls "/usr/local/opt/openssl@1.1/openssl"
+    - run: brew update && brew upgrade openssl@1.1
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
     # PROTOBUF_ROOT_DIR is wrong; Could NOT find OpenSSL
-    - run: cargo test --features "openssl" --all
+    - run: OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/" cargo test --features "openssl" --all
     - run: cargo test --features "openssl-vendored" --all
 
   # Win:
