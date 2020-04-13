@@ -63,7 +63,7 @@ jobs:
     - run: scripts/reset-submodule.cmd
     - run: cargo build --no-default-features --features protobuf-codec
     - run: cargo build --no-default-features --features prost-codec
-    - run: cargo build --all
+    - run: cargo build
     - run: cargo test --all
     - run: RUSTFLAGS="-Z sanitizer=address" cargo test --all --target x86_64-unknown-linux-gnu
 
@@ -87,7 +87,7 @@ jobs:
     - run: scripts/reset-submodule.cmd
     - run: cargo build --no-default-features --features protobuf-codec
     - run: cargo build --no-default-features --features prost-codec
-    - run: cargo build --all
+    - run: cargo build
     - run: cargo test --all
 
   Mac-Security:
@@ -110,5 +110,5 @@ jobs:
     - run: refreshenv
     - run: go version ; cargo version ; cmake --version 
     - run: scripts/reset-submodule.cmd
-    - run: cargo build --all
+    - run: cargo build
     - run: cargo test --all
