@@ -15,8 +15,6 @@ jobs:
       RUSTFLAGS: "--deny=warnings"
     steps:
     - uses: actions/checkout@v2
-    # TODO pkg
-    - run: pwd
     - run: sudo apt-get install -y clang-tidy-9
     - run: sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 100
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
@@ -24,6 +22,9 @@ jobs:
     - run: cargo fmt --all -- --check
     - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
     - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
+    - run: export GRPC_VERSION=1.26.0 && git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
+    - run: cd grpc && git submodule update --init && make install_c
+    - run: cd .. && GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
   Linux-Stable:
     name: Linux-Stable
