@@ -4,129 +4,108 @@ on:
   pull_request:
   push:
     branches:
-    
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "--deny=warnings"
+  GRPC_VERSION: 1.26.0
+
 jobs:
+  Linux-Format-PKG-Test:
+    name: Linux-Format-PKG-Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: sudo apt-get install -y clang-tidy-9
+    - run: sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 100
+    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+    - run: scripts/reset-submodule.cmd
+    - run: cargo fmt --all -- --check
+    - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
+    - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
+    - run: git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
+    - run: cd grpc && git submodule update --init && sudo make install_c
+    - run: GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
-  # Linux-Stable-Format:
-  #   name: Linux-Stable-Format
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: sudo apt-get install -y clang-tidy-9
-  #   - run: sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 100
-  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: cargo fmt --all -- --check
-  #   - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
-  #   - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
-  #   - run: export GRPC_VERSION=1.26.0 && git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
-  #   - run: cd grpc && git submodule update --init && sudo make install_c
-  #   - run: GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
+  Linux-Stable:
+    name: Linux-Stable
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+    - run: scripts/reset-submodule.cmd
+    - run: scripts/generate-bindings.sh && git diff --exit-code HEAD
+    - run: cargo build --no-default-features --features protobuf-codec
+    - run: cargo build --no-default-features --features prost-codec
+    - run: cargo build --all
+    - run: cargo test --all
 
-  # Linux-Stable:
-  #   name: Linux-Stable
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: scripts/generate-bindings.sh && git diff --exit-code HEAD
-  #   - run: cargo build --no-default-features --features protobuf-codec
-  #   - run: cargo build --no-default-features --features prost-codec
-  #   - run: cargo build --all
-  #   - run: cargo test --all
+  Linux-Stable-Security:
+    name: Linux-Stable-Security
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+    - run: scripts/reset-submodule.cmd
+    - run: cargo test --features "openssl" --all
+    - run: cargo test --features "openssl-vendored" --all
 
-  # Linux-Stable-Security:
-  #   name: Linux-Stable-Security
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: cargo test --features "openssl" --all
-  #   - run: cargo test --features "openssl-vendored" --all
+  Linux-Nightly:
+    name: Linux-Nightly
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: rustup default nightly
+    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+    - run: scripts/reset-submodule.cmd
+    - run: cargo build --no-default-features --features protobuf-codec
+    - run: cargo build --no-default-features --features prost-codec
+    - run: cargo build --all
+    - run: cargo test --all
+    - run: RUSTFLAGS="-Z sanitizer=address" cargo test --all --target x86_64-unknown-linux-gnu
 
-  # Linux-Nightly:
-  #   name: Linux-Nightly
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: rustup default nightly
-  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: cargo build --no-default-features --features protobuf-codec
-  #   - run: cargo build --no-default-features --features prost-codec
-  #   - run: cargo build --all
-  #   - run: cargo test --all
-  #   - run: RUSTFLAGS="-Z sanitizer=address" cargo test --all --target x86_64-unknown-linux-gnu
+  Linux-Nightly-Security:
+    name: Linux-Nightly-Security
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: rustup default nightly
+    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+    - run: scripts/reset-submodule.cmd
+    - run: cargo test --features "openssl" --all
+    - run: cargo test --features "openssl-vendored" --all
 
-  # Linux-Nightly-Security:
-  #   name: Linux-Nightly-Security
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: rustup default nightly
-  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: cargo test --features "openssl" --all
-  #   - run: cargo test --features "openssl-vendored" --all
-
-  # Mac:
-  #   name: Mac
-  #   runs-on: macos-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: cargo build --no-default-features --features protobuf-codec
-  #   - run: cargo build --no-default-features --features prost-codec
-  #   - run: cargo build --all
-  #   - run: cargo test --all
+  Mac:
+    name: Mac
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+    - run: scripts/reset-submodule.cmd
+    - run: cargo build --no-default-features --features protobuf-codec
+    - run: cargo build --no-default-features --features prost-codec
+    - run: cargo build --all
+    - run: cargo test --all
 
   Mac-Security:
     name: Mac-Security
     runs-on: macos-latest
-    env:
-      RUST_BACKTRACE: 1
-      RUSTFLAGS: "--deny=warnings"
     steps:
     - uses: actions/checkout@v2
     - run: brew update && brew upgrade openssl@1.1
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
-    # PROTOBUF_ROOT_DIR is wrong; Could NOT find OpenSSL
     - run: OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/" cargo test --features "openssl" --all
     - run: cargo test --features "openssl-vendored" --all
 
-  # Win:
-  #   name: Windows
-  #   runs-on: windows-latest
-  #   env:
-  #     RUST_BACKTRACE: 1
-  #     RUSTFLAGS: "--deny=warnings"
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - run: choco install -y llvm
-  #   - run: refreshenv
-  #   - run: go version ; cargo version ; cmake --version 
-  #   - run: scripts/reset-submodule.cmd
-  #   - run: cargo build --all
-  #   - run: cargo test --all
+  Win:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: choco install -y llvm
+    - run: refreshenv
+    - run: go version ; cargo version ; cmake --version 
+    - run: scripts/reset-submodule.cmd
+    - run: cargo build --all
+    - run: cargo test --all
