@@ -7,24 +7,24 @@ on:
     
 jobs:
 
-  Linux-Stable-Format:
-    name: Linux-Stable-Format
-    runs-on: ubuntu-latest
-    env:
-      RUST_BACKTRACE: 1
-      RUSTFLAGS: "--deny=warnings"
-    steps:
-    - uses: actions/checkout@v2
-    # - run: sudo apt-get install -y clang-tidy-9
-    # - run: sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 100
-    - run: which go && go version && which cargo && cargo version && clang --version && openssl version
-    - run: scripts/reset-submodule.cmd
-    # - run: cargo fmt --all -- --check
-    # - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
-    # - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
-    - run: export GRPC_VERSION=1.26.0 && git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
-    - run: cd grpc && git submodule update --init && sudo make install_c
-    - run: GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
+  # Linux-Stable-Format:
+  #   name: Linux-Stable-Format
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     RUST_BACKTRACE: 1
+  #     RUSTFLAGS: "--deny=warnings"
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - run: sudo apt-get install -y clang-tidy-9
+  #   - run: sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 100
+  #   - run: which go && go version && which cargo && cargo version && clang --version && openssl version
+  #   - run: scripts/reset-submodule.cmd
+  #   - run: cargo fmt --all -- --check
+  #   - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
+  #   - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
+  #   - run: export GRPC_VERSION=1.26.0 && git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
+  #   - run: cd grpc && git submodule update --init && sudo make install_c
+  #   - run: GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
   # Linux-Stable:
   #   name: Linux-Stable
@@ -110,7 +110,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     # TODO: openssl in mac meet something wrong
-    - run: sudo find / -name "ssl.h"
+    - run: sudo find /usr/include -name "ssl.h"
     - run: brew update && brew upgrade openssl@1.1 && export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/"
     - run: export OPENSSL_INCLUDE_DIR="/usr/local/opt/openssl@1.1/include" && ls $OPENSSL_ROOT_DIR && ls $OPENSSL_INCLUDE_DIR
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
