@@ -1,3 +1,5 @@
+# Travis is only used to test ARM64 Linux
+
 dist: xenial
 sudo: false
 language: rust
