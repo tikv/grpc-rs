@@ -1,4 +1,5 @@
 dist: xenial
+sudo: false
 language: rust
 git:
   submodules: false
@@ -64,6 +65,7 @@ jobs:
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
       - sudo apt-get update && sudo apt-get -y install libssl-dev;
+      - eval "$(gimme stable)"
       - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
       - export LD_LIBRARY_PATH="$HOME/.cache/lib"
       - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
@@ -72,6 +74,7 @@ jobs:
     script:
       - which go && go version
       - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
+          rustup component add rustfmt && cargo fmt --all -- --check;
           scripts/generate-bindings.sh && git diff --exit-code HEAD;
         fi
       - cargo test --features "openssl" --all
