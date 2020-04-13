@@ -110,9 +110,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     # TODO: openssl in mac meet something wrong
-    - run: sudo find /usr -name "ssl.h"
-    - run: brew update && brew upgrade openssl@1.1 && export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/"
-    - run: export OPENSSL_INCLUDE_DIR="/usr/local/opt/openssl@1.1/include" && ls $OPENSSL_ROOT_DIR && ls $OPENSSL_INCLUDE_DIR
+    - run: brew update && brew upgrade openssl@1.1 && ls "/usr/local/opt/openssl@1.1/"
+    - run: ls "/usr/local/opt/openssl@1.1/include"
+    - run: ls "/usr/local/opt/openssl@1.1/openssl"
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
     # PROTOBUF_ROOT_DIR is wrong; Could NOT find OpenSSL
