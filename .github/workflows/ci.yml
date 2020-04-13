@@ -6,7 +6,7 @@ on:
     branches: 
     - master
   schedule:
-  - cron: '53 15 * * *'
+  - cron: '*/2 * * * *'
 
 env:
   RUST_BACKTRACE: 1
