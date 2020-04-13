@@ -110,6 +110,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     # TODO: openssl in mac meet something wrong
+    - run: ls "/usr/local/opt/"
     - run: brew update && brew upgrade openssl@1.1 && export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/"
     - run: export OPENSSL_INCLUDE_DIR="/usr/local/opt/openssl@1.1/include" && ls $OPENSSL_ROOT_DIR && ls $OPENSSL_INCLUDE_DIR
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
