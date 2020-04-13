@@ -49,9 +49,6 @@ jobs:
       - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
     script:
       - which go && go version
-      - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
-          scripts/generate-bindings.sh && git diff --exit-code HEAD;
-        fi
       - cargo build --no-default-features
       - cargo build --no-default-features --features protobuf-codec
       - cargo build --no-default-features --features prost-codec
