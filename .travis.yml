@@ -3,50 +3,79 @@ language: rust
 git:
   submodules: false
 
+rust: stable
+
 env:
   global:
     - RUST_BACKTRACE=1
     - RUSTFLAGS="--deny=warnings"
 
+install:
+  - if ! which go 2>/dev/null; then
+      wget https://dl.google.com/go/go1.13.8.linux-arm64.tar.gz;
+      tar -xf go1.13.8.linux-arm64.tar.gz -C $HOME;
+      export PATH="$HOME/go/bin:$PATH";
+      export GO_ROOT=$HOME/go;
+    fi
+
+addons:
+  apt:
+    update: true
+    packages:
+      - libunwind-dev
+
 jobs:
   include:
   - os: linux
     arch: arm64
-    rust: stable
-    install:
-      - if ! which go 2>/dev/null; then
-          wget https://dl.google.com/go/go1.13.8.linux-arm64.tar.gz;
-          tar -xf go1.13.8.linux-arm64.tar.gz -C $HOME;
-          export PATH="$HOME/go/bin:$PATH";
-          export GO_ROOT=$HOME/go;
+    before_script:
+      - scripts/reset-submodule.cmd
+      - export GRPC_VERSION=1.26.0
+      - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
+      - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
+      - if [[ ! -f "$GRPC_HEADER" ]] ; then
+          (
+            git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
+            cd grpc &&
+            git submodule update --init &&
+            env prefix=$HOME/.cache make install_c
+          );
         fi
-    addons:
-      apt:
-        update: true
-        packages:
-          - libunwind-dev
+      - eval "$(gimme stable)"
+      - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
+      - export LD_LIBRARY_PATH="$HOME/.cache/lib"
+      - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
+      - export LIBRARY_PATH="$HOME/.cache/lib"
+      - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
+    script:
+      - which go && go version
+      - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
+          scripts/generate-bindings.sh && git diff --exit-code HEAD;
+        fi
+      - cargo build --no-default-features
+      - cargo build --no-default-features --features protobuf-codec
+      - cargo build --no-default-features --features prost-codec
+      - cargo build
+      - cargo test --all
+      - GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
-before_script:
-  - scripts/reset-submodule.cmd
-  - export GRPC_VERSION=1.26.0
-  - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-  - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-  - sudo apt-get update && sudo apt-get -y install libssl-dev;
-  - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
-  - export LD_LIBRARY_PATH="$HOME/.cache/lib"
-  - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-  - export LIBRARY_PATH="$HOME/.cache/lib"
-  - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-
-script:
-  - which go && go version
-  - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
-      scripts/generate-bindings.sh && git diff --exit-code HEAD;
-    fi
-  - cargo build --no-default-features
-  - cargo build --no-default-features --features protobuf-codec
-  - cargo build --no-default-features --features prost-codec
-  - cargo build
-  - cargo test --all
-  - cargo test --features "openssl" --all
-  - cargo test --features "openssl-vendored" --all
+  - os: linux
+    arch: arm64
+    before_script:
+      - scripts/reset-submodule.cmd
+      - export GRPC_VERSION=1.26.0
+      - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
+      - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
+      - sudo apt-get update && sudo apt-get -y install libssl-dev;
+      - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
+      - export LD_LIBRARY_PATH="$HOME/.cache/lib"
+      - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
+      - export LIBRARY_PATH="$HOME/.cache/lib"
+      - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
+    script:
+      - which go && go version
+      - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
+          scripts/generate-bindings.sh && git diff --exit-code HEAD;
+        fi
+      - cargo test --features "openssl" --all
+      - cargo test --features "openssl-vendored" --all
