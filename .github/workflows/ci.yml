@@ -22,7 +22,7 @@ jobs:
     # - run: cargo fmt --all -- --check
     # - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
     # - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
-    # - run: export GRPC_VERSION=1.26.0 && git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
+    - run: export GRPC_VERSION=1.26.0 && git clone -b v$GRPC_VERSION https://github.com/grpc/grpc
     - run: cd grpc && git submodule update --init && sudo make install_c
     - run: cd .. && GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
