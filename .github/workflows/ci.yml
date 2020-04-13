@@ -5,6 +5,8 @@ on:
   push:
     branches: 
     - master
+  schedule:
+  - cron: '0 0 * * *'
 
 env:
   RUST_BACKTRACE: 1
