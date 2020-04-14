@@ -109,7 +109,7 @@ grpcio = { version = "0.4", default-features = false, features = ["protobuf-code
 instead of OpenSSL. This may cause linking issues due to symbol clashes and/or
 missing symbols when another one of your dependencies uses OpenSSL. To resolve
 this, you can tell `gRPC-rs` to use OpenSSL too by specifying `"openssl"` in
-your `Cargo.toml`'s features list for `gprcio`. E.g.:
+your `Cargo.toml`'s features list for `gprcio`, which requires openssl (>=1.0.2). E.g.:
 
 ```toml
 [dependencies]
