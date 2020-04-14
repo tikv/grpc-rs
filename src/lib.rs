@@ -5,7 +5,7 @@
 [grpcio] is a Rust implementation of [gRPC], which is a high performance, open source universal RPC
 framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and [futures-rs].
 
-[grpcio]: https://github.com/pingcap/grpc-rs/
+[grpcio]: https://github.com/tikv/grpc-rs/
 [gRPC]: https://grpc.io/
 [gRPC Core]: https://github.com/grpc/grpc
 [futures-rs]: https://github.com/rust-lang/futures-rs

@@ -4,9 +4,8 @@
 
 [![Crates.io](https://img.shields.io/crates/v/grpcio.svg?maxAge=2592000)](https://crates.io/crates/grpcio)
 [![docs.rs](https://docs.rs/grpcio/badge.svg)](https://docs.rs/grpcio)
-[![](https://github.com/tikv/grpc-rs/workflows/CI/badge.svg)](https://github.com/tikv/grpc-rs/actions)
-[![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
-[![Dependency Status](https://deps.rs/repo/github/tikv/grpc-rs/status.svg)](https://deps.rs/repo/github/tikv/grpc-rs)
+[![Build Status](https://github.com/tikv/grpc-rs/workflows/CI/badge.svg)](https://github.com/tikv/grpc-rs/actions)
+[![Build Status](https://travis-ci.org/tikv/grpc-rs.svg)](https://travis-ci.org/tikv/grpc-rs)
 
 ## Status
 
@@ -119,7 +118,7 @@ grpcio = { version = "0.4.4", features = ["openssl"] }
 
 ## Performance
 
-See [benchmark](https://github.com/pingcap/grpc-rs/tree/master/benchmark) to find out how to run a benchmark by yourself.
+See [benchmark](https://github.com/tikv/grpc-rs/tree/master/benchmark) to find out how to run a benchmark by yourself.
 
 Cross Compile
 -------------
