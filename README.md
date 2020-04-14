@@ -4,6 +4,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/grpcio.svg?maxAge=2592000)](https://crates.io/crates/grpcio)
 [![docs.rs](https://docs.rs/grpcio/badge.svg)](https://docs.rs/grpcio)
+[![](https://github.com/tikv/grpc-rs/workflows/CI/badge.svg)](https://github.com/tikv/grpc-rs/actions)
 [![Build Status](https://travis-ci.org/pingcap/grpc-rs.svg)](https://travis-ci.org/pingcap/grpc-rs)
 [![Dependency Status](https://deps.rs/repo/github/tikv/grpc-rs/status.svg)](https://deps.rs/repo/github/tikv/grpc-rs)
 

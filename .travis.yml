@@ -52,9 +52,6 @@ jobs:
       - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
     script:
       - which go && go version
-      - cargo build --no-default-features
-      - cargo build --no-default-features --features protobuf-codec
-      - cargo build --no-default-features --features prost-codec
       - GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
   - os: linux
@@ -77,6 +74,9 @@ jobs:
           rustup component add rustfmt && cargo fmt --all -- --check;
           scripts/generate-bindings.sh && git diff --exit-code HEAD;
         fi
+      - cargo build --no-default-features
+      - cargo build --no-default-features --features protobuf-codec
+      - cargo build --no-default-features --features prost-codec
       - cargo build
       - cargo test --all
       - cargo test --features "openssl" --all
