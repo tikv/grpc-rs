@@ -5,9 +5,9 @@ edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "protobuf", "rpc", "tls", "http2"]
-repository = "https://github.com/pingcap/grpc-rs"
+repository = "https://github.com/tikv/grpc-rs"
 readme = "README.md"
-homepage = "https://github.com/pingcap/grpc-rs"
+homepage = "https://github.com/tikv/grpc-rs"
 documentation = "https://docs.rs/grpcio"
 description = "The rust language implementation of gRPC, base on the gRPC c core library."
 categories = ["asynchronous", "network-programming"]
@@ -41,7 +41,7 @@ no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
 debug = true
 
 [badges]
-travis-ci = { repository = "pingcap/grpc-rs" }
+travis-ci = { repository = "tikv/grpc-rs" }
 
 [patch.crates-io]
 grpcio-compiler = { path = "compiler", version = "0.5.0", default-features = false }

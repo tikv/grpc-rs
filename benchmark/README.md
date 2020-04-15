@@ -6,7 +6,7 @@ Quick Start
 1. Clone grpc-rs
 
 ```
-$ git clone https://github.com/pingcap/grpc-rs.git
+$ git clone https://github.com/tikv/grpc-rs.git
 ```
 
 2. Clone grpc
