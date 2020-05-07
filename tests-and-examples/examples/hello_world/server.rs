@@ -10,9 +10,8 @@ use std::io::Read;
 use std::sync::Arc;
 use std::{io, thread};
 
-use futures::channel::oneshot;
-use futures::executor::block_on;
-use futures::prelude::*;
+use futures::sync::oneshot;
+use futures::Future;
 use grpcio::{ChannelBuilder, Environment, ResourceQuota, RpcContext, ServerBuilder, UnarySink};
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
@@ -28,8 +27,7 @@ impl Greeter for GreeterService {
         resp.set_message(msg);
         let f = sink
             .success(resp)
-            .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e))
-            .map(|_| ());
+            .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e));
         ctx.spawn(f)
     }
 }
@@ -58,6 +56,6 @@ fn main() {
         let _ = io::stdin().read(&mut [0]).unwrap();
         tx.send(())
     });
-    let _ = block_on(rx);
-    let _ = block_on(server.shutdown());
+    let _ = rx.wait();
+    let _ = server.shutdown().wait();
 }

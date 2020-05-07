@@ -1,18 +1,13 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CStr;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::{result, slice};
 
 use crate::grpc_sys::{
     self, gpr_clock_type, gpr_timespec, grpc_call_error, grpcwrap_request_call_context,
 };
-use futures::future::Future;
-use futures::ready;
-use futures::sink::Sink;
-use futures::stream::Stream;
-use futures::task::{Context, Poll};
+use futures::{Async, AsyncSink, Future, Poll, Sink, StartSend, Stream};
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use crate::auth_context::AuthContext;
@@ -21,7 +16,7 @@ use crate::call::{
 };
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
-use crate::error::{Error, Result};
+use crate::error::Error;
 use crate::metadata::Metadata;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
@@ -255,18 +250,19 @@ impl<T> RequestStream<T> {
 }
 
 impl<T> Stream for RequestStream<T> {
-    type Item = Result<T>;
+    type Item = T;
+    type Error = Error;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Result<T>>> {
+    fn poll(&mut self) -> Poll<Option<T>, Error> {
         {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
 
-        let t = &mut *self;
-        match ready!(t.base.poll(cx, &mut t.call, false)?) {
-            None => Poll::Ready(None),
-            Some(data) => Poll::Ready(Some((t.de)(data))),
+        match try_ready!(self.base.poll(&mut self.call, false)).map(self.de) {
+            None => Ok(Async::Ready(None)),
+            Some(Ok(data)) => Ok(Async::Ready(Some(data))),
+            Some(Err(err)) => Err(err),
         }
     }
 }
@@ -292,20 +288,20 @@ macro_rules! impl_unary_sink {
         }
 
         impl Future for $rt {
-            type Output = Result<()>;
+            type Item = ();
+            type Error = Error;
 
-            fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
-                if let Some(e) = self.err.take() {
-                    return Poll::Ready(Err(e));
-                }
-
-                if self.cq_f.is_some() {
-                    ready!(Pin::new(self.cq_f.as_mut().unwrap()).poll(cx)?);
+            fn poll(&mut self) -> Poll<(), Error> {
+                if self.cq_f.is_some() || self.err.is_some() {
+                    if let Some(e) = self.err.take() {
+                        return Err(e);
+                    }
+                    try_ready!(self.cq_f.as_mut().unwrap().poll());
                     self.cq_f.take();
                 }
 
-                ready!(self.call.call(|c| c.poll_finish(cx))?);
-                Poll::Ready(Ok(()))
+                try_ready!(self.call.call(ShareCall::poll_finish));
+                Ok(Async::Ready(()))
             }
         }
 
@@ -464,53 +460,53 @@ macro_rules! impl_stream_sink {
             }
         }
 
-        impl<T> Sink<(T, WriteFlags)> for $t<T> {
-            type Error = Error;
+        impl<T> Sink for $t<T> {
+            type SinkItem = (T, WriteFlags);
+            type SinkError = Error;
 
-            #[inline]
-            fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
-                if let Poll::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish(cx))? {
-                    return Poll::Ready(Err(Error::RemoteStopped));
+            fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Error> {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(ShareCall::poll_finish)? {
+                    return Err(Error::RemoteStopped);
                 }
-                Pin::new(&mut self.base).poll_ready(cx)
+                self.base
+                    .start_send(self.call.as_mut().unwrap(), &item.0, item.1, self.ser)
+                    .map(|s| {
+                        if s {
+                            AsyncSink::Ready
+                        } else {
+                            AsyncSink::NotReady(item)
+                        }
+                    })
             }
 
-            #[inline]
-            fn start_send(mut self: Pin<&mut Self>, (msg, flags): (T, WriteFlags)) -> Result<()> {
-                let t = &mut *self;
-                t.base.start_send(t.call.as_mut().unwrap(), &msg, flags, t.ser)
-            }
-
-            #[inline]
-            fn poll_flush(mut self: Pin<&mut Self>,  cx: &mut Context) -> Poll<Result<()>> {
-                if let Poll::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish(cx))? {
-                    return Poll::Ready(Err(Error::RemoteStopped));
+            fn poll_complete(&mut self) -> Poll<(), Error> {
+                if let Async::Ready(_) = self.call.as_mut().unwrap().call(ShareCall::poll_finish)? {
+                    return Err(Error::RemoteStopped);
                 }
-                Pin::new(&mut self.base).poll_ready(cx)
+                self.base.poll_complete()
             }
 
-            fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
+            fn close(&mut self) -> Poll<(), Error> {
                 if self.flush_f.is_none() {
-                    ready!(Pin::new(&mut self.base).poll_ready(cx)?);
+                    try_ready!(self.base.poll_complete());
 
                     let send_metadata = self.base.send_metadata;
-                    let t = &mut *self;
-                    let status = &t.status;
-                    let flush_f = t.call.as_mut().unwrap().call(|c| {
+                    let status = &self.status;
+                    let flush_f = self.call.as_mut().unwrap().call(|c| {
                         c.call
                             .start_send_status_from_server(status, send_metadata, &None, 0)
                     })?;
-                    t.flush_f = Some(flush_f);
+                    self.flush_f = Some(flush_f);
                 }
 
                 if !self.flushed {
-                    ready!(Pin::new(self.flush_f.as_mut().unwrap()).poll(cx)?);
+                    try_ready!(self.flush_f.as_mut().unwrap().poll());
                     self.flushed = true;
                 }
 
-                ready!(self.call.as_mut().unwrap().call(|c| c.poll_finish(cx))?);
+                try_ready!(self.call.as_mut().unwrap().call(ShareCall::poll_finish));
                 self.closed = true;
-                Poll::Ready(Ok(()))
+                Ok(Async::Ready(()))
             }
         }
 
@@ -522,27 +518,28 @@ macro_rules! impl_stream_sink {
         }
 
         impl Future for $ft {
-            type Output = Result<()>;
+            type Item = ();
+            type Error = Error;
 
-            fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
+            fn poll(&mut self) -> Poll<(), Error> {
                 if let Some(e) = self.err.take() {
-                    return Poll::Ready(Err(e));
+                    return Err(e);
                 }
 
                 let readiness = self.call.call(|c| {
                     if c.finished {
-                        return Poll::Ready(Ok(()));
+                        return Ok(Async::Ready(()));
                     }
 
-                    c.poll_finish(cx).map(|r| r.map(|_| ()))
+                    c.poll_finish().map(|r| r.map(|_| ()))
                 })?;
 
                 if let Some(ref mut f) = self.fail_f {
-                    ready!(Pin::new(f).poll(cx)?);
+                    try_ready!(f.poll());
                 }
 
                 self.fail_f.take();
-                readiness.map(Ok)
+                Ok(readiness)
             }
         }
     };
@@ -632,7 +629,7 @@ impl<'a> RpcContext<'a> {
     /// sure there is no heavy work in the future.
     pub fn spawn<F>(&self, f: F)
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Item = (), Error = ()> + Send + 'static,
     {
         self.executor.spawn(f, self.kicker())
     }

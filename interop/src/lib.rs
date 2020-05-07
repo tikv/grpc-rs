@@ -2,6 +2,8 @@
 
 #![allow(unknown_lints)]
 
+#[macro_use]
+extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 #[macro_use]

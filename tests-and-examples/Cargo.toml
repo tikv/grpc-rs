@@ -12,7 +12,7 @@ prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec
 [dependencies]
 grpcio-sys = { path = "../grpc-sys", version = "0.5.0" }
 libc = "0.2"
-futures = "0.3"
+futures = "^0.1.15"
 protobuf = { version = "2.0", optional = true }
 prost = { version = "0.6", optional = true }
 bytes = { version = "0.5", optional = true }

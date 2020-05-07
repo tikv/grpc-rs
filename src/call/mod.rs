@@ -4,15 +4,12 @@ pub mod client;
 pub mod server;
 
 use std::fmt::{self, Debug, Display};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::{ptr, slice};
 
 use crate::cq::CompletionQueue;
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
-use futures::future::Future;
-use futures::ready;
-use futures::task::{Context, Poll};
+use futures::{Async, Future, Poll};
 use libc::c_void;
 
 use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
@@ -465,16 +462,16 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self, cx: &mut Context) -> Poll<Result<Option<MessageReader>>> {
-        let res = match Pin::new(&mut self.close_f).poll(cx) {
-            Poll::Ready(Ok(reader)) => {
-                self.status = Some(RpcStatus::ok());
-                Poll::Ready(Ok(reader))
-            }
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(Err(Error::RpcFailure(status))) => {
+    fn poll_finish(&mut self) -> Poll<Option<MessageReader>, Error> {
+        let res = match self.close_f.poll() {
+            Err(Error::RpcFailure(status)) => {
                 self.status = Some(status.clone());
-                Poll::Ready(Err(Error::RpcFailure(status)))
+                Err(Error::RpcFailure(status))
+            }
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Ready(msg)) => {
+                self.status = Some(RpcStatus::ok());
+                Ok(Async::Ready(msg))
             }
             res => res,
         };
@@ -494,7 +491,7 @@ impl ShareCall {
     }
 }
 
-/// A helper trait that allows executing function on the internal `ShareCall` struct.
+/// A helper trait that allows executing function on the inernal `ShareCall` struct.
 trait ShareCallHolder {
     fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R;
 }
@@ -530,16 +527,19 @@ impl StreamingBase {
 
     fn poll<C: ShareCallHolder>(
         &mut self,
-        cx: &mut Context,
         call: &mut C,
         skip_finish_check: bool,
-    ) -> Poll<Option<Result<MessageReader>>> {
+    ) -> Poll<Option<MessageReader>, Error> {
         if !skip_finish_check {
             let mut finished = false;
-            if let Some(close_f) = &mut self.close_f {
-                if let Poll::Ready(_) = Pin::new(close_f).poll(cx)? {
-                    // Don't return immediately, there may be pending data.
-                    finished = true;
+            if let Some(ref mut close_f) = self.close_f {
+                match close_f.poll() {
+                    Ok(Async::Ready(_)) => {
+                        // don't return immediately, there maybe pending data.
+                        finished = true;
+                    }
+                    Err(e) => return Err(e),
+                    Ok(Async::NotReady) => {}
                 }
             }
             if finished {
@@ -549,8 +549,8 @@ impl StreamingBase {
 
         let mut bytes = None;
         if !self.read_done {
-            if let Some(msg_f) = &mut self.msg_f {
-                bytes = ready!(Pin::new(msg_f).poll(cx)?);
+            if let Some(ref mut msg_f) = self.msg_f {
+                bytes = try_ready!(msg_f.poll());
                 if bytes.is_none() {
                     self.read_done = true;
                 }
@@ -559,19 +559,19 @@ impl StreamingBase {
 
         if self.read_done {
             if self.close_f.is_none() {
-                return Poll::Ready(None);
+                return Ok(Async::Ready(bytes));
             }
-            return Poll::Pending;
+            return Ok(Async::NotReady);
         }
 
-        // so msg_f must be either stale or not initialized yet.
+        // so msg_f must be either stale or not initialised yet.
         self.msg_f.take();
         let msg_f = call.call(|c| c.call.start_recv_message())?;
         self.msg_f = Some(msg_f);
         if bytes.is_none() {
-            self.poll(cx, call, true)
+            self.poll(call, true)
         } else {
-            Poll::Ready(bytes.map(Ok))
+            Ok(Async::Ready(bytes))
         }
     }
 
@@ -647,9 +647,14 @@ impl SinkBase {
         t: &T,
         mut flags: WriteFlags,
         ser: SerializeFn<T>,
-    ) -> Result<()> {
-        // `start_send` is supposed to be called after `poll_ready` returns ready.
-        assert!(self.batch_f.is_none());
+    ) -> Result<bool> {
+        if self.batch_f.is_some() {
+            // try its best not to return false.
+            self.poll_complete()?;
+            if self.batch_f.is_some() {
+                return Ok(false);
+            }
+        }
 
         self.buf.clear();
         ser(t, &mut self.buf);
@@ -668,18 +673,15 @@ impl SinkBase {
         }
         self.batch_f = Some(write_f);
         self.send_metadata = false;
-        Ok(())
+        Ok(true)
     }
 
-    #[inline]
-    fn poll_ready(&mut self, cx: &mut Context) -> Poll<Result<()>> {
-        match &mut self.batch_f {
-            None => return Poll::Ready(Ok(())),
-            Some(f) => {
-                ready!(Pin::new(f).poll(cx)?);
-            }
+    fn poll_complete(&mut self) -> Poll<(), Error> {
+        if let Some(ref mut batch_f) = self.batch_f {
+            try_ready!(batch_f.poll());
         }
+
         self.batch_f.take();
-        Poll::Ready(Ok(()))
+        Ok(Async::Ready(()))
     }
 }
