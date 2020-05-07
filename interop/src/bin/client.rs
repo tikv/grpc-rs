@@ -5,11 +5,11 @@ extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 extern crate interop;
 
+use std::sync::Arc;
+
 use crate::grpc::{ChannelBuilder, ChannelCredentialsBuilder, Environment};
 use crate::grpc_proto::util;
 use clap::{App, Arg};
-use futures::executor;
-use std::sync::Arc;
 
 use interop::Client;
 
@@ -84,30 +84,28 @@ fn main() {
     };
 
     let client = Client::new(channel);
-    executor::block_on(run_test(client, case)).unwrap();
-}
 
-async fn run_test(client: Client, case: Option<&str>) -> grpcio::Result<()> {
     let case_str = match case {
         None => {
-            return client.test_all().await;
+            client.test_all();
+            return;
         }
         Some(s) => s,
     };
 
     match case_str.to_uppercase().as_str() {
-        "EMPTY_UNARY" => client.empty_unary().await,
-        "LARGE_UNARY" => client.large_unary().await,
-        "CLIENT_STREAMING" => client.client_streaming().await,
-        "SERVER_STREAMING" => client.server_streaming().await,
-        "PING_PONG" => client.ping_pong().await,
-        "EMPTY_STREAM" => client.empty_stream().await,
-        "CANCEL_AFTER_BEGIN" => client.cancel_after_begin().await,
-        "CANCEL_AFTER_FIRST_RESPONSE" => client.cancel_after_first_response().await,
-        "TIMEOUT_ON_SLEEPING_SERVER" => client.timeout_on_sleeping_server().await,
-        "STATUS_CODE_AND_MESSAGE" => client.status_code_and_message().await,
-        "UNIMPLEMENTED_METHOD" => client.unimplemented_method().await,
-        "UNIMPLEMENTED_SERVICE" => client.unimplemented_service().await,
+        "EMPTY_UNARY" => client.empty_unary(),
+        "LARGE_UNARY" => client.large_unary(),
+        "CLIENT_STREAMING" => client.client_streaming(),
+        "SERVER_STREAMING" => client.server_streaming(),
+        "PING_PONG" => client.ping_pong(),
+        "EMPTY_STREAM" => client.empty_stream(),
+        "CANCEL_AFTER_BEGIN" => client.cancel_after_begin(),
+        "CANCEL_AFTER_FIRST_RESPONSE" => client.cancel_after_first_response(),
+        "TIMEOUT_ON_SLEEPING_SERVER" => client.timeout_on_sleeping_server(),
+        "STATUS_CODE_AND_MESSAGE" => client.status_code_and_message(),
+        "UNIMPLEMENTED_METHOD" => client.unimplemented_method(),
+        "UNIMPLEMENTED_SERVICE" => client.unimplemented_service(),
         _ => panic!("unknown case: {:?}", case),
     }
 }

@@ -1,21 +1,17 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::pin::Pin;
 use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::prelude::*;
-use futures::stream::StreamExt;
-use futures::task::*;
+use futures::sync::mpsc;
+use futures::{future, stream as streams, Async, Future, Poll, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
-type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+type BoxFuture = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
 type RecordRouteHandler =
     Handler<dyn Fn(RequestStream<Point>, ClientStreamingSink<RouteSummary>) -> BoxFuture + Send>;
 type RouteChatHandler =
@@ -48,7 +44,7 @@ impl RouteGuide for CancelService {
         &mut self,
         ctx: RpcContext<'_>,
         _: Rectangle,
-        mut sink: ServerStreamingSink<Feature>,
+        sink: ServerStreamingSink<Feature>,
     ) {
         // Drop the sink, client should receive Cancelled.
         let listener = match self.list_feature_listener.lock().unwrap().take() {
@@ -61,22 +57,25 @@ impl RouteGuide for CancelService {
         let (tx, rx) = mpsc::unbounded();
 
         thread::spawn(move || loop {
-            if tx.unbounded_send(1u64).is_ok() {
+            if tx.unbounded_send(1).is_ok() {
                 thread::sleep(Duration::from_secs(5));
             } else {
                 break;
             }
         });
 
-        let f = async move {
-            sink.send_all(&mut rx.map(|_| Ok((Feature::default(), WriteFlags::default()))))
-                .await?;
-            sink.close().await?;
-            Ok(())
-        }
-        .map(move |_: Result<()>| {
-            let _ = listener.send(());
-        });
+        let f = rx
+            .map(|_| {
+                let f = Feature::default();
+                (f, WriteFlags::default())
+            })
+            .forward(sink.sink_map_err(|_| ()))
+            .map(|_| ())
+            .map_err(|_| ())
+            .then(move |_| {
+                let _ = listener.send(());
+                Ok(())
+            });
 
         ctx.spawn(f);
     }
@@ -108,16 +107,16 @@ impl RouteGuide for CancelService {
     }
 }
 
-fn check_cancel<S, T>(mut rx: S, sink: bool)
+fn check_cancel<S, T>(rx: S, sink: bool)
 where
-    S: Stream<Item = Result<T>> + Unpin,
+    S: Stream<Item = T, Error = Error>,
 {
-    match block_on(rx.try_next()) {
-        Err(Error::RpcFailure(s)) | Err(Error::RpcFinished(Some(s))) => {
+    match rx.into_future().wait() {
+        Err((Error::RpcFailure(s), _)) | Err((Error::RpcFinished(Some(s)), _)) => {
             assert_eq!(s.status, RpcStatusCode::CANCELLED)
         }
-        Err(Error::RemoteStopped) if sink => return,
-        Err(e) => panic!("expected cancel, but got: {:?}", e),
+        Err((Error::RemoteStopped, _)) if sink => return,
+        Err((e, _)) => panic!("expected cancel, but got: {:?}", e),
         Ok(_) => panic!("expected error, but got: Ok(_)"),
     }
 }
@@ -142,38 +141,36 @@ fn test_client_cancel_on_dropping() {
     let (service, client, _server) = prepare_suite();
 
     // Client streaming.
-    *service.record_route_handler.lock().unwrap() = Some(Box::new(move |stream, sink| {
+    *service.record_route_handler.lock().unwrap() = Some(Box::new(|stream, sink| {
         // Start the call and keep the stream and the sink.
-        let f = stream
-            .try_for_each(move |_| future::ready(Ok(())))
-            .then(|_| {
-                let _sink = sink;
-                future::ready(())
-            });
-        Box::pin(f)
+        let f = stream.for_each(|_| Ok(())).then(|_| {
+            let _sink = sink;
+            Ok(())
+        });
+        Box::new(f)
     }));
     let (tx, rx) = client.record_route().unwrap();
     drop(tx);
     check_cancel(rx.into_stream(), false);
 
-    let (mut tx, rx) = client.record_route().unwrap();
+    let (tx, rx) = client.record_route().unwrap();
     drop(rx);
     check_cancel(tx.send(Default::default()).into_stream(), true);
 
     // Duplex streaming.
     *service.record_route_handler.lock().unwrap() = Some(Box::new(|stream, sink| {
         // Start the call and keep the stream and the sink.
-        let f = stream.try_for_each(|_| future::ready(Ok(()))).then(|_| {
+        let f = stream.for_each(|_| Ok(())).then(|_| {
             let _sink = sink;
-            future::ready(())
+            Ok(())
         });
-        Box::pin(f)
+        Box::new(f)
     }));
     let (tx, rx) = client.route_chat().unwrap();
     drop(tx);
     check_cancel(rx, false);
 
-    let (mut tx, rx) = client.route_chat().unwrap();
+    let (tx, rx) = client.route_chat().unwrap();
     drop(rx);
     check_cancel(tx.send(Default::default()).into_stream(), true);
 }
@@ -193,47 +190,43 @@ fn test_server_cancel_on_dropping() {
     // Start the call, keep the stream and drop the sink.
     fn drop_sink<S, R, T>(stream: S, sink: T) -> BoxFuture
     where
-        S: Stream<Item = Result<R>> + Send + 'static,
+        S: Stream<Item = R, Error = Error> + Send + 'static,
         R: Send + 'static,
         T: Send + 'static,
     {
-        let f = async move {
-            futures::join!(
-                stream
-                    .try_for_each(|_| futures::future::ready(Ok(())))
-                    .map(|_| ()),
-                async move {
-                    drop(sink);
-                }
-            );
-        };
-        Box::pin(f)
+        let f = stream
+            .for_each(|_| Ok(()))
+            .join(future::result(Ok(())).map(move |_| {
+                drop(sink);
+            }))
+            .then(|_| Ok(()));
+        Box::new(f)
     }
 
     // Start the call, drop the stream and keep the sink.
     fn drop_stream<S, R, T>(stream: S, sink: T) -> BoxFuture
     where
-        S: Stream<Item = Result<R>> + Unpin + Send + 'static,
+        S: Stream<Item = R, Error = Error> + Send + 'static,
         R: Send + 'static,
         T: Send + 'static,
     {
         let mut stream = Some(stream);
-        let f = futures::stream::poll_fn(move |cx| -> Poll<Option<Result<()>>> {
+        let f = streams::poll_fn(move || -> Poll<Option<()>, ()> {
             if stream.is_some() {
                 let s = stream.as_mut().unwrap();
                 // start the call.
-                let _ = Pin::new(s).poll_next(cx);
+                let _ = s.poll();
             }
             // drop the stream.
             stream.take();
-            Poll::Pending
+            Ok(Async::NotReady)
         });
         // It never resolves.
-        let f = f.try_for_each(|_| future::ready(Ok(()))).then(move |_| {
+        let f = f.for_each(|_| Ok(())).then(move |_| {
             let _sink = sink;
-            future::ready(())
+            Ok(())
         });
-        Box::pin(f)
+        Box::new(f)
     }
 
     // Client streaming, drop sink.
@@ -268,11 +261,12 @@ fn test_early_exit() {
     *service.list_feature_listener.lock().unwrap() = Some(tx);
 
     let rect = Rectangle::default();
-    let mut l = client.list_features(&rect).unwrap();
-    match block_on(l.try_next()) {
-        Ok(Some(_)) => drop(l),
-        Ok(None) => panic!("should have result"),
-        Err(e) => panic!("unexpected error {:?}", e),
+    let l = client.list_features(&rect).unwrap();
+    let f = l.into_future();
+    match f.wait() {
+        Ok((Some(_), _)) => {}
+        Ok((None, _)) => panic!("should have result"),
+        Err((e, _)) => panic!("unexpected error {:?}", e),
     };
 
     rx.recv_timeout(Duration::from_secs(1)).unwrap();

@@ -42,8 +42,7 @@ impl Greeter for GreeterService {
         resp.set_message(format!("hello {}", req.take_name()));
         ctx.spawn(
             sink.success(resp)
-                .map_err(|e| panic!("failed to reply {:?}", e))
-                .map(|_| ()),
+                .map_err(|e| panic!("failed to reply {:?}", e)),
         );
     }
 }

@@ -2,13 +2,14 @@
 
 use std::sync::{Arc, Mutex};
 
-use futures::channel::oneshot::Sender;
-use futures::prelude::*;
+use crate::error::Error;
+use futures::sync::oneshot::Sender;
+use futures::{future, Future, Sink, Stream};
+use grpc::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 use grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
 use grpc_proto::testing::services_grpc::WorkerService;
-use grpcio::{DuplexSink, Error, RequestStream, RpcContext, UnarySink, WriteFlags};
 
 use crate::client::Client;
 use crate::server::Server;
@@ -31,66 +32,74 @@ impl WorkerService for Worker {
     fn run_server(
         &mut self,
         ctx: RpcContext,
-        mut stream: RequestStream<ServerArgs>,
-        mut sink: DuplexSink<ServerStatus>,
+        stream: RequestStream<ServerArgs>,
+        sink: DuplexSink<ServerStatus>,
     ) {
-        let f = async move {
-            let arg = match stream.try_next().await? {
-                None => return sink.close().await.map_err(Error::from),
-                Some(arg) => arg,
-            };
-            let cfg = arg.get_setup();
-            info!("receive server setup: {:?}", cfg);
-            let mut server = Server::new(cfg)?;
-            let status = server.get_status();
-            sink.send((status, WriteFlags::default())).await?;
-            while let Some(arg) = stream.try_next().await? {
-                let mark = arg.get_mark();
-                info!("receive server mark: {:?}", mark);
-                let stats = server.get_stats(mark.get_reset());
-                let mut status = server.get_status();
-                status.set_stats(stats);
-                sink.send((status, WriteFlags::default())).await?;
-            }
-            server.shutdown().await?;
-            sink.close().await?;
-            Ok(())
-        }
-        .map_err(|e| error!("run server failed: {:?}", e))
-        .map(|_| info!("server shutdown."));
+        let f = stream
+            .into_future()
+            .map_err(|(e, _)| Error::from(e))
+            .and_then(|(arg, stream)| {
+                let cfg = arg.as_ref().unwrap().get_setup();
+                info!("receive server setup: {:?}", cfg);
+                let server = Server::new(cfg)?;
+                let status = server.get_status();
+                Ok(sink
+                    .send((status, WriteFlags::default()))
+                    .and_then(|sink| {
+                        stream.fold((sink, server), |(sink, mut server), arg| {
+                            let mark = arg.get_mark();
+                            info!("receive server mark: {:?}", mark);
+                            let stats = server.get_stats(mark.get_reset());
+                            let mut status = server.get_status();
+                            status.set_stats(stats);
+                            sink.send((status, WriteFlags::default()))
+                                .map(|sink| (sink, server))
+                        })
+                    })
+                    .and_then(|(sink, mut server)| server.shutdown().map(|_| sink))
+                    .and_then(|mut sink| future::poll_fn(move || sink.close()))
+                    .map_err(Error::from))
+            })
+            .flatten()
+            .map_err(|e| error!("run server failed: {:?}", e))
+            .map(|_| info!("server shutdown."));
         ctx.spawn(f)
     }
 
     fn run_client(
         &mut self,
         ctx: RpcContext,
-        mut stream: RequestStream<ClientArgs>,
-        mut sink: DuplexSink<ClientStatus>,
+        stream: RequestStream<ClientArgs>,
+        sink: DuplexSink<ClientStatus>,
     ) {
-        let f = async move {
-            let arg = match stream.try_next().await? {
-                None => return sink.close().await,
-                Some(arg) => arg,
-            };
-            let cfg = arg.get_setup();
-            info!("receive client setup: {:?}", cfg);
-            let mut client = Client::new(cfg);
-            sink.send((ClientStatus::default(), WriteFlags::default()))
-                .await?;
-            while let Some(arg) = stream.try_next().await? {
-                let mark = arg.get_mark();
-                info!("receive client mark: {:?}", mark);
-                let stats = client.get_stats(mark.get_reset());
-                let mut status = ClientStatus::default();
-                status.set_stats(stats);
-                sink.send((status, WriteFlags::default())).await?;
-            }
-            client.shutdown().await;
-            sink.close().await?;
-            Ok(())
-        }
-        .map_err(|e| error!("run client failed: {:?}", e))
-        .map(|_| info!("client shutdown."));
+        let f = stream
+            .into_future()
+            .map_err(|(e, _)| Error::from(e))
+            .and_then(|(arg, stream)| {
+                let cfg = arg.as_ref().unwrap().get_setup();
+                info!("receive client setup: {:?}", cfg);
+                let client = Client::new(cfg);
+                sink.send((ClientStatus::default(), WriteFlags::default()))
+                    .and_then(|sink| {
+                        stream.fold((sink, client), |(sink, mut client), arg| {
+                            let mark = arg.get_mark();
+                            info!("receive client mark: {:?}", mark);
+                            let stats = client.get_stats(mark.get_reset());
+                            let mut status = ClientStatus::default();
+                            status.set_stats(stats);
+                            sink.send((status, WriteFlags::default()))
+                                .map(|sink| (sink, client))
+                        })
+                    })
+                    .map_err(Error::from)
+                    .and_then(|(mut sink, mut client)| {
+                        client
+                            .shutdown()
+                            .join(future::poll_fn(move || sink.close().map_err(From::from)))
+                    })
+            })
+            .map_err(|e| error!("run client failed: {:?}", e))
+            .map(|_| info!("client shutdown."));
         ctx.spawn(f)
     }
 
@@ -100,8 +109,7 @@ impl WorkerService for Worker {
         resp.set_cores(cpu_count as i32);
         ctx.spawn(
             sink.success(resp)
-                .map_err(|e| error!("failed to report cpu count: {:?}", e))
-                .map(|_| ()),
+                .map_err(|e| error!("failed to report cpu count: {:?}", e)),
         )
     }
 
@@ -112,8 +120,7 @@ impl WorkerService for Worker {
         }
         ctx.spawn(
             sink.success(Void::default())
-                .map_err(|e| error!("failed to report quick worker: {:?}", e))
-                .map(|_| ()),
+                .map_err(|e| error!("failed to report quick worker: {:?}", e)),
         );
     }
 }

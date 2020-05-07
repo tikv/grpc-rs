@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use futures::prelude::*;
+use futures::{future, Future, Sink, Stream};
 use grpcio::*;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
 use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
@@ -41,66 +41,77 @@ fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
     note
 }
 
-async fn get_feature(client: &RouteGuideClient, point: &Point) -> Result<()> {
-    let get_feature = client.get_feature_async(point)?;
-    let f = get_feature.await?;
-    if !f.has_location() {
-        warn!("Server returns incomplete feature.");
-        return Ok(());
+fn get_feature(client: &RouteGuideClient, point: &Point) {
+    let get_feature = client.get_feature_async(point).unwrap();
+    match get_feature.wait() {
+        Err(e) => panic!("RPC failed: {:?}", e),
+        Ok(f) => {
+            if !f.has_location() {
+                warn!("Server returns incomplete feature.");
+                return;
+            }
+            if f.get_name().is_empty() {
+                warn!("Found no feature at {}", util::format_point(point));
+                return;
+            }
+            info!(
+                "Found feature called {} at {}",
+                f.get_name(),
+                util::format_point(point)
+            );
+        }
     }
-    if f.get_name().is_empty() {
-        warn!("Found no feature at {}", util::format_point(point));
-        return Ok(());
-    }
-    info!(
-        "Found feature called {} at {}",
-        f.get_name(),
-        util::format_point(point)
-    );
-    Ok(())
 }
 
-async fn list_features(client: &RouteGuideClient) -> Result<()> {
+fn list_features(client: &RouteGuideClient) {
     let rect = new_rect(400_000_000, -750_000_000, 420_000_000, -730_000_000);
     info!("Looking for features between 40, -75 and 42, -73");
-    let mut list_features = client.list_features(&rect)?;
-    while let Some(feature) = list_features.try_next().await? {
-        let loc = feature.get_location();
-        info!(
-            "Found feature {} at {}",
-            feature.get_name(),
-            util::format_point(loc)
-        );
+    let mut list_features = client.list_features(&rect).unwrap();
+    loop {
+        let f = list_features.into_future();
+        match f.wait() {
+            Ok((Some(feature), s)) => {
+                list_features = s;
+                let loc = feature.get_location();
+                info!(
+                    "Found feature {} at {}",
+                    feature.get_name(),
+                    util::format_point(loc)
+                );
+            }
+            Ok((None, _)) => break,
+            Err((e, _)) => panic!("List features failed: {:?}", e),
+        }
     }
     info!("List feature rpc succeeded.");
-    Ok(())
 }
 
-async fn record_route(client: &RouteGuideClient) -> Result<()> {
+fn record_route(client: &RouteGuideClient) {
     let features = util::load_db();
     let mut rng = rand::thread_rng();
-    let (mut sink, receiver) = client.record_route()?;
-    for _ in 0..10usize {
+    let (mut sink, receiver) = client.record_route().unwrap();
+    for _ in 0..10 {
         let f = features.choose(&mut rng).unwrap();
         let point = f.get_location();
         info!("Visiting {}", util::format_point(point));
-        sink.send((point.to_owned(), WriteFlags::default())).await?;
+        sink = sink
+            .send((point.to_owned(), WriteFlags::default()))
+            .wait()
+            .unwrap();
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
     }
     // flush
-    sink.close().await?;
-    let sumary = receiver.await?;
+    future::poll_fn(|| sink.close()).wait().unwrap();
+    let sumary = receiver.wait().unwrap();
     info!("Finished trip with {} points", sumary.get_point_count());
     info!("Passed {} features", sumary.get_feature_count());
     info!("Travelled {} meters", sumary.get_distance());
     info!("It took {} seconds", sumary.get_elapsed_time());
-    Ok(())
 }
 
-async fn route_chat(client: &RouteGuideClient) -> Result<()> {
-    let (mut sink, mut receiver) = client.route_chat()?;
-
-    let send = async move {
+fn route_chat(client: &RouteGuideClient) {
+    let (mut sink, mut receiver) = client.route_chat().unwrap();
+    let h = thread::spawn(move || {
         let notes = vec![
             ("First message", 0, 0),
             ("Second message", 0, 1),
@@ -111,51 +122,47 @@ async fn route_chat(client: &RouteGuideClient) -> Result<()> {
         for (msg, lat, lon) in notes {
             let note = new_note(lat, lon, msg);
             info!("Sending message {} at {}, {}", msg, lat, lon);
-            sink.send((note, WriteFlags::default())).await?;
+            sink = sink.send((note, WriteFlags::default())).wait().unwrap();
         }
-        sink.close().await?;
-        Ok(()) as Result<_>
-    };
+        future::poll_fn(|| sink.close()).wait().unwrap();
+    });
 
-    let receive = async move {
-        while let Some(note) = receiver.try_next().await? {
-            let location = note.get_location();
-            info!(
-                "Got message {} at {}, {}",
-                note.get_message(),
-                location.get_latitude(),
-                location.get_longitude()
-            );
+    loop {
+        match receiver.into_future().wait() {
+            Ok((Some(note), r)) => {
+                let location = note.get_location();
+                info!(
+                    "Got message {} at {}, {}",
+                    note.get_message(),
+                    location.get_latitude(),
+                    location.get_longitude()
+                );
+                receiver = r;
+            }
+            Ok((None, _)) => break,
+            Err((e, _)) => panic!("RouteChat RPC failed: {:?}", e),
         }
-        Ok(()) as Result<_>
-    };
-    let (sr, rr) = futures::join!(send, receive);
-    sr.and(rr)?;
-    Ok(())
+    }
+
+    h.join().unwrap();
 }
 
-async fn async_main() -> Result<()> {
+fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(2));
     let channel = ChannelBuilder::new(env).connect("127.0.0.1:50051");
     let client = RouteGuideClient::new(channel);
 
     info!("-------------- GetFeature --------------");
-    get_feature(&client, &new_point(409_146_138, -746_188_906)).await?;
-    get_feature(&client, &new_point(0, 0)).await?;
+    get_feature(&client, &new_point(409_146_138, -746_188_906));
+    get_feature(&client, &new_point(0, 0));
 
     info!("-------------- ListFeatures --------------");
-    list_features(&client).await?;
+    list_features(&client);
 
     info!("-------------- RecordRoute --------------");
-    record_route(&client).await?;
+    record_route(&client);
 
     info!("-------------- RouteChat --------------");
-    route_chat(&client).await?;
-
-    Ok(())
-}
-
-fn main() {
-    futures::executor::block_on(async_main()).unwrap()
+    route_chat(&client);
 }

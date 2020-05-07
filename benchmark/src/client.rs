@@ -6,22 +6,27 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use futures::channel::oneshot::{self, Receiver, Sender};
-use futures::prelude::*;
-use grpcio::{
+use futures::future::Loop;
+use futures::sync::oneshot::{self, Receiver, Sender};
+use futures::{future, Async, Future, Sink, Stream};
+use grpc::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
-use grpcio_proto::testing::control::{ClientConfig, ClientType, RpcType};
-use grpcio_proto::testing::messages::SimpleRequest;
-use grpcio_proto::testing::services_grpc::BenchmarkServiceClient;
-use grpcio_proto::testing::stats::ClientStats;
-use grpcio_proto::util as proto_util;
+use grpc_proto::testing::control::{ClientConfig, ClientType, RpcType};
+use grpc_proto::testing::messages::SimpleRequest;
+use grpc_proto::testing::services_grpc::BenchmarkServiceClient;
+use grpc_proto::testing::stats::ClientStats;
+use grpc_proto::util as proto_util;
 use rand::{self, SeedableRng};
 use rand_distr::{Distribution, Exp};
 use rand_xorshift::XorShiftRng;
+use tokio_timer::{Sleep, Timer};
 
 use crate::bench;
+use crate::error::Error;
 use crate::util::{self, CpuRecorder, Histogram};
+
+type BoxFuture<T, E> = Box<dyn Future<Item = T, Error = E> + Send>;
 
 fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::default();
@@ -82,6 +87,7 @@ struct ExecutorContext<B> {
     keep_running: Arc<AtomicBool>,
     histogram: Arc<Mutex<Histogram>>,
     backoff: B,
+    timer: Timer,
     _trace: Sender<()>,
 }
 
@@ -91,6 +97,7 @@ impl<B: Backoff> ExecutorContext<B> {
         histogram: Arc<Mutex<Histogram>>,
         keep_running: Arc<AtomicBool>,
         backoff: B,
+        timer: Timer,
     ) -> (ExecutorContext<B>, Receiver<()>) {
         let (tx, rx) = oneshot::channel();
         (
@@ -98,6 +105,7 @@ impl<B: Backoff> ExecutorContext<B> {
                 keep_running,
                 histogram,
                 backoff,
+                timer,
                 _trace: tx,
             },
             rx,
@@ -110,8 +118,8 @@ impl<B: Backoff> ExecutorContext<B> {
         his.observe(f);
     }
 
-    fn backoff_async(&mut self) -> Option<futures_timer::Delay> {
-        self.backoff.backoff_time().map(futures_timer::Delay::new)
+    fn backoff_async(&mut self) -> Option<Sleep> {
+        self.backoff.backoff_time().map(|dur| self.timer.sleep(dur))
     }
 
     fn backoff(&mut self) {
@@ -143,36 +151,50 @@ impl<B: Backoff + Send + 'static> GenericExecutor<B> {
         }
     }
 
-    fn execute_stream(mut self) {
+    fn execute_stream(self) {
         let client = self.client.clone();
         let keep_running = self.ctx.keep_running.clone();
-        let (mut sender, mut receiver) = self
+        let (sender, receiver) = self
             .client
             .duplex_streaming(
                 &bench::METHOD_BENCHMARK_SERVICE_GENERIC_CALL,
                 CallOption::default(),
             )
             .unwrap();
-        let f = async move {
-            loop {
+        let f = future::loop_fn(
+            (sender, self, receiver),
+            move |(sender, mut executor, receiver)| {
                 let latency_timer = Instant::now();
-                sender
-                    .send((self.req.clone(), WriteFlags::default()))
-                    .await?;
-                receiver.try_next().await?;
-                self.ctx.observe_latency(latency_timer.elapsed());
-                let mut time = self.ctx.backoff_async();
-                if let Some(t) = &mut time {
-                    t.await;
-                }
-                if !self.ctx.keep_running() {
-                    break;
-                }
-            }
-            sender.close().await?;
-            receiver.try_next().await?;
-            Ok(())
-        };
+                let send = sender.send((executor.req.clone(), WriteFlags::default()));
+                send.map_err(Error::from).and_then(move |sender| {
+                    receiver
+                        .into_future()
+                        .map_err(|(e, _)| Error::from(e))
+                        .and_then(move |(_, r)| {
+                            executor.ctx.observe_latency(latency_timer.elapsed());
+                            let mut time = executor.ctx.backoff_async();
+                            let mut res = Some((sender, executor, r));
+                            future::poll_fn(move || {
+                                if let Some(ref mut t) = time {
+                                    try_ready!(t.poll());
+                                }
+                                time.take();
+                                let r = res.take().unwrap();
+                                let l = if r.1.ctx.keep_running() {
+                                    Loop::Continue(r)
+                                } else {
+                                    Loop::Break(r)
+                                };
+                                Ok(Async::Ready(l))
+                            })
+                        })
+                })
+            },
+        )
+        .and_then(|(mut s, e, r)| {
+            future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
+        })
+        .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f)
     }
 }
@@ -206,52 +228,74 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         });
     }
 
-    fn execute_unary_async(mut self) {
+    fn execute_unary_async(self) {
         let client = self.client.clone();
         let keep_running = self.ctx.keep_running.clone();
-        let f = async move {
-            loop {
-                let latency_timer = Instant::now();
-                self.client.unary_call_async(&self.req)?.await?;
+        let f = future::loop_fn(self, move |mut executor| {
+            let latency_timer = Instant::now();
+            let handler = executor.client.unary_call_async(&executor.req).unwrap();
+
+            handler.map_err(Error::from).and_then(move |_| {
                 let elapsed = latency_timer.elapsed();
-                self.ctx.observe_latency(elapsed);
-                let mut time = self.ctx.backoff_async();
-                if let Some(t) = &mut time {
-                    t.await;
-                }
-                if !self.ctx.keep_running() {
-                    break;
-                }
-            }
-            Ok(())
-        };
+                executor.ctx.observe_latency(elapsed);
+                let mut time = executor.ctx.backoff_async();
+                let mut res = Some(executor);
+                future::poll_fn(move || {
+                    if let Some(ref mut t) = time {
+                        try_ready!(t.poll());
+                    }
+                    time.take();
+                    let executor = res.take().unwrap();
+                    let l = if executor.ctx.keep_running() {
+                        Loop::Continue(executor)
+                    } else {
+                        Loop::Break(())
+                    };
+                    Ok(Async::Ready(l))
+                })
+            })
+        });
         spawn!(client, keep_running, "unary async", f)
     }
 
-    fn execute_stream_ping_pong(mut self) {
+    fn execute_stream_ping_pong(self) {
         let client = self.client.clone();
         let keep_running = self.ctx.keep_running.clone();
-        let (mut sender, mut receiver) = self.client.streaming_call().unwrap();
-        let f = async move {
-            loop {
+        let (sender, receiver) = self.client.streaming_call().unwrap();
+        let f = future::loop_fn(
+            (sender, self, receiver),
+            move |(sender, mut executor, receiver)| {
                 let latency_timer = Instant::now();
-                sender
-                    .send((self.req.clone(), WriteFlags::default()))
-                    .await?;
-                receiver.try_next().await?;
-                self.ctx.observe_latency(latency_timer.elapsed());
-                let mut time = self.ctx.backoff_async();
-                if let Some(t) = &mut time {
-                    t.await;
-                }
-                if !self.ctx.keep_running() {
-                    break;
-                }
-            }
-            sender.close().await?;
-            receiver.try_next().await?;
-            Ok(())
-        };
+                let send = sender.send((executor.req.clone(), WriteFlags::default()));
+                send.map_err(Error::from).and_then(move |sender| {
+                    receiver
+                        .into_future()
+                        .map_err(|(e, _)| Error::from(e))
+                        .and_then(move |(_, r)| {
+                            executor.ctx.observe_latency(latency_timer.elapsed());
+                            let mut time = executor.ctx.backoff_async();
+                            let mut res = Some((sender, executor, r));
+                            future::poll_fn(move || {
+                                if let Some(ref mut t) = time {
+                                    try_ready!(t.poll());
+                                }
+                                time.take();
+                                let r = res.take().unwrap();
+                                let l = if r.1.ctx.keep_running() {
+                                    Loop::Continue(r)
+                                } else {
+                                    Loop::Break(r)
+                                };
+                                Ok(Async::Ready(l))
+                            })
+                        })
+                })
+            },
+        )
+        .and_then(|(mut s, e, r)| {
+            future::poll_fn(move || s.close().map_err(Error::from)).map(|_| (e, r))
+        })
+        .and_then(|(e, r)| r.into_future().map(|_| e).map_err(|(e, _)| Error::from(e)));
         spawn!(client, keep_running, "streaming ping pong", f);
     }
 }
@@ -346,23 +390,26 @@ impl Client {
             his_param.get_resolution(),
             his_param.get_max_possible(),
         )));
+        let timer = Timer::default();
         let keep_running = Arc::new(AtomicBool::new(true));
         let mut running_reqs = Vec::with_capacity(client_channels * outstanding_rpcs_per_channel);
 
         for ch in channels {
             for _ in 0..cfg.get_outstanding_rpcs_per_channel() {
                 let his = his.clone();
+                let timer = timer.clone();
                 let ch = ch.clone();
                 let rx = if load_params.has_poisson() {
                     let lambda = load_params.get_poisson().get_offered_load()
                         / client_channels as f64
                         / outstanding_rpcs_per_channel as f64;
                     let poisson = Poisson::new(lambda);
-                    let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson);
+                    let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson, timer);
                     execute(ctx, ch, client_type, cfg);
                     rx
                 } else {
-                    let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), ClosedLoop);
+                    let (ctx, rx) =
+                        ExecutorContext::new(his, keep_running.clone(), ClosedLoop, timer);
                     execute(ctx, ch, client_type, cfg);
                     rx
                 };
@@ -395,9 +442,18 @@ impl Client {
         stats
     }
 
-    pub fn shutdown(&mut self) -> impl Future<Output = ()> + Send {
+    pub fn shutdown(&mut self) -> BoxFuture<(), Error> {
         self.keep_running.store(false, Ordering::Relaxed);
-        let tasks = self.running_reqs.take().unwrap();
-        futures::future::join_all(tasks).map(|_| ())
+        let mut tasks = self.running_reqs.take().unwrap();
+        let mut idx = tasks.len();
+        Box::new(future::poll_fn(move || {
+            while idx > 0 {
+                if let Ok(Async::NotReady) = tasks[idx - 1].poll() {
+                    return Ok(Async::NotReady);
+                }
+                idx -= 1;
+            }
+            Ok(Async::Ready(()))
+        }))
     }
 }

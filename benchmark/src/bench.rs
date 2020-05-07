@@ -6,7 +6,7 @@ use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use futures::prelude::*;
+use futures::{Future, Sink, Stream};
 use grpc::{
     self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
@@ -39,16 +39,9 @@ impl BenchmarkService for Benchmark {
         &mut self,
         ctx: RpcContext,
         stream: RequestStream<SimpleRequest>,
-        mut sink: DuplexSink<SimpleResponse>,
+        sink: DuplexSink<SimpleResponse>,
     ) {
-        let f = async move {
-            sink.send_all(
-                &mut stream.map(|req| req.map(|req| (gen_resp(&req), WriteFlags::default()))),
-            )
-            .await?;
-            sink.close().await?;
-            Ok(())
-        };
+        let f = sink.send_all(stream.map(|req| (gen_resp(&req), WriteFlags::default())));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "streaming", f)
     }
@@ -97,14 +90,9 @@ impl Generic {
         &self,
         ctx: &RpcContext,
         stream: RequestStream<Vec<u8>>,
-        mut sink: DuplexSink<Vec<u8>>,
+        sink: DuplexSink<Vec<u8>>,
     ) {
-        let f = async move {
-            sink.send_all(&mut stream.map(|req| req.map(|req| (req, WriteFlags::default()))))
-                .await?;
-            sink.close().await?;
-            Ok(())
-        };
+        let f = sink.send_all(stream.map(|req| (req, WriteFlags::default())));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "streaming", f)
     }
