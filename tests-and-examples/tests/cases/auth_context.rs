@@ -104,6 +104,14 @@ fn test_auth_context() {
         ("x509_pem_cert".to_owned(), client_crt.replace("\r\n", "\n"))
     );
     let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert_eq!(
+        keys,
+        (
+            "security_level".to_owned(),
+            "TSI_PRIVACY_AND_INTEGRITY".to_owned()
+        )
+    );
+    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(keys, ("ssl_session_reused".to_owned(), "false".to_owned()));
     let _empty_keys: mpsc::RecvTimeoutError = rx
         .recv_timeout(Duration::from_millis(100))
