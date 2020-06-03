@@ -1,21 +1,16 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-extern crate cc;
-extern crate cmake;
-extern crate pkg_config;
-
 use std::env::VarError;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
-use cc::Build;
-use cmake::Config;
+use cmake::Config as CmakeConfig;
 use pkg_config::{Config as PkgConfig, Library};
 use walkdir::WalkDir;
 
-const GRPC_VERSION: &str = "1.26.0";
+const GRPC_VERSION: &str = "1.29.1";
 
 fn probe_library(library: &str, cargo_metadata: bool) -> Library {
     match PkgConfig::new()
@@ -33,10 +28,11 @@ fn prepare_grpc() {
         "grpc",
         "grpc/third_party/cares/cares",
         "grpc/third_party/address_sorting",
+        "grpc/third_party/abseil-cpp",
     ];
 
     if cfg!(feature = "secure") {
-        modules.push("grpc/third_party/boringssl");
+        modules.push("grpc/third_party/boringssl-with-bazel");
     }
 
     for module in modules {
@@ -63,13 +59,20 @@ fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
     }
 }
 
-fn build_grpc(cc: &mut Build, library: &str) {
+fn build_grpc(cc: &mut cc::Build, library: &str) {
     prepare_grpc();
 
-    let mut third_party = vec!["cares/cares/lib"];
+    let mut third_party = vec![
+        "cares/cares/lib",
+        "abseil-cpp/absl/strings",
+        "abseil-cpp/absl/time",
+        "abseil-cpp/absl/base",
+        "abseil-cpp/absl/types",
+        "abseil-cpp/absl/numeric",
+    ];
 
     let dst = {
-        let mut config = Config::new("grpc");
+        let mut config = CmakeConfig::new("grpc");
         if !cfg!(feature = "secure") {
             // boringssl's configuration is still included, but targets
             // will never be built, hence specify a fake go to get rid of
@@ -132,7 +135,7 @@ fn build_grpc(cc: &mut Build, library: &str) {
             config.define("EMBED_OPENSSL", "false");
             setup_openssl(&mut config)
         } else if cfg!(feature = "secure") {
-            third_party.extend_from_slice(&["boringssl/ssl", "boringssl/crypto"]);
+            third_party.extend_from_slice(&["boringssl-with-bazel"]);
         }
         if cfg!(feature = "no-omit-frame-pointer") {
             config
@@ -167,8 +170,26 @@ fn build_grpc(cc: &mut Build, library: &str) {
         }
     }
 
+    // link libz
     println!("cargo:rustc-link-lib=static=z");
+    // link cares
     println!("cargo:rustc-link-lib=static=cares");
+    // link absl
+    println!("cargo:rustc-link-lib=static=absl_base");
+    println!("cargo:rustc-link-lib=static=absl_raw_logging_internal");
+    println!("cargo:rustc-link-lib=static=absl_dynamic_annotations");
+    println!("cargo:rustc-link-lib=static=absl_throw_delegate");
+    println!("cargo:rustc-link-lib=static=absl_log_severity");
+    println!("cargo:rustc-link-lib=static=absl_spinlock_wait");
+    println!("cargo:rustc-link-lib=static=absl_strings");
+    println!("cargo:rustc-link-lib=static=absl_strings_internal");
+    println!("cargo:rustc-link-lib=static=absl_str_format_internal");
+    println!("cargo:rustc-link-lib=static=absl_civil_time");
+    println!("cargo:rustc-link-lib=static=absl_time_zone");
+    println!("cargo:rustc-link-lib=static=absl_time");
+    println!("cargo:rustc-link-lib=static=absl_bad_optional_access");
+    println!("cargo:rustc-link-lib=static=absl_int128");
+    // link grpc related lib
     println!("cargo:rustc-link-lib=static=gpr");
     println!("cargo:rustc-link-lib=static=address_sorting");
     println!("cargo:rustc-link-lib=static=upb");
@@ -213,7 +234,7 @@ fn figure_ssl_path(build_dir: &str) {
     println!("cargo:rustc-link-lib=crypto");
 }
 
-fn setup_libz(config: &mut Config) {
+fn setup_libz(config: &mut CmakeConfig) {
     config.define("gRPC_ZLIB_PROVIDER", "package");
     config.register_dep("Z");
     // cmake script expect libz.a being under ${DEP_Z_ROOT}/lib, but libz-sys crate put it
@@ -231,7 +252,7 @@ fn setup_libz(config: &mut Config) {
 }
 
 #[cfg(feature = "openssl-vendored")]
-fn setup_openssl(config: &mut Config) {
+fn setup_openssl(config: &mut CmakeConfig) {
     // openssl-sys uses openssl-src to build the library. openssl-src uses
     // configure/make to build the library which makes it hard to detect
     // what's the actual path of the library. Here assumes the directory
@@ -250,18 +271,7 @@ fn setup_openssl(config: &mut Config) {
 }
 
 #[cfg(not(feature = "openssl-vendored"))]
-fn setup_openssl(config: &mut Config) {
-    // check if openssl provided from system support ALPN
-    if Build::new()
-        .file("grpc/test/build/openssl-alpn.c")
-        .cargo_metadata(false)
-        .cpp(true)
-        .try_compile("check_alpn")
-        .is_err()
-    {
-        config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
-    }
-}
+fn setup_openssl(_config: &mut CmakeConfig) {}
 
 fn get_env(name: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={}", name);
@@ -369,7 +379,9 @@ fn main() {
     println!("cargo:rerun-if-changed=grpc");
     println!("cargo:rerun-if-env-changed=UPDATE_BIND");
 
-    let mut cc = Build::new();
+    // create a builder to compile grpc_wrap.cc
+    let mut cc = cc::Build::new();
+    // create a config to generate binding file
     let mut bind_config = bindgen::Builder::default();
 
     let library = if cfg!(feature = "secure") {
@@ -381,9 +393,9 @@ fn main() {
     };
 
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-        // At lease win7
-        cc.define("_WIN32_WINNT", Some("0x0700"));
-        bind_config = bind_config.clang_arg("-D _WIN32_WINNT=0x0700");
+        // At lease vista
+        cc.define("_WIN32_WINNT", Some("0x600"));
+        bind_config = bind_config.clang_arg("-D _WIN32_WINNT=0x600");
     }
 
     if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
@@ -401,9 +413,7 @@ fn main() {
         cc.flag("-std=c++11");
     }
     cc.file("grpc_wrap.cc");
-
     cc.warnings_into_errors(true);
-
     cc.compile("libgrpc_wrap.a");
 
     config_binding_path(bind_config);
