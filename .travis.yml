@@ -80,4 +80,3 @@ jobs:
       - cargo build
       - cargo test --all
       - cargo test --features "openssl" --all
-      - cargo test --features "openssl-vendored" --all
