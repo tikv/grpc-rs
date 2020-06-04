@@ -136,7 +136,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         }
         // Uses zlib from libz-sys.
         setup_libz(&mut config);
-        config.build_target(library).uses_cxx11().build()
+        config.build_target(library).build()
     };
 
     let build_dir = format!("{}/build", dst.display());
