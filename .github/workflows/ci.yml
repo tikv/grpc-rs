@@ -52,7 +52,6 @@ jobs:
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
     - run: cargo test --features "openssl" --all
-    - run: cargo test --features "openssl-vendored" --all
 
   Linux-Nightly:
     name: Linux-Nightly
@@ -91,7 +90,6 @@ jobs:
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
     - run: OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/" cargo test --features "openssl" --all
-    - run: cargo test --features "openssl-vendored" --all
 
   Win:
     name: Windows
