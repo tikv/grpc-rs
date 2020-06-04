@@ -33,7 +33,7 @@ struct DataReload {
 impl ServerCredentialsFetcher for DataReload {
     fn fetch(&self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
         if self.switch.load(Ordering::Relaxed) {
-            // The CN field in the certificate of server2 is "remotehost".
+            // The CN field in the certificate of server2 is "server2".
             let root = read_single_crt("root")?;
             let (server2_crt, server2_key) = read_cert_pair("server2")?;
             let new_cred = ServerCredentialsBuilder::new()
@@ -41,7 +41,7 @@ impl ServerCredentialsFetcher for DataReload {
                 .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
             Ok(Some(new_cred))
         } else {
-            // The CN field in the certificate of server1 is "localhost".
+            // The CN field in the certificate of server1 is "server1".
             let root = read_single_crt("root")?;
             let (server1_crt, server1_key) = read_cert_pair("server1")?;
             let new_cred = ServerCredentialsBuilder::new()
@@ -81,7 +81,7 @@ fn test_reload_new() {
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind_with_fetcher(
-            "localhost",
+            "127.0.0.1",
             0,
             Box::new(DataReload {
                 switch: switch.clone(),
@@ -93,26 +93,25 @@ fn test_reload_new() {
     server.start();
     let port = server.bind_addrs().next().unwrap().1;
 
-    // To connect the server whose CN is "localhost".
+    // To connect the server whose CN is "server1".
     let cred = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("root").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
-        .secure_connect(&format!("localhost:{}", port.clone()), cred);
+        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
     let client1 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let reply = client1.say_hello(&req).expect("rpc");
     assert_eq!(reply.get_message(), "Hello world");
 
-    // To connect the server whose CN is "remotehost".
+    // To connect the server whose CN is "server2".
     switch.store(true, Ordering::Relaxed);
     let cred = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("root").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
-        .override_ssl_target("remotehost")
-        .secure_connect(&format!("localhost:{}", port.clone()), cred);
+        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
     let client2 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
@@ -133,7 +132,7 @@ fn test_reload_fail() {
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind_with_fetcher(
-            "localhost",
+            "127.0.0.1",
             0,
             Box::new(DataReloadFail {
                 initial: AtomicBool::new(false),
@@ -148,7 +147,7 @@ fn test_reload_fail() {
     let cred = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("root").unwrap().into())
         .build();
-    let ch = ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), cred);
+    let ch = ChannelBuilder::new(env).secure_connect(&format!("127.0.0.1:{}", port), cred);
     let client = GreeterClient::new(ch);
 
     for _ in 0..10 {
