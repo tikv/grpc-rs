@@ -31,7 +31,7 @@ fn prepare_grpc() {
         "grpc/third_party/abseil-cpp",
     ];
 
-    if cfg!(feature = "secure") {
+    if cfg!(feature = "secure") && !cfg!(feature = "openssl") {
         modules.push("grpc/third_party/boringssl-with-bazel");
     }
 
@@ -73,12 +73,6 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
 
     let dst = {
         let mut config = CmakeConfig::new("grpc");
-        if !cfg!(feature = "secure") {
-            // boringssl's configuration is still included, but targets
-            // will never be built, hence specify a fake go to get rid of
-            // the unnecessary dependency.
-            config.define("GO_EXECUTABLE", "fake-go-nonexist");
-        }
         if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
         }
@@ -132,8 +126,6 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
         if cfg!(feature = "openssl") {
             config.define("gRPC_SSL_PROVIDER", "package");
-            config.define("EMBED_OPENSSL", "false");
-            setup_openssl(&mut config)
         } else if cfg!(feature = "secure") {
             third_party.extend_from_slice(&["boringssl-with-bazel"]);
         }
@@ -196,7 +188,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
+        if cfg!(feature = "openssl") {
             figure_ssl_path(&build_dir);
         } else {
             println!("cargo:rustc-link-lib=static=ssl");
@@ -250,28 +242,6 @@ fn setup_libz(config: &mut CmakeConfig) {
     println!("cargo:rustc-link-search=native={}/lib", zlib_root);
     env::set_var("CMAKE_PREFIX_PATH", prefix_path);
 }
-
-#[cfg(feature = "openssl-vendored")]
-fn setup_openssl(config: &mut CmakeConfig) {
-    // openssl-sys uses openssl-src to build the library. openssl-src uses
-    // configure/make to build the library which makes it hard to detect
-    // what's the actual path of the library. Here assumes the directory
-    // structure as follow (which is the behavior of 0.9.47):
-    // install_dir/
-    //     include/
-    //     lib/
-    // Remove the hack when sfackler/rust-openssl#1117 is resolved.
-    config.register_dep("openssl");
-    if env::var("DEP_OPENSSL_ROOT").is_err() {
-        let include_str = env::var("DEP_OPENSSL_INCLUDE").unwrap();
-        let include_dir = Path::new(&include_str);
-        let root_dir = format!("{}", include_dir.parent().unwrap().display());
-        env::set_var("DEP_OPENSSL_ROOT", &root_dir);
-    }
-}
-
-#[cfg(not(feature = "openssl-vendored"))]
-fn setup_openssl(_config: &mut CmakeConfig) {}
 
 fn get_env(name: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={}", name);
