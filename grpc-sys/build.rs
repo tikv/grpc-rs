@@ -6,6 +6,7 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
+use cc::Build;
 use cmake::Config as CmakeConfig;
 use pkg_config::{Config as PkgConfig, Library};
 use walkdir::WalkDir;
@@ -126,6 +127,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
         if cfg!(feature = "openssl") {
             config.define("gRPC_SSL_PROVIDER", "package");
+            setup_openssl(&mut config);
         } else if cfg!(feature = "secure") {
             third_party.extend_from_slice(&["boringssl-with-bazel"]);
         }
@@ -193,7 +195,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     println!("cargo:rustc-link-lib=static={}", library);
 
     if cfg!(feature = "secure") {
-        if cfg!(feature = "openssl") {
+        if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
             figure_ssl_path(&build_dir);
         } else {
             println!("cargo:rustc-link-lib=static=ssl");
@@ -246,6 +248,39 @@ fn setup_libz(config: &mut CmakeConfig) {
     println!("cargo:rustc-link-search=native={}/build", zlib_root);
     println!("cargo:rustc-link-search=native={}/lib", zlib_root);
     env::set_var("CMAKE_PREFIX_PATH", prefix_path);
+}
+
+#[cfg(feature = "openssl-vendored")]
+fn setup_openssl(config: &mut CmakeConfig) {
+    // openssl-sys uses openssl-src to build the library. openssl-src uses
+    // configure/make to build the library which makes it hard to detect
+    // what's the actual path of the library. Here assumes the directory
+    // structure as follow (which is the behavior of 0.9.47):
+    // install_dir/
+    //     include/
+    //     lib/
+    // Remove the hack when sfackler/rust-openssl#1117 is resolved.
+    config.register_dep("openssl");
+    if env::var("DEP_OPENSSL_ROOT").is_err() {
+        let include_str = env::var("DEP_OPENSSL_INCLUDE").unwrap();
+        let include_dir = Path::new(&include_str);
+        let root_dir = format!("{}", include_dir.parent().unwrap().display());
+        env::set_var("DEP_OPENSSL_ROOT", &root_dir);
+    }
+}
+
+#[cfg(not(feature = "openssl-vendored"))]
+fn setup_openssl(config: &mut CmakeConfig) {
+    // check if openssl provided from system support ALPN
+    if Build::new()
+        .file("grpc/test/build/openssl-alpn.c")
+        .cargo_metadata(false)
+        .cpp(true)
+        .try_compile("check_alpn")
+        .is_err()
+    {
+        config.cxxflag("-DTSI_OPENSSL_ALPN_SUPPORT=0");
+    }
 }
 
 fn get_env(name: &str) -> Option<String> {

@@ -50,12 +50,14 @@ exclude = [
 
 [dependencies]
 libc = "0.2"
+openssl-sys = { version = "0.9", optional = true, features = ["vendored"] }
 libz-sys = { version = "1.0.25", features = ["static"] }
 
 [features]
 default = []
 secure = []
 openssl = ["secure"]
+openssl-vendored = ["openssl", "openssl-sys"]
 no-omit-frame-pointer = []
 
 [build-dependencies]
