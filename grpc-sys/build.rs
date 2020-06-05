@@ -166,24 +166,29 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     println!("cargo:rustc-link-lib=static=z");
     // link cares
     println!("cargo:rustc-link-lib=static=cares");
-    // link absl
+    // link address_sorting
+    println!("cargo:rustc-link-lib=static=address_sorting");
+    // link absl/base
     println!("cargo:rustc-link-lib=static=absl_base");
     println!("cargo:rustc-link-lib=static=absl_raw_logging_internal");
     println!("cargo:rustc-link-lib=static=absl_dynamic_annotations");
     println!("cargo:rustc-link-lib=static=absl_throw_delegate");
     println!("cargo:rustc-link-lib=static=absl_log_severity");
     println!("cargo:rustc-link-lib=static=absl_spinlock_wait");
+    // link absl/strings
     println!("cargo:rustc-link-lib=static=absl_strings");
     println!("cargo:rustc-link-lib=static=absl_strings_internal");
     println!("cargo:rustc-link-lib=static=absl_str_format_internal");
+    // link absl/time
     println!("cargo:rustc-link-lib=static=absl_civil_time");
     println!("cargo:rustc-link-lib=static=absl_time_zone");
     println!("cargo:rustc-link-lib=static=absl_time");
+    // link absl/types
     println!("cargo:rustc-link-lib=static=absl_bad_optional_access");
+    // link absl/numeric
     println!("cargo:rustc-link-lib=static=absl_int128");
     // link grpc related lib
     println!("cargo:rustc-link-lib=static=gpr");
-    println!("cargo:rustc-link-lib=static=address_sorting");
     println!("cargo:rustc-link-lib=static=upb");
     println!("cargo:rustc-link-lib=static={}", library);
 
