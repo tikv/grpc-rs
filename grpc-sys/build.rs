@@ -73,9 +73,18 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
 
     let dst = {
         let mut config = CmakeConfig::new("grpc");
+
         if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
         }
+
+        // Ensure CoreFoundation be found in macos or ios
+        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos")
+            || get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "ios")
+        {
+            println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        }
+
         if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
