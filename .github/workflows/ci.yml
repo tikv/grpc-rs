@@ -52,6 +52,7 @@ jobs:
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
     - run: cargo test --features "openssl-vendored" --all
+    - run: cargo clean
     - run: cargo test --features "openssl" --all
 
   Linux-Nightly:

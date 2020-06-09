@@ -79,7 +79,7 @@ fn test_auth_context() {
         .cert(client_crt.clone().into(), client_key.into())
         .build();
     let ch =
-        ChannelBuilder::new(env).secure_connect(&format!("127.0.0.1:{}", port), client_credentials);
+        ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), client_credentials);
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
@@ -101,7 +101,7 @@ fn test_auth_context() {
         .unwrap();
 
     assert_eq!(ctx_map.get("transport_security_type").unwrap(), "ssl");
-    assert_eq!(ctx_map.get("x509_common_name").unwrap(), "client1");
+    assert_eq!(ctx_map.get("x509_common_name").unwrap(), "grpc-client-1");
     assert_eq!(
         ctx_map.get("x509_pem_cert").unwrap(),
         &client_crt.replace("\r\n", "\n")
@@ -111,7 +111,7 @@ fn test_auth_context() {
         "TSI_PRIVACY_AND_INTEGRITY"
     );
     assert_eq!(ctx_map.get("ssl_session_reused").unwrap(), "false");
-    assert!(ctx_map.get("x509_subject_alternative_name").is_some());
+    assert!(ctx_map.get("x509_subject_alternative_name").is_none());
 }
 
 #[test]
