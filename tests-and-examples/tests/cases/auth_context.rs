@@ -13,7 +13,7 @@ use tests_and_examples::util::{read_cert_pair, read_single_crt};
 
 #[derive(Clone)]
 struct GreeterService {
-    tx: Sender<std::result::Result<Option<HashMap<String, String>>, ()>>,
+    tx: Sender<Option<HashMap<String, String>>>,
 }
 
 impl Greeter for GreeterService {
@@ -26,9 +26,9 @@ impl Greeter for GreeterService {
         let auth_context = ctx.auth_context();
 
         if auth_context.is_some() {
-            self.tx.send(Ok(None)).unwrap();
+            self.tx.send(Some(HashMap::default())).unwrap();
         } else {
-            self.tx.send(Err(())).unwrap();
+            self.tx.send(None).unwrap();
         }
 
         if let Some(auth_context) = auth_context {
@@ -39,7 +39,7 @@ impl Greeter for GreeterService {
             {
                 ctx_map.insert(key.to_owned(), value.to_owned());
             }
-            self.tx.send(Ok(Some(ctx_map))).unwrap();
+            self.tx.send(Some(ctx_map)).unwrap();
         }
 
         let mut resp = HelloReply::default();
@@ -88,17 +88,9 @@ fn test_auth_context() {
 
     assert_eq!(resp.get_message(), "hello world");
 
-    assert!(rx
-        .recv_timeout(Duration::from_secs(1))
-        .unwrap()
-        .unwrap()
-        .is_none());
+    assert!(rx.recv_timeout(Duration::from_secs(1)).unwrap().is_some());
     // Test auth_context keys
-    let ctx_map = rx
-        .recv_timeout(Duration::from_secs(1))
-        .unwrap()
-        .unwrap()
-        .unwrap();
+    let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
 
     assert_eq!(ctx_map.get("transport_security_type").unwrap(), "ssl");
     assert_eq!(ctx_map.get("x509_common_name").unwrap(), "grpc-client-1");
@@ -137,7 +129,7 @@ fn test_no_crash_on_insecure() {
     assert_eq!(resp.get_message(), "hello world");
 
     // Test auth_context keys
-    assert!(rx.recv_timeout(Duration::from_secs(1)).unwrap().is_err());
+    assert!(rx.recv_timeout(Duration::from_secs(1)).unwrap().is_none());
     let _empty_keys: mpsc::RecvTimeoutError = rx
         .recv_timeout(Duration::from_millis(100))
         .expect_err("Received auth context even though not authenticated");

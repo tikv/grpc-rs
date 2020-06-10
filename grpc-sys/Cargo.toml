@@ -29,6 +29,8 @@ exclude = [
     "grpc/third_party/benchmark/*",
     "grpc/third_party/bloaty/*",
     "grpc/third_party/libuv/*",
+    "grpc/third_party/gflags/*",
+    "grpc/third_party/googletest/*",
     "grpc/third_party/objective_c/*",
     "grpc/third_party/protobuf/*",
     "grpc/third_party/toolchans/*",
