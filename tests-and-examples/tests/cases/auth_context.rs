@@ -23,15 +23,7 @@ impl Greeter for GreeterService {
         mut req: HelloRequest,
         sink: UnarySink<HelloReply>,
     ) {
-        let auth_context = ctx.auth_context();
-
-        if auth_context.is_some() {
-            self.tx.send(Some(HashMap::default())).unwrap();
-        } else {
-            self.tx.send(None).unwrap();
-        }
-
-        if let Some(auth_context) = auth_context {
+        if let Some(auth_context) = ctx.auth_context() {
             let mut ctx_map = HashMap::new();
             for (key, value) in auth_context
                 .into_iter()
@@ -88,7 +80,6 @@ fn test_auth_context() {
 
     assert_eq!(resp.get_message(), "hello world");
 
-    assert!(rx.recv_timeout(Duration::from_secs(1)).unwrap().is_some());
     // Test auth_context keys
     let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
 
@@ -129,8 +120,7 @@ fn test_no_crash_on_insecure() {
     assert_eq!(resp.get_message(), "hello world");
 
     // Test auth_context keys
-    assert!(rx.recv_timeout(Duration::from_secs(1)).unwrap().is_none());
     let _empty_keys: mpsc::RecvTimeoutError = rx
-        .recv_timeout(Duration::from_millis(100))
+        .recv_timeout(Duration::from_secs(1))
         .expect_err("Received auth context even though not authenticated");
 }
