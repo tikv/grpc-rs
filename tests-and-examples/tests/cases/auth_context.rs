@@ -4,6 +4,7 @@ use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 
+use std::collections::HashMap;
 use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
@@ -12,7 +13,7 @@ use tests_and_examples::util::{read_cert_pair, read_single_crt};
 
 #[derive(Clone)]
 struct GreeterService {
-    tx: Sender<(String, String)>,
+    tx: Sender<Option<HashMap<String, String>>>,
 }
 
 impl Greeter for GreeterService {
@@ -22,20 +23,15 @@ impl Greeter for GreeterService {
         mut req: HelloRequest,
         sink: UnarySink<HelloReply>,
     ) {
-        let auth_context = ctx.auth_context();
-        self.tx
-            .send((
-                "AuthContextPresent".to_string(),
-                (if auth_context.is_some() { "Y" } else { "N" }).to_string(),
-            ))
-            .unwrap();
-        if let Some(auth_context) = auth_context {
+        if let Some(auth_context) = ctx.auth_context() {
+            let mut ctx_map = HashMap::new();
             for (key, value) in auth_context
                 .into_iter()
                 .map(|x| (x.name(), x.value_str().unwrap()))
             {
-                self.tx.send((key.to_owned(), value.to_owned())).unwrap();
+                ctx_map.insert(key.to_owned(), value.to_owned());
             }
+            self.tx.send(Some(ctx_map)).unwrap();
         }
 
         let mut resp = HelloReply::default();
@@ -74,9 +70,8 @@ fn test_auth_context() {
         .root_cert(read_single_crt("root").unwrap().into())
         .cert(client_crt.clone().into(), client_key.into())
         .build();
-    let ch = ChannelBuilder::new(env)
-        .override_ssl_target("localhost")
-        .secure_connect(&format!("127.0.0.1:{}", port), client_credentials);
+    let ch =
+        ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), client_credentials);
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
@@ -85,29 +80,21 @@ fn test_auth_context() {
 
     assert_eq!(resp.get_message(), "hello world");
 
-    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    assert_eq!(keys, ("AuthContextPresent".to_owned(), "Y".to_owned()));
     // Test auth_context keys
-    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+
+    assert_eq!(ctx_map.get("transport_security_type").unwrap(), "ssl");
+    assert_eq!(ctx_map.get("x509_common_name").unwrap(), "grpc-client-1");
     assert_eq!(
-        keys,
-        ("transport_security_type".to_owned(), "ssl".to_owned())
+        ctx_map.get("x509_pem_cert").unwrap(),
+        &client_crt.replace("\r\n", "\n")
     );
-    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(
-        keys,
-        ("x509_common_name".to_owned(), "grpc-client-1".to_owned())
+        ctx_map.get("security_level").unwrap(),
+        "TSI_PRIVACY_AND_INTEGRITY"
     );
-    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    assert_eq!(
-        keys,
-        ("x509_pem_cert".to_owned(), client_crt.replace("\r\n", "\n"))
-    );
-    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    assert_eq!(keys, ("ssl_session_reused".to_owned(), "false".to_owned()));
-    let _empty_keys: mpsc::RecvTimeoutError = rx
-        .recv_timeout(Duration::from_millis(100))
-        .expect_err("Received more auth_context vars than expected");
+    assert_eq!(ctx_map.get("ssl_session_reused").unwrap(), "false");
+    assert!(ctx_map.get("x509_subject_alternative_name").is_none());
 }
 
 #[test]
@@ -133,9 +120,7 @@ fn test_no_crash_on_insecure() {
     assert_eq!(resp.get_message(), "hello world");
 
     // Test auth_context keys
-    let keys = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    assert_eq!(keys, ("AuthContextPresent".to_owned(), "N".to_owned()));
     let _empty_keys: mpsc::RecvTimeoutError = rx
-        .recv_timeout(Duration::from_millis(100))
+        .recv_timeout(Duration::from_secs(1))
         .expect_err("Received auth context even though not authenticated");
 }

@@ -11,7 +11,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   RUSTFLAGS: "--deny=warnings"
-  GRPC_VERSION: 1.26.0
+  GRPC_VERSION: 1.29.1
 
 jobs:
   Linux-Format-PKG-Test:
@@ -51,8 +51,9 @@ jobs:
     - uses: actions/checkout@v2
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
-    - run: cargo test --features "openssl" --all
     - run: cargo test --features "openssl-vendored" --all
+    - run: cargo clean
+    - run: cargo test --features "openssl" --all
 
   Linux-Nightly:
     name: Linux-Nightly

@@ -19,33 +19,25 @@ exclude = [
     "grpc/templates/*",
     "grpc/src/android/*",
     "grpc/src/csharp/*",
-    "grpc/src/boringssl/crypto_test_data.cc",
     "grpc/src/node/*",
     "grpc/src/objective-c/*",
     "grpc/src/php/*",
     "grpc/src/python/*",
     "grpc/src/ruby/*",
-    "grpc/vsprojects/*",
     "grpc/test/core/end2end/*",
     "grpc/third_party/zlib/*",
-    "grpc/third_party/abseil-cpp/*",
     "grpc/third_party/benchmark/*",
     "grpc/third_party/bloaty/*",
-    "grpc/third_party/boringssl/fuzz/*",
-    "grpc/third_party/boringssl/crypto/cipher_extra/test/*",
-    "grpc/third_party/boringssl/third_party/android-cmake/*",
-    "grpc/third_party/boringssl/third_party/wycheproof_testvectors",
-    "grpc/third_party/boringssl/third_party/googletest",
-    "!grpc/third_party/boringssl/third_party/googletest/src/gtest-all.cc",
-    "grpc/third_party/boringssl-with-bazel/*",
+    "grpc/third_party/libuv/*",
     "grpc/third_party/gflags/*",
     "grpc/third_party/googletest/*",
-    "grpc/third_party/libcxx/*",
-    "grpc/third_party/libcxxabi/*",
     "grpc/third_party/objective_c/*",
     "grpc/third_party/protobuf/*",
-    "grpc/third_party/rake-compiler-dock/*",
-    "grpc/third_party/toolchan/*",
+    "grpc/third_party/toolchans/*",
+    "grpc/third_party/envoy-api/*",
+    "grpc/third_party/googleapis/*",
+    "grpc/third_party/protoc-gen-validate/*",
+    "grpc/third_party/udpa/*",
     "grpc/tools/run_tests/generated/*",
     "grpc/test/core/",
     "!grpc/test/core/security/*.cc",
@@ -67,7 +59,7 @@ no-omit-frame-pointer = []
 
 [build-dependencies]
 cc = "1.0"
-cmake = "0.1.40"
+cmake = "0.1"
 pkg-config = "0.3"
 walkdir = "2.2.9"
 # Because of rust-lang/cargo#5237, bindgen should not be upgraded util a minor or major release.

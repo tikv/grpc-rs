@@ -33,7 +33,7 @@ jobs:
     arch: arm64
     before_script:
       - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.26.0
+      - export GRPC_VERSION=1.29.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
       - if [[ ! -f "$GRPC_HEADER" ]] ; then
@@ -58,7 +58,7 @@ jobs:
     arch: arm64
     before_script:
       - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.26.0
+      - export GRPC_VERSION=1.29.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
       - sudo apt-get update && sudo apt-get -y install libssl-dev;
