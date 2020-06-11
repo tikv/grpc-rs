@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -17,7 +17,7 @@ autoexamples = false
 all-features = true
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.5.0" }
+grpcio-sys = { path = "grpc-sys", version = "0.6.0" }
 libc = "0.2"
 futures = "0.3"
 protobuf = { version = "2.0", optional = true }
@@ -42,6 +42,3 @@ debug = true
 
 [badges]
 travis-ci = { repository = "tikv/grpc-rs" }
-
-[patch.crates-io]
-grpcio-compiler = { path = "compiler", version = "0.5.0", default-features = false }
