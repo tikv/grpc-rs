@@ -5,6 +5,7 @@ on:
   push:
     branches: 
     - master
+    - 
   schedule:
   - cron: '0 22 * * *'
 
@@ -105,3 +106,15 @@ jobs:
     - run: scripts/reset-submodule.cmd
     - run: cargo build
     - run: cargo test --all
+  
+  Pre-Release:
+    name: Pre-Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: scripts/reset-submodule.cmd
+    - run: cd grpc-sys && cargo publish --dry-run
+    - name: Check generated package size
+      run: |
+        ls -alh target/package/grpcio-sys-*.crate
+        test `cat target/package/grpcio-sys-*.crate | wc -c` -le 10485760
