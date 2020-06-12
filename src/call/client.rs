@@ -10,6 +10,7 @@ use futures::ready;
 use futures::sink::Sink;
 use futures::stream::Stream;
 use futures::task::{Context, Poll};
+use parking_lot::Mutex;
 use std::future::Future;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
@@ -18,7 +19,7 @@ use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::task::{BatchFuture, BatchType, SpinLock};
+use crate::task::{BatchFuture, BatchType};
 
 /// Update the flag bit in res.
 #[inline]
@@ -144,7 +145,7 @@ impl Call {
             )
         });
 
-        let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
+        let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
         let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser());
         let recv = ClientCStreamReceiver {
             call: share_call,
@@ -209,7 +210,7 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        let share_call = Arc::new(SpinLock::new(ShareCall::new(call, cq_f)));
+        let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
         let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
         let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
         Ok((sink, recv))
@@ -266,7 +267,7 @@ impl<T> Future for ClientUnaryReceiver<T> {
 /// [`Cancelled`]: ./enum.RpcStatusCode.html#variant.Cancelled
 #[must_use = "if unused the ClientCStreamReceiver may immediately cancel the RPC"]
 pub struct ClientCStreamReceiver<T> {
-    call: Arc<SpinLock<ShareCall>>,
+    call: Arc<Mutex<ShareCall>>,
     resp_de: DeserializeFn<T>,
     finished: bool,
 }
@@ -314,14 +315,14 @@ impl<T> Future for ClientCStreamReceiver<T> {
 /// [`close`]: #method.close
 #[must_use = "if unused the StreamingCallSink may immediately cancel the RPC"]
 pub struct StreamingCallSink<Req> {
-    call: Arc<SpinLock<ShareCall>>,
+    call: Arc<Mutex<ShareCall>>,
     sink_base: SinkBase,
     close_f: Option<BatchFuture>,
     req_ser: SerializeFn<Req>,
 }
 
 impl<Req> StreamingCallSink<Req> {
-    fn new(call: Arc<SpinLock<ShareCall>>, req_ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
+    fn new(call: Arc<Mutex<ShareCall>>, req_ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
         StreamingCallSink {
             call,
             sink_base: SinkBase::new(false),
@@ -520,11 +521,11 @@ impl<Resp> Stream for ClientSStreamReceiver<Resp> {
 /// [`Cancelled`]: ./enum.RpcStatusCode.html#variant.Cancelled
 #[must_use = "if unused the ClientDuplexReceiver may immediately cancel the RPC"]
 pub struct ClientDuplexReceiver<Resp> {
-    imp: ResponseStreamImpl<Arc<SpinLock<ShareCall>>, Resp>,
+    imp: ResponseStreamImpl<Arc<Mutex<ShareCall>>, Resp>,
 }
 
 impl<Resp> ClientDuplexReceiver<Resp> {
-    fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<Resp>) -> ClientDuplexReceiver<Resp> {
+    fn new(call: Arc<Mutex<ShareCall>>, de: DeserializeFn<Resp>) -> ClientDuplexReceiver<Resp> {
         ClientDuplexReceiver {
             imp: ResponseStreamImpl::new(call, de),
         }
