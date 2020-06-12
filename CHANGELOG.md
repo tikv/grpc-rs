@@ -1,3 +1,13 @@
+# 0.6.0 - 2020-06-12
+
+- Switch to std::future (#447)
+- Update gRPC C core to 1.29.1 (#466)
+
+# 0.5.3 - 2020-05-07
+
+- Switch to github action and update badge (#459)
+- Enable ALPN by default (#456)
+
 # grpcio-sys 0.5.2 - 2020-03-31
 
 - Downgrade bindgen version to be backward compatible. (#452)
@@ -8,7 +18,7 @@
 - Support unix domain socket (#446)
 - Build: fix rebuild rules for no prebuilt bindings (#450)
 
-# 0.5.0 - 2019-03-16
+# 0.5.0 - 2020-03-16
 
 - Make `build_args` and `channel_args` public (#405)
 - Reclaim buffer memory after sending message (#407)
