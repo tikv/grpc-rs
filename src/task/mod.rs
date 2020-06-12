@@ -2,7 +2,6 @@
 
 mod callback;
 mod executor;
-mod lock;
 mod promise;
 
 use std::fmt::{self, Debug, Formatter};
@@ -11,6 +10,7 @@ use std::sync::Arc;
 
 use futures::future::Future;
 use futures::task::{Context, Poll, Waker};
+use parking_lot::Mutex;
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
@@ -22,7 +22,6 @@ use crate::error::{Error, Result};
 use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
-pub use self::lock::SpinLock;
 pub use self::promise::BatchType;
 
 /// A handle that is used to notify future that the task finishes.
@@ -49,10 +48,10 @@ impl<T> NotifyHandle<T> {
     }
 }
 
-type Inner<T> = SpinLock<NotifyHandle<T>>;
+type Inner<T> = Mutex<NotifyHandle<T>>;
 
 fn new_inner<T>() -> Arc<Inner<T>> {
-    Arc::new(SpinLock::new(NotifyHandle::new()))
+    Arc::new(Mutex::new(NotifyHandle::new()))
 }
 
 /// Get the future status without the need to poll.

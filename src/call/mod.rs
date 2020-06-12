@@ -14,12 +14,13 @@ use futures::future::Future;
 use futures::ready;
 use futures::task::{Context, Poll};
 use libc::c_void;
+use parking_lot::Mutex;
 
 use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
-use crate::task::{self, BatchFuture, BatchType, CallTag, SpinLock};
+use crate::task::{self, BatchFuture, BatchType, CallTag};
 
 // By default buffers in `SinkBase` will be shrink to 4K size.
 const BUF_SHRINK_SIZE: usize = 4 * 1024;
@@ -505,7 +506,7 @@ impl ShareCallHolder for ShareCall {
     }
 }
 
-impl ShareCallHolder for Arc<SpinLock<ShareCall>> {
+impl ShareCallHolder for Arc<Mutex<ShareCall>> {
     fn call<R, F: FnOnce(&mut ShareCall) -> R>(&mut self, f: F) -> R {
         let mut call = self.lock();
         f(&mut call)
