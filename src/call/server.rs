@@ -13,6 +13,7 @@ use futures::ready;
 use futures::sink::Sink;
 use futures::stream::Stream;
 use futures::task::{Context, Poll};
+use parking_lot::Mutex;
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use crate::auth_context::AuthContext;
@@ -24,7 +25,7 @@ use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
 use crate::server::{BoxHandler, RequestCallContext};
-use crate::task::{BatchFuture, CallTag, Executor, Kicker, SpinLock};
+use crate::task::{BatchFuture, CallTag, Executor, Kicker};
 
 pub struct Deadline {
     spec: gpr_timespec,
@@ -239,13 +240,13 @@ impl UnaryRequestContext {
 /// finish before dropping.
 #[must_use = "if unused the RequestStream may immediately cancel the RPC"]
 pub struct RequestStream<T> {
-    call: Arc<SpinLock<ShareCall>>,
+    call: Arc<Mutex<ShareCall>>,
     base: StreamingBase,
     de: DeserializeFn<T>,
 }
 
 impl<T> RequestStream<T> {
-    fn new(call: Arc<SpinLock<ShareCall>>, de: DeserializeFn<T>) -> RequestStream<T> {
+    fn new(call: Arc<Mutex<ShareCall>>, de: DeserializeFn<T>) -> RequestStream<T> {
         RequestStream {
             call,
             base: StreamingBase::new(None),
@@ -393,7 +394,7 @@ impl_unary_sink!(
     #[must_use = "if unused the sink may immediately cancel the RPC"]
     ClientStreamingSink,
     ClientStreamingSinkResult,
-    Arc<SpinLock<ShareCall>>
+    Arc<Mutex<ShareCall>>
 );
 
 // A macro helper to implement server side streaming sink.
@@ -570,7 +571,7 @@ impl_stream_sink!(
     #[must_use = "if unused the sink may immediately cancel the RPC"]
     DuplexSink,
     DuplexSinkFailure,
-    Arc<SpinLock<ShareCall>>
+    Arc<Mutex<ShareCall>>
 );
 
 /// A context for rpc handling.
@@ -688,7 +689,7 @@ pub fn execute_client_streaming<P, Q, F>(
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
-    let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
+    let call = Arc::new(Mutex::new(ShareCall::new(call, close_f)));
 
     let req_s = RequestStream::new(call.clone(), de);
     let sink = ClientStreamingSink::new(call, ser);
@@ -735,7 +736,7 @@ pub fn execute_duplex_streaming<P, Q, F>(
 {
     let mut call = ctx.call();
     let close_f = accept_call!(call);
-    let call = Arc::new(SpinLock::new(ShareCall::new(call, close_f)));
+    let call = Arc::new(Mutex::new(ShareCall::new(call, close_f)));
 
     let req_s = RequestStream::new(call.clone(), de);
     let sink = DuplexSink::new(call, ser);
