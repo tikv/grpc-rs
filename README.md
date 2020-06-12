@@ -26,14 +26,14 @@ This project is still under development. The following features with the check m
 ## Prerequisites
 
 - CMake >= 3.8.0
-- Rust >= 1.19.0
+- Rust >= 1.36.0
 - binutils >= 2.22
 - LLVM and Clang >= 3.9 if you need to generate bindings at compile time.
-- By default, the [secure feature](#feature-secure) is provided by boringssl, which requires Go (>=1.7) to build. You can also use openssl instead by enabling [openssl feature](#feature-openssl).
+- By default, the [secure feature](#feature-secure) is provided by boringssl. You can also use openssl instead by enabling [openssl feature](#feature-openssl).
 
 For Linux and MacOS, you also need to install gcc (or clang) too.
 
-Bindings are pre-generated for x86_64 Linux. For other platforms, bindings are generated at compile time.
+Bindings are pre-generated for x86_64/arm64 Linux. For other platforms, bindings are generated at compile time.
 
 For Windows, you also need to install following software:
 
@@ -90,7 +90,7 @@ To include this project as a dependency:
 
 ```
 [dependencies]
-grpcio = "0.4"
+grpcio = "0.6"
 ```
 
 ### Feature `secure`
@@ -100,10 +100,17 @@ mechanism. When you do not need it, for example when working in intranet,
 you can disable it by using the following configuration:
 ```
 [dependencies]
-grpcio = { version = "0.4", default-features = false, features = ["protobuf-codec"] }
+grpcio = { version = "0.6", default-features = false, features = ["protobuf-codec"] }
 ```
 
-### Feature `openssl`
+### Feature `prost-codec` and `protobuf-codec`
+
+`gRPC-rs` uses `protobuf` crate by default. If you want to use `prost` instead, you can enable
+`prost-codec` feature. You probably only want to enable only one of the two features. Though
+grpcio is completely fine with both features enabled at the same time, grpcio-compiler
+will not going to work as expected.
+
+### Feature `openssl` and `openssl-vendored`
 
 `gRPC-rs` comes vendored with `gRPC Core`, which by default uses BoringSSL
 instead of OpenSSL. This may cause linking issues due to symbol clashes and/or
@@ -113,8 +120,11 @@ your `Cargo.toml`'s features list for `gprcio`, which requires openssl (>=1.0.2)
 
 ```toml
 [dependencies]
-grpcio = { version = "0.4.4", features = ["openssl"] }
+grpcio = { version = "0.6", features = ["openssl"] }
 ```
+
+Feature `openssl-vendored` is the same as feature `openssl` except it will build openssl from
+bundled sources.
 
 ## Performance
 

@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.5.2"
+version = "0.6.0"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -26,8 +26,14 @@ exclude = [
     "grpc/src/ruby/*",
     "grpc/test/core/end2end/*",
     "grpc/third_party/zlib/*",
+    "grpc/third_party/abseil-cpp/absl/time/internal/cctz/testdata",
     "grpc/third_party/benchmark/*",
     "grpc/third_party/bloaty/*",
+    "grpc/third_party/boringssl-with-bazel/crypto_test_data.cc",
+    "grpc/third_party/boringssl-with-bazel/src/fuzz",
+    "grpc/third_party/boringssl-with-bazel/src/crypto/cipher_extra/test",
+    "grpc/third_party/boringssl-with-bazel/src/third_party/wycheproof_testvectors",
+    "grpc/third_party/boringssl-with-bazel/src/third_party/googletest",
     "grpc/third_party/libuv/*",
     "grpc/third_party/gflags/*",
     "grpc/third_party/googletest/*",
