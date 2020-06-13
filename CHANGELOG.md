@@ -2,6 +2,7 @@
 
 - Switch to std::future (#447)
 - Update gRPC C core to 1.29.1 (#466)
+- Change spinlock to parking_lot::Mutex (#468)
 
 # 0.5.3 - 2020-05-07
 
