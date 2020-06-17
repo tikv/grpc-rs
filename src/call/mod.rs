@@ -22,6 +22,9 @@ use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag};
 
+// By default buffers in `SinkBase` will be shrink to 4K size.
+const BUF_SHRINK_SIZE: usize = 4 * 1024;
+
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -651,6 +654,15 @@ impl SinkBase {
         flags: WriteFlags,
         ser: SerializeFn<T>,
     ) -> Result<()> {
+        // temporary fix: buffer hint with send meta will not send out any metadata.
+        // note: only the first message can enter this code block.
+        if self.send_metadata {
+            ser(t, &mut self.buf);
+            self.buf_flags = Some(flags);
+            self.start_send_buffer_message(false, call)?;
+            self.send_metadata = false;
+            return Ok(());
+        }
         // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
         // that this is not the last message.
         if self.buf_flags.is_some() {
@@ -658,10 +670,8 @@ impl SinkBase {
             assert!(self.batch_f.is_none());
             self.start_send_buffer_message(true, call)?;
         }
-
         ser(t, &mut self.buf);
         self.buf_flags = Some(flags);
-
         Ok(())
     }
 
@@ -702,20 +712,18 @@ impl SinkBase {
     ) -> Result<()> {
         let mut flags = self.buf_flags.clone().unwrap();
         flags = flags.buffer_hint(buffer_hint);
-        if flags.get_buffer_hint() && self.send_metadata {
-            // temporary fix: buffer hint with send meta will not send out any metadata.
-            flags = flags.buffer_hint(false);
-        }
-
         let write_f = call.call(|c| {
             c.call
                 .start_send_message(&self.buf, flags.flags, self.send_metadata)
         })?;
-
-        self.send_metadata = false;
         self.batch_f = Some(write_f);
-        self.buf.clear();
         self.buf_flags.take();
+        // NOTE: Content of `self.buf` is copied into grpc internal.
+        self.buf.clear();
+        if self.buf.capacity() > BUF_SHRINK_SIZE {
+            self.buf.truncate(BUF_SHRINK_SIZE);
+            self.buf.shrink_to_fit();
+        }
         Ok(())
     }
 }
