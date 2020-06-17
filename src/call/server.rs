@@ -487,7 +487,8 @@ macro_rules! impl_stream_sink {
                 if let Poll::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish(cx))? {
                     return Poll::Ready(Err(Error::RemoteStopped));
                 }
-                Pin::new(&mut self.base).poll_ready(cx)
+                let t = &mut *self;
+                Pin::new(&mut t.base).poll_flush(cx, t.call.as_mut().unwrap())
             }
 
             fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {

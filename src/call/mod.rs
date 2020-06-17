@@ -22,9 +22,6 @@ use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag};
 
-// By default buffers in `SinkBase` will be shrink to 4K size.
-const BUF_SHRINK_SIZE: usize = 4 * 1024;
-
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -628,8 +625,12 @@ impl WriteFlags {
 
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
+    // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
+    // Buffer used to store the data to be sent, send out the last data in this round of `start_send`.
     buf: Vec<u8>,
+    // Write flags used to control the data to be sent in `buf`.
+    buf_flags: Option<WriteFlags>,
     send_metadata: bool,
 }
 
@@ -638,6 +639,7 @@ impl SinkBase {
         SinkBase {
             batch_f: None,
             buf: Vec::new(),
+            buf_flags: None,
             send_metadata,
         }
     }
@@ -646,29 +648,20 @@ impl SinkBase {
         &mut self,
         call: &mut C,
         t: &T,
-        mut flags: WriteFlags,
+        flags: WriteFlags,
         ser: SerializeFn<T>,
     ) -> Result<()> {
-        // `start_send` is supposed to be called after `poll_ready` returns ready.
-        assert!(self.batch_f.is_none());
+        // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
+        // that this is not the last message.
+        if self.buf_flags.is_some() {
+            // `start_send` is supposed to be called after `poll_ready` returns ready.
+            assert!(self.batch_f.is_none());
+            self.start_send_buffer_message(true, call)?;
+        }
 
-        self.buf.clear();
         ser(t, &mut self.buf);
-        if flags.get_buffer_hint() && self.send_metadata {
-            // temporary fix: buffer hint with send meta will not send out any metadata.
-            flags = flags.buffer_hint(false);
-        }
-        let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
-        })?;
-        // NOTE: Content of `self.buf` is copied into grpc internal.
-        if self.buf.capacity() > BUF_SHRINK_SIZE {
-            self.buf.truncate(BUF_SHRINK_SIZE);
-            self.buf.shrink_to_fit();
-        }
-        self.batch_f = Some(write_f);
-        self.send_metadata = false;
+        self.buf_flags = Some(flags);
+
         Ok(())
     }
 
@@ -682,5 +675,47 @@ impl SinkBase {
         }
         self.batch_f.take();
         Poll::Ready(Ok(()))
+    }
+
+    #[inline]
+    fn poll_flush<C: ShareCallHolder>(
+        &mut self,
+        cx: &mut Context,
+        call: &mut C,
+    ) -> Poll<Result<()>> {
+        if self.batch_f.is_some() {
+            ready!(self.poll_ready(cx)?);
+        }
+        if self.buf_flags.is_some() {
+            // Set `buffer_hint` to false to indicate that this is the last message.
+            self.start_send_buffer_message(false, call)?;
+            ready!(self.poll_ready(cx)?);
+        }
+        Poll::Ready(Ok(()))
+    }
+
+    #[inline]
+    fn start_send_buffer_message<C: ShareCallHolder>(
+        &mut self,
+        buffer_hint: bool,
+        call: &mut C,
+    ) -> Result<()> {
+        let mut flags = self.buf_flags.clone().unwrap();
+        flags = flags.buffer_hint(buffer_hint);
+        if flags.get_buffer_hint() && self.send_metadata {
+            // temporary fix: buffer hint with send meta will not send out any metadata.
+            flags = flags.buffer_hint(false);
+        }
+
+        let write_f = call.call(|c| {
+            c.call
+                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+        })?;
+
+        self.send_metadata = false;
+        self.batch_f = Some(write_f);
+        self.buf.clear();
+        self.buf_flags.take();
+        Ok(())
     }
 }

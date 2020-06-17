@@ -373,7 +373,8 @@ impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
             let mut call = self.call.lock();
             call.check_alive()?;
         }
-        Pin::new(&mut self.sink_base).poll_ready(cx)
+        let t = &mut *self;
+        Pin::new(&mut t.sink_base).poll_flush(cx, &mut t.call)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
