@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::prelude::*;
+use futures::sink::SinkExt;
 use grpc::{
     self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
     RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
@@ -56,12 +57,21 @@ impl BenchmarkService for Benchmark {
     fn streaming_from_client(
         &mut self,
         ctx: RpcContext,
-        _: RequestStream<SimpleRequest>,
+        mut stream: RequestStream<SimpleRequest>,
         sink: ClientStreamingSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
+        let f = async move {
+            let mut resp: Option<SimpleResponse> = None;
+            while let Some(req) = stream.try_next().await? {
+                if resp.is_none() {
+                    resp = Some(gen_resp(&req));
+                }
+            }
+            sink.success(resp.unwrap()).await?;
+            Ok(())
+        };
         let keep_running = self.keep_running.clone();
-        spawn!(ctx, keep_running, "reporting unimplemented method", f)
+        spawn!(ctx, keep_running, "streaming from client", f)
     }
 
     fn streaming_from_server(
