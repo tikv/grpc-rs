@@ -634,6 +634,8 @@ struct SinkBase {
     buf: Vec<u8>,
     // Write flags used to control the data to be sent in `buf`.
     buf_flags: Option<WriteFlags>,
+    // Used to records whether there is a message in which `buffer_hint` is false.
+    buf_buffer_hint: bool,
     send_metadata: bool,
 }
 
@@ -643,6 +645,7 @@ impl SinkBase {
             batch_f: None,
             buf: Vec::new(),
             buf_flags: None,
+            buf_buffer_hint: true,
             send_metadata,
         }
     }
@@ -671,6 +674,7 @@ impl SinkBase {
             self.start_send_buffer_message(true, call)?;
         }
         ser(t, &mut self.buf);
+        self.buf_buffer_hint &= flags.get_buffer_hint();
         self.buf_flags = Some(flags);
         Ok(())
     }
@@ -697,8 +701,7 @@ impl SinkBase {
             ready!(self.poll_ready(cx)?);
         }
         if self.buf_flags.is_some() {
-            // Set `buffer_hint` to false to indicate that this is the last message.
-            self.start_send_buffer_message(false, call)?;
+            self.start_send_buffer_message(self.buf_buffer_hint, call)?;
             ready!(self.poll_ready(cx)?);
         }
         Poll::Ready(Ok(()))
