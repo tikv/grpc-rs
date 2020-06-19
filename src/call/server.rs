@@ -424,8 +424,8 @@ macro_rules! impl_stream_sink {
                 }
             }
 
-            pub fn enable_batch(&mut self, flag: bool) {
-                self.base.enable_batch = flag;
+            pub fn enhance_batch(&mut self, flag: bool) {
+                self.base.enhance_buffer_strategy = flag;
             }
 
             pub fn set_status(&mut self, status: RpcStatus) {

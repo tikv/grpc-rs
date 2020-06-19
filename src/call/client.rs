@@ -331,8 +331,8 @@ impl<Req> StreamingCallSink<Req> {
         }
     }
 
-    pub fn enable_batch(&mut self, flag: bool) {
-        self.sink_base.enable_batch = flag;
+    pub fn enhance_batch(&mut self, flag: bool) {
+        self.sink_base.enhance_buffer_strategy = flag;
     }
 
     pub fn cancel(&mut self) {

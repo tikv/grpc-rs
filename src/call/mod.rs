@@ -616,41 +616,50 @@ impl WriteFlags {
     }
 
     /// Get whether buffer hint is enabled.
-    pub fn get_buffer_hint(self) -> bool {
+    pub fn get_buffer_hint(&self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
     /// Get whether compression is disabled.
-    pub fn get_force_no_compress(self) -> bool {
+    pub fn get_force_no_compress(&self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }
 
 /// A helper struct for constructing Sink object for batch requests.
+///
+/// The sink works in normal mode by default, that is, `start_send` always sends message immediately.
+/// But when the `enhance_buffer_strategy` is enabled, the message to be sent will be processed
+/// according to the following process:
+/// Set the `buffer_hint` of the non-end message in the stream to true, and set the `buffer_hint` of the
+/// last message to true in `poll_flush`, so that the previously bufferd messages will be sent out.
 struct SinkBase {
     // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
-    // Buffer used to store the data to be sent, send out the last data in this round of `start_send`.
-    buf: Vec<u8>,
-    // Write flags used to control the data to be sent in `buf`.
-    buf_flags: Option<WriteFlags>,
-    // Used to records whether there is a message in which `buffer_hint` is false.
-    last_buffer_hint: bool,
-    // Flag to indicate if enable batch. This behavior will modify the `buffer_hint` to batch messages
-    // as much as possible.
-    enable_batch: bool,
     send_metadata: bool,
+    // Flag to indicate if enhance batch strategy. This behavior will modify the `buffer_hint` to batch
+    // messages as much as possible.
+    enhance_buffer_strategy: bool,
+    // Buffer used to store the data to be sent, send out the last data in this round of `start_send`.
+    // Note: only used in enhanced buffer strategy.
+    buffer: Vec<u8>,
+    // Write flags used to control the data to be sent in `buffer`.
+    // Note: only used in enhanced buffer strategy.
+    buf_flags: Option<WriteFlags>,
+    // Used to records whether a message in which `buffer_hint` is false exists.
+    // Note: only used in enhanced buffer strategy.
+    last_buf_hint: bool,
 }
 
 impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
-            buf: Vec::new(),
+            buffer: Vec::new(),
             buf_flags: None,
-            last_buffer_hint: true,
+            last_buf_hint: true,
             send_metadata,
-            enable_batch: false,
+            enhance_buffer_strategy: false,
         }
     }
 
@@ -664,7 +673,7 @@ impl SinkBase {
         // temporary fix: buffer hint with send meta will not send out any metadata.
         // note: only the first message can enter this code block.
         if self.send_metadata {
-            ser(t, &mut self.buf);
+            ser(t, &mut self.buffer);
             self.buf_flags = Some(flags);
             self.start_send_buffer_message(false, call)?;
             self.send_metadata = false;
@@ -673,17 +682,17 @@ impl SinkBase {
 
         // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
         // that this is not the last message.
-        if !self.buf.is_empty() {
+        if self.buf_flags.is_some() {
             self.start_send_buffer_message(true, call)?;
         }
 
-        ser(t, &mut self.buf);
+        ser(t, &mut self.buffer);
         let hint = flags.get_buffer_hint();
-        self.last_buffer_hint &= hint;
+        self.last_buf_hint &= hint;
         self.buf_flags = Some(flags);
 
         // If sink disable batch, start sending the message in buffer immediately.
-        if !self.enable_batch {
+        if !self.enhance_buffer_strategy {
             self.start_send_buffer_message(hint, call)?;
         }
 
@@ -711,8 +720,8 @@ impl SinkBase {
         if self.batch_f.is_some() {
             ready!(self.poll_ready(cx)?);
         }
-        if !self.buf.is_empty() {
-            self.start_send_buffer_message(self.last_buffer_hint, call)?;
+        if self.buf_flags.is_some() {
+            self.start_send_buffer_message(self.last_buf_hint, call)?;
             ready!(self.poll_ready(cx)?);
         }
         Poll::Ready(Ok(()))
@@ -731,15 +740,15 @@ impl SinkBase {
         flags = flags.buffer_hint(buffer_hint);
         let write_f = call.call(|c| {
             c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
+                .start_send_message(&self.buffer, flags.flags, self.send_metadata)
         })?;
         self.batch_f = Some(write_f);
         self.buf_flags.take();
         // NOTE: Content of `self.buf` is copied into grpc internal.
-        self.buf.clear();
-        if self.buf.capacity() > BUF_SHRINK_SIZE {
-            self.buf.truncate(BUF_SHRINK_SIZE);
-            self.buf.shrink_to_fit();
+        self.buffer.clear();
+        if self.buffer.capacity() > BUF_SHRINK_SIZE {
+            self.buffer.truncate(BUF_SHRINK_SIZE);
+            self.buffer.shrink_to_fit();
         }
         Ok(())
     }
