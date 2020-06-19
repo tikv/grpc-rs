@@ -331,6 +331,10 @@ impl<Req> StreamingCallSink<Req> {
         }
     }
 
+    pub fn enable_batch(&mut self, flag: bool) {
+        self.sink_base.enable_batch = flag;
+    }
+
     pub fn cancel(&mut self) {
         let call = self.call.lock();
         call.call.cancel()

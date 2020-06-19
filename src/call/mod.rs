@@ -635,7 +635,10 @@ struct SinkBase {
     // Write flags used to control the data to be sent in `buf`.
     buf_flags: Option<WriteFlags>,
     // Used to records whether there is a message in which `buffer_hint` is false.
-    buf_buffer_hint: bool,
+    last_buffer_hint: bool,
+    // Flag to indicate if enable batch. This behavior will modify the `buffer_hint` to batch messages
+    // as much as possible.
+    enable_batch: bool,
     send_metadata: bool,
 }
 
@@ -645,8 +648,9 @@ impl SinkBase {
             batch_f: None,
             buf: Vec::new(),
             buf_flags: None,
-            buf_buffer_hint: true,
+            last_buffer_hint: true,
             send_metadata,
+            enable_batch: false,
         }
     }
 
@@ -666,16 +670,23 @@ impl SinkBase {
             self.send_metadata = false;
             return Ok(());
         }
+
         // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
         // that this is not the last message.
-        if self.buf_flags.is_some() {
-            // `start_send` is supposed to be called after `poll_ready` returns ready.
-            assert!(self.batch_f.is_none());
+        if !self.buf.is_empty() {
             self.start_send_buffer_message(true, call)?;
         }
+
         ser(t, &mut self.buf);
-        self.buf_buffer_hint &= flags.get_buffer_hint();
+        let hint = flags.get_buffer_hint();
+        self.last_buffer_hint &= hint;
         self.buf_flags = Some(flags);
+
+        // If sink disable batch, start sending the message in buffer immediately.
+        if !self.enable_batch {
+            self.start_send_buffer_message(hint, call)?;
+        }
+
         Ok(())
     }
 
@@ -700,8 +711,8 @@ impl SinkBase {
         if self.batch_f.is_some() {
             ready!(self.poll_ready(cx)?);
         }
-        if self.buf_flags.is_some() {
-            self.start_send_buffer_message(self.buf_buffer_hint, call)?;
+        if !self.buf.is_empty() {
+            self.start_send_buffer_message(self.last_buffer_hint, call)?;
             ready!(self.poll_ready(cx)?);
         }
         Poll::Ready(Ok(()))
@@ -713,6 +724,9 @@ impl SinkBase {
         buffer_hint: bool,
         call: &mut C,
     ) -> Result<()> {
+        // `start_send` is supposed to be called after `poll_ready` returns ready.
+        assert!(self.batch_f.is_none());
+
         let mut flags = self.buf_flags.clone().unwrap();
         flags = flags.buffer_hint(buffer_hint);
         let write_f = call.call(|c| {

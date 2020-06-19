@@ -424,6 +424,10 @@ macro_rules! impl_stream_sink {
                 }
             }
 
+            pub fn enable_batch(&mut self, flag: bool) {
+                self.base.enable_batch = flag;
+            }
+
             pub fn set_status(&mut self, status: RpcStatus) {
                 assert!(self.flush_f.is_none());
                 self.status = status;
