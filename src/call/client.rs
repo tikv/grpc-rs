@@ -334,8 +334,9 @@ impl<Req> StreamingCallSink<Req> {
     /// By default the sink works in normal mode, that is, `start_send` always starts to send message
     /// immediately. But when the `enhance_batch` is enabled, the stream will be batched together as
     /// much as possible. The specific rule is listed below:
-    /// Set the `buffer_hint` of the non-end message in the stream to true, and set the `buffer_hint` of
-    /// the last message to false in `poll_flush`, so that the previously bufferd messages will be sent out.
+    /// Set the `buffer_hint` of the non-end message in the stream to true. And set the `buffer_hint`
+    /// of the last message to false in `poll_flush` only when there is at least one message with the
+    /// `buffer_hint` false, so that the previously bufferd messages will be sent out.
     pub fn enhance_batch(&mut self, flag: bool) {
         self.sink_base.enhance_buffer_strategy = flag;
     }
