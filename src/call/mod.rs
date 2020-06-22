@@ -628,11 +628,11 @@ impl WriteFlags {
 
 /// A helper struct for constructing Sink object for batch requests.
 ///
-/// The sink works in normal mode by default, that is, `start_send` always sends message immediately.
-/// But when the `enhance_buffer_strategy` is enabled, the message to be sent will be processed
-/// according to the following process:
-/// Set the `buffer_hint` of the non-end message in the stream to true, and set the `buffer_hint` of the
-/// last message to true in `poll_flush`, so that the previously bufferd messages will be sent out.
+/// By default the sink works in normal mode, that is, `start_send` always starts to send message
+/// immediately. But when the `enhance_buffer_strategy` is enabled, the stream will be batched
+/// together as much as possible. The specific rule is listed below:
+/// Set the `buffer_hint` of the non-end message in the stream to true, and set the `buffer_hint` of
+/// the last message to false in `poll_flush`, so that the previously bufferd messages will be sent out.
 struct SinkBase {
     // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
