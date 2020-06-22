@@ -67,6 +67,8 @@ impl BenchmarkService for Benchmark {
             }
             if req.get_response_size() > 0 {
                 sink.success(gen_resp(&req)).await?;
+            } else {
+                sink.success(Default::default()).await?;
             }
             Ok(())
         };
