@@ -426,7 +426,7 @@ macro_rules! impl_stream_sink {
 
             /// By default the sink works in normal mode, that is, `start_send` always starts to send message
             /// immediately. But when the `enhance_batch` is enabled, the stream will be batched together as
-            /// much as possible. The specific rule is listed below:
+            /// much as possible. The specific rules are listed below:
             /// Set the `buffer_hint` of the non-end message in the stream to true. And set the `buffer_hint`
             /// of the last message to false in `poll_flush` only when there is at least one message with the
             /// `buffer_hint` false, so that the previously bufferd messages will be sent out.

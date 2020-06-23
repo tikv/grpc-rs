@@ -627,13 +627,6 @@ impl WriteFlags {
 }
 
 /// A helper struct for constructing Sink object for batch requests.
-///
-/// By default the sink works in normal mode, that is, `start_send` always starts to send message
-/// immediately. But when the `enhance_buffer_strategy` is enabled, the stream will be batched
-/// together as much as possible. The specific rule is listed below:
-/// Set the `buffer_hint` of the non-end message in the stream to true. And set the `buffer_hint`
-/// of the last message to false in `poll_flush` only when there is at least one message with the
-/// `buffer_hint` false, so that the previously bufferd messages will be sent out.
 struct SinkBase {
     // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
@@ -642,10 +635,8 @@ struct SinkBase {
     // messages as much as possible.
     enhance_buffer_strategy: bool,
     // Buffer used to store the data to be sent, send out the last data in this round of `start_send`.
-    // Note: only used in enhanced buffer strategy.
     buffer: Vec<u8>,
     // Write flags used to control the data to be sent in `buffer`.
-    // Note: only used in enhanced buffer strategy.
     buf_flags: Option<WriteFlags>,
     // Used to records whether a message in which `buffer_hint` is false exists.
     // Note: only used in enhanced buffer strategy.
@@ -748,7 +739,6 @@ impl SinkBase {
         // NOTE: Content of `self.buf` is copied into grpc internal.
         self.buffer.clear();
         if self.buffer.capacity() > BUF_SHRINK_SIZE {
-            self.buffer.truncate(BUF_SHRINK_SIZE);
             self.buffer.shrink_to_fit();
         }
         Ok(())
