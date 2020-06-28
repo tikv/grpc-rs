@@ -322,7 +322,7 @@ macro_rules! impl_unary_sink {
                 $t {
                     call: Some(call),
                     write_flags: 0,
-                    ser: ser,
+                    ser,
                 }
             }
 
@@ -354,8 +354,8 @@ macro_rules! impl_unary_sink {
 
                 $rt {
                     call: self.call.take().unwrap(),
-                    cq_f: cq_f,
-                    err: err,
+                    cq_f,
+                    err,
                 }
             }
         }
@@ -420,7 +420,7 @@ macro_rules! impl_stream_sink {
                     status: RpcStatus::ok(),
                     flushed: false,
                     closed: false,
-                    ser: ser,
+                    ser,
                 }
             }
 
@@ -444,8 +444,8 @@ macro_rules! impl_stream_sink {
 
                 $ft {
                     call: self.call.take().unwrap(),
-                    fail_f: fail_f,
-                    err: err,
+                    fail_f,
+                    err,
                 }
             }
         }
