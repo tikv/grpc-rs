@@ -46,4 +46,3 @@ travis-ci = { repository = "tikv/grpc-rs" }
 
 [patch.crates-io]
 grpcio-compiler = { path = "compiler", version = "0.6.0", default-features = false }
-protobuf-build = { git = "https://github.com/tikv/protobuf-build.git" }
