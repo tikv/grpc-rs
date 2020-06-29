@@ -737,10 +737,11 @@ impl SinkBase {
         self.batch_f = Some(write_f);
         self.buf_flags.take();
         // NOTE: Content of `self.buf` is copied into grpc internal.
-        self.buffer.clear();
         if self.buffer.capacity() > BUF_SHRINK_SIZE {
+            self.buffer.truncate(BUF_SHRINK_SIZE);
             self.buffer.shrink_to_fit();
         }
+        self.buffer.clear();
         Ok(())
     }
 }
