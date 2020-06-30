@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use futures::channel::oneshot::{self, Receiver, Sender};
 use futures::prelude::*;
+use futures::stream;
 use grpcio::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
@@ -182,7 +183,6 @@ struct RequestExecutor<B> {
     ctx: ExecutorContext<B>,
     client: Arc<BenchmarkServiceClient>,
     req: SimpleRequest,
-    cfg: ClientConfig,
 }
 
 impl<B: Backoff + Send + 'static> RequestExecutor<B> {
@@ -191,7 +191,6 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
             ctx,
             client: Arc::new(BenchmarkServiceClient::new(channel)),
             req: gen_req(cfg),
-            cfg: cfg.clone(),
         }
     }
 
@@ -257,33 +256,35 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         spawn!(client, keep_running, "streaming ping pong", f);
     }
 
-    fn execute_stream_from_client(mut self) {
+    fn execute_stream_from_client(self) {
         let client = self.client.clone();
         let keep_running = self.ctx.keep_running.clone();
 
-        let mut send_data = vec![];
-        for _ in 0..self.cfg.get_messages_per_stream() {
-            send_data.push(self.req.clone());
-        }
         let f = async move {
-            loop {
-                let (mut sender, receiver) = self.client.streaming_from_client().unwrap();
-                let latency_timer = Instant::now();
-                let send_stream = futures::stream::iter(send_data.clone());
-                sender
-                    .send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
-                    .await?;
-                sender.close().await?;
-                receiver.await?;
-                self.ctx.observe_latency(latency_timer.elapsed());
-                let mut time = self.ctx.backoff_async();
-                if let Some(t) = &mut time {
-                    t.await;
-                }
-                if !self.ctx.keep_running() {
-                    break;
-                }
-            }
+            let (mut sender, _) = self.client.streaming_from_client().unwrap();
+
+            let send_stream = Box::pin(stream::unfold(
+                (self, Instant::now()),
+                |(mut c, last_time)| async move {
+                    c.ctx.observe_latency(last_time.elapsed());
+                    let mut time = c.ctx.backoff_async();
+                    if let Some(t) = &mut time {
+                        t.await;
+                    }
+
+                    if c.ctx.keep_running() {
+                        Some((c.req.clone(), (c, Instant::now())))
+                    } else {
+                        None
+                    }
+                },
+            ));
+
+            sender
+                .send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
+                .await?;
+
+            sender.close().await?;
             Ok(())
         };
         spawn!(client, keep_running, "streaming from client", f);
