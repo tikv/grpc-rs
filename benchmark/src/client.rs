@@ -261,7 +261,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let keep_running = self.ctx.keep_running.clone();
 
         let f = async move {
-            let (mut sender, _) = self.client.streaming_from_client().unwrap();
+            let (mut sender, _receiver) = self.client.streaming_from_client().unwrap();
 
             let send_stream = Box::pin(stream::unfold(
                 (self, Instant::now()),
