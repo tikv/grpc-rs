@@ -424,12 +424,15 @@ macro_rules! impl_stream_sink {
                 }
             }
 
-            /// By default the sink works in normal mode, that is, `start_send` always starts to send message
-            /// immediately. But when the `enhance_batch` is enabled, the stream will be batched together as
-            /// much as possible. The specific rules are listed below:
-            /// Set the `buffer_hint` of the non-end message in the stream to true. And set the `buffer_hint`
-            /// of the last message to false in `poll_flush` only when there is at least one message with the
-            /// `buffer_hint` false, so that the previously bufferd messages will be sent out.
+            /// By default it always sends messages with their configured buffer hint. But when the
+            /// `enhance_batch` is enabled, messages will be batched together as many as possible.
+            /// The rules are listed as below:
+            /// - All messages except the last one will be sent with `buffer_hint` set to true.
+            /// - The last message will also be sent with `buffer_hint` set to true unless all messages are
+            ///    offered with buffer hint set to true.
+            ///
+            /// No matter `enhance_batch` is true or false, it's recommended to follow the contract of
+            /// Sink and call `poll_flush` to ensure messages are handled by gRPC C Core.
             pub fn enhance_batch(&mut self, flag: bool) {
                 self.base.enhance_buffer_strategy = flag;
             }
