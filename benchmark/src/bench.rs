@@ -61,8 +61,11 @@ impl BenchmarkService for Benchmark {
         sink: ClientStreamingSink<SimpleResponse>,
     ) {
         let f = async move {
-            let _sink = sink;
-            while stream.try_next().await?.is_some() {}
+            let mut req = SimpleRequest::default();
+            while let Some(r) = stream.try_next().await? {
+                req = r;
+            }
+            sink.success(gen_resp(&req));
             Ok(())
         };
         let keep_running = self.keep_running.clone();

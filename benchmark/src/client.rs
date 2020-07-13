@@ -261,30 +261,33 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let keep_running = self.ctx.keep_running.clone();
 
         let f = async move {
-            let (mut sender, _receiver) = self.client.streaming_from_client().unwrap();
+            let (mut sender, receiver) = self.client.streaming_from_client().unwrap();
 
             let send_stream = Box::pin(stream::unfold(
-                (self, Instant::now()),
-                |(mut c, last_time)| async move {
-                    c.ctx.observe_latency(last_time.elapsed());
-                    let mut time = c.ctx.backoff_async();
-                    if let Some(t) = &mut time {
-                        t.await;
+                (self, true, Instant::now()),
+                |(mut c, init, last_time)| async move {
+                    if !init {
+                        c.ctx.observe_latency(last_time.elapsed());
+                        let mut time = c.ctx.backoff_async();
+                        if let Some(t) = &mut time {
+                            t.await;
+                        }
                     }
-
                     if c.ctx.keep_running() {
-                        Some((c.req.clone(), (c, Instant::now())))
+                        Some((c.req.clone(), (c, false, Instant::now())))
                     } else {
                         None
                     }
                 },
             ));
 
+            sender.enhance_batch(true);
             sender
                 .send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
                 .await?;
 
             sender.close().await?;
+            receiver.await?;
             Ok(())
         };
         spawn!(client, keep_running, "streaming from client", f);
