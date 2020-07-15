@@ -39,6 +39,7 @@ pub struct EnvBuilder {
     cq_count: usize,
     name_prefix: Option<String>,
     after_start: Option<Arc<dyn Fn() + Send + Sync>>,
+    before_stop: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl EnvBuilder {
@@ -48,6 +49,7 @@ impl EnvBuilder {
             cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
             name_prefix: None,
             after_start: None,
+            before_stop: None,
         }
     }
 
@@ -75,6 +77,12 @@ impl EnvBuilder {
         self
     }
 
+    /// Execute function `f` before each thread stops.
+    pub fn before_stop<F: Fn() + Send + Sync + 'static>(mut self, f: F) -> EnvBuilder {
+        self.before_stop = Some(Arc::new(f));
+        self
+    }
+
     /// Finalize the [`EnvBuilder`], build the [`Environment`] and initialize the gRPC library.
     pub fn build(self) -> Environment {
         unsafe {
@@ -90,12 +98,16 @@ impl EnvBuilder {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
             let after_start = self.after_start.clone();
+            let before_stop = self.before_stop.clone();
             let handle = builder
                 .spawn(move || {
                     if let Some(f) = after_start {
                         f();
                     }
                     poll_queue(tx_i);
+                    if let Some(f) = before_stop {
+                        f();
+                    }
                 })
                 .unwrap();
             handles.push(handle);
