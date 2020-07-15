@@ -27,7 +27,16 @@ impl Greeter for PeerService {
 
 #[test]
 fn test_peer() {
-    let env = Arc::new(EnvBuilder::new().build());
+    let c1 = Arc::new(AtomicI32::new(0));
+    let c2 = c1.clone();
+    let env = Arc::new(
+        EnvBuilder::new()
+            .cq_count(2)
+            .after_start(move || {
+                c1.fetch_add(1, Ordering::Relaxed);
+            })
+            .build(),
+    );
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
@@ -43,6 +52,7 @@ fn test_peer() {
     let resp = client.say_hello(&req).unwrap();
 
     assert!(resp.get_message().contains("127.0.0.1"), "{:?}", resp);
+    assert_eq!(c2.load(Ordering::Relaxed), 2);
 }
 
 #[derive(Clone)]

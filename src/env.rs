@@ -38,6 +38,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
 pub struct EnvBuilder {
     cq_count: usize,
     name_prefix: Option<String>,
+    after_start: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl EnvBuilder {
@@ -46,6 +47,7 @@ impl EnvBuilder {
         EnvBuilder {
             cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
             name_prefix: None,
+            after_start: None,
         }
     }
 
@@ -67,8 +69,14 @@ impl EnvBuilder {
         self
     }
 
+    /// Execute function `f` after each thread is started but before it starts doing work.
+    pub fn after_start<F: Fn() + Send + Sync + 'static>(mut self, f: F) -> EnvBuilder {
+        self.after_start = Some(Arc::new(f));
+        self
+    }
+
     /// Finalize the [`EnvBuilder`], build the [`Environment`] and initialize the gRPC library.
-    pub fn build(self) -> Environment {
+    pub fn build(mut self) -> Environment {
         unsafe {
             grpc_sys::grpc_init();
         }
@@ -81,7 +89,15 @@ impl EnvBuilder {
             if let Some(ref prefix) = self.name_prefix {
                 builder = builder.name(format!("{}-{}", prefix, i));
             }
-            let handle = builder.spawn(move || poll_queue(tx_i)).unwrap();
+            let after_start = self.after_start.clone();
+            let handle = builder
+                .spawn(move || {
+                    if let Some(f) = after_start {
+                        f();
+                    }
+                    poll_queue(tx_i);
+                })
+                .unwrap();
             handles.push(handle);
         }
         for _ in 0..self.cq_count {
