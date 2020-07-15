@@ -76,7 +76,7 @@ impl EnvBuilder {
     }
 
     /// Finalize the [`EnvBuilder`], build the [`Environment`] and initialize the gRPC library.
-    pub fn build(mut self) -> Environment {
+    pub fn build(self) -> Environment {
         unsafe {
             grpc_sys::grpc_init();
         }
