@@ -716,6 +716,7 @@ impl SinkBase {
             self.start_send_buffer_message(self.last_buf_hint, call)?;
             ready!(self.poll_ready(cx)?);
         }
+        self.last_buf_hint = true;
         Poll::Ready(Ok(()))
     }
 
