@@ -616,12 +616,12 @@ impl WriteFlags {
     }
 
     /// Get whether buffer hint is enabled.
-    pub fn get_buffer_hint(&self) -> bool {
+    pub fn get_buffer_hint(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_BUFFER_HINT) != 0
     }
 
     /// Get whether compression is disabled.
-    pub fn get_force_no_compress(&self) -> bool {
+    pub fn get_force_no_compress(self) -> bool {
         (self.flags & grpc_sys::GRPC_WRITE_NO_COMPRESS) != 0
     }
 }
