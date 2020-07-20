@@ -25,6 +25,9 @@ prost = { version = "0.6", optional = true }
 bytes = { version = "0.5", optional = true }
 log = "0.4"
 
+[patch.crates-io]
+grpcio-compiler = { path = "compiler", version = "0.5.0", default-features = false }
+
 [workspace]
 members = ["proto", "benchmark", "compiler", "interop", "tests-and-examples"]
 
