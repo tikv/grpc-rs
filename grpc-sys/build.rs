@@ -381,9 +381,9 @@ fn main() {
     };
 
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-        // At lease win7
-        cc.define("_WIN32_WINNT", Some("0x0700"));
-        bind_config = bind_config.clang_arg("-D _WIN32_WINNT=0x0700");
+        // At lease vista
+        cc.define("_WIN32_WINNT", Some("0x600"));
+        bind_config = bind_config.clang_arg("-D _WIN32_WINNT=0x600");
     }
 
     if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
