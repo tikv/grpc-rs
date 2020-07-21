@@ -2,7 +2,8 @@
 
 use std::sync::Arc;
 
-use futures::executor::block_on;
+use futures::executor::ThreadPoolBuilder;
+use futures::join;
 use futures::prelude::*;
 use futures::sink::SinkExt;
 use grpcio::{
@@ -10,6 +11,8 @@ use grpcio::{
     ServerBuilder, ServerStreamingSink, UnarySink, WriteFlags,
 };
 use grpcio_proto::example::route_guide::*;
+
+const MESSAGE_NUM: i32 = 3000;
 
 #[derive(Clone)]
 struct RouteGuideService {}
@@ -38,11 +41,16 @@ impl RouteGuide for RouteGuideService {
                 );
                 current_num += 1;
                 summary.point_count += 1;
+                // Send a reply message after receiving a limited number of messages, which
+                // can be used to test the correctness under different buffer strategies.
+                if current_num >= MESSAGE_NUM {
+                    break;
+                }
             }
             resp.success(summary).await?;
             Ok(())
         }
-        .map_err(|_: grpcio::Error| panic!("server got error"))
+        .map_err(|e: grpcio::Error| panic!("server got error: {:?}", e))
         .map(|_| ());
         ctx.spawn(f)
     }
@@ -71,11 +79,13 @@ fn test_client_send_all() {
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = RouteGuideClient::new(ch);
 
+    let pool = ThreadPoolBuilder::new().pool_size(2).create().unwrap();
+
     let exec_test_f = async move {
-        // test for send all
+        // Test for send all disable batch
         let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
-        for i in 0..3000 {
+        for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
             p.set_longitude(i);
             send_data.push(p);
@@ -84,13 +94,13 @@ fn test_client_send_all() {
         sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
             .await
             .unwrap();
-        sink.close().await.unwrap();
         let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), 3000);
-        // test for send all enable batch
+        assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+
+        // Test for send all enable batch
         let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
-        for i in 0..3000 {
+        for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
             p.set_longitude(i);
             send_data.push(p);
@@ -100,13 +110,13 @@ fn test_client_send_all() {
         sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
             .await
             .unwrap();
-        sink.close().await.unwrap();
         let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), 3000);
-        // test for send all and buffer hint is true
+        assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+
+        // Test for send all and all buffer hints are true
         let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
-        for i in 0..3000 {
+        for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
             p.set_longitude(i);
             send_data.push(p);
@@ -118,9 +128,21 @@ fn test_client_send_all() {
         )
         .await
         .unwrap();
-        sink.close().await.unwrap();
-        let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), 3000);
+        // The following code is to test that when all msgs are set to be buffered, the msgs
+        // should be stored in the buffer until `sink.close()` is called.
+        let (tx, rx) = std::sync::mpsc::channel();
+        let close_sink_task = async move {
+            rx.recv_timeout(std::time::Duration::from_secs(1))
+                .unwrap_err();
+            sink.close().await.unwrap();
+            rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+        };
+        let recv_msg_task = async move {
+            let summary = receiver.await.unwrap();
+            tx.send(()).unwrap();
+            assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+        };
+        join!(close_sink_task, recv_msg_task);
     };
-    block_on(exec_test_f);
+    pool.spawn_ok(exec_test_f);
 }
