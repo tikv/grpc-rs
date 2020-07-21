@@ -2,17 +2,19 @@
 
 use std::sync::Arc;
 
-use futures::executor::ThreadPoolBuilder;
+use futures::channel::mpsc;
+use futures::executor::block_on;
 use futures::join;
 use futures::prelude::*;
 use futures::sink::SinkExt;
+use futures_timer::Delay;
 use grpcio::{
     ChannelBuilder, ClientStreamingSink, DuplexSink, EnvBuilder, RequestStream, RpcContext,
     ServerBuilder, ServerStreamingSink, UnarySink, WriteFlags,
 };
 use grpcio_proto::example::route_guide::*;
 
-const MESSAGE_NUM: i32 = 3000;
+const MESSAGE_NUM: i32 = 2000;
 
 #[derive(Clone)]
 struct RouteGuideService {}
@@ -79,8 +81,6 @@ fn test_client_send_all() {
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = RouteGuideClient::new(ch);
 
-    let pool = ThreadPoolBuilder::new().pool_size(2).create().unwrap();
-
     let exec_test_f = async move {
         // Test for send all disable batch
         let (mut sink, receiver) = client.record_route().unwrap();
@@ -130,19 +130,22 @@ fn test_client_send_all() {
         .unwrap();
         // The following code is to test that when all msgs are set to be buffered, the msgs
         // should be stored in the buffer until `sink.close()` is called.
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (mut tx, mut rx) = mpsc::channel(1);
         let close_sink_task = async move {
-            rx.recv_timeout(std::time::Duration::from_secs(1))
-                .unwrap_err();
+            rx.try_next().unwrap().unwrap();
+            Delay::new(std::time::Duration::from_secs(1)).await;
+            rx.try_next().unwrap_err();
             sink.close().await.unwrap();
-            rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+            Delay::new(std::time::Duration::from_secs(1)).await;
+            rx.try_next().unwrap();
         };
         let recv_msg_task = async move {
+            tx.send(()).await.unwrap();
             let summary = receiver.await.unwrap();
-            tx.send(()).unwrap();
+            tx.send(()).await.unwrap();
             assert_eq!(summary.get_point_count(), MESSAGE_NUM);
         };
-        join!(close_sink_task, recv_msg_task);
+        join!(recv_msg_task, close_sink_task);
     };
-    pool.spawn_ok(exec_test_f);
+    block_on(exec_test_f);
 }
