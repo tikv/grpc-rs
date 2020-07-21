@@ -83,69 +83,76 @@ fn test_client_send_all() {
 
     let exec_test_f = async move {
         // Test for send all disable batch
-        let (mut sink, receiver) = client.record_route().unwrap();
-        let mut send_data = vec![];
-        for i in 0..MESSAGE_NUM {
-            let mut p = Point::default();
-            p.set_longitude(i);
-            send_data.push(p);
+        {
+            let (mut sink, receiver) = client.record_route().unwrap();
+            let mut send_data = vec![];
+            for i in 0..MESSAGE_NUM {
+                let mut p = Point::default();
+                p.set_longitude(i);
+                send_data.push(p);
+            }
+            let send_stream = futures::stream::iter(send_data);
+            sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
+                .await
+                .unwrap();
+            let summary = receiver.await.unwrap();
+            assert_eq!(summary.get_point_count(), MESSAGE_NUM);
         }
-        let send_stream = futures::stream::iter(send_data);
-        sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
-            .await
-            .unwrap();
-        let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
         // Test for send all enable batch
-        let (mut sink, receiver) = client.record_route().unwrap();
-        let mut send_data = vec![];
-        for i in 0..MESSAGE_NUM {
-            let mut p = Point::default();
-            p.set_longitude(i);
-            send_data.push(p);
+        {
+            let (mut sink, receiver) = client.record_route().unwrap();
+            let mut send_data = vec![];
+            for i in 0..MESSAGE_NUM {
+                let mut p = Point::default();
+                p.set_longitude(i);
+                send_data.push(p);
+            }
+            let send_stream = futures::stream::iter(send_data);
+            sink.enhance_batch(true);
+            sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
+                .await
+                .unwrap();
+            let summary = receiver.await.unwrap();
+            assert_eq!(summary.get_point_count(), MESSAGE_NUM);
         }
-        let send_stream = futures::stream::iter(send_data);
-        sink.enhance_batch(true);
-        sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
-            .await
-            .unwrap();
-        let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
         // Test for send all and all buffer hints are true
-        let (mut sink, receiver) = client.record_route().unwrap();
-        let mut send_data = vec![];
-        for i in 0..MESSAGE_NUM {
-            let mut p = Point::default();
-            p.set_longitude(i);
-            send_data.push(p);
+        {
+            let (mut sink, receiver) = client.record_route().unwrap();
+            let mut send_data = vec![];
+            for i in 0..MESSAGE_NUM {
+                let mut p = Point::default();
+                p.set_longitude(i);
+                send_data.push(p);
+            }
+            let send_stream = futures::stream::iter(send_data);
+            sink.enhance_batch(false);
+            sink.send_all(
+                &mut send_stream
+                    .map(move |item| Ok((item, WriteFlags::default().buffer_hint(true)))),
+            )
+            .await
+            .unwrap();
+            // The following code is to test that when all msgs are set to be buffered, the msgs
+            // should be stored in the buffer until `sink.close()` is called.
+            let (mut tx, mut rx) = mpsc::channel(1);
+            let close_sink_task = async move {
+                rx.try_next().unwrap().unwrap();
+                Delay::new(std::time::Duration::from_secs(1)).await;
+                rx.try_next().unwrap_err();
+                sink.close().await.unwrap();
+                Delay::new(std::time::Duration::from_secs(1)).await;
+                rx.try_next().unwrap();
+            };
+            let recv_msg_task = async move {
+                tx.send(()).await.unwrap();
+                let summary = receiver.await.unwrap();
+                tx.send(()).await.unwrap();
+                assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+            };
+            join!(recv_msg_task, close_sink_task);
         }
-        let send_stream = futures::stream::iter(send_data);
-        sink.enhance_batch(false);
-        sink.send_all(
-            &mut send_stream.map(move |item| Ok((item, WriteFlags::default().buffer_hint(true)))),
-        )
-        .await
-        .unwrap();
-        // The following code is to test that when all msgs are set to be buffered, the msgs
-        // should be stored in the buffer until `sink.close()` is called.
-        let (mut tx, mut rx) = mpsc::channel(1);
-        let close_sink_task = async move {
-            rx.try_next().unwrap().unwrap();
-            Delay::new(std::time::Duration::from_secs(1)).await;
-            rx.try_next().unwrap_err();
-            sink.close().await.unwrap();
-            Delay::new(std::time::Duration::from_secs(1)).await;
-            rx.try_next().unwrap();
-        };
-        let recv_msg_task = async move {
-            tx.send(()).await.unwrap();
-            let summary = receiver.await.unwrap();
-            tx.send(()).await.unwrap();
-            assert_eq!(summary.get_point_count(), MESSAGE_NUM);
-        };
-        join!(recv_msg_task, close_sink_task);
     };
     block_on(exec_test_f);
 }
