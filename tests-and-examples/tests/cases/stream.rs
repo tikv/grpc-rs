@@ -49,6 +49,9 @@ impl RouteGuide for RouteGuideService {
                     break;
                 }
             }
+            // Sleep a while to avoid the possibility that the client will receive
+            // remotestopped error.
+            std::thread::sleep(std::time::Duration::from_millis(100));
             resp.success(summary).await?;
             Ok(())
         }
