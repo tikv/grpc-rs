@@ -1,3 +1,7 @@
+# 0.5.4 - 2020-07-23
+
+- Add user-defined callback to `EnvBuilder` (#474)
+
 # 0.5.3 - 2020-05-07
 
 - Switch to github action and update badge
