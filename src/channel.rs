@@ -391,7 +391,7 @@ impl ChannelBuilder {
     }
 
     /// Build `ChannelArgs` from the current configuration.
-    #[allow(clippy::identity_conversion)]
+    #[allow(clippy::useless_conversion)]
     pub fn build_args(&self) -> ChannelArgs {
         let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
         for (i, (k, v)) in self.options.iter().enumerate() {

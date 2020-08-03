@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use futures::channel::oneshot::{self, Receiver, Sender};
 use futures::prelude::*;
+use futures::stream;
 use grpcio::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
@@ -254,6 +255,43 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         };
         spawn!(client, keep_running, "streaming ping pong", f);
     }
+
+    fn execute_stream_from_client(self) {
+        let client = self.client.clone();
+        let keep_running = self.ctx.keep_running.clone();
+
+        let f = async move {
+            let (mut sender, receiver) = self.client.streaming_from_client().unwrap();
+
+            let send_stream = Box::pin(stream::unfold(
+                (self, true, Instant::now()),
+                |(mut c, init, last_time)| async move {
+                    if !init {
+                        c.ctx.observe_latency(last_time.elapsed());
+                        let mut time = c.ctx.backoff_async();
+                        if let Some(t) = &mut time {
+                            t.await;
+                        }
+                    }
+                    if c.ctx.keep_running() {
+                        Some((c.req.clone(), (c, false, Instant::now())))
+                    } else {
+                        None
+                    }
+                },
+            ));
+
+            sender.enhance_batch(true);
+            sender
+                .send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
+                .await?;
+
+            sender.close().await?;
+            receiver.await?;
+            Ok(())
+        };
+        spawn!(client, keep_running, "streaming from client", f);
+    }
 }
 
 fn execute<B: Backoff + Send + 'static>(
@@ -272,7 +310,7 @@ fn execute<B: Backoff + Send + 'static>(
         ClientType::ASYNC_CLIENT => match cfg.get_rpc_type() {
             RpcType::UNARY => {
                 if cfg.get_payload_config().has_bytebuf_params() {
-                    panic!("only streaming is supported for generic service.");
+                    panic!("only ping pong streaming is supported for generic service.");
                 }
                 RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
             }
@@ -282,6 +320,12 @@ fn execute<B: Backoff + Send + 'static>(
                 } else {
                     RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
                 }
+            }
+            RpcType::STREAMING_FROM_CLIENT => {
+                if cfg.get_payload_config().has_bytebuf_params() {
+                    panic!("only ping pong streaming is supported for generic service.");
+                }
+                RequestExecutor::new(ctx, ch, cfg).execute_stream_from_client()
             }
             _ => unimplemented!(),
         },

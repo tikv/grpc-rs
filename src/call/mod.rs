@@ -628,17 +628,30 @@ impl WriteFlags {
 
 /// A helper struct for constructing Sink object for batch requests.
 struct SinkBase {
+    // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
-    buf: Vec<u8>,
     send_metadata: bool,
+    // Flag to indicate if enhance batch strategy. This behavior will modify the `buffer_hint` to batch
+    // messages as much as possible.
+    enhance_buffer_strategy: bool,
+    // Buffer used to store the data to be sent, send out the last data in this round of `start_send`.
+    buffer: Vec<u8>,
+    // Write flags used to control the data to be sent in `buffer`.
+    buf_flags: Option<WriteFlags>,
+    // Used to records whether a message in which `buffer_hint` is false exists.
+    // Note: only used in enhanced buffer strategy.
+    last_buf_hint: bool,
 }
 
 impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
-            buf: Vec::new(),
+            buffer: Vec::new(),
+            buf_flags: None,
+            last_buf_hint: true,
             send_metadata,
+            enhance_buffer_strategy: false,
         }
     }
 
@@ -646,29 +659,35 @@ impl SinkBase {
         &mut self,
         call: &mut C,
         t: &T,
-        mut flags: WriteFlags,
+        flags: WriteFlags,
         ser: SerializeFn<T>,
     ) -> Result<()> {
-        // `start_send` is supposed to be called after `poll_ready` returns ready.
-        assert!(self.batch_f.is_none());
+        // temporary fix: buffer hint with send meta will not send out any metadata.
+        // note: only the first message can enter this code block.
+        if self.send_metadata {
+            ser(t, &mut self.buffer);
+            self.buf_flags = Some(flags);
+            self.start_send_buffer_message(false, call)?;
+            self.send_metadata = false;
+            return Ok(());
+        }
 
-        self.buf.clear();
-        ser(t, &mut self.buf);
-        if flags.get_buffer_hint() && self.send_metadata {
-            // temporary fix: buffer hint with send meta will not send out any metadata.
-            flags = flags.buffer_hint(false);
+        // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
+        // that this is not the last message.
+        if self.buf_flags.is_some() {
+            self.start_send_buffer_message(true, call)?;
         }
-        let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&self.buf, flags.flags, self.send_metadata)
-        })?;
-        // NOTE: Content of `self.buf` is copied into grpc internal.
-        if self.buf.capacity() > BUF_SHRINK_SIZE {
-            self.buf.truncate(BUF_SHRINK_SIZE);
-            self.buf.shrink_to_fit();
+
+        ser(t, &mut self.buffer);
+        let hint = flags.get_buffer_hint();
+        self.last_buf_hint &= hint;
+        self.buf_flags = Some(flags);
+
+        // If sink disable batch, start sending the message in buffer immediately.
+        if !self.enhance_buffer_strategy {
+            self.start_send_buffer_message(hint, call)?;
         }
-        self.batch_f = Some(write_f);
-        self.send_metadata = false;
+
         Ok(())
     }
 
@@ -682,5 +701,48 @@ impl SinkBase {
         }
         self.batch_f.take();
         Poll::Ready(Ok(()))
+    }
+
+    #[inline]
+    fn poll_flush<C: ShareCallHolder>(
+        &mut self,
+        cx: &mut Context,
+        call: &mut C,
+    ) -> Poll<Result<()>> {
+        if self.batch_f.is_some() {
+            ready!(self.poll_ready(cx)?);
+        }
+        if self.buf_flags.is_some() {
+            self.start_send_buffer_message(self.last_buf_hint, call)?;
+            ready!(self.poll_ready(cx)?);
+        }
+        self.last_buf_hint = true;
+        Poll::Ready(Ok(()))
+    }
+
+    #[inline]
+    fn start_send_buffer_message<C: ShareCallHolder>(
+        &mut self,
+        buffer_hint: bool,
+        call: &mut C,
+    ) -> Result<()> {
+        // `start_send` is supposed to be called after `poll_ready` returns ready.
+        assert!(self.batch_f.is_none());
+
+        let mut flags = self.buf_flags.clone().unwrap();
+        flags = flags.buffer_hint(buffer_hint);
+        let write_f = call.call(|c| {
+            c.call
+                .start_send_message(&self.buffer, flags.flags, self.send_metadata)
+        })?;
+        self.batch_f = Some(write_f);
+        self.buf_flags.take();
+        // NOTE: Content of `self.buf` is copied into grpc internal.
+        if self.buffer.capacity() > BUF_SHRINK_SIZE {
+            self.buffer.truncate(BUF_SHRINK_SIZE);
+            self.buffer.shrink_to_fit();
+        }
+        self.buffer.clear();
+        Ok(())
     }
 }

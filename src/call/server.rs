@@ -424,6 +424,19 @@ macro_rules! impl_stream_sink {
                 }
             }
 
+            /// By default it always sends messages with their configured buffer hint. But when the
+            /// `enhance_batch` is enabled, messages will be batched together as many as possible.
+            /// The rules are listed as below:
+            /// - All messages except the last one will be sent with `buffer_hint` set to true.
+            /// - The last message will also be sent with `buffer_hint` set to true unless any message is
+            ///    offered with buffer hint set to false.
+            ///
+            /// No matter `enhance_batch` is true or false, it's recommended to follow the contract of
+            /// Sink and call `poll_flush` to ensure messages are handled by gRPC C Core.
+            pub fn enhance_batch(&mut self, flag: bool) {
+                self.base.enhance_buffer_strategy = flag;
+            }
+
             pub fn set_status(&mut self, status: RpcStatus) {
                 assert!(self.flush_f.is_none());
                 self.status = status;
@@ -487,7 +500,8 @@ macro_rules! impl_stream_sink {
                 if let Poll::Ready(_) = self.call.as_mut().unwrap().call(|c| c.poll_finish(cx))? {
                     return Poll::Ready(Err(Error::RemoteStopped));
                 }
-                Pin::new(&mut self.base).poll_ready(cx)
+                let t = &mut *self;
+                Pin::new(&mut t.base).poll_flush(cx, t.call.as_mut().unwrap())
             }
 
             fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
