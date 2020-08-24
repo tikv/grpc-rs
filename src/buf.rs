@@ -7,6 +7,9 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
 use std::mem::{self, ManuallyDrop, MaybeUninit};
 
+const INLINED_SIZE: usize = mem::size_of::<libc::size_t>() + mem::size_of::<*mut u8>() - 1
+    + mem::size_of::<*mut libc::c_void>();
+
 /// A convenient rust wrapper for the type `grpc_slice`.
 ///
 /// It's expected that the slice should be initialized.
@@ -57,6 +60,24 @@ impl GrpcSlice {
     #[inline]
     pub fn from_static_str(s: &'static str) -> GrpcSlice {
         GrpcSlice::from_static_slice(s.as_bytes())
+    }
+
+    /// Reallocates current slice with given capacity.
+    ///
+    /// The length of returned slice is the exact same as given cap. Caller is expected
+    /// to initialize all available bytes to guarantee safety of this slice.
+    pub unsafe fn realloc(&mut self, cap: usize) -> &mut [MaybeUninit<u8>] {
+        if cap <= INLINED_SIZE {
+            self.0.data.inlined.length = cap as u8;
+            unsafe { mem::transmute(&mut self.0.data.inlined.bytes[..cap]) }
+        } else {
+            unsafe {
+                self.0 = grpcio_sys::grpc_slice_malloc_large(cap);
+                let start = self.0.data.refcounted.bytes;
+                let len = self.0.data.refcounted.length;
+                std::slice::from_raw_parts_mut(start as *mut MaybeUninit<u8>, len)
+            }
+        }
     }
 }
 

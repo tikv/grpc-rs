@@ -1,10 +1,11 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use crate::buf::GrpcSlice;
 use crate::call::MessageReader;
 use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
-pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
+pub type SerializeFn<T> = fn(&T, &mut GrpcSlice);
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -26,14 +27,21 @@ pub struct Marshaller<T> {
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
-    use protobuf::{CodedInputStream, Message};
+    use protobuf::{CodedInputStream, CodedOutputStream, Message};
+    use std::mem;
 
     use super::MessageReader;
+    use crate::buf::GrpcSlice;
     use crate::error::Result;
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
-        t.write_to_vec(buf).unwrap()
+    pub fn ser<T: Message>(t: &T, buf: &mut GrpcSlice) {
+        let cap = t.compute_size();
+        unsafe {
+            let bytes = buf.realloc(cap as usize);
+            let mut s = CodedOutputStream::bytes(mem::transmute(bytes));
+            t.write_to_with_cached_sizes(&mut s).unwrap();
+        }
     }
 
     #[inline]

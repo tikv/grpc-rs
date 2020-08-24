@@ -1,7 +1,8 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use crate::grpc_sys::{self, grpc_metadata_array};
+use crate::grpc_sys::{self, grpc_metadata, grpc_metadata_array};
 use std::borrow::Cow;
+use std::mem::ManuallyDrop;
 use std::{mem, slice, str};
 
 use crate::error::{Error, Result};
@@ -183,6 +184,19 @@ impl Metadata {
             data: self,
             index: 0,
         }
+    }
+
+    pub fn into_raw_parts(self) -> (*mut grpc_metadata, usize, usize) {
+        let s = ManuallyDrop::new(self);
+        (s.0.metadata, s.0.count, s.0.capacity)
+    }
+
+    pub unsafe fn from_raw_parts(p: *mut grpc_metadata, len: usize, cap: usize) -> Metadata {
+        Metadata(grpc_metadata_array {
+            count: len,
+            capacity: cap,
+            metadata: p,
+        })
     }
 }
 
