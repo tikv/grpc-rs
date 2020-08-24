@@ -55,15 +55,22 @@ pub mod pb_codec {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
-    use bytes::buf::BufMut;
     use prost::Message;
+    use std::mem;
 
     use super::MessageReader;
+    use crate::buf::GrpcSlice;
     use crate::error::Result;
 
     #[inline]
-    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
-        msg.encode(buf).expect("Writing message to buffer failed");
+    pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) {
+        let size = msg.encoded_len();
+        unsafe {
+            let mut b: &mut [u8] = mem::transmute(buf.realloc(size));
+            msg.encode(&mut b)
+                .expect("Writing message to buffer failed");
+            debug_assert!(b.is_empty());
+        }
     }
 
     #[inline]

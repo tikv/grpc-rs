@@ -68,16 +68,21 @@ impl GrpcSlice {
     /// to initialize all available bytes to guarantee safety of this slice.
     pub unsafe fn realloc(&mut self, cap: usize) -> &mut [MaybeUninit<u8>] {
         if cap <= INLINED_SIZE {
-            self.0.data.inlined.length = cap as u8;
-            unsafe { mem::transmute(&mut self.0.data.inlined.bytes[..cap]) }
-        } else {
-            unsafe {
-                self.0 = grpcio_sys::grpc_slice_malloc_large(cap);
-                let start = self.0.data.refcounted.bytes;
-                let len = self.0.data.refcounted.length;
-                std::slice::from_raw_parts_mut(start as *mut MaybeUninit<u8>, len)
+            if !self.0.refcount.is_null() {
+                *self = GrpcSlice::default();
             }
+            self.0.data.inlined.length = cap as u8;
+            mem::transmute(&mut self.0.data.inlined.bytes[..cap])
+        } else {
+            *self = GrpcSlice(grpcio_sys::grpc_slice_malloc_large(cap));
+            let start = self.0.data.refcounted.bytes;
+            let len = self.0.data.refcounted.length;
+            std::slice::from_raw_parts_mut(start as *mut MaybeUninit<u8>, len)
         }
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut grpc_slice {
+        &mut self.0
     }
 }
 
@@ -111,6 +116,9 @@ impl Drop for GrpcSlice {
         }
     }
 }
+
+unsafe impl Send for GrpcSlice {}
+unsafe impl Sync for GrpcSlice {}
 
 impl PartialEq<[u8]> for GrpcSlice {
     fn eq(&self, r: &[u8]) -> bool {

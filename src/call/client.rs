@@ -115,7 +115,7 @@ impl Call {
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
-                &mut payload,
+                payload.as_mut_ptr(),
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()
@@ -168,7 +168,7 @@ impl Call {
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
-                &mut payload,
+                payload.as_mut_ptr(),
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()

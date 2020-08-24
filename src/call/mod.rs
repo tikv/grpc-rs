@@ -1,6 +1,5 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-pub mod batch;
 pub mod client;
 pub mod server;
 
@@ -22,9 +21,6 @@ use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag};
-
-// By default buffers in `SinkBase` will be shrink to 4K size.
-const BUF_SHRINK_SIZE: usize = 4 * 1024;
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -304,7 +300,14 @@ impl Call {
         let _cq_ref = self.cq.borrow()?;
         let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            grpc_sys::grpcwrap_call_send_message(self.call, ctx, msg, write_flags, i, tag)
+            grpc_sys::grpcwrap_call_send_message(
+                self.call,
+                ctx,
+                msg.as_mut_ptr(),
+                write_flags,
+                i,
+                tag,
+            )
         });
         Ok(f)
     }
@@ -355,7 +358,7 @@ impl Call {
                 .map_or_else(ptr::null, |s| s.as_ptr() as _);
             let details_len = status.details.as_ref().map_or(0, String::len);
             let payload_p = match payload {
-                Some(p) => p,
+                Some(p) => p.as_mut_ptr(),
                 None => ptr::null_mut(),
             };
             grpc_sys::grpcwrap_call_send_status_from_server(
@@ -400,8 +403,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 1,
-                ptr::null(),
-                0,
+                ptr::null_mut(),
                 0,
                 tag_ptr as *mut c_void,
             )
@@ -729,6 +731,7 @@ impl SinkBase {
                 .start_send_message(&mut self.buffer, flags.flags, self.send_metadata)
         })?;
         self.batch_f = Some(write_f);
+        self.buffer = GrpcSlice::default();
         self.buf_flags.take();
         Ok(())
     }

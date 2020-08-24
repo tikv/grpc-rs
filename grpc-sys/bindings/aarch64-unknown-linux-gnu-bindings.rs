@@ -6844,8 +6844,7 @@ extern "C" {
     pub fn grpcwrap_call_start_unary(
         call: *mut grpc_call,
         ctx: *mut grpcwrap_batch_context,
-        send_buffer: *const ::std::os::raw::c_char,
-        send_buffer_len: usize,
+        send_buffer: *mut grpc_slice,
         write_flags: u32,
         initial_metadata: *mut grpc_metadata_array,
         initial_metadata_flags: u32,
@@ -6865,8 +6864,7 @@ extern "C" {
     pub fn grpcwrap_call_start_server_streaming(
         call: *mut grpc_call,
         ctx: *mut grpcwrap_batch_context,
-        send_buffer: *const ::std::os::raw::c_char,
-        send_buffer_len: usize,
+        send_buffer: *mut grpc_slice,
         write_flags: u32,
         initial_metadata: *mut grpc_metadata_array,
         initial_metadata_flags: u32,
@@ -6893,8 +6891,7 @@ extern "C" {
     pub fn grpcwrap_call_send_message(
         call: *mut grpc_call,
         ctx: *mut grpcwrap_batch_context,
-        send_buffer: *const ::std::os::raw::c_char,
-        send_buffer_len: usize,
+        send_buffer: *mut grpc_slice,
         write_flags: u32,
         send_empty_initial_metadata: i32,
         tag: *mut ::std::os::raw::c_void,
@@ -6915,8 +6912,7 @@ extern "C" {
         status_details_len: usize,
         trailing_metadata: *mut grpc_metadata_array,
         send_empty_initial_metadata: i32,
-        optional_send_buffer: *const ::std::os::raw::c_char,
-        optional_send_buffer_len: usize,
+        optional_send_buffer: *mut grpc_slice,
         write_flags: u32,
         tag: *mut ::std::os::raw::c_void,
     ) -> grpc_call_error;
