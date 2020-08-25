@@ -28,7 +28,6 @@ pub struct Marshaller<T> {
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
     use protobuf::{CodedInputStream, CodedOutputStream, Message};
-    use std::mem;
 
     use super::MessageReader;
     use crate::buf::GrpcSlice;
@@ -39,7 +38,8 @@ pub mod pb_codec {
         let cap = t.compute_size();
         unsafe {
             let bytes = buf.realloc(cap as usize);
-            let mut s = CodedOutputStream::bytes(mem::transmute(bytes));
+            let raw_bytes = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
+            let mut s = CodedOutputStream::bytes(raw_bytes);
             t.write_to_with_cached_sizes(&mut s).unwrap();
         }
     }
@@ -56,7 +56,6 @@ pub mod pb_codec {
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
     use prost::Message;
-    use std::mem;
 
     use super::MessageReader;
     use crate::buf::GrpcSlice;
@@ -66,7 +65,8 @@ pub mod pr_codec {
     pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) {
         let size = msg.encoded_len();
         unsafe {
-            let mut b: &mut [u8] = mem::transmute(buf.realloc(size));
+            let bytes = buf.realloc(size);
+            let mut b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
             msg.encode(&mut b)
                 .expect("Writing message to buffer failed");
             debug_assert!(b.is_empty());

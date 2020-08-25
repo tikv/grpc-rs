@@ -3,7 +3,6 @@
 #![allow(renamed_and_removed_lints)]
 
 use std::io::Read;
-use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -124,7 +123,8 @@ impl Generic {
 #[allow(clippy::ptr_arg)]
 pub fn bin_ser(t: &Vec<u8>, buf: &mut GrpcSlice) {
     unsafe {
-        let b: &mut [u8] = mem::transmute(buf.realloc(t.len()));
+        let bytes = buf.realloc(t.len());
+        let b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
         b.copy_from_slice(t);
     }
 }

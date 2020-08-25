@@ -64,15 +64,22 @@ impl GrpcSlice {
 
     /// Reallocates current slice with given capacity.
     ///
-    /// The length of returned slice is the exact same as given cap. Caller is expected
-    /// to initialize all available bytes to guarantee safety of this slice.
+    /// The length of returned slice is the exact same as given cap.
+    ///
+    /// ## Safety
+    ///
+    /// Caller is expected to initialize all available bytes to guarantee safety of this slice.
     pub unsafe fn realloc(&mut self, cap: usize) -> &mut [MaybeUninit<u8>] {
         if cap <= INLINED_SIZE {
+            // Only inlined slice can be reused safely.
             if !self.0.refcount.is_null() {
                 *self = GrpcSlice::default();
             }
             self.0.data.inlined.length = cap as u8;
-            mem::transmute(&mut self.0.data.inlined.bytes[..cap])
+            std::slice::from_raw_parts_mut(
+                self.0.data.inlined.bytes.as_mut_ptr() as *mut MaybeUninit<u8>,
+                cap,
+            )
         } else {
             *self = GrpcSlice(grpcio_sys::grpc_slice_malloc_large(cap));
             let start = self.0.data.refcounted.bytes;

@@ -186,11 +186,27 @@ impl Metadata {
         }
     }
 
+    /// Decomposes a Metadata array into its raw components.
+    ///
+    /// Returns the raw pointer to the underlying data, the length of the vector (in elements),
+    /// and the allocated capacity of the data (in elements). These are the same arguments in
+    /// the same order as the arguments to from_raw_parts.
+    ///
+    /// After calling this function, the caller is responsible for the memory previously managed
+    /// by the Metadata. The only way to do this is to convert the raw pointer, length, and
+    /// capacity back into a Metadata with the from_raw_parts function, allowing the destructor
+    /// to perform the cleanup.
     pub fn into_raw_parts(self) -> (*mut grpc_metadata, usize, usize) {
         let s = ManuallyDrop::new(self);
         (s.0.metadata, s.0.count, s.0.capacity)
     }
 
+    /// Creates a Metadata directly from the raw components of another vector.
+    ///
+    /// ## Safety
+    ///
+    /// The operation is safe only if the three arguments are returned from `into_raw_parts`
+    /// and only convert once.
     pub unsafe fn from_raw_parts(p: *mut grpc_metadata, len: usize, cap: usize) -> Metadata {
         Metadata(grpc_metadata_array {
             count: len,
