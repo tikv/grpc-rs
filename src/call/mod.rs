@@ -731,7 +731,9 @@ impl SinkBase {
                 .start_send_message(&mut self.buffer, flags.flags, self.send_metadata)
         })?;
         self.batch_f = Some(write_f);
-        self.buffer = GrpcSlice::default();
+        if !self.buffer.is_inline() {
+            self.buffer = GrpcSlice::default();
+        }
         self.buf_flags.take();
         Ok(())
     }
