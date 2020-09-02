@@ -7,6 +7,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
 use std::mem::{self, ManuallyDrop, MaybeUninit};
 
+/// Copied from grpc-sys/grpc/include/grpc/impl/codegen/slice.h. Unfortunately bindgen doesn't
+/// generate it automatically.
 const INLINED_SIZE: usize = mem::size_of::<libc::size_t>() + mem::size_of::<*mut u8>() - 1
     + mem::size_of::<*mut libc::c_void>();
 
