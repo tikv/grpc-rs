@@ -14,6 +14,7 @@ use parking_lot::Mutex;
 use std::future::Future;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
+use crate::buf::GrpcSlice;
 use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
@@ -108,14 +109,13 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientUnaryReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = GrpcSlice::default();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::CheckRead, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_unary(
                 call.call,
                 ctx,
-                payload.as_ptr() as *const _,
-                payload.len(),
+                payload.as_mut_ptr(),
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()
@@ -162,14 +162,13 @@ impl Call {
         mut opt: CallOption,
     ) -> Result<ClientSStreamReceiver<Resp>> {
         let call = channel.create_call(method, &opt)?;
-        let mut payload = vec![];
+        let mut payload = GrpcSlice::default();
         (method.req_ser())(req, &mut payload);
         let cq_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_start_server_streaming(
                 call.call,
                 ctx,
-                payload.as_ptr() as _,
-                payload.len(),
+                payload.as_mut_ptr(),
                 opt.write_flags.flags,
                 opt.headers
                     .as_mut()

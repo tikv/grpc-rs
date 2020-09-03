@@ -16,6 +16,7 @@ use grpc::{
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::util;
+use grpcio::GrpcSlice;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
@@ -120,8 +121,12 @@ impl Generic {
 
 #[inline]
 #[allow(clippy::ptr_arg)]
-pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
-    buf.extend_from_slice(t)
+pub fn bin_ser(t: &Vec<u8>, buf: &mut GrpcSlice) {
+    unsafe {
+        let bytes = buf.realloc(t.len());
+        let b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
+        b.copy_from_slice(t);
+    }
 }
 
 #[inline]

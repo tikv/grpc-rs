@@ -7,6 +7,11 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
 use std::mem::{self, ManuallyDrop, MaybeUninit};
 
+/// Copied from grpc-sys/grpc/include/grpc/impl/codegen/slice.h. Unfortunately bindgen doesn't
+/// generate it automatically.
+const INLINED_SIZE: usize = mem::size_of::<libc::size_t>() + mem::size_of::<*mut u8>() - 1
+    + mem::size_of::<*mut libc::c_void>();
+
 /// A convenient rust wrapper for the type `grpc_slice`.
 ///
 /// It's expected that the slice should be initialized.
@@ -58,6 +63,41 @@ impl GrpcSlice {
     pub fn from_static_str(s: &'static str) -> GrpcSlice {
         GrpcSlice::from_static_slice(s.as_bytes())
     }
+
+    /// Checks whether the slice stores bytes inline.
+    pub fn is_inline(&self) -> bool {
+        self.0.refcount.is_null()
+    }
+
+    /// Reallocates current slice with given capacity.
+    ///
+    /// The length of returned slice is the exact same as given cap.
+    ///
+    /// ## Safety
+    ///
+    /// Caller is expected to initialize all available bytes to guarantee safety of this slice.
+    pub unsafe fn realloc(&mut self, cap: usize) -> &mut [MaybeUninit<u8>] {
+        if cap <= INLINED_SIZE {
+            // Only inlined slice can be reused safely.
+            if !self.0.refcount.is_null() {
+                *self = GrpcSlice::default();
+            }
+            self.0.data.inlined.length = cap as u8;
+            std::slice::from_raw_parts_mut(
+                self.0.data.inlined.bytes.as_mut_ptr() as *mut MaybeUninit<u8>,
+                cap,
+            )
+        } else {
+            *self = GrpcSlice(grpcio_sys::grpc_slice_malloc_large(cap));
+            let start = self.0.data.refcounted.bytes;
+            let len = self.0.data.refcounted.length;
+            std::slice::from_raw_parts_mut(start as *mut MaybeUninit<u8>, len)
+        }
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut grpc_slice {
+        &mut self.0
+    }
 }
 
 impl Clone for GrpcSlice {
@@ -90,6 +130,9 @@ impl Drop for GrpcSlice {
         }
     }
 }
+
+unsafe impl Send for GrpcSlice {}
+unsafe impl Sync for GrpcSlice {}
 
 impl PartialEq<[u8]> for GrpcSlice {
     fn eq(&self, r: &[u8]) -> bool {

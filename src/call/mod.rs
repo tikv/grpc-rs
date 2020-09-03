@@ -16,14 +16,11 @@ use futures::task::{Context, Poll};
 use libc::c_void;
 use parking_lot::Mutex;
 
-use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader};
+use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader, GrpcSlice};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag};
-
-// By default buffers in `SinkBase` will be shrink to 4K size.
-const BUF_SHRINK_SIZE: usize = 4 * 1024;
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -296,7 +293,7 @@ impl Call {
     /// Send a message asynchronously.
     pub fn start_send_message(
         &mut self,
-        msg: &[u8],
+        msg: &mut GrpcSlice,
         write_flags: u32,
         initial_meta: bool,
     ) -> Result<BatchFuture> {
@@ -306,8 +303,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
-                msg.as_ptr() as _,
-                msg.len(),
+                msg.as_mut_ptr(),
                 write_flags,
                 i,
                 tag,
@@ -350,20 +346,21 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         send_empty_metadata: bool,
-        payload: &Option<Vec<u8>>,
+        payload: &mut Option<GrpcSlice>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
-        let (payload_ptr, payload_len) = payload
-            .as_ref()
-            .map_or((ptr::null(), 0), |b| (b.as_ptr(), b.len()));
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let details_ptr = status
                 .details
                 .as_ref()
                 .map_or_else(ptr::null, |s| s.as_ptr() as _);
             let details_len = status.details.as_ref().map_or(0, String::len);
+            let payload_p = match payload {
+                Some(p) => p.as_mut_ptr(),
+                None => ptr::null_mut(),
+            };
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
@@ -372,8 +369,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 send_empty_metadata,
-                payload_ptr as _,
-                payload_len,
+                payload_p,
                 write_flags,
                 tag,
             )
@@ -407,8 +403,7 @@ impl Call {
                 details_len,
                 ptr::null_mut(),
                 1,
-                ptr::null(),
-                0,
+                ptr::null_mut(),
                 0,
                 tag_ptr as *mut c_void,
             )
@@ -635,7 +630,7 @@ struct SinkBase {
     // messages as much as possible.
     enhance_buffer_strategy: bool,
     // Buffer used to store the data to be sent, send out the last data in this round of `start_send`.
-    buffer: Vec<u8>,
+    buffer: GrpcSlice,
     // Write flags used to control the data to be sent in `buffer`.
     buf_flags: Option<WriteFlags>,
     // Used to records whether a message in which `buffer_hint` is false exists.
@@ -647,7 +642,7 @@ impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
-            buffer: Vec::new(),
+            buffer: GrpcSlice::default(),
             buf_flags: None,
             last_buf_hint: true,
             send_metadata,
@@ -733,16 +728,13 @@ impl SinkBase {
         flags = flags.buffer_hint(buffer_hint);
         let write_f = call.call(|c| {
             c.call
-                .start_send_message(&self.buffer, flags.flags, self.send_metadata)
+                .start_send_message(&mut self.buffer, flags.flags, self.send_metadata)
         })?;
         self.batch_f = Some(write_f);
-        self.buf_flags.take();
-        // NOTE: Content of `self.buf` is copied into grpc internal.
-        if self.buffer.capacity() > BUF_SHRINK_SIZE {
-            self.buffer.truncate(BUF_SHRINK_SIZE);
-            self.buffer.shrink_to_fit();
+        if !self.buffer.is_inline() {
+            self.buffer = GrpcSlice::default();
         }
-        self.buffer.clear();
+        self.buf_flags.take();
         Ok(())
     }
 }

@@ -17,6 +17,7 @@ use parking_lot::Mutex;
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
 use crate::auth_context::AuthContext;
+use crate::buf::GrpcSlice;
 use crate::call::{
     BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
 };
@@ -335,8 +336,8 @@ macro_rules! impl_unary_sink {
             }
 
             fn complete(mut self, status: RpcStatus, t: Option<T>) -> $rt {
-                let data = t.as_ref().map(|t| {
-                    let mut buf = vec![];
+                let mut data = t.as_ref().map(|t| {
+                    let mut buf = GrpcSlice::default();
                     (self.ser)(t, &mut buf);
                     buf
                 });
@@ -344,7 +345,7 @@ macro_rules! impl_unary_sink {
                 let write_flags = self.write_flags;
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, true, &data, write_flags)
+                        .start_send_status_from_server(&status, true, &mut data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -447,7 +448,7 @@ macro_rules! impl_stream_sink {
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, send_metadata, &None, 0)
+                        .start_send_status_from_server(&status, send_metadata, &mut None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -513,7 +514,7 @@ macro_rules! impl_stream_sink {
                     let status = &t.status;
                     let flush_f = t.call.as_mut().unwrap().call(|c| {
                         c.call
-                            .start_send_status_from_server(status, send_metadata, &None, 0)
+                            .start_send_status_from_server(status, send_metadata, &mut None, 0)
                     })?;
                     t.flush_f = Some(flush_f);
                 }

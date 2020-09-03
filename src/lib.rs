@@ -43,6 +43,7 @@ mod security;
 mod server;
 mod task;
 
+pub use crate::buf::GrpcSlice;
 pub use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver, StreamingCallSink,

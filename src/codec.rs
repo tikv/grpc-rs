@@ -1,10 +1,11 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use crate::buf::GrpcSlice;
 use crate::call::MessageReader;
 use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
-pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
+pub type SerializeFn<T> = fn(&T, &mut GrpcSlice);
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -26,14 +27,21 @@ pub struct Marshaller<T> {
 
 #[cfg(feature = "protobuf-codec")]
 pub mod pb_codec {
-    use protobuf::{CodedInputStream, Message};
+    use protobuf::{CodedInputStream, CodedOutputStream, Message};
 
     use super::MessageReader;
+    use crate::buf::GrpcSlice;
     use crate::error::Result;
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
-        t.write_to_vec(buf).unwrap()
+    pub fn ser<T: Message>(t: &T, buf: &mut GrpcSlice) {
+        let cap = t.compute_size();
+        unsafe {
+            let bytes = buf.realloc(cap as usize);
+            let raw_bytes = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
+            let mut s = CodedOutputStream::bytes(raw_bytes);
+            t.write_to_with_cached_sizes(&mut s).unwrap();
+        }
     }
 
     #[inline]
@@ -47,15 +55,22 @@ pub mod pb_codec {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
-    use bytes::buf::BufMut;
     use prost::Message;
 
     use super::MessageReader;
+    use crate::buf::GrpcSlice;
     use crate::error::Result;
 
     #[inline]
-    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
-        msg.encode(buf).expect("Writing message to buffer failed");
+    pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) {
+        let size = msg.encoded_len();
+        unsafe {
+            let bytes = buf.realloc(size);
+            let mut b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
+            msg.encode(&mut b)
+                .expect("Writing message to buffer failed");
+            debug_assert!(b.is_empty());
+        }
     }
 
     #[inline]
