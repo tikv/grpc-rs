@@ -6,6 +6,7 @@
 [![docs.rs](https://docs.rs/grpcio/badge.svg)](https://docs.rs/grpcio)
 [![Build Status](https://github.com/tikv/grpc-rs/workflows/CI/badge.svg)](https://github.com/tikv/grpc-rs/actions)
 [![Build Status](https://travis-ci.org/tikv/grpc-rs.svg)](https://travis-ci.org/tikv/grpc-rs)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftikv%2Fgrpc-rs.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftikv%2Fgrpc-rs?ref=badge_shield)
 
 ## Status
 
@@ -144,3 +145,7 @@ If the content in grpc-sys/grpc is updated, you may need to regenerate bindings:
 ```
 $ ./scripts/generate-bindings.sh
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftikv%2Fgrpc-rs.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftikv%2Fgrpc-rs?ref=badge_large)
