@@ -210,7 +210,7 @@ fn test_shutdown_when_exists_grpc_call() {
         .unwrap();
     server.start();
     let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
     let req = HelloRequest::default();
@@ -220,13 +220,4 @@ fn test_shutdown_when_exists_grpc_call() {
         block_on(send_task).is_err(),
         "Send should get error because server is shutdown, so the grpc is cancelled."
     );
-    // Restart server and make sure that grpc call succeed.
-    let service = create_greeter(SleepService(false));
-    let mut server = ServerBuilder::new(env.clone())
-        .register_service(service)
-        .bind("127.0.0.1", port)
-        .build()
-        .unwrap();
-    server.start();
-    client.say_hello(&req).unwrap();
 }
