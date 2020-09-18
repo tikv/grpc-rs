@@ -567,7 +567,7 @@ impl Drop for Server {
     fn drop(&mut self) {
         // if the server is not shutdown completely, destroy a server will core.
         // TODO: don't wait here
-        let f = if self.core.shutdown.load(Ordering::SeqCst) {
+        let f = if !self.core.shutdown.load(Ordering::SeqCst) {
             Some(self.shutdown())
         } else {
             None
