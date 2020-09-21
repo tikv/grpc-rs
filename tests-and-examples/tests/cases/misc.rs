@@ -2,6 +2,7 @@
 
 use futures::executor::block_on;
 use futures::prelude::*;
+use futures_timer::Delay;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use std::sync::atomic::*;
@@ -22,6 +23,25 @@ impl Greeter for PeerService {
                 .map_err(|e| panic!("failed to reply {:?}", e))
                 .map(|_| ()),
         );
+    }
+}
+
+#[derive(Clone)]
+struct SleepService(bool);
+
+impl Greeter for SleepService {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
+        let need_delay = self.0;
+        ctx.spawn(async move {
+            if need_delay {
+                Delay::new(Duration::from_secs(3)).await;
+            }
+            let resp = HelloReply::default();
+            sink.success(resp)
+                .map_err(|e| panic!("failed to reply {:?}", e))
+                .await
+                .unwrap();
+        });
     }
 }
 
@@ -175,5 +195,29 @@ fn test_unix_domain_socket() {
         format!("unix:{}", socket_path.0),
         "{:?}",
         resp
+    );
+}
+
+#[test]
+fn test_shutdown_when_exists_grpc_call() {
+    let env = Arc::new(Environment::new(2));
+    // Start a server and delay the process of grpc server.
+    let service = create_greeter(SleepService(true));
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("127.0.0.1", 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let client = GreeterClient::new(ch);
+
+    let req = HelloRequest::default();
+    let send_task = client.say_hello_async(&req).unwrap();
+    drop(server);
+    assert!(
+        block_on(send_task).is_err(),
+        "Send should get error because server is shutdown, so the grpc is cancelled."
     );
 }

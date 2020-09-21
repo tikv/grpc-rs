@@ -679,7 +679,7 @@ fn bindgen_test_layout_grpc_slice_buffer() {
 }
 impl ::std::fmt::Debug for grpc_slice_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, count: {:?}, capacity: {:?}, length: {:?}, inlined: {:?} }}" , self . base_slices , self . slices , self . count , self . capacity , self . length , self . inlined )
+        write ! (f , "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, count: {:?}, capacity: {:?}, length: {:?}, inlined: {:?} }}" , self . base_slices , self . slices , self . count , self . capacity , self . length , self . inlined)
     }
 }
 #[repr(u32)]
@@ -1394,7 +1394,7 @@ fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_bu
 }
 impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {{ compression: {:?}, slice_buffer: {:?} }}" , self . compression , self . slice_buffer )
+        write ! (f , "grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {{ compression: {:?}, slice_buffer: {:?} }}" , self . compression , self . slice_buffer)
     }
 }
 #[test]
@@ -2177,7 +2177,7 @@ fn bindgen_test_layout_grpc_call_details() {
 }
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, flags: {:?}, reserved: {:?} }}" , self . method , self . host , self . deadline , self . flags , self . reserved )
+        write ! (f , "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, flags: {:?}, reserved: {:?} }}" , self . method , self . host , self . deadline , self . flags , self . reserved)
     }
 }
 #[repr(u32)]
@@ -2300,10 +2300,10 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initi
 #[test]
 fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level(
 ) {
-    assert_eq ! ( :: std :: mem :: size_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) , 8usize , concat ! ( "Size of: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) ) );
-    assert_eq ! ( :: std :: mem :: align_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) , 4usize , concat ! ( "Alignment of " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) ) );
-    assert_eq ! ( unsafe { & ( * ( :: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) ) ) . is_set as * const _ as usize } , 0usize , concat ! ( "Offset of field: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) , "::" , stringify ! ( is_set ) ) );
-    assert_eq ! ( unsafe { & ( * ( :: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) ) ) . level as * const _ as usize } , 4usize , concat ! ( "Offset of field: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) , "::" , stringify ! ( level ) ) );
+    assert_eq ! (:: std :: mem :: size_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > () , 8usize , concat ! ("Size of: " , stringify ! (grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level)));
+    assert_eq ! (:: std :: mem :: align_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > () , 4usize , concat ! ("Alignment of " , stringify ! (grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level)));
+    assert_eq ! (unsafe { & (* (:: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ())) . is_set as * const _ as usize } , 0usize , concat ! ("Offset of field: " , stringify ! (grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level) , "::" , stringify ! (is_set)));
+    assert_eq ! (unsafe { & (* (:: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ())) . level as * const _ as usize } , 4usize , concat ! ("Offset of field: " , stringify ! (grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level) , "::" , stringify ! (level)));
 }
 #[test]
 fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata() {
@@ -6477,7 +6477,7 @@ fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_2() {
 }
 impl ::std::fmt::Debug for grpcwrap_batch_context__bindgen_ty_2 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details )
+        write ! (f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details)
     }
 }
 #[test]
@@ -6584,7 +6584,7 @@ fn bindgen_test_layout_grpcwrap_batch_context() {
 }
 impl ::std::fmt::Debug for grpcwrap_batch_context {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpcwrap_batch_context {{ send_initial_metadata: {:?}, send_message: {:?}, send_status_from_server: {:?}, recv_initial_metadata: {:?}, recv_message: {:?}, recv_status_on_client: {:?}, recv_close_on_server_cancelled: {:?} }}" , self . send_initial_metadata , self . send_message , self . send_status_from_server , self . recv_initial_metadata , self . recv_message , self . recv_status_on_client , self . recv_close_on_server_cancelled )
+        write ! (f , "grpcwrap_batch_context {{ send_initial_metadata: {:?}, send_message: {:?}, send_status_from_server: {:?}, recv_initial_metadata: {:?}, recv_message: {:?}, recv_status_on_client: {:?}, recv_close_on_server_cancelled: {:?} }}" , self . send_initial_metadata , self . send_message , self . send_status_from_server , self . recv_initial_metadata , self . recv_message , self . recv_status_on_client , self . recv_close_on_server_cancelled)
     }
 }
 extern "C" {
@@ -6650,7 +6650,7 @@ fn bindgen_test_layout_grpcwrap_request_call_context() {
 }
 impl ::std::fmt::Debug for grpcwrap_request_call_context {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpcwrap_request_call_context {{ call: {:?}, call_details: {:?}, request_metadata: {:?} }}" , self . call , self . call_details , self . request_metadata )
+        write ! (f , "grpcwrap_request_call_context {{ call: {:?}, call_details: {:?}, request_metadata: {:?} }}" , self . call , self . call_details , self . request_metadata)
     }
 }
 extern "C" {
