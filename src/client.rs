@@ -45,13 +45,13 @@ impl Client {
     ///
     /// It uses futures::executor::block_on to wait for the futures. It's recommended to use
     /// the asynchronous version.
-    pub fn full_unary_call<Req, Resp>(
+    pub fn unary_call_full<Req, Resp>(
         &self,
         method: &Method<Req, Resp>,
         req: &Req,
         opt: CallOption,
     ) -> Result<(Option<Metadata>, Resp, Option<Metadata>)> {
-        block_on(self.full_unary_call_async(method, req, opt)?)
+        block_on(self.unary_call_full_async(method, req, opt)?)
     }
 
     /// Create an asynchronized unary RPC call.
@@ -65,7 +65,7 @@ impl Client {
     }
 
     /// Create an asynchronous unary RPC call with metadata support.
-    pub fn full_unary_call_async<Req, Resp>(
+    pub fn unary_call_full_async<Req, Resp>(
         &self,
         method: &Method<Req, Resp>,
         req: &Req,
