@@ -25,17 +25,13 @@ fn probe_library(library: &str, cargo_metadata: bool) -> Library {
 }
 
 fn prepare_grpc() {
-    let mut modules = vec![
+    let modules = vec![
         "grpc",
         "grpc/third_party/cares/cares",
         "grpc/third_party/address_sorting",
         "grpc/third_party/abseil-cpp",
         "grpc/third_party/re2",
     ];
-
-    if cfg!(feature = "secure") && !cfg!(feature = "openssl") {
-        modules.push("grpc/third_party/boringssl-with-bazel");
-    }
 
     for module in modules {
         if is_directory_empty(module).unwrap_or(true) {
@@ -126,11 +122,13 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BUILD_CODEGEN", "false");
         // We don't need to build benchmarks.
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
+        config.define("gRPC_SSL_PROVIDER", "package");
         if cfg!(feature = "openssl") {
-            config.define("gRPC_SSL_PROVIDER", "package");
             if cfg!(feature = "openssl-vendored") {
                 config.register_dep("openssl");
             }
+        } else {
+            build_boringssl(&mut config);
         }
         if cfg!(feature = "no-omit-frame-pointer") {
             config
@@ -216,6 +214,19 @@ fn figure_ssl_path(build_dir: &str) {
     }
     println!("cargo:rustc-link-lib=ssl");
     println!("cargo:rustc-link-lib=crypto");
+}
+
+fn build_boringssl(config: &mut CmakeConfig) {
+    let boringssl_artifact = boringssl_src::Build::new().build();
+    config.define(
+        "OPENSSL_ROOT_DIR",
+        format!("{}", boringssl_artifact.root_dir().display()),
+    );
+    // To avoid linking system library, set lib path explicitly.
+    println!(
+        "cargo:rustc-link-search=native={}",
+        boringssl_artifact.lib_dir().display()
+    );
 }
 
 fn setup_libz(config: &mut CmakeConfig) {
