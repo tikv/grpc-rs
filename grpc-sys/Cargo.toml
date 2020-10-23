@@ -32,6 +32,8 @@ exclude = [
     "grpc/third_party/boringssl-with-bazel/crypto_test_data.cc",
     "grpc/third_party/boringssl-with-bazel/src/fuzz",
     "grpc/third_party/boringssl-with-bazel/src/crypto/cipher_extra/test",
+    "grpc/third_party/boringssl-with-bazel/src/crypto/fipsmodule/*.png",
+    "grpc/third_party/boringssl-with-bazel/src/crypto/fipsmodule/policydocs/*",
     "grpc/third_party/boringssl-with-bazel/src/third_party/wycheproof_testvectors",
     "grpc/third_party/boringssl-with-bazel/src/third_party/googletest",
     "grpc/third_party/libuv/*",

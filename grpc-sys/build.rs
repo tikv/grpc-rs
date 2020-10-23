@@ -1,5 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashSet;
 use std::env::VarError;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -29,6 +30,7 @@ fn prepare_grpc() {
         "grpc/third_party/cares/cares",
         "grpc/third_party/address_sorting",
         "grpc/third_party/abseil-cpp",
+        "grpc/third_party/re2",
     ];
 
     if cfg!(feature = "secure") && !cfg!(feature = "openssl") {
@@ -61,15 +63,6 @@ fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
 
 fn build_grpc(cc: &mut cc::Build, library: &str) {
     prepare_grpc();
-
-    let mut third_party = vec![
-        "cares/cares/lib",
-        "abseil-cpp/absl/strings",
-        "abseil-cpp/absl/time",
-        "abseil-cpp/absl/base",
-        "abseil-cpp/absl/types",
-        "abseil-cpp/absl/numeric",
-    ];
 
     let dst = {
         let mut config = CmakeConfig::new("grpc");
@@ -138,8 +131,6 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
             if cfg!(feature = "openssl-vendored") {
                 config.register_dep("openssl");
             }
-        } else if cfg!(feature = "secure") {
-            third_party.extend_from_slice(&["boringssl-with-bazel"]);
         }
         if cfg!(feature = "no-omit-frame-pointer") {
             config
@@ -152,57 +143,35 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     };
 
     let build_dir = format!("{}/build", dst.display());
-    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-        let profile = match &*env::var("PROFILE").unwrap() {
-            "bench" | "release" => "Release",
-            _ => "Debug",
-        };
-        println!("cargo:rustc-link-search=native={}/{}", build_dir, profile);
-        for path in third_party {
+    for e in WalkDir::new(&build_dir) {
+        let e = e.unwrap();
+        if e.file_name().to_string_lossy().ends_with(".a") {
             println!(
-                "cargo:rustc-link-search=native={}/third_party/{}/{}",
-                build_dir, path, profile
-            );
-        }
-    } else {
-        println!("cargo:rustc-link-search=native={}", build_dir);
-        for path in third_party {
-            println!(
-                "cargo:rustc-link-search=native={}/third_party/{}",
-                build_dir, path,
+                "cargo:rustc-link-search=native={}",
+                e.path().parent().unwrap().display()
             );
         }
     }
 
-    // link libz
-    println!("cargo:rustc-link-lib=static=z");
-    // link cares
-    println!("cargo:rustc-link-lib=static=cares");
-    // link address_sorting
-    println!("cargo:rustc-link-lib=static=address_sorting");
-    // link absl/base
-    println!("cargo:rustc-link-lib=static=absl_base");
-    println!("cargo:rustc-link-lib=static=absl_raw_logging_internal");
-    println!("cargo:rustc-link-lib=static=absl_dynamic_annotations");
-    println!("cargo:rustc-link-lib=static=absl_throw_delegate");
-    println!("cargo:rustc-link-lib=static=absl_log_severity");
-    println!("cargo:rustc-link-lib=static=absl_spinlock_wait");
-    // link absl/strings
-    println!("cargo:rustc-link-lib=static=absl_strings");
-    println!("cargo:rustc-link-lib=static=absl_strings_internal");
-    println!("cargo:rustc-link-lib=static=absl_str_format_internal");
-    // link absl/time
-    println!("cargo:rustc-link-lib=static=absl_civil_time");
-    println!("cargo:rustc-link-lib=static=absl_time_zone");
-    println!("cargo:rustc-link-lib=static=absl_time");
-    // link absl/types
-    println!("cargo:rustc-link-lib=static=absl_bad_optional_access");
-    // link absl/numeric
-    println!("cargo:rustc-link-lib=static=absl_int128");
-    // link grpc related lib
-    println!("cargo:rustc-link-lib=static=gpr");
-    println!("cargo:rustc-link-lib=static=upb");
-    println!("cargo:rustc-link-lib=static={}", library);
+    let collect = |path, to: &mut HashSet<_>| {
+        let f = fs::File::open(format!("{}/libs/opt/pkgconfig/{}.pc", build_dir, path)).unwrap();
+        for l in io::BufReader::new(f).lines() {
+            let l = l.unwrap();
+            if l.starts_with("Libs: ") {
+                for lib in l.split_whitespace() {
+                    if let Some(s) = lib.strip_prefix("-l") {
+                        to.insert(s.to_string());
+                    }
+                }
+            }
+        }
+    };
+    let mut libs = HashSet::new();
+    collect("gpr", &mut libs);
+    collect(library, &mut libs);
+    for l in libs {
+        println!("cargo:rustc-link-lib=static={}", l);
+    }
 
     if cfg!(feature = "secure") {
         if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
@@ -211,6 +180,12 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
             println!("cargo:rustc-link-lib=static=ssl");
             println!("cargo:rustc-link-lib=static=crypto");
         }
+    } else {
+        // grpc_unsecure.pc is not accurate, see also grpc/grpc#24512.
+        println!("cargo:rustc-link-lib=static=upb");
+        println!("cargo:rustc-link-lib=static=cares");
+        println!("cargo:rustc-link-lib=static=z");
+        println!("cargo:rustc-link-lib=static=address_sorting");
     }
 
     cc.include("grpc/include");

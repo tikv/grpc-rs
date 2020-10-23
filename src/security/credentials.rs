@@ -352,7 +352,7 @@ impl ChannelCredentials {
         unsafe {
             grpc_sys::grpc_init();
         }
-        let creds = unsafe { grpc_sys::grpc_google_default_credentials_create() };
+        let creds = unsafe { grpc_sys::grpc_google_default_credentials_create(ptr::null_mut()) };
         if creds.is_null() {
             Err(Error::GoogleAuthenticationFailed)
         } else {
