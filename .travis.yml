@@ -1,6 +1,6 @@
 # Travis is only used to test ARM64 Linux
 
-dist: xenial
+dist: focal
 sudo: false
 language: rust
 git:
@@ -37,34 +37,7 @@ jobs:
       - export GRPC_VERSION=1.33.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-      - if [[ ! -f "$GRPC_HEADER" ]] ; then
-          (
-            git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
-            cd grpc &&
-            git submodule update --init &&
-            env prefix=$HOME/.cache make install_c
-          );
-        fi
-      - eval "$(gimme stable)"
-      - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
-      - export LD_LIBRARY_PATH="$HOME/.cache/lib"
-      - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-      - export LIBRARY_PATH="$HOME/.cache/lib"
-      - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-    script:
-      - which go && go version
-      - GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
-
-  - os: linux
-    arch: arm64
-    before_script:
-      - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.33.1
-      - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-      - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
       - sudo apt-get update && sudo apt-get -y install libssl-dev
-      - wget https://anaconda.org/conda-forge/cmake/3.17.0/download/linux-aarch64/cmake-3.17.0-h28c56e5_0.tar.bz2 && mkdir -p $HOME/cmake && tar -xjvf cmake-3.17.0-h28c56e5_0.tar.bz2 -C $HOME/cmake
-      - export PATH=$HOME/cmake/bin:$PATH;
       - which cmake && cmake --version 
       - eval "$(gimme stable)"
       - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
