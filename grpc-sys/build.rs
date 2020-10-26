@@ -60,6 +60,7 @@ fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
 fn build_grpc(cc: &mut cc::Build, library: &str) {
     prepare_grpc();
 
+    let target = env::var("TARGET").unwrap();
     let dst = {
         let mut config = CmakeConfig::new("grpc");
 
@@ -79,7 +80,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         }
 
         // Cross-compile support for iOS
-        match env::var("TARGET").unwrap().as_str() {
+        match target.as_str() {
             "aarch64-apple-ios" => {
                 config
                     .define("CMAKE_OSX_SYSROOT", "iphoneos")
@@ -140,10 +141,15 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.build_target(library).uses_cxx11().build()
     };
 
+    let lib_suffix = if target.contains("msvc") {
+        ".lib"
+    } else {
+        ".a"
+    };
     let build_dir = format!("{}/build", dst.display());
     for e in WalkDir::new(&build_dir) {
         let e = e.unwrap();
-        if e.file_name().to_string_lossy().ends_with(".a") {
+        if e.file_name().to_string_lossy().ends_with(lib_suffix) {
             println!(
                 "cargo:rustc-link-search=native={}",
                 e.path().parent().unwrap().display()
