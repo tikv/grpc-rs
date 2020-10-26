@@ -61,7 +61,8 @@ jobs:
       - export GRPC_VERSION=1.29.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-      - sudo apt-get update && sudo apt-get -y install libssl-dev;
+      - sudo apt-get update && sudo apt-get -y install libssl-dev && sudo snap install cmake --beta --classic
+      - which cmake && cmake --version 
       - eval "$(gimme stable)"
       - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
       - export LD_LIBRARY_PATH="$HOME/.cache/lib"
