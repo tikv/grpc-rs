@@ -32,7 +32,7 @@ jobs:
       - export GRPC_VERSION=1.33.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - sudo apt-get update && sudo apt-get -y install libssl-dev
-      - which cmake && cmake --version 
+      - which cmake && cmake --version && openssl version
       - eval "$(gimme stable)"
     script:
       - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
