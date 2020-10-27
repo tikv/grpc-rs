@@ -3697,9 +3697,11 @@ extern "C" {
     pub fn grpcwrap_request_call_context_create() -> *mut grpcwrap_request_call_context;
 }
 extern "C" {
+    #[link_name = "\u{1}_Z45grpcwrap_metadata_array_destroy_metadata_onlyP19grpc_metadata_array"]
     pub fn grpcwrap_metadata_array_destroy_metadata_only(array: *mut grpc_metadata_array);
 }
 extern "C" {
+    #[link_name = "\u{1}_Z58grpcwrap_metadata_array_destroy_metadata_including_entriesP19grpc_metadata_array"]
     pub fn grpcwrap_metadata_array_destroy_metadata_including_entries(
         array: *mut grpc_metadata_array,
     );
@@ -3740,6 +3742,7 @@ extern "C" {
     pub fn grpcwrap_metadata_array_shrink_to_fit(array: *mut grpc_metadata_array);
 }
 extern "C" {
+    #[link_name = "\u{1}_Z28grpcwrap_metadata_array_moveP19grpc_metadata_arrayS0_"]
     pub fn grpcwrap_metadata_array_move(
         dest: *mut grpc_metadata_array,
         src: *mut grpc_metadata_array,
