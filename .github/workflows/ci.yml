@@ -11,12 +11,11 @@ on:
 env:
   RUST_BACKTRACE: 1
   RUSTFLAGS: "--deny=warnings"
-  GRPC_VERSION: 1.33.1
   TEST_BIND: 1
 
 jobs:
-  Linux-Format-PKG-Test:
-    name: Linux-Format-PKG-Test
+  Linux-Format:
+    name: Linux-Format
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -27,9 +26,6 @@ jobs:
     - run: cargo fmt --all -- --check
     - run: cargo clippy --all -- -D clippy::all && cargo clippy --all --no-default-features --features prost-codec -- -D clippy::all
     - run: scripts/lint-grpc-sys.sh && git diff-index --quiet HEAD
-    - run: git clone --recurse-submodules -b v$GRPC_VERSION https://github.com/grpc/grpc
-    - run: cd grpc && mkdir -p cmake/build && cd cmake/build && cmake -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/.cache ../.. && make -j && make install && cd ../..
-    - run: GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
 
   Linux-Stable:
     name: Linux-Stable
