@@ -12,6 +12,7 @@ env:
   RUST_BACKTRACE: 1
   RUSTFLAGS: "--deny=warnings"
   GRPC_VERSION: 1.29.1
+  TEST_BIND: 1
 
 jobs:
   Linux-Format-PKG-Test:
@@ -37,7 +38,8 @@ jobs:
     - uses: actions/checkout@v2
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: scripts/reset-submodule.cmd
-    - run: scripts/generate-bindings.sh && git diff --exit-code HEAD
+    - run: env TEST_BIND=0 scripts/generate-bindings.sh && git diff --exit-code HEAD
+    - run: scripts/generate-bindings.sh
     - run: cargo build --no-default-features
     - run: cargo build --no-default-features --features protobuf-codec
     - run: cargo build --no-default-features --features prost-codec
