@@ -211,25 +211,6 @@ pub struct grpc_compression_options_grpc_compression_options_default_level {
     pub is_set: ::std::os::raw::c_int,
     pub level: grpc_compression_level,
 }
-#[test]
-fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default_level() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_compression_options_grpc_compression_options_default_level>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_level)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_compression_options_grpc_compression_options_default_level>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_level)
-        )
-    );
-}
 #[doc = " The default message compression algorithm. It'll be used in the absence of"]
 #[doc = " call specific settings. This option corresponds to the channel argument key"]
 #[doc = " behind \\a GRPC_COMPRESSION_CHANNEL_DEFAULT_ALGORITHM."]
@@ -238,40 +219,6 @@ fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default
 pub struct grpc_compression_options_grpc_compression_options_default_algorithm {
     pub is_set: ::std::os::raw::c_int,
     pub algorithm: grpc_compression_algorithm,
-}
-#[test]
-fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default_algorithm() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_compression_options_grpc_compression_options_default_algorithm>(
-        ),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_algorithm)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_compression_options_grpc_compression_options_default_algorithm>(
-        ),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_algorithm)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_compression_options() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_compression_options>(),
-        20usize,
-        concat!("Size of: ", stringify!(grpc_compression_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_compression_options>(),
-        4usize,
-        concat!("Alignment of ", stringify!(grpc_compression_options))
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -306,80 +253,16 @@ pub struct grpc_slice_grpc_slice_data_grpc_slice_refcounted {
     pub length: usize,
     pub bytes: *mut u8,
 }
-#[test]
-fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_refcounted() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_grpc_slice_data_grpc_slice_refcounted>(),
-        16usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_refcounted)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_grpc_slice_data_grpc_slice_refcounted>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_refcounted)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_slice_grpc_slice_data_grpc_slice_inlined {
     pub length: u8,
     pub bytes: [u8; 23usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_inlined() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_grpc_slice_data_grpc_slice_inlined>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_inlined)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_grpc_slice_data_grpc_slice_inlined>(),
-        1usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_inlined)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_slice_grpc_slice_data() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_grpc_slice_data>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_slice_grpc_slice_data))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_grpc_slice_data>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_slice_grpc_slice_data))
-    );
-}
 impl ::std::fmt::Debug for grpc_slice_grpc_slice_data {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_slice_grpc_slice_data {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_slice() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_slice))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_slice))
-    );
 }
 impl ::std::fmt::Debug for grpc_slice {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -409,19 +292,6 @@ pub struct grpc_slice_buffer {
     pub length: usize,
     #[doc = " inlined elements to avoid allocations"]
     pub inlined: [grpc_slice; 8usize],
-}
-#[test]
-fn bindgen_test_layout_grpc_slice_buffer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_buffer>(),
-        296usize,
-        concat!("Size of: ", stringify!(grpc_slice_buffer))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_buffer>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_slice_buffer))
-    );
 }
 impl ::std::fmt::Debug for grpc_slice_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -455,19 +325,6 @@ pub struct gpr_timespec {
     #[doc = "this is a relative time measure)"]
     pub clock_type: gpr_clock_type,
 }
-#[test]
-fn bindgen_test_layout_gpr_timespec() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_timespec>(),
-        16usize,
-        concat!("Size of: ", stringify!(gpr_timespec))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_timespec>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_timespec))
-    );
-}
 pub type gpr_atm = isize;
 extern "C" {
     #[doc = " Adds \\a delta to \\a *value, clamping the result to the range specified"]
@@ -484,54 +341,15 @@ extern "C" {
 pub struct gpr_event {
     pub state: gpr_atm,
 }
-#[test]
-fn bindgen_test_layout_gpr_event() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_event>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_event))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_event>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_event))
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct gpr_refcount {
     pub count: gpr_atm,
 }
-#[test]
-fn bindgen_test_layout_gpr_refcount() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_refcount>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_refcount))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_refcount>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_refcount))
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct gpr_stats_counter {
     pub value: gpr_atm,
-}
-#[test]
-fn bindgen_test_layout_gpr_stats_counter() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_stats_counter>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_stats_counter))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_stats_counter>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_stats_counter))
-    );
 }
 extern "C" {
     #[doc = " Initialize *ev."]
@@ -993,91 +811,21 @@ pub union grpc_byte_buffer_grpc_byte_buffer_data {
 pub struct grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1 {
     pub reserved: [*mut ::std::os::raw::c_void; 8usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1>(),
-        64usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
     pub compression: grpc_compression_algorithm,
     pub slice_buffer: grpc_slice_buffer,
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer>(),
-        304usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write ! (f , "grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {{ compression: {:?}, slice_buffer: {:?} }}" , self . compression , self . slice_buffer)
     }
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_grpc_byte_buffer_data>(),
-        304usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_grpc_byte_buffer_data>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_byte_buffer_grpc_byte_buffer_data {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer>(),
-        320usize,
-        concat!("Size of: ", stringify!(grpc_byte_buffer))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_byte_buffer))
-    );
 }
 impl ::std::fmt::Debug for grpc_byte_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -1145,19 +893,6 @@ pub struct grpc_arg_pointer_vtable {
         ) -> ::std::os::raw::c_int,
     >,
 }
-#[test]
-fn bindgen_test_layout_grpc_arg_pointer_vtable() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg_pointer_vtable>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_arg_pointer_vtable))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg_pointer_vtable>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_arg_pointer_vtable))
-    );
-}
 #[doc = " A single argument... each argument has a key and a value"]
 #[doc = ""]
 #[doc = "A note on naming keys:"]
@@ -1191,55 +926,10 @@ pub struct grpc_arg_grpc_arg_value_grpc_arg_pointer {
     pub p: *mut ::std::os::raw::c_void,
     pub vtable: *const grpc_arg_pointer_vtable,
 }
-#[test]
-fn bindgen_test_layout_grpc_arg_grpc_arg_value_grpc_arg_pointer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg_grpc_arg_value_grpc_arg_pointer>(),
-        16usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_arg_grpc_arg_value_grpc_arg_pointer)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg_grpc_arg_value_grpc_arg_pointer>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_arg_grpc_arg_value_grpc_arg_pointer)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_arg_grpc_arg_value() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg_grpc_arg_value>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_arg_grpc_arg_value))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg_grpc_arg_value>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_arg_grpc_arg_value))
-    );
-}
 impl ::std::fmt::Debug for grpc_arg_grpc_arg_value {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_arg_grpc_arg_value {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_arg() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_arg))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_arg))
-    );
 }
 impl ::std::fmt::Debug for grpc_arg {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -1271,19 +961,6 @@ impl ::std::fmt::Debug for grpc_arg {
 pub struct grpc_channel_args {
     pub num_args: usize,
     pub args: *mut grpc_arg,
-}
-#[test]
-fn bindgen_test_layout_grpc_channel_args() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_channel_args>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_channel_args))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_channel_args>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_channel_args))
-    );
 }
 #[repr(u32)]
 #[doc = " Result of a grpc call. If the caller satisfies the prerequisites of a"]
@@ -1346,32 +1023,6 @@ pub struct grpc_metadata {
 pub struct grpc_metadata__bindgen_ty_1 {
     pub obfuscated: [*mut ::std::os::raw::c_void; 4usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_metadata__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata__bindgen_ty_1>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_metadata__bindgen_ty_1))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata__bindgen_ty_1>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_metadata__bindgen_ty_1))
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_metadata() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata>(),
-        104usize,
-        concat!("Size of: ", stringify!(grpc_metadata))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_metadata))
-    );
-}
 impl ::std::fmt::Debug for grpc_metadata {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
@@ -1411,38 +1062,12 @@ pub struct grpc_event {
     #[doc = "values, tag is uninitialized."]
     pub tag: *mut ::std::os::raw::c_void,
 }
-#[test]
-fn bindgen_test_layout_grpc_event() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_event>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_event))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_event>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_event))
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_metadata_array {
     pub count: usize,
     pub capacity: usize,
     pub metadata: *mut grpc_metadata,
-}
-#[test]
-fn bindgen_test_layout_grpc_metadata_array() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata_array>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_metadata_array))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata_array>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_metadata_array))
-    );
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1452,19 +1077,6 @@ pub struct grpc_call_details {
     pub deadline: gpr_timespec,
     pub flags: u32,
     pub reserved: *mut ::std::os::raw::c_void,
-}
-#[test]
-fn bindgen_test_layout_grpc_call_details() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_call_details>(),
-        96usize,
-        concat!("Size of: ", stringify!(grpc_call_details))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_call_details>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_call_details))
-    );
 }
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -1547,22 +1159,6 @@ pub union grpc_op_grpc_op_data {
 pub struct grpc_op_grpc_op_data__bindgen_ty_1 {
     pub reserved: [*mut ::std::os::raw::c_void; 8usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data__bindgen_ty_1>(),
-        64usize,
-        concat!("Size of: ", stringify!(grpc_op_grpc_op_data__bindgen_ty_1))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data__bindgen_ty_1)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata { pub count : usize , pub metadata : * mut grpc_metadata , pub maybe_compression_level : grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level , }
@@ -1575,31 +1171,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initi
     pub is_set: u8,
     pub level: grpc_compression_level,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level(
-) {
-    assert_eq ! (:: std :: mem :: size_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > () , 8usize , concat ! ("Size of: " , stringify ! (grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level)));
-    assert_eq ! (:: std :: mem :: align_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > () , 4usize , concat ! ("Alignment of " , stringify ! (grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level)));
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_message {
@@ -1608,25 +1179,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_message {
     #[doc = " and likely empty.  The original owner should still call"]
     #[doc = " grpc_byte_buffer_destroy() on this object however."]
     pub send_message: *mut grpc_byte_buffer,
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_message() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_send_message>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_message)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_send_message>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_message)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1638,25 +1190,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_status_from_server {
     #[doc = " pointer will not be retained past the start_batch call"]
     pub status_details: *mut grpc_slice,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_status_from_server() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>(),
-        32usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server)
-        )
-    );
-}
 #[doc = " ownership of the array is with the caller, but ownership of the elements"]
 #[doc = "stays with the call object (ie key, value members are owned by the call"]
 #[doc = "object, recv_initial_metadata->array is owned by the caller)."]
@@ -1667,25 +1200,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_status_from_server() {
 pub struct grpc_op_grpc_op_data_grpc_op_recv_initial_metadata {
     pub recv_initial_metadata: *mut grpc_metadata_array,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_initial_metadata() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_initial_metadata>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_initial_metadata)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_initial_metadata>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_initial_metadata)
-        )
-    );
-}
 #[doc = " ownership of the byte buffer is moved to the caller; the caller must"]
 #[doc = "call grpc_byte_buffer_destroy on this value, or reuse it in a future op."]
 #[doc = "The returned byte buffer will be NULL if trailing metadata was"]
@@ -1694,25 +1208,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_initial_metadata() {
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_recv_message {
     pub recv_message: *mut *mut grpc_byte_buffer,
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_message() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_message>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_message)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_message>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_message)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1730,25 +1225,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_recv_status_on_client {
     #[doc = " for freeing the data by using gpr_free()."]
     pub error_string: *mut *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_status_on_client() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>(),
-        32usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_recv_close_on_server {
@@ -1758,55 +1234,10 @@ pub struct grpc_op_grpc_op_data_grpc_op_recv_close_on_server {
     #[doc = "completion and was able to provide any status from the server)"]
     pub cancelled: *mut ::std::os::raw::c_int,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_close_on_server() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_close_on_server>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_close_on_server)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_close_on_server>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_close_on_server)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data>(),
-        64usize,
-        concat!("Size of: ", stringify!(grpc_op_grpc_op_data))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_op_grpc_op_data))
-    );
-}
 impl ::std::fmt::Debug for grpc_op_grpc_op_data {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_op_grpc_op_data {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_op() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op>(),
-        80usize,
-        concat!("Size of: ", stringify!(grpc_op))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_op))
-    );
 }
 impl ::std::fmt::Debug for grpc_op {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -1827,19 +1258,6 @@ pub struct grpc_channel_info {
     #[doc = " If non-NULL, will be set to point to a string containing the"]
     #[doc = " service config used by the channel in JSON form."]
     pub service_config_json: *mut *mut ::std::os::raw::c_char,
-}
-#[test]
-fn bindgen_test_layout_grpc_channel_info() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_channel_info>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_channel_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_channel_info>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_channel_info))
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1907,25 +1325,6 @@ pub struct grpc_experimental_completion_queue_functor {
     pub internal_success: ::std::os::raw::c_int,
     pub internal_next: *mut grpc_experimental_completion_queue_functor,
 }
-#[test]
-fn bindgen_test_layout_grpc_experimental_completion_queue_functor() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_experimental_completion_queue_functor>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_experimental_completion_queue_functor)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_experimental_completion_queue_functor>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_experimental_completion_queue_functor)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_completion_queue_attributes {
@@ -1938,22 +1337,6 @@ pub struct grpc_completion_queue_attributes {
     #[doc = " When creating a callbackable CQ, pass in a functor to get invoked when"]
     #[doc = " shutdown is complete"]
     pub cq_shutdown_cb: *mut grpc_experimental_completion_queue_functor,
-}
-#[test]
-fn bindgen_test_layout_grpc_completion_queue_attributes() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_completion_queue_attributes>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_completion_queue_attributes))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_completion_queue_attributes>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_completion_queue_attributes)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -3005,19 +2388,6 @@ pub struct grpc_auth_property_iterator {
     pub index: usize,
     pub name: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_auth_property_iterator() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_property_iterator>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_auth_property_iterator))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_property_iterator>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_property_iterator))
-    );
-}
 #[doc = " value, if not NULL, is guaranteed to be NULL terminated."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -3025,19 +2395,6 @@ pub struct grpc_auth_property {
     pub name: *mut ::std::os::raw::c_char,
     pub value: *mut ::std::os::raw::c_char,
     pub value_length: usize,
-}
-#[test]
-fn bindgen_test_layout_grpc_auth_property() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_property>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_auth_property))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_property>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_property))
-    );
 }
 extern "C" {
     #[doc = " Returns NULL when the iterator is at the end."]
@@ -3205,19 +2562,6 @@ pub struct grpc_ssl_pem_key_cert_pair {
     #[doc = "the client's certificate chain."]
     pub cert_chain: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_ssl_pem_key_cert_pair() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_ssl_pem_key_cert_pair>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_ssl_pem_key_cert_pair))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_ssl_pem_key_cert_pair>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_ssl_pem_key_cert_pair))
-    );
-}
 #[doc = " Deprecated in favor of grpc_ssl_verify_peer_options. It will be removed"]
 #[doc = "after all of its call sites are migrated to grpc_ssl_verify_peer_options."]
 #[doc = "Object that holds additional peer-verification options on a secure"]
@@ -3246,19 +2590,6 @@ pub struct verify_peer_options {
     pub verify_peer_destruct:
         ::std::option::Option<unsafe extern "C" fn(userdata: *mut ::std::os::raw::c_void)>,
 }
-#[test]
-fn bindgen_test_layout_verify_peer_options() {
-    assert_eq!(
-        ::std::mem::size_of::<verify_peer_options>(),
-        24usize,
-        concat!("Size of: ", stringify!(verify_peer_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<verify_peer_options>(),
-        8usize,
-        concat!("Alignment of ", stringify!(verify_peer_options))
-    );
-}
 #[doc = " Object that holds additional peer-verification options on a secure"]
 #[doc = "channel."]
 #[repr(C)]
@@ -3284,19 +2615,6 @@ pub struct grpc_ssl_verify_peer_options {
     #[doc = "to perform any cleanup associated with that userdata."]
     pub verify_peer_destruct:
         ::std::option::Option<unsafe extern "C" fn(userdata: *mut ::std::os::raw::c_void)>,
-}
-#[test]
-fn bindgen_test_layout_grpc_ssl_verify_peer_options() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_ssl_verify_peer_options>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_ssl_verify_peer_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_ssl_verify_peer_options>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_ssl_verify_peer_options))
-    );
 }
 extern "C" {
     #[doc = " Deprecated in favor of grpc_ssl_server_credentials_create_ex. It will be"]
@@ -3431,19 +2749,6 @@ pub struct grpc_sts_credentials_options {
     pub actor_token_path: *const ::std::os::raw::c_char,
     pub actor_token_type: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_sts_credentials_options() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_sts_credentials_options>(),
-        72usize,
-        concat!("Size of: ", stringify!(grpc_sts_credentials_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_sts_credentials_options>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_sts_credentials_options))
-    );
-}
 extern "C" {
     #[doc = " Creates an STS credentials following the STS Token Exchanged specifed in the"]
     #[doc = "IETF draft https://tools.ietf.org/html/draft-ietf-oauth-token-exchange-16."]
@@ -3489,19 +2794,6 @@ pub struct grpc_auth_metadata_context {
     pub channel_auth_context: *const grpc_auth_context,
     #[doc = " Reserved for future use."]
     pub reserved: *mut ::std::os::raw::c_void,
-}
-#[test]
-fn bindgen_test_layout_grpc_auth_metadata_context() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_metadata_context>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_auth_metadata_context))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_metadata_context>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_metadata_context))
-    );
 }
 extern "C" {
     #[doc = " Performs a deep copy from \\a from to \\a to."]
@@ -3563,22 +2855,6 @@ pub struct grpc_metadata_credentials_plugin {
     pub state: *mut ::std::os::raw::c_void,
     #[doc = " Type of credentials that this plugin is implementing."]
     pub type_: *const ::std::os::raw::c_char,
-}
-#[test]
-fn bindgen_test_layout_grpc_metadata_credentials_plugin() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata_credentials_plugin>(),
-        40usize,
-        concat!("Size of: ", stringify!(grpc_metadata_credentials_plugin))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata_credentials_plugin>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_metadata_credentials_plugin)
-        )
-    );
 }
 extern "C" {
     #[doc = " Creates a credentials object from a plugin with a specified minimum security"]
@@ -3788,19 +3064,6 @@ pub struct grpc_auth_metadata_processor {
     >,
     pub destroy: ::std::option::Option<unsafe extern "C" fn(state: *mut ::std::os::raw::c_void)>,
     pub state: *mut ::std::os::raw::c_void,
-}
-#[test]
-fn bindgen_test_layout_grpc_auth_metadata_processor() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_metadata_processor>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_auth_metadata_processor))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_metadata_processor>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_metadata_processor))
-    );
 }
 extern "C" {
     pub fn grpc_server_credentials_set_auth_metadata_processor(
@@ -4055,19 +3318,6 @@ pub struct grpc_tls_credential_reload_arg {
     pub destroy_context:
         ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>,
 }
-#[test]
-fn bindgen_test_layout_grpc_tls_credential_reload_arg() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_tls_credential_reload_arg>(),
-        64usize,
-        concat!("Size of: ", stringify!(grpc_tls_credential_reload_arg))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_tls_credential_reload_arg>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_tls_credential_reload_arg))
-    );
-}
 extern "C" {
     #[doc = " Create a grpc_tls_credential_reload_config instance."]
     #[doc = "- config_user_data is config-specific, read-only user data"]
@@ -4150,25 +3400,6 @@ pub struct grpc_tls_server_authorization_check_arg {
     pub context: *mut ::std::os::raw::c_void,
     pub destroy_context:
         ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>,
-}
-#[test]
-fn bindgen_test_layout_grpc_tls_server_authorization_check_arg() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_tls_server_authorization_check_arg>(),
-        88usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_tls_server_authorization_check_arg)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_tls_server_authorization_check_arg>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_tls_server_authorization_check_arg)
-        )
-    );
 }
 extern "C" {
     #[doc = " Create a grpc_tls_server_authorization_check_config instance."]
@@ -4306,19 +3537,6 @@ pub struct gpr_log_func_args {
     pub severity: gpr_log_severity,
     pub message: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_gpr_log_func_args() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_log_func_args>(),
-        24usize,
-        concat!("Size of: ", stringify!(gpr_log_func_args))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_log_func_args>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_log_func_args))
-    );
-}
 pub type gpr_log_func = ::std::option::Option<unsafe extern "C" fn(args: *mut gpr_log_func_args)>;
 extern "C" {
     pub fn gpr_set_log_function(func: gpr_log_func);
@@ -4410,25 +3628,6 @@ pub union grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
     pub index: ::std::os::raw::c_uint,
     _bindgen_union_align: u32,
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_reader_grpc_byte_buffer_reader_current() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_reader_grpc_byte_buffer_reader_current>(),
-        4usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_reader_grpc_byte_buffer_reader_current)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_reader_grpc_byte_buffer_reader_current>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_reader_grpc_byte_buffer_reader_current)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
@@ -4436,19 +3635,6 @@ impl ::std::fmt::Debug for grpc_byte_buffer_reader_grpc_byte_buffer_reader_curre
             "grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {{ union }}"
         )
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_reader() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_reader>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_byte_buffer_reader))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_reader>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_byte_buffer_reader))
-    );
 }
 impl ::std::fmt::Debug for grpc_byte_buffer_reader {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -4475,25 +3661,6 @@ pub struct grpcwrap_batch_context {
 pub struct grpcwrap_batch_context__bindgen_ty_1 {
     pub trailing_metadata: grpc_metadata_array,
 }
-#[test]
-fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_batch_context__bindgen_ty_1>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_batch_context__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_1)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct grpcwrap_batch_context__bindgen_ty_2 {
@@ -4501,42 +3668,10 @@ pub struct grpcwrap_batch_context__bindgen_ty_2 {
     pub status: grpc_status_code::Type,
     pub status_details: grpc_slice,
 }
-#[test]
-fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_2() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_batch_context__bindgen_ty_2>(),
-        64usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_batch_context__bindgen_ty_2>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpcwrap_batch_context__bindgen_ty_2 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write ! (f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details)
     }
-}
-#[test]
-fn bindgen_test_layout_grpcwrap_batch_context() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_batch_context>(),
-        160usize,
-        concat!("Size of: ", stringify!(grpcwrap_batch_context))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_batch_context>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpcwrap_batch_context))
-    );
 }
 impl ::std::fmt::Debug for grpcwrap_batch_context {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -4552,19 +3687,6 @@ pub struct grpcwrap_request_call_context {
     pub call: *mut grpc_call,
     pub call_details: grpc_call_details,
     pub request_metadata: grpc_metadata_array,
-}
-#[test]
-fn bindgen_test_layout_grpcwrap_request_call_context() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_request_call_context>(),
-        128usize,
-        concat!("Size of: ", stringify!(grpcwrap_request_call_context))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_request_call_context>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpcwrap_request_call_context))
-    );
 }
 impl ::std::fmt::Debug for grpcwrap_request_call_context {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
