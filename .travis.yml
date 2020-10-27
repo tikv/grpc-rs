@@ -61,7 +61,9 @@ jobs:
       - export GRPC_VERSION=1.29.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-      - sudo apt-get update && sudo apt-get -y install libssl-dev && sudo snap install cmake --beta --classic
+      - sudo apt-get update && sudo apt-get -y install libssl-dev
+      - wget https://anaconda.org/conda-forge/cmake/3.17.0/download/linux-aarch64/cmake-3.17.0-h28c56e5_0.tar.bz2 && mkdir -p $HOME/cmake && tar -xjvf cmake-3.17.0-h28c56e5_0.tar.bz2 -C $HOME/cmake
+      - export PATH=$HOME/cmake/bin:$PATH;
       - which cmake && cmake --version 
       - eval "$(gimme stable)"
       - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
