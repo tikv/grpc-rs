@@ -301,12 +301,14 @@ impl<'a> MethodGen<'a> {
 
     fn unary_full(&self, method_name: &str) -> String {
         format!(
-            "{}_full(&self, req: &{}, opt: {}) -> {}<(Option<Metadata>, {}, Option<Metadata>)>",
+            "{}_full(&self, req: &{}, opt: {}) -> {}<(Option<{}>, {}, Option<{}>)>",
             method_name,
             self.input(),
             fq_grpc("CallOption"),
             fq_grpc("Result"),
+            fq_grpc("Metadata"),
             self.output()
+            fq_grpc("Metadata"),
         )
     }
 
