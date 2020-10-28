@@ -307,7 +307,7 @@ impl<'a> MethodGen<'a> {
             fq_grpc("CallOption"),
             fq_grpc("Result"),
             fq_grpc("Metadata"),
-            self.output()
+            self.output(),
             fq_grpc("Metadata"),
         )
     }
