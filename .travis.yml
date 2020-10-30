@@ -1,6 +1,6 @@
 # Travis is only used to test ARM64 Linux
 
-dist: xenial
+dist: focal
 sudo: false
 language: rust
 git:
@@ -11,15 +11,11 @@ rust: stable
 env:
   global:
     - RUST_BACKTRACE=1
-    - RUSTFLAGS="--deny=warnings"
-
-install:
-  - if ! which go 2>/dev/null; then
-      wget https://dl.google.com/go/go1.13.8.linux-arm64.tar.gz;
-      tar -xf go1.13.8.linux-arm64.tar.gz -C $HOME;
-      export PATH="$HOME/go/bin:$PATH";
-      export GO_ROOT=$HOME/go;
-    fi
+    # absl deadlock detection performs poorly on arm, so we build it release
+    # mode to skip the check. Enabling debug-assertions to get safer test
+    # results.
+    - RUSTFLAGS="--deny=warnings -C debug-assertions"
+    - TEST_BIND=1
 
 addons:
   apt:
@@ -33,51 +29,20 @@ jobs:
     arch: arm64
     before_script:
       - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.29.1
+      - export GRPC_VERSION=1.33.1
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-      - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-      - if [[ ! -f "$GRPC_HEADER" ]] ; then
-          (
-            git clone -b v$GRPC_VERSION https://github.com/grpc/grpc &&
-            cd grpc &&
-            git submodule update --init &&
-            env prefix=$HOME/.cache make install_c
-          );
-        fi
+      - sudo apt-get update && sudo apt-get -y install libssl-dev
+      - which cmake && cmake --version && openssl version
       - eval "$(gimme stable)"
-      - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
-      - export LD_LIBRARY_PATH="$HOME/.cache/lib"
-      - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-      - export LIBRARY_PATH="$HOME/.cache/lib"
-      - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
     script:
-      - which go && go version
-      - GRPCIO_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-A unused-attributes" cargo test --all
-
-  - os: linux
-    arch: arm64
-    before_script:
-      - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.29.1
-      - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-      - GRPC_HEADER="$HOME/.cache/include/grpc/grpc.h"
-      - sudo apt-get update && sudo apt-get -y install libssl-dev;
-      - eval "$(gimme stable)"
-      - export CPLUS_INCLUDE_PATH="$HOME/.cache/include"
-      - export LD_LIBRARY_PATH="$HOME/.cache/lib"
-      - export DYLD_LIBRARY_PATH="$HOME/.cache/lib"
-      - export LIBRARY_PATH="$HOME/.cache/lib"
-      - export PKG_CONFIG_PATH="$HOME/.cache/lib/pkgconfig"
-    script:
-      - which go && go version
       - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
           rustup component add rustfmt && cargo fmt --all -- --check;
-          scripts/generate-bindings.sh && git diff --exit-code HEAD;
+          env TEST_BIND=0 scripts/generate-bindings.sh && git diff --exit-code HEAD;
         fi
+      - ./scripts/generate-bindings.sh
       - cargo build --no-default-features
       - cargo build --no-default-features --features protobuf-codec
       - cargo build --no-default-features --features prost-codec
       - cargo build
-      - cargo test --all
-      - cargo test --features "openssl" --all
-      - cargo test --features "openssl-vendored" --all
+      - cargo test --release --all
+      - cargo test --release --features "openssl-vendored" --all
