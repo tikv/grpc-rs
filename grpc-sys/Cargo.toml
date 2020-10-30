@@ -29,11 +29,7 @@ exclude = [
     "grpc/third_party/abseil-cpp/absl/time/internal/cctz/testdata",
     "grpc/third_party/benchmark/*",
     "grpc/third_party/bloaty/*",
-    "grpc/third_party/boringssl-with-bazel/crypto_test_data.cc",
-    "grpc/third_party/boringssl-with-bazel/src/fuzz",
-    "grpc/third_party/boringssl-with-bazel/src/crypto/cipher_extra/test",
-    "grpc/third_party/boringssl-with-bazel/src/third_party/wycheproof_testvectors",
-    "grpc/third_party/boringssl-with-bazel/src/third_party/googletest",
+    "grpc/third_party/boringssl-with-bazel/*",
     "grpc/third_party/libuv/*",
     "grpc/third_party/gflags/*",
     "grpc/third_party/googletest/*",
@@ -70,3 +66,4 @@ pkg-config = "0.3"
 walkdir = "2.2.9"
 # Because of rust-lang/cargo#5237, bindgen should not be upgraded util a minor or major release.
 bindgen = { version = "0.51.0", default-features = false }
+boringssl-src = "0.1.0"
