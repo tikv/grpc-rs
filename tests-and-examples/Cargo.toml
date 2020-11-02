@@ -11,7 +11,7 @@ protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-co
 prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec"]
 
 [dependencies]
-grpcio-sys = { path = "../grpc-sys", version = "0.6.0" }
+grpcio-sys = { path = "../grpc-sys", version = "0.7" }
 libc = "0.2"
 futures = "0.3"
 futures-timer = "3.0"
@@ -19,7 +19,7 @@ protobuf = { version = "2.0", optional = true }
 prost = { version = "0.6", optional = true }
 bytes = { version = "0.5", optional = true }
 log = "0.4"
-grpcio = { path = "..", version = "0.6.0", default-features = false, features = ["secure"] }
+grpcio = { path = "..", version = "0.7", default-features = false, features = ["secure"] }
 
 [dev-dependencies]
 serde_json = "1.0"
