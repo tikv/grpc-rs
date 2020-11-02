@@ -111,7 +111,7 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set maximum message length that the channel can receive. `usize::MAX` means unlimited.
+    /// Set maximum message length that the channel can receive. `-1` means unlimited.
     pub fn max_receive_message_len(mut self, len: i32) -> ChannelBuilder {
         self.options.insert(
             Cow::Borrowed(grpcio_sys::GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH),
