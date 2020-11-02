@@ -442,6 +442,28 @@ impl ChannelBuilder {
         let channel =
             unsafe { grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut()) };
 
+        unsafe { Channel::new(self.env.pick_cq(), self.env, channel) }
+    }
+
+    /// Build an insecure [`Channel`] taking over an established connection from
+    /// a file descriptor. The target string given is purely informative to
+    /// describe the endpoint of the connection. Takes ownership of the given
+    /// file descriptor and will close it when the connection is closed.
+    ///
+    /// This function is available on posix systems only.
+    ///
+    /// # Safety
+    ///
+    /// The file descriptor must correspond to a connected stream socket. After
+    /// this call, the socket must not be accessed (read / written / closed)
+    /// by other code.
+    #[cfg(unix)]
+    pub unsafe fn connect_from_fd(mut self, target: &str, fd: ::std::os::raw::c_int) -> Channel {
+        let args = self.prepare_connect_args();
+        let target = CString::new(target).unwrap();
+        let target_ptr = target.as_ptr();
+        let channel = grpc_sys::grpc_insecure_channel_create_from_fd(target_ptr, fd, args.args);
+
         Channel::new(self.env.pick_cq(), self.env, channel)
     }
 }
@@ -489,7 +511,7 @@ mod secure_channel {
                 )
             };
 
-            Channel::new(self.env.pick_cq(), self.env, channel)
+            unsafe { Channel::new(self.env.pick_cq(), self.env, channel) }
         }
     }
 }
@@ -548,7 +570,19 @@ unsafe impl Send for Channel {}
 unsafe impl Sync for Channel {}
 
 impl Channel {
-    fn new(cq: CompletionQueue, env: Arc<Environment>, channel: *mut grpc_channel) -> Channel {
+    /// Create a new channel. Avoid using this directly and use
+    /// [`ChannelBuilder`] to build a [`Channel`] instead.
+    ///
+    /// # Safety
+    ///
+    /// The given grpc_channel must correspond to an instantiated grpc core
+    /// channel. Takes exclusive ownership of the channel and will close it after
+    /// use.
+    pub unsafe fn new(
+        cq: CompletionQueue,
+        env: Arc<Environment>,
+        channel: *mut grpc_channel,
+    ) -> Channel {
         Channel {
             inner: Arc::new(ChannelInner { _env: env, channel }),
             cq,
