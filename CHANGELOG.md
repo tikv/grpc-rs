@@ -1,3 +1,13 @@
+# 0.7.0 - 2020-11-02
+
+- Add blocking callback to `EnvBuilder` (#474)
+- Enhance sinks to make them batchable (#469)
+- Remove `rustfmt_skip` attribute since it is unstable (#479)
+- Use `grpc_slice` to reduce memory copy (#481)
+- Fix the bug that server cannot shutdown itself when drop (#484)
+- Add methods for channels from file descriptors (#488)
+- Update gRPC C core to 1.33.1 (#492)
+
 # 0.6.0 - 2020-06-12
 
 - Switch to std::future (#447)
