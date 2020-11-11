@@ -5,7 +5,7 @@ use crate::call::MessageReader;
 use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
-pub type SerializeFn<T> = fn(&T, &mut GrpcSlice);
+pub type SerializeFn<T> = fn(&T, &mut GrpcSlice) -> Result<()>;
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -31,16 +31,23 @@ pub mod pb_codec {
 
     use super::MessageReader;
     use crate::buf::GrpcSlice;
-    use crate::error::Result;
+    use crate::error::{Error, Result};
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, buf: &mut GrpcSlice) {
-        let cap = t.compute_size();
-        unsafe {
-            let bytes = buf.realloc(cap as usize);
-            let raw_bytes = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
-            let mut s = CodedOutputStream::bytes(raw_bytes);
-            t.write_to_with_cached_sizes(&mut s).unwrap();
+    pub fn ser<T: Message>(t: &T, buf: &mut GrpcSlice) -> Result<()> {
+        let cap = t.compute_size() as usize;
+        // FIXME: This is not a practical fix until stepancheg/rust-protobuf#530 is fixed.
+        if cap <= u32::MAX as usize {
+            unsafe {
+                let bytes = buf.realloc(cap);
+                let raw_bytes = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
+                let mut s = CodedOutputStream::bytes(raw_bytes);
+                t.write_to_with_cached_sizes(&mut s).map_err(Into::into)
+            }
+        } else {
+            Err(Error::Codec(
+                format!("message is too large: {} > u32::MAX", cap).into(),
+            ))
         }
     }
 
@@ -56,20 +63,27 @@ pub mod pb_codec {
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
     use prost::Message;
+    use std::u32;
 
     use super::MessageReader;
     use crate::buf::GrpcSlice;
-    use crate::error::Result;
+    use crate::error::{Error, Result};
 
     #[inline]
-    pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) {
+    pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) -> Result<()> {
         let size = msg.encoded_len();
-        unsafe {
-            let bytes = buf.realloc(size);
-            let mut b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
-            msg.encode(&mut b)
-                .expect("Writing message to buffer failed");
-            debug_assert!(b.is_empty());
+        if size <= u32::MAX as usize {
+            unsafe {
+                let bytes = buf.realloc(size);
+                let mut b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
+                msg.encode(&mut b)?;
+                debug_assert!(b.is_empty());
+            }
+            Ok(())
+        } else {
+            Err(Error::Codec(
+                format!("message is too large: {} > u32::MAX", size).into(),
+            ))
         }
     }
 
