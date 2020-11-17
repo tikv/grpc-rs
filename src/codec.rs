@@ -54,7 +54,6 @@ pub mod pb_codec {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
-    use bytes::buf::BufMut;
     use prost::Message;
 
     use super::MessageReader;
@@ -67,7 +66,7 @@ pub mod pr_codec {
             Ok(())
         } else {
             Err(Error::Codec(
-                format!("message is too large: {} > u32::MAX", size).into(),
+                format!("message is too large: {} > u32::MAX", buf.len()).into(),
             ))
         }
     }
