@@ -330,11 +330,20 @@ macro_rules! impl_unary_sink {
             }
 
             fn complete(mut self, status: RpcStatus, t: Option<T>) -> $rt {
-                let data = t.as_ref().map(|t| {
-                    let mut buf = vec![];
-                    (self.ser)(t, &mut buf);
-                    buf
-                });
+                let data = match t {
+                    Some(t) => {
+                        let mut buf = vec![];
+                        match (self.ser)(&t, &mut buf) {
+                            Ok(()) => Some(buf),
+                            Err(e) => return $rt {
+                                call: self.call.take().unwrap(),
+                                cq_f: None,
+                                err: Some(e),
+                            }
+                        }
+                    },
+                    None => None,
+                };
 
                 let write_flags = self.write_flags;
                 let res = self.call.as_mut().unwrap().call(|c| {
