@@ -300,6 +300,8 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .clang_arg("-std=c++11")
         .rustfmt_bindings(true)
         .impl_debug(true)
+        .size_t_is_usize(true)
+        .disable_header_comment()
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")

@@ -95,6 +95,8 @@ jobs:
   Win:
     name: Windows
     runs-on: windows-latest
+    env:
+      LIBCLANG_PATH: 'C:\Program Files\LLVM\bin'
     steps:
     - uses: actions/checkout@v2
     - run: choco install -y llvm
