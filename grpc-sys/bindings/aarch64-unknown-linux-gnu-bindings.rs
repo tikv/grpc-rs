@@ -204,53 +204,6 @@ pub struct grpc_compression_options_grpc_compression_options_default_level {
     pub is_set: ::std::os::raw::c_int,
     pub level: grpc_compression_level,
 }
-#[test]
-fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default_level() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_compression_options_grpc_compression_options_default_level>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_level)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_compression_options_grpc_compression_options_default_level>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_level)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_compression_options_grpc_compression_options_default_level>(
-            )))
-            .is_set as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_level),
-            "::",
-            stringify!(is_set)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_compression_options_grpc_compression_options_default_level>(
-            )))
-            .level as *const _ as usize
-        },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_level),
-            "::",
-            stringify!(level)
-        )
-    );
-}
 #[doc = " The default message compression algorithm. It'll be used in the absence of"]
 #[doc = " call specific settings. This option corresponds to the channel argument key"]
 #[doc = " behind \\a GRPC_COMPRESSION_CHANNEL_DEFAULT_ALGORITHM."]
@@ -259,108 +212,6 @@ fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default
 pub struct grpc_compression_options_grpc_compression_options_default_algorithm {
     pub is_set: ::std::os::raw::c_int,
     pub algorithm: grpc_compression_algorithm,
-}
-#[test]
-fn bindgen_test_layout_grpc_compression_options_grpc_compression_options_default_algorithm() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_compression_options_grpc_compression_options_default_algorithm>(
-        ),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_algorithm)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_compression_options_grpc_compression_options_default_algorithm>(
-        ),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_algorithm)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<
-                grpc_compression_options_grpc_compression_options_default_algorithm,
-            >()))
-            .is_set as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_algorithm),
-            "::",
-            stringify!(is_set)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<
-                grpc_compression_options_grpc_compression_options_default_algorithm,
-            >()))
-            .algorithm as *const _ as usize
-        },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options_grpc_compression_options_default_algorithm),
-            "::",
-            stringify!(algorithm)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_compression_options() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_compression_options>(),
-        20usize,
-        concat!("Size of: ", stringify!(grpc_compression_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_compression_options>(),
-        4usize,
-        concat!("Alignment of ", stringify!(grpc_compression_options))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_compression_options>())).enabled_algorithms_bitset
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options),
-            "::",
-            stringify!(enabled_algorithms_bitset)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_compression_options>())).default_level as *const _ as usize
-        },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options),
-            "::",
-            stringify!(default_level)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_compression_options>())).default_algorithm as *const _
-                as usize
-        },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_compression_options),
-            "::",
-            stringify!(default_algorithm)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -395,176 +246,16 @@ pub struct grpc_slice_grpc_slice_data_grpc_slice_refcounted {
     pub length: usize,
     pub bytes: *mut u8,
 }
-#[test]
-fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_refcounted() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_grpc_slice_data_grpc_slice_refcounted>(),
-        16usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_refcounted)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_grpc_slice_data_grpc_slice_refcounted>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_refcounted)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_slice_grpc_slice_data_grpc_slice_refcounted>())).length
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_refcounted),
-            "::",
-            stringify!(length)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_slice_grpc_slice_data_grpc_slice_refcounted>())).bytes
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_refcounted),
-            "::",
-            stringify!(bytes)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_slice_grpc_slice_data_grpc_slice_inlined {
     pub length: u8,
     pub bytes: [u8; 23usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_slice_grpc_slice_data_grpc_slice_inlined() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_grpc_slice_data_grpc_slice_inlined>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_inlined)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_grpc_slice_data_grpc_slice_inlined>(),
-        1usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_inlined)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_slice_grpc_slice_data_grpc_slice_inlined>())).length
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_inlined),
-            "::",
-            stringify!(length)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_slice_grpc_slice_data_grpc_slice_inlined>())).bytes
-                as *const _ as usize
-        },
-        1usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_grpc_slice_data_grpc_slice_inlined),
-            "::",
-            stringify!(bytes)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_slice_grpc_slice_data() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_grpc_slice_data>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_slice_grpc_slice_data))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_grpc_slice_data>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_slice_grpc_slice_data))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_slice_grpc_slice_data>())).refcounted as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_grpc_slice_data),
-            "::",
-            stringify!(refcounted)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_slice_grpc_slice_data>())).inlined as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_grpc_slice_data),
-            "::",
-            stringify!(inlined)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_slice_grpc_slice_data {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_slice_grpc_slice_data {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_slice() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_slice))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_slice))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice>())).refcount as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice),
-            "::",
-            stringify!(refcount)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice>())).data as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice),
-            "::",
-            stringify!(data)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpc_slice {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -595,82 +286,9 @@ pub struct grpc_slice_buffer {
     #[doc = " inlined elements to avoid allocations"]
     pub inlined: [grpc_slice; 8usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_slice_buffer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_slice_buffer>(),
-        296usize,
-        concat!("Size of: ", stringify!(grpc_slice_buffer))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_slice_buffer>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_slice_buffer))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice_buffer>())).base_slices as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_buffer),
-            "::",
-            stringify!(base_slices)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice_buffer>())).slices as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_buffer),
-            "::",
-            stringify!(slices)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice_buffer>())).count as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_buffer),
-            "::",
-            stringify!(count)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice_buffer>())).capacity as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_buffer),
-            "::",
-            stringify!(capacity)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice_buffer>())).length as *const _ as usize },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_buffer),
-            "::",
-            stringify!(length)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_slice_buffer>())).inlined as *const _ as usize },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_slice_buffer),
-            "::",
-            stringify!(inlined)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_slice_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, count: {:?}, capacity: {:?}, length: {:?}, inlined: {:?} }}" , self . base_slices , self . slices , self . count , self . capacity , self . length , self . inlined )
+        write ! (f , "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, count: {:?}, capacity: {:?}, length: {:?}, inlined: {:?} }}" , self . base_slices , self . slices , self . count , self . capacity , self . length , self . inlined)
     }
 }
 #[repr(u32)]
@@ -700,49 +318,6 @@ pub struct gpr_timespec {
     #[doc = "this is a relative time measure)"]
     pub clock_type: gpr_clock_type,
 }
-#[test]
-fn bindgen_test_layout_gpr_timespec() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_timespec>(),
-        16usize,
-        concat!("Size of: ", stringify!(gpr_timespec))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_timespec>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_timespec))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).tv_sec as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_timespec),
-            "::",
-            stringify!(tv_sec)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).tv_nsec as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_timespec),
-            "::",
-            stringify!(tv_nsec)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_timespec>())).clock_type as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_timespec),
-            "::",
-            stringify!(clock_type)
-        )
-    );
-}
 pub type gpr_atm = isize;
 extern "C" {
     #[doc = " Adds \\a delta to \\a *value, clamping the result to the range specified"]
@@ -759,84 +334,15 @@ extern "C" {
 pub struct gpr_event {
     pub state: gpr_atm,
 }
-#[test]
-fn bindgen_test_layout_gpr_event() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_event>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_event))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_event>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_event))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_event>())).state as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_event),
-            "::",
-            stringify!(state)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct gpr_refcount {
     pub count: gpr_atm,
 }
-#[test]
-fn bindgen_test_layout_gpr_refcount() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_refcount>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_refcount))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_refcount>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_refcount))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_refcount>())).count as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_refcount),
-            "::",
-            stringify!(count)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct gpr_stats_counter {
     pub value: gpr_atm,
-}
-#[test]
-fn bindgen_test_layout_gpr_stats_counter() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_stats_counter>(),
-        8usize,
-        concat!("Size of: ", stringify!(gpr_stats_counter))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_stats_counter>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_stats_counter))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_stats_counter>())).value as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_stats_counter),
-            "::",
-            stringify!(value)
-        )
-    );
 }
 extern "C" {
     #[doc = " Initialize *ev."]
@@ -1298,188 +804,21 @@ pub union grpc_byte_buffer_grpc_byte_buffer_data {
 pub struct grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1 {
     pub reserved: [*mut ::std::os::raw::c_void; 8usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1>(),
-        64usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1>()))
-                .reserved as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1),
-            "::",
-            stringify!(reserved)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
     pub compression: grpc_compression_algorithm,
     pub slice_buffer: grpc_slice_buffer,
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer>(),
-        304usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer>(
-            )))
-            .compression as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer),
-            "::",
-            stringify!(compression)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer>(
-            )))
-            .slice_buffer as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer),
-            "::",
-            stringify!(slice_buffer)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {{ compression: {:?}, slice_buffer: {:?} }}" , self . compression , self . slice_buffer )
+        write ! (f , "grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer {{ compression: {:?}, slice_buffer: {:?} }}" , self . compression , self . slice_buffer)
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_grpc_byte_buffer_data() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_grpc_byte_buffer_data>(),
-        304usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_grpc_byte_buffer_data>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_grpc_byte_buffer_data>())).reserved as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data),
-            "::",
-            stringify!(reserved)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_grpc_byte_buffer_data>())).raw as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_grpc_byte_buffer_data),
-            "::",
-            stringify!(raw)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpc_byte_buffer_grpc_byte_buffer_data {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_byte_buffer_grpc_byte_buffer_data {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer>(),
-        320usize,
-        concat!("Size of: ", stringify!(grpc_byte_buffer))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_byte_buffer))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_byte_buffer>())).reserved as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer),
-            "::",
-            stringify!(reserved)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_byte_buffer>())).type_ as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer),
-            "::",
-            stringify!(type_)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_byte_buffer>())).data as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer),
-            "::",
-            stringify!(data)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpc_byte_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -1547,49 +886,6 @@ pub struct grpc_arg_pointer_vtable {
         ) -> ::std::os::raw::c_int,
     >,
 }
-#[test]
-fn bindgen_test_layout_grpc_arg_pointer_vtable() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg_pointer_vtable>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_arg_pointer_vtable))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg_pointer_vtable>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_arg_pointer_vtable))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg_pointer_vtable>())).copy as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_pointer_vtable),
-            "::",
-            stringify!(copy)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg_pointer_vtable>())).destroy as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_pointer_vtable),
-            "::",
-            stringify!(destroy)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg_pointer_vtable>())).cmp as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_pointer_vtable),
-            "::",
-            stringify!(cmp)
-        )
-    );
-}
 #[doc = " A single argument... each argument has a key and a value"]
 #[doc = ""]
 #[doc = "A note on naming keys:"]
@@ -1623,141 +919,10 @@ pub struct grpc_arg_grpc_arg_value_grpc_arg_pointer {
     pub p: *mut ::std::os::raw::c_void,
     pub vtable: *const grpc_arg_pointer_vtable,
 }
-#[test]
-fn bindgen_test_layout_grpc_arg_grpc_arg_value_grpc_arg_pointer() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg_grpc_arg_value_grpc_arg_pointer>(),
-        16usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_arg_grpc_arg_value_grpc_arg_pointer)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg_grpc_arg_value_grpc_arg_pointer>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_arg_grpc_arg_value_grpc_arg_pointer)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_arg_grpc_arg_value_grpc_arg_pointer>())).p as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_grpc_arg_value_grpc_arg_pointer),
-            "::",
-            stringify!(p)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_arg_grpc_arg_value_grpc_arg_pointer>())).vtable as *const _
-                as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_grpc_arg_value_grpc_arg_pointer),
-            "::",
-            stringify!(vtable)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_arg_grpc_arg_value() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg_grpc_arg_value>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_arg_grpc_arg_value))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg_grpc_arg_value>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_arg_grpc_arg_value))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg_grpc_arg_value>())).string as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_grpc_arg_value),
-            "::",
-            stringify!(string)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg_grpc_arg_value>())).integer as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_grpc_arg_value),
-            "::",
-            stringify!(integer)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg_grpc_arg_value>())).pointer as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg_grpc_arg_value),
-            "::",
-            stringify!(pointer)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_arg_grpc_arg_value {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_arg_grpc_arg_value {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_arg() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_arg>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_arg))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_arg>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_arg))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg>())).type_ as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg),
-            "::",
-            stringify!(type_)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg>())).key as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg),
-            "::",
-            stringify!(key)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_arg>())).value as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_arg),
-            "::",
-            stringify!(value)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpc_arg {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -1789,39 +954,6 @@ impl ::std::fmt::Debug for grpc_arg {
 pub struct grpc_channel_args {
     pub num_args: usize,
     pub args: *mut grpc_arg,
-}
-#[test]
-fn bindgen_test_layout_grpc_channel_args() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_channel_args>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_channel_args))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_channel_args>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_channel_args))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_channel_args>())).num_args as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_channel_args),
-            "::",
-            stringify!(num_args)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_channel_args>())).args as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_channel_args),
-            "::",
-            stringify!(args)
-        )
-    );
 }
 #[repr(u32)]
 #[doc = " Result of a grpc call. If the caller satisfies the prerequisites of a"]
@@ -1884,84 +1016,6 @@ pub struct grpc_metadata {
 pub struct grpc_metadata__bindgen_ty_1 {
     pub obfuscated: [*mut ::std::os::raw::c_void; 4usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_metadata__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata__bindgen_ty_1>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_metadata__bindgen_ty_1))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata__bindgen_ty_1>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_metadata__bindgen_ty_1))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_metadata__bindgen_ty_1>())).obfuscated as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata__bindgen_ty_1),
-            "::",
-            stringify!(obfuscated)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_metadata() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata>(),
-        104usize,
-        concat!("Size of: ", stringify!(grpc_metadata))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_metadata))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata>())).key as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata),
-            "::",
-            stringify!(key)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata>())).value as *const _ as usize },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata),
-            "::",
-            stringify!(value)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata>())).flags as *const _ as usize },
-        64usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata),
-            "::",
-            stringify!(flags)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata>())).internal_data as *const _ as usize },
-        72usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata),
-            "::",
-            stringify!(internal_data)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_metadata {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
@@ -2001,98 +1055,12 @@ pub struct grpc_event {
     #[doc = "values, tag is uninitialized."]
     pub tag: *mut ::std::os::raw::c_void,
 }
-#[test]
-fn bindgen_test_layout_grpc_event() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_event>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_event))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_event>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_event))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_event>())).type_ as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_event),
-            "::",
-            stringify!(type_)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_event>())).success as *const _ as usize },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_event),
-            "::",
-            stringify!(success)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_event>())).tag as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_event),
-            "::",
-            stringify!(tag)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_metadata_array {
     pub count: usize,
     pub capacity: usize,
     pub metadata: *mut grpc_metadata,
-}
-#[test]
-fn bindgen_test_layout_grpc_metadata_array() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata_array>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_metadata_array))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata_array>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_metadata_array))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata_array>())).count as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_array),
-            "::",
-            stringify!(count)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata_array>())).capacity as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_array),
-            "::",
-            stringify!(capacity)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_metadata_array>())).metadata as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_array),
-            "::",
-            stringify!(metadata)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -2103,72 +1071,9 @@ pub struct grpc_call_details {
     pub flags: u32,
     pub reserved: *mut ::std::os::raw::c_void,
 }
-#[test]
-fn bindgen_test_layout_grpc_call_details() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_call_details>(),
-        96usize,
-        concat!("Size of: ", stringify!(grpc_call_details))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_call_details>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_call_details))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_call_details>())).method as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_call_details),
-            "::",
-            stringify!(method)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_call_details>())).host as *const _ as usize },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_call_details),
-            "::",
-            stringify!(host)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_call_details>())).deadline as *const _ as usize },
-        64usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_call_details),
-            "::",
-            stringify!(deadline)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_call_details>())).flags as *const _ as usize },
-        80usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_call_details),
-            "::",
-            stringify!(flags)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_call_details>())).reserved as *const _ as usize },
-        88usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_call_details),
-            "::",
-            stringify!(reserved)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, flags: {:?}, reserved: {:?} }}" , self . method , self . host , self . deadline , self . flags , self . reserved )
+        write ! (f , "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, flags: {:?}, reserved: {:?} }}" , self . method , self . host , self . deadline , self . flags , self . reserved)
     }
 }
 #[repr(u32)]
@@ -2247,35 +1152,6 @@ pub union grpc_op_grpc_op_data {
 pub struct grpc_op_grpc_op_data__bindgen_ty_1 {
     pub reserved: [*mut ::std::os::raw::c_void; 8usize],
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data__bindgen_ty_1>(),
-        64usize,
-        concat!("Size of: ", stringify!(grpc_op_grpc_op_data__bindgen_ty_1))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data__bindgen_ty_1>())).reserved as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data__bindgen_ty_1),
-            "::",
-            stringify!(reserved)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata { pub count : usize , pub metadata : * mut grpc_metadata , pub maybe_compression_level : grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level , }
@@ -2288,72 +1164,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initi
     pub is_set: u8,
     pub level: grpc_compression_level,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level(
-) {
-    assert_eq ! ( :: std :: mem :: size_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) , 8usize , concat ! ( "Size of: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) ) );
-    assert_eq ! ( :: std :: mem :: align_of :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) , 4usize , concat ! ( "Alignment of " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) ) );
-    assert_eq ! ( unsafe { & ( * ( :: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) ) ) . is_set as * const _ as usize } , 0usize , concat ! ( "Offset of field: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) , "::" , stringify ! ( is_set ) ) );
-    assert_eq ! ( unsafe { & ( * ( :: std :: ptr :: null :: < grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level > ( ) ) ) . level as * const _ as usize } , 4usize , concat ! ( "Offset of field: " , stringify ! ( grpc_op_grpc_op_data_grpc_op_send_initial_metadata_grpc_op_send_initial_metadata_maybe_compression_level ) , "::" , stringify ! ( level ) ) );
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_initial_metadata() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>())).count
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata),
-            "::",
-            stringify!(count)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>())).metadata
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata),
-            "::",
-            stringify!(metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_initial_metadata>()))
-                .maybe_compression_level as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_initial_metadata),
-            "::",
-            stringify!(maybe_compression_level)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_send_message {
@@ -2362,38 +1172,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_message {
     #[doc = " and likely empty.  The original owner should still call"]
     #[doc = " grpc_byte_buffer_destroy() on this object however."]
     pub send_message: *mut grpc_byte_buffer,
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_message() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_send_message>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_message)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_send_message>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_message)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_message>())).send_message
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_message),
-            "::",
-            stringify!(send_message)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2405,77 +1183,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_send_status_from_server {
     #[doc = " pointer will not be retained past the start_batch call"]
     pub status_details: *mut grpc_slice,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_status_from_server() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>(),
-        32usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>()))
-                .trailing_metadata_count as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server),
-            "::",
-            stringify!(trailing_metadata_count)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>()))
-                .trailing_metadata as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server),
-            "::",
-            stringify!(trailing_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>())).status
-                as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server),
-            "::",
-            stringify!(status)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_send_status_from_server>()))
-                .status_details as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_send_status_from_server),
-            "::",
-            stringify!(status_details)
-        )
-    );
-}
 #[doc = " ownership of the array is with the caller, but ownership of the elements"]
 #[doc = "stays with the call object (ie key, value members are owned by the call"]
 #[doc = "object, recv_initial_metadata->array is owned by the caller)."]
@@ -2486,38 +1193,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_send_status_from_server() {
 pub struct grpc_op_grpc_op_data_grpc_op_recv_initial_metadata {
     pub recv_initial_metadata: *mut grpc_metadata_array,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_initial_metadata() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_initial_metadata>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_initial_metadata)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_initial_metadata>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_initial_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_initial_metadata>()))
-                .recv_initial_metadata as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_initial_metadata),
-            "::",
-            stringify!(recv_initial_metadata)
-        )
-    );
-}
 #[doc = " ownership of the byte buffer is moved to the caller; the caller must"]
 #[doc = "call grpc_byte_buffer_destroy on this value, or reuse it in a future op."]
 #[doc = "The returned byte buffer will be NULL if trailing metadata was"]
@@ -2526,38 +1201,6 @@ fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_initial_metadata() {
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_recv_message {
     pub recv_message: *mut *mut grpc_byte_buffer,
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_message() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_message>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_message)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_message>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_message)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_message>())).recv_message
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_message),
-            "::",
-            stringify!(recv_message)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2575,77 +1218,6 @@ pub struct grpc_op_grpc_op_data_grpc_op_recv_status_on_client {
     #[doc = " for freeing the data by using gpr_free()."]
     pub error_string: *mut *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_status_on_client() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>(),
-        32usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>()))
-                .trailing_metadata as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client),
-            "::",
-            stringify!(trailing_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>())).status
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client),
-            "::",
-            stringify!(status)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>()))
-                .status_details as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client),
-            "::",
-            stringify!(status_details)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_status_on_client>()))
-                .error_string as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_status_on_client),
-            "::",
-            stringify!(error_string)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_op_grpc_op_data_grpc_op_recv_close_on_server {
@@ -2653,207 +1225,10 @@ pub struct grpc_op_grpc_op_data_grpc_op_recv_close_on_server {
     #[doc = "cancellation on the server), or 0 if the call succeeded"]
     pub cancelled: *mut ::std::os::raw::c_int,
 }
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data_grpc_op_recv_close_on_server() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data_grpc_op_recv_close_on_server>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_close_on_server)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data_grpc_op_recv_close_on_server>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_close_on_server)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data_grpc_op_recv_close_on_server>())).cancelled
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data_grpc_op_recv_close_on_server),
-            "::",
-            stringify!(cancelled)
-        )
-    );
-}
-#[test]
-fn bindgen_test_layout_grpc_op_grpc_op_data() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op_grpc_op_data>(),
-        64usize,
-        concat!("Size of: ", stringify!(grpc_op_grpc_op_data))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op_grpc_op_data>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_op_grpc_op_data))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).reserved as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(reserved)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).send_initial_metadata as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(send_initial_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).send_message as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(send_message)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).send_status_from_server as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(send_status_from_server)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).recv_initial_metadata as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(recv_initial_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).recv_message as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(recv_message)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).recv_status_on_client as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(recv_status_on_client)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_op_grpc_op_data>())).recv_close_on_server as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op_grpc_op_data),
-            "::",
-            stringify!(recv_close_on_server)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_op_grpc_op_data {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "grpc_op_grpc_op_data {{ union }}")
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_op() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_op>(),
-        80usize,
-        concat!("Size of: ", stringify!(grpc_op))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_op>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_op))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_op>())).op as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op),
-            "::",
-            stringify!(op)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_op>())).flags as *const _ as usize },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op),
-            "::",
-            stringify!(flags)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_op>())).reserved as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op),
-            "::",
-            stringify!(reserved)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_op>())).data as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_op),
-            "::",
-            stringify!(data)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpc_op {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -2874,43 +1249,6 @@ pub struct grpc_channel_info {
     #[doc = " If non-NULL, will be set to point to a string containing the"]
     #[doc = " service config used by the channel in JSON form."]
     pub service_config_json: *mut *mut ::std::os::raw::c_char,
-}
-#[test]
-fn bindgen_test_layout_grpc_channel_info() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_channel_info>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_channel_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_channel_info>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_channel_info))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_channel_info>())).lb_policy_name as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_channel_info),
-            "::",
-            stringify!(lb_policy_name)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_channel_info>())).service_config_json as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_channel_info),
-            "::",
-            stringify!(service_config_json)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2978,77 +1316,6 @@ pub struct grpc_experimental_completion_queue_functor {
     pub internal_success: ::std::os::raw::c_int,
     pub internal_next: *mut grpc_experimental_completion_queue_functor,
 }
-#[test]
-fn bindgen_test_layout_grpc_experimental_completion_queue_functor() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_experimental_completion_queue_functor>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_experimental_completion_queue_functor)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_experimental_completion_queue_functor>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_experimental_completion_queue_functor)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_experimental_completion_queue_functor>())).functor_run
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_experimental_completion_queue_functor),
-            "::",
-            stringify!(functor_run)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_experimental_completion_queue_functor>())).inlineable
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_experimental_completion_queue_functor),
-            "::",
-            stringify!(inlineable)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_experimental_completion_queue_functor>())).internal_success
-                as *const _ as usize
-        },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_experimental_completion_queue_functor),
-            "::",
-            stringify!(internal_success)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_experimental_completion_queue_functor>())).internal_next
-                as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_experimental_completion_queue_functor),
-            "::",
-            stringify!(internal_next)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_completion_queue_attributes {
@@ -3061,74 +1328,6 @@ pub struct grpc_completion_queue_attributes {
     #[doc = " When creating a callbackable CQ, pass in a functor to get invoked when"]
     #[doc = " shutdown is complete"]
     pub cq_shutdown_cb: *mut grpc_experimental_completion_queue_functor,
-}
-#[test]
-fn bindgen_test_layout_grpc_completion_queue_attributes() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_completion_queue_attributes>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_completion_queue_attributes))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_completion_queue_attributes>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_completion_queue_attributes)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_completion_queue_attributes>())).version as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_completion_queue_attributes),
-            "::",
-            stringify!(version)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_completion_queue_attributes>())).cq_completion_type
-                as *const _ as usize
-        },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_completion_queue_attributes),
-            "::",
-            stringify!(cq_completion_type)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_completion_queue_attributes>())).cq_polling_type as *const _
-                as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_completion_queue_attributes),
-            "::",
-            stringify!(cq_polling_type)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_completion_queue_attributes>())).cq_shutdown_cb as *const _
-                as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_completion_queue_attributes),
-            "::",
-            stringify!(cq_shutdown_cb)
-        )
-    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -4154,53 +2353,6 @@ pub struct grpc_auth_property_iterator {
     pub index: usize,
     pub name: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_auth_property_iterator() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_property_iterator>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_auth_property_iterator))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_property_iterator>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_property_iterator))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_auth_property_iterator>())).ctx as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_property_iterator),
-            "::",
-            stringify!(ctx)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_property_iterator>())).index as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_property_iterator),
-            "::",
-            stringify!(index)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_property_iterator>())).name as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_property_iterator),
-            "::",
-            stringify!(name)
-        )
-    );
-}
 #[doc = " value, if not NULL, is guaranteed to be NULL terminated."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -4208,49 +2360,6 @@ pub struct grpc_auth_property {
     pub name: *mut ::std::os::raw::c_char,
     pub value: *mut ::std::os::raw::c_char,
     pub value_length: usize,
-}
-#[test]
-fn bindgen_test_layout_grpc_auth_property() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_property>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_auth_property))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_property>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_property))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_auth_property>())).name as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_property),
-            "::",
-            stringify!(name)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_auth_property>())).value as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_property),
-            "::",
-            stringify!(value)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_auth_property>())).value_length as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_property),
-            "::",
-            stringify!(value_length)
-        )
-    );
 }
 extern "C" {
     #[doc = " Returns NULL when the iterator is at the end."]
@@ -4392,43 +2501,6 @@ pub struct grpc_ssl_pem_key_cert_pair {
     #[doc = "the client's certificate chain."]
     pub cert_chain: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_ssl_pem_key_cert_pair() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_ssl_pem_key_cert_pair>(),
-        16usize,
-        concat!("Size of: ", stringify!(grpc_ssl_pem_key_cert_pair))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_ssl_pem_key_cert_pair>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_ssl_pem_key_cert_pair))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_ssl_pem_key_cert_pair>())).private_key as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_ssl_pem_key_cert_pair),
-            "::",
-            stringify!(private_key)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_ssl_pem_key_cert_pair>())).cert_chain as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_ssl_pem_key_cert_pair),
-            "::",
-            stringify!(cert_chain)
-        )
-    );
-}
 #[doc = " Deprecated in favor of grpc_ssl_verify_peer_options. It will be removed"]
 #[doc = "after all of its call sites are migrated to grpc_ssl_verify_peer_options."]
 #[doc = "Object that holds additional peer-verification options on a secure"]
@@ -4457,58 +2529,6 @@ pub struct verify_peer_options {
     pub verify_peer_destruct:
         ::std::option::Option<unsafe extern "C" fn(userdata: *mut ::std::os::raw::c_void)>,
 }
-#[test]
-fn bindgen_test_layout_verify_peer_options() {
-    assert_eq!(
-        ::std::mem::size_of::<verify_peer_options>(),
-        24usize,
-        concat!("Size of: ", stringify!(verify_peer_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<verify_peer_options>(),
-        8usize,
-        concat!("Alignment of ", stringify!(verify_peer_options))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<verify_peer_options>())).verify_peer_callback as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(verify_peer_options),
-            "::",
-            stringify!(verify_peer_callback)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<verify_peer_options>())).verify_peer_callback_userdata
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(verify_peer_options),
-            "::",
-            stringify!(verify_peer_callback_userdata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<verify_peer_options>())).verify_peer_destruct as *const _
-                as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(verify_peer_options),
-            "::",
-            stringify!(verify_peer_destruct)
-        )
-    );
-}
 #[doc = " Object that holds additional peer-verification options on a secure"]
 #[doc = "channel."]
 #[repr(C)]
@@ -4534,58 +2554,6 @@ pub struct grpc_ssl_verify_peer_options {
     #[doc = "to perform any cleanup associated with that userdata."]
     pub verify_peer_destruct:
         ::std::option::Option<unsafe extern "C" fn(userdata: *mut ::std::os::raw::c_void)>,
-}
-#[test]
-fn bindgen_test_layout_grpc_ssl_verify_peer_options() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_ssl_verify_peer_options>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_ssl_verify_peer_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_ssl_verify_peer_options>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_ssl_verify_peer_options))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_ssl_verify_peer_options>())).verify_peer_callback
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_ssl_verify_peer_options),
-            "::",
-            stringify!(verify_peer_callback)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_ssl_verify_peer_options>())).verify_peer_callback_userdata
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_ssl_verify_peer_options),
-            "::",
-            stringify!(verify_peer_callback_userdata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_ssl_verify_peer_options>())).verify_peer_destruct
-                as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_ssl_verify_peer_options),
-            "::",
-            stringify!(verify_peer_destruct)
-        )
-    );
 }
 extern "C" {
     #[doc = " Deprecated in favor of grpc_ssl_server_credentials_create_ex. It will be"]
@@ -4728,133 +2696,6 @@ pub struct grpc_sts_credentials_options {
     pub actor_token_path: *const ::std::os::raw::c_char,
     pub actor_token_type: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_grpc_sts_credentials_options() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_sts_credentials_options>(),
-        72usize,
-        concat!("Size of: ", stringify!(grpc_sts_credentials_options))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_sts_credentials_options>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_sts_credentials_options))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).token_exchange_service_uri
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(token_exchange_service_uri)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).resource as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(resource)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).audience as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(audience)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).scope as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(scope)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).requested_token_type
-                as *const _ as usize
-        },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(requested_token_type)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).subject_token_path as *const _
-                as usize
-        },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(subject_token_path)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).subject_token_type as *const _
-                as usize
-        },
-        48usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(subject_token_type)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).actor_token_path as *const _
-                as usize
-        },
-        56usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(actor_token_path)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_sts_credentials_options>())).actor_token_type as *const _
-                as usize
-        },
-        64usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_sts_credentials_options),
-            "::",
-            stringify!(actor_token_type)
-        )
-    );
-}
 extern "C" {
     #[doc = " Creates an STS credentials following the STS Token Exchanged specifed in the"]
     #[doc = "IETF draft https://tools.ietf.org/html/draft-ietf-oauth-token-exchange-16."]
@@ -4901,68 +2742,6 @@ pub struct grpc_auth_metadata_context {
     #[doc = " Reserved for future use."]
     pub reserved: *mut ::std::os::raw::c_void,
 }
-#[test]
-fn bindgen_test_layout_grpc_auth_metadata_context() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_metadata_context>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_auth_metadata_context))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_metadata_context>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_metadata_context))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_context>())).service_url as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_context),
-            "::",
-            stringify!(service_url)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_context>())).method_name as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_context),
-            "::",
-            stringify!(method_name)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_context>())).channel_auth_context as *const _
-                as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_context),
-            "::",
-            stringify!(channel_auth_context)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_context>())).reserved as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_context),
-            "::",
-            stringify!(reserved)
-        )
-    );
-}
 #[doc = " grpc_metadata_credentials plugin is an API user provided structure used to"]
 #[doc = "create grpc_credentials objects that can be set on a channel (composed) or"]
 #[doc = "a call. See grpc_credentials_metadata_create_from_plugin below."]
@@ -5007,72 +2786,6 @@ pub struct grpc_metadata_credentials_plugin {
     pub state: *mut ::std::os::raw::c_void,
     #[doc = " Type of credentials that this plugin is implementing."]
     pub type_: *const ::std::os::raw::c_char,
-}
-#[test]
-fn bindgen_test_layout_grpc_metadata_credentials_plugin() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_metadata_credentials_plugin>(),
-        32usize,
-        concat!("Size of: ", stringify!(grpc_metadata_credentials_plugin))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_metadata_credentials_plugin>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_metadata_credentials_plugin)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_metadata_credentials_plugin>())).get_metadata as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_credentials_plugin),
-            "::",
-            stringify!(get_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_metadata_credentials_plugin>())).destroy as *const _
-                as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_credentials_plugin),
-            "::",
-            stringify!(destroy)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_metadata_credentials_plugin>())).state as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_credentials_plugin),
-            "::",
-            stringify!(state)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_metadata_credentials_plugin>())).type_ as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_metadata_credentials_plugin),
-            "::",
-            stringify!(type_)
-        )
-    );
 }
 extern "C" {
     #[doc = " Creates a credentials object from a plugin."]
@@ -5280,55 +2993,6 @@ pub struct grpc_auth_metadata_processor {
     >,
     pub destroy: ::std::option::Option<unsafe extern "C" fn(state: *mut ::std::os::raw::c_void)>,
     pub state: *mut ::std::os::raw::c_void,
-}
-#[test]
-fn bindgen_test_layout_grpc_auth_metadata_processor() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_auth_metadata_processor>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_auth_metadata_processor))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_auth_metadata_processor>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_auth_metadata_processor))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_processor>())).process as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_processor),
-            "::",
-            stringify!(process)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_processor>())).destroy as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_processor),
-            "::",
-            stringify!(destroy)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_auth_metadata_processor>())).state as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_auth_metadata_processor),
-            "::",
-            stringify!(state)
-        )
-    );
 }
 extern "C" {
     pub fn grpc_server_credentials_set_auth_metadata_processor(
@@ -5556,119 +3220,6 @@ pub struct grpc_tls_credential_reload_arg {
     pub destroy_context:
         ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>,
 }
-#[test]
-fn bindgen_test_layout_grpc_tls_credential_reload_arg() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_tls_credential_reload_arg>(),
-        64usize,
-        concat!("Size of: ", stringify!(grpc_tls_credential_reload_arg))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_tls_credential_reload_arg>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_tls_credential_reload_arg))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).cb as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(cb)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).cb_user_data as *const _
-                as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(cb_user_data)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).key_materials_config
-                as *const _ as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(key_materials_config)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).status as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(status)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).error_details as *const _
-                as usize
-        },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(error_details)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).config as *const _ as usize
-        },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(config)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).context as *const _ as usize
-        },
-        48usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(context)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_credential_reload_arg>())).destroy_context as *const _
-                as usize
-        },
-        56usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_credential_reload_arg),
-            "::",
-            stringify!(destroy_context)
-        )
-    );
-}
 extern "C" {
     #[doc = " Create a grpc_tls_credential_reload_config instance."]
     #[doc = "- config_user_data is config-specific, read-only user data"]
@@ -5749,155 +3300,6 @@ pub struct grpc_tls_server_authorization_check_arg {
     pub context: *mut ::std::os::raw::c_void,
     pub destroy_context:
         ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>,
-}
-#[test]
-fn bindgen_test_layout_grpc_tls_server_authorization_check_arg() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_tls_server_authorization_check_arg>(),
-        80usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_tls_server_authorization_check_arg)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_tls_server_authorization_check_arg>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_tls_server_authorization_check_arg)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).cb as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(cb)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).cb_user_data
-                as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(cb_user_data)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).success as *const _
-                as usize
-        },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(success)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).target_name
-                as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(target_name)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).peer_cert
-                as *const _ as usize
-        },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(peer_cert)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).status as *const _
-                as usize
-        },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(status)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).error_details
-                as *const _ as usize
-        },
-        48usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(error_details)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).config as *const _
-                as usize
-        },
-        56usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(config)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).context as *const _
-                as usize
-        },
-        64usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(context)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_tls_server_authorization_check_arg>())).destroy_context
-                as *const _ as usize
-        },
-        72usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_tls_server_authorization_check_arg),
-            "::",
-            stringify!(destroy_context)
-        )
-    );
 }
 extern "C" {
     #[doc = " Create a grpc_tls_server_authorization_check_config instance."]
@@ -6018,59 +3420,6 @@ pub struct gpr_log_func_args {
     pub severity: gpr_log_severity,
     pub message: *const ::std::os::raw::c_char,
 }
-#[test]
-fn bindgen_test_layout_gpr_log_func_args() {
-    assert_eq!(
-        ::std::mem::size_of::<gpr_log_func_args>(),
-        24usize,
-        concat!("Size of: ", stringify!(gpr_log_func_args))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<gpr_log_func_args>(),
-        8usize,
-        concat!("Alignment of ", stringify!(gpr_log_func_args))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).file as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(file)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).line as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(line)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).severity as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(severity)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<gpr_log_func_args>())).message as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(gpr_log_func_args),
-            "::",
-            stringify!(message)
-        )
-    );
-}
 pub type gpr_log_func = ::std::option::Option<unsafe extern "C" fn(args: *mut gpr_log_func_args)>;
 extern "C" {
     pub fn gpr_set_log_function(func: gpr_log_func);
@@ -6162,38 +3511,6 @@ pub union grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
     pub index: ::std::os::raw::c_uint,
     _bindgen_union_align: u32,
 }
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_reader_grpc_byte_buffer_reader_current() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_reader_grpc_byte_buffer_reader_current>(),
-        4usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpc_byte_buffer_reader_grpc_byte_buffer_reader_current)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_reader_grpc_byte_buffer_reader_current>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpc_byte_buffer_reader_grpc_byte_buffer_reader_current)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_reader_grpc_byte_buffer_reader_current>()))
-                .index as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_reader_grpc_byte_buffer_reader_current),
-            "::",
-            stringify!(index)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
@@ -6201,53 +3518,6 @@ impl ::std::fmt::Debug for grpc_byte_buffer_reader_grpc_byte_buffer_reader_curre
             "grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {{ union }}"
         )
     }
-}
-#[test]
-fn bindgen_test_layout_grpc_byte_buffer_reader() {
-    assert_eq!(
-        ::std::mem::size_of::<grpc_byte_buffer_reader>(),
-        24usize,
-        concat!("Size of: ", stringify!(grpc_byte_buffer_reader))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpc_byte_buffer_reader>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpc_byte_buffer_reader))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_reader>())).buffer_in as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_reader),
-            "::",
-            stringify!(buffer_in)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpc_byte_buffer_reader>())).buffer_out as *const _ as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_reader),
-            "::",
-            stringify!(buffer_out)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<grpc_byte_buffer_reader>())).current as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpc_byte_buffer_reader),
-            "::",
-            stringify!(current)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpc_byte_buffer_reader {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -6274,38 +3544,6 @@ pub struct grpcwrap_batch_context {
 pub struct grpcwrap_batch_context__bindgen_ty_1 {
     pub trailing_metadata: grpc_metadata_array,
 }
-#[test]
-fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_batch_context__bindgen_ty_1>(),
-        24usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_batch_context__bindgen_ty_1>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_1)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context__bindgen_ty_1>())).trailing_metadata
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_1),
-            "::",
-            stringify!(trailing_metadata)
-        )
-    );
-}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct grpcwrap_batch_context__bindgen_ty_2 {
@@ -6313,174 +3551,14 @@ pub struct grpcwrap_batch_context__bindgen_ty_2 {
     pub status: grpc_status_code::Type,
     pub status_details: grpc_slice,
 }
-#[test]
-fn bindgen_test_layout_grpcwrap_batch_context__bindgen_ty_2() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_batch_context__bindgen_ty_2>(),
-        64usize,
-        concat!(
-            "Size of: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_batch_context__bindgen_ty_2>(),
-        8usize,
-        concat!(
-            "Alignment of ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context__bindgen_ty_2>())).trailing_metadata
-                as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2),
-            "::",
-            stringify!(trailing_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context__bindgen_ty_2>())).status as *const _
-                as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2),
-            "::",
-            stringify!(status)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context__bindgen_ty_2>())).status_details
-                as *const _ as usize
-        },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context__bindgen_ty_2),
-            "::",
-            stringify!(status_details)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpcwrap_batch_context__bindgen_ty_2 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details )
+        write ! (f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details)
     }
-}
-#[test]
-fn bindgen_test_layout_grpcwrap_batch_context() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_batch_context>(),
-        160usize,
-        concat!("Size of: ", stringify!(grpcwrap_batch_context))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_batch_context>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpcwrap_batch_context))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).send_initial_metadata as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(send_initial_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).send_message as *const _ as usize
-        },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(send_message)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).send_status_from_server as *const _
-                as usize
-        },
-        32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(send_status_from_server)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).recv_initial_metadata as *const _
-                as usize
-        },
-        56usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(recv_initial_metadata)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).recv_message as *const _ as usize
-        },
-        80usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(recv_message)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).recv_status_on_client as *const _
-                as usize
-        },
-        88usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(recv_status_on_client)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_batch_context>())).recv_close_on_server_cancelled
-                as *const _ as usize
-        },
-        152usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_batch_context),
-            "::",
-            stringify!(recv_close_on_server_cancelled)
-        )
-    );
 }
 impl ::std::fmt::Debug for grpcwrap_batch_context {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpcwrap_batch_context {{ send_initial_metadata: {:?}, send_message: {:?}, send_status_from_server: {:?}, recv_initial_metadata: {:?}, recv_message: {:?}, recv_status_on_client: {:?}, recv_close_on_server_cancelled: {:?} }}" , self . send_initial_metadata , self . send_message , self . send_status_from_server , self . recv_initial_metadata , self . recv_message , self . recv_status_on_client , self . recv_close_on_server_cancelled )
+        write ! (f , "grpcwrap_batch_context {{ send_initial_metadata: {:?}, send_message: {:?}, send_status_from_server: {:?}, recv_initial_metadata: {:?}, recv_message: {:?}, recv_status_on_client: {:?}, recv_close_on_server_cancelled: {:?} }}" , self . send_initial_metadata , self . send_message , self . send_status_from_server , self . recv_initial_metadata , self . recv_message , self . recv_status_on_client , self . recv_close_on_server_cancelled)
     }
 }
 extern "C" {
@@ -6493,60 +3571,9 @@ pub struct grpcwrap_request_call_context {
     pub call_details: grpc_call_details,
     pub request_metadata: grpc_metadata_array,
 }
-#[test]
-fn bindgen_test_layout_grpcwrap_request_call_context() {
-    assert_eq!(
-        ::std::mem::size_of::<grpcwrap_request_call_context>(),
-        128usize,
-        concat!("Size of: ", stringify!(grpcwrap_request_call_context))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<grpcwrap_request_call_context>(),
-        8usize,
-        concat!("Alignment of ", stringify!(grpcwrap_request_call_context))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_request_call_context>())).call as *const _ as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_request_call_context),
-            "::",
-            stringify!(call)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_request_call_context>())).call_details as *const _
-                as usize
-        },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_request_call_context),
-            "::",
-            stringify!(call_details)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<grpcwrap_request_call_context>())).request_metadata as *const _
-                as usize
-        },
-        104usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(grpcwrap_request_call_context),
-            "::",
-            stringify!(request_metadata)
-        )
-    );
-}
 impl ::std::fmt::Debug for grpcwrap_request_call_context {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! ( f , "grpcwrap_request_call_context {{ call: {:?}, call_details: {:?}, request_metadata: {:?} }}" , self . call , self . call_details , self . request_metadata )
+        write ! (f , "grpcwrap_request_call_context {{ call: {:?}, call_details: {:?}, request_metadata: {:?} }}" , self . call , self . call_details , self . request_metadata)
     }
 }
 extern "C" {
