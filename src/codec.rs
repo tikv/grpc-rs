@@ -4,7 +4,11 @@ use crate::call::MessageReader;
 use crate::error::Result;
 
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
-pub type SerializeFn<T> = fn(&T, &mut Vec<u8>);
+pub type SerializeFn<T> = fn(&T, &mut Vec<u8>) -> Result<()>;
+
+/// According to https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md, grpc uses
+/// a four bytes to describe the length of a message, so it should not exceed u32::MAX.
+pub const MAX_MESSAGE_SIZE: usize = u32::MAX as usize;
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -28,12 +32,19 @@ pub struct Marshaller<T> {
 pub mod pb_codec {
     use protobuf::{CodedInputStream, Message};
 
-    use super::MessageReader;
-    use crate::error::Result;
+    use super::{MessageReader, MAX_MESSAGE_SIZE};
+    use crate::error::{Error, Result};
 
     #[inline]
-    pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) {
-        t.write_to_vec(buf).unwrap()
+    pub fn ser<T: Message>(t: &T, buf: &mut Vec<u8>) -> Result<()> {
+        t.write_to_vec(buf)?;
+        if buf.len() <= MAX_MESSAGE_SIZE as usize {
+            Ok(())
+        } else {
+            Err(Error::Codec(
+                format!("message is too large: {} > {}", buf.len(), MAX_MESSAGE_SIZE).into(),
+            ))
+        }
     }
 
     #[inline]
@@ -47,15 +58,21 @@ pub mod pb_codec {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
-    use bytes::buf::BufMut;
     use prost::Message;
 
-    use super::MessageReader;
-    use crate::error::Result;
+    use super::{MessageReader, MAX_MESSAGE_SIZE};
+    use crate::error::{Error, Result};
 
     #[inline]
-    pub fn ser<M: Message, B: BufMut>(msg: &M, buf: &mut B) {
-        msg.encode(buf).expect("Writing message to buffer failed");
+    pub fn ser<M: Message>(msg: &M, buf: &mut Vec<u8>) -> Result<()> {
+        msg.encode(buf)?;
+        if buf.len() <= MAX_MESSAGE_SIZE as usize {
+            Ok(())
+        } else {
+            Err(Error::Codec(
+                format!("message is too large: {} > {}", buf.len(), MAX_MESSAGE_SIZE).into(),
+            ))
+        }
     }
 
     #[inline]

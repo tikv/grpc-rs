@@ -100,8 +100,9 @@ impl Generic {
 
 #[inline]
 #[allow(clippy::ptr_arg)]
-pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) {
-    buf.extend_from_slice(t)
+pub fn bin_ser(t: &Vec<u8>, buf: &mut Vec<u8>) -> grpc::Result<()> {
+    buf.extend_from_slice(t);
+    Ok(())
 }
 
 #[inline]

@@ -299,6 +299,9 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         config = config.header(path);
     }
 
+    println!("cargo:rerun-if-env-changed=TEST_BIND");
+    let gen_tests = env::var("TEST_BIND").map_or(false, |s| s == "1");
+
     let cfg = config
         .header("grpc_wrap.cc")
         .clang_arg("-xc++")
@@ -323,6 +326,7 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
         .blacklist_type(r"gpr_cv")
         .blacklist_type(r"gpr_once")
         .constified_enum_module(r"grpc_status_code")
+        .layout_tests(gen_tests)
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         });
