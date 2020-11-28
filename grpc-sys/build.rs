@@ -75,7 +75,9 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
             println!("cargo:rustc-link-lib=framework=CoreFoundation");
         }
 
-        if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
+        if let Some(val) = get_env("CXX") {
+            config.define("CMAKE_CXX_COMPILER", val);
+        } else if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
 
