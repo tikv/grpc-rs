@@ -266,6 +266,8 @@ impl ServiceBuilder {
     }
 }
 
+pub(crate) type Interceptor = Arc<dyn Fn(&RpcContext) -> bool>;
+
 /// A gRPC service.
 ///
 /// Use [`ServiceBuilder`] to build a [`Service`].
@@ -280,6 +282,7 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
+    interceptor: Option<Interceptor>,
 }
 
 impl ServerBuilder {
@@ -291,6 +294,7 @@ impl ServerBuilder {
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
+            interceptor: None,
         }
     }
 
@@ -317,6 +321,14 @@ impl ServerBuilder {
     /// Register a service.
     pub fn register_service(mut self, service: Service) -> ServerBuilder {
         self.handlers.extend(service.handlers);
+        self
+    }
+
+    /// Add a custom interceptor to handle some tasks before the grpc call handler starts.
+    ///
+    /// WARNING: The closure must return `false` if the grpc call has ended in the interceptor.
+    pub fn add_interceptor<F: Fn(&RpcContext) -> bool + 'static>(mut self, f: F) -> ServerBuilder {
+        self.interceptor = Some(Arc::new(f));
         self
     }
 
@@ -355,6 +367,7 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
+                interceptor: self.interceptor,
             })
         }
     }
@@ -439,6 +452,7 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
     registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
+    interceptor: Option<Interceptor>,
 }
 
 impl RequestCallContext {
@@ -448,6 +462,10 @@ impl RequestCallContext {
     pub unsafe fn get_handler(&mut self, path: &[u8]) -> Option<&mut BoxHandler> {
         let registry = &mut *self.registry.get();
         registry.get_mut(path)
+    }
+
+    pub(crate) fn get_interceptor(&self) -> Option<Interceptor> {
+        self.interceptor.clone()
     }
 }
 
@@ -506,6 +524,7 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
+    interceptor: Option<Interceptor>,
 }
 
 impl Server {
@@ -549,6 +568,7 @@ impl Server {
                 let rc = RequestCallContext {
                     server: self.core.clone(),
                     registry: Arc::new(UnsafeCell::new(registry)),
+                    interceptor: self.interceptor.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);

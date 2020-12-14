@@ -221,3 +221,41 @@ fn test_shutdown_when_exists_grpc_call() {
         "Send should get error because server is shutdown, so the grpc is cancelled."
     );
 }
+
+#[test]
+fn test_interceptor_for_server() {
+    let counter_1 = Arc::new(atomic::AtomicBool::new(false));
+    let counter_2 = counter_1.clone();
+
+    let env = Arc::new(Environment::new(2));
+    // Start a server and delay the process of grpc server.
+    let service = create_greeter(SleepService(true));
+    let mut server = ServerBuilder::new(env.clone())
+        .add_interceptor(move |ctx| {
+            if counter_1.load(Ordering::Relaxed) {
+                let call = ctx.call();
+                call.abort(&RpcStatus::new(RpcStatusCode::DATA_LOSS, None));
+                false
+            } else {
+                true
+            }
+        })
+        .register_service(service)
+        .bind("127.0.0.1", 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let client = GreeterClient::new(ch);
+    let req = HelloRequest::default();
+
+    let _ = client.say_hello(&req).unwrap();
+    let _ = client.say_hello(&req).unwrap();
+
+    counter_2.store(true, Ordering::Relaxed);
+    assert_eq!(
+        client.say_hello(&req).unwrap_err().to_string(),
+        "RpcFailure: 15-DATA_LOSS ".to_owned()
+    );
+}
