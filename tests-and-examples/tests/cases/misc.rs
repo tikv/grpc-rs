@@ -223,15 +223,15 @@ fn test_shutdown_when_exists_grpc_call() {
 }
 
 #[test]
-fn test_interceptor_for_server() {
+fn test_custom_checker_server_side() {
     let flag_1 = Arc::new(atomic::AtomicBool::new(false));
     let flag_2 = flag_1.clone();
 
     let env = Arc::new(Environment::new(2));
     // Start a server and delay the process of grpc server.
-    let service = create_greeter(SleepService(true));
+    let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
-        .add_interceptor(move |ctx| {
+        .add_checker(move |ctx| {
             if flag_1.load(Ordering::Relaxed) {
                 let call = ctx.call();
                 call.abort(&RpcStatus::new(RpcStatusCode::DATA_LOSS, None));

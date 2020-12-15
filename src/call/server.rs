@@ -25,7 +25,7 @@ use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::server::Interceptor;
+use crate::server::CheckClosure;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
 
@@ -75,13 +75,13 @@ impl RequestContext {
         cq: &CompletionQueue,
         rc: &mut RequestCallContext,
     ) -> result::Result<(), Self> {
-        let interceptor = rc.get_interceptor();
+        let checker = rc.get_checker();
         let handler = unsafe { rc.get_handler(self.method()) };
         match handler {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, None, handler, interceptor);
+                    execute(self, cq, None, handler, checker);
                     Ok(())
                 }
             },
@@ -227,10 +227,10 @@ impl UnaryRequestContext {
         cq: &CompletionQueue,
         reader: Option<MessageReader>,
     ) {
-        let interceptor = rc.get_interceptor();
+        let checker = rc.get_checker();
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if reader.is_some() {
-            return execute(self.request, cq, reader, handler, interceptor);
+            return execute(self.request, cq, reader, handler, checker);
         }
 
         let status = RpcStatus::new(RpcStatusCode::INTERNAL, Some("No payload".to_owned()));
@@ -778,11 +778,11 @@ fn execute(
     cq: &CompletionQueue,
     payload: Option<MessageReader>,
     f: &mut BoxHandler,
-    interceptor: Option<Interceptor>,
+    checker: Option<CheckClosure>,
 ) {
     let rpc_ctx = RpcContext::new(ctx, cq);
 
-    if let Some(f) = interceptor {
+    if let Some(f) = checker {
         let should_execute = (f)(&rpc_ctx);
         if !should_execute {
             return;

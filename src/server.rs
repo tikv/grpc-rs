@@ -266,7 +266,7 @@ impl ServiceBuilder {
     }
 }
 
-pub(crate) type Interceptor = Arc<dyn Fn(&RpcContext) -> bool + Send + Sync>;
+pub(crate) type CheckClosure = Arc<dyn Fn(&RpcContext) -> bool + Send + Sync>;
 
 /// A gRPC service.
 ///
@@ -282,7 +282,7 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    interceptor: Option<Interceptor>,
+    checker: Option<CheckClosure>,
 }
 
 impl ServerBuilder {
@@ -294,7 +294,7 @@ impl ServerBuilder {
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
-            interceptor: None,
+            checker: None,
         }
     }
 
@@ -324,14 +324,17 @@ impl ServerBuilder {
         self
     }
 
-    /// Add a custom interceptor to handle some tasks before the grpc call handler starts.
+    /// Add a custom checker to handle some tasks before the grpc call handler starts.
+    /// This allows users to operate grpc call based on context.
     ///
-    /// WARNING: The closure must return `false` if the grpc call has ended in the interceptor.
-    pub fn add_interceptor<F: Fn(&RpcContext) -> bool + 'static + Send + Sync>(
+    /// WARNING: The closure must return `false` if the grpc call has ended in the check.
+    ///
+    /// TODO: Extend this interface to implement interceptor function like grpc-c++.
+    pub fn add_checker<F: Fn(&RpcContext) -> bool + 'static + Send + Sync>(
         mut self,
         f: F,
     ) -> ServerBuilder {
-        self.interceptor = Some(Arc::new(f));
+        self.checker = Some(Arc::new(f));
         self
     }
 
@@ -370,7 +373,7 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
-                interceptor: self.interceptor,
+                checker: self.checker,
             })
         }
     }
@@ -455,7 +458,7 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
     registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
-    interceptor: Option<Interceptor>,
+    checker: Option<CheckClosure>,
 }
 
 impl RequestCallContext {
@@ -467,8 +470,8 @@ impl RequestCallContext {
         registry.get_mut(path)
     }
 
-    pub(crate) fn get_interceptor(&self) -> Option<Interceptor> {
-        self.interceptor.clone()
+    pub(crate) fn get_checker(&self) -> Option<CheckClosure> {
+        self.checker.clone()
     }
 }
 
@@ -527,7 +530,7 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    interceptor: Option<Interceptor>,
+    checker: Option<CheckClosure>,
 }
 
 impl Server {
@@ -571,7 +574,7 @@ impl Server {
                 let rc = RequestCallContext {
                     server: self.core.clone(),
                     registry: Arc::new(UnsafeCell::new(registry)),
-                    interceptor: self.interceptor.clone(),
+                    checker: self.checker.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);
