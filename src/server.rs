@@ -21,6 +21,7 @@ use crate::env::Environment;
 use crate::error::{Error, Result};
 use crate::task::{CallTag, CqFuture};
 use crate::RpcContext;
+use crate::RpcStatus;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -266,7 +267,12 @@ impl ServiceBuilder {
     }
 }
 
-pub(crate) type CheckClosure = Arc<dyn Fn(&RpcContext) -> bool + Send + Sync>;
+pub enum CheckResult {
+    Continue,
+    Abort(RpcStatus),
+}
+
+pub(crate) type CheckClosure = Arc<dyn Fn(&RpcContext) -> CheckResult + Send + Sync>;
 
 /// A gRPC service.
 ///
@@ -282,7 +288,7 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    checker: Option<CheckClosure>,
+    checkers: Vec<CheckClosure>,
 }
 
 impl ServerBuilder {
@@ -294,7 +300,7 @@ impl ServerBuilder {
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
-            checker: None,
+            checkers: Vec::new(),
         }
     }
 
@@ -325,16 +331,15 @@ impl ServerBuilder {
     }
 
     /// Add a custom checker to handle some tasks before the grpc call handler starts.
-    /// This allows users to operate grpc call based on context.
-    ///
-    /// WARNING: The closure must return `false` if the grpc call has ended in the check.
+    /// This allows users to operate grpc call based on the context. The user can add
+    /// multiple checkers and they will be executed in the order added.
     ///
     /// TODO: Extend this interface to implement interceptor function like grpc-c++.
-    pub fn add_checker<F: Fn(&RpcContext) -> bool + 'static + Send + Sync>(
+    pub fn add_checker<F: Fn(&RpcContext) -> CheckResult + 'static + Send + Sync>(
         mut self,
         f: F,
     ) -> ServerBuilder {
-        self.checker = Some(Arc::new(f));
+        self.checkers.push(Arc::new(f));
         self
     }
 
@@ -373,7 +378,7 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
-                checker: self.checker,
+                checkers: self.checkers,
             })
         }
     }
@@ -458,7 +463,7 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
     registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
-    checker: Option<CheckClosure>,
+    checker: Vec<CheckClosure>,
 }
 
 impl RequestCallContext {
@@ -470,7 +475,7 @@ impl RequestCallContext {
         registry.get_mut(path)
     }
 
-    pub(crate) fn get_checker(&self) -> Option<CheckClosure> {
+    pub(crate) fn get_checker(&self) -> Vec<CheckClosure> {
         self.checker.clone()
     }
 }
@@ -530,7 +535,7 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    checker: Option<CheckClosure>,
+    checkers: Vec<CheckClosure>,
 }
 
 impl Server {
@@ -574,7 +579,7 @@ impl Server {
                 let rc = RequestCallContext {
                     server: self.core.clone(),
                     registry: Arc::new(UnsafeCell::new(registry)),
-                    checker: self.checker.clone(),
+                    checker: self.checkers.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);

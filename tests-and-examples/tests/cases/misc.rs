@@ -232,12 +232,13 @@ fn test_custom_checker_server_side() {
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
         .add_checker(move |ctx| {
+            let method = String::from_utf8(ctx.method().to_owned());
+            assert_eq!(&method.unwrap(), "/helloworld.Greeter/SayHello");
+
             if flag_1.load(Ordering::Relaxed) {
-                let call = ctx.call();
-                call.abort(&RpcStatus::new(RpcStatusCode::DATA_LOSS, None));
-                false
+                CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS, None))
             } else {
-                true
+                CheckResult::Continue
             }
         })
         .register_service(service)

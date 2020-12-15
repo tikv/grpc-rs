@@ -28,6 +28,7 @@ use crate::metadata::Metadata;
 use crate::server::CheckClosure;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
+use crate::CheckResult;
 
 pub struct Deadline {
     spec: gpr_timespec,
@@ -613,7 +614,7 @@ impl<'a> RpcContext<'a> {
         Kicker::from_call(call)
     }
 
-    pub fn call(&self) -> Call {
+    pub(crate) fn call(&self) -> Call {
         self.ctx.call(self.executor.cq().clone())
     }
 
@@ -778,14 +779,17 @@ fn execute(
     cq: &CompletionQueue,
     payload: Option<MessageReader>,
     f: &mut BoxHandler,
-    checker: Option<CheckClosure>,
+    checkers: Vec<CheckClosure>,
 ) {
     let rpc_ctx = RpcContext::new(ctx, cq);
 
-    if let Some(f) = checker {
-        let should_execute = (f)(&rpc_ctx);
-        if !should_execute {
-            return;
+    for check in checkers {
+        match (check)(&rpc_ctx) {
+            CheckResult::Continue => {}
+            CheckResult::Abort(status) => {
+                rpc_ctx.call().abort(&status);
+                return;
+            }
         }
     }
 
