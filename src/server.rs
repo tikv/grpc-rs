@@ -267,6 +267,8 @@ impl ServiceBuilder {
     }
 }
 
+/// Used to indicate the result of the check. If it returns `Abort`,
+/// skip the subsequent checkers and abort the grpc call.
 pub enum CheckResult {
     Continue,
     Abort(RpcStatus),
@@ -331,7 +333,7 @@ impl ServerBuilder {
     }
 
     /// Add a custom checker to handle some tasks before the grpc call handler starts.
-    /// This allows users to operate grpc call based on the context. The user can add
+    /// This allows users to operate grpc call based on the context. Users can add
     /// multiple checkers and they will be executed in the order added.
     ///
     /// TODO: Extend this interface to implement interceptor function like grpc-c++.
