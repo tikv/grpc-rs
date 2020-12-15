@@ -266,7 +266,7 @@ impl ServiceBuilder {
     }
 }
 
-pub(crate) type Interceptor = Arc<dyn Fn(&RpcContext) -> bool>;
+pub(crate) type Interceptor = Arc<dyn Fn(&RpcContext) -> bool + Send + Sync>;
 
 /// A gRPC service.
 ///
@@ -327,7 +327,10 @@ impl ServerBuilder {
     /// Add a custom interceptor to handle some tasks before the grpc call handler starts.
     ///
     /// WARNING: The closure must return `false` if the grpc call has ended in the interceptor.
-    pub fn add_interceptor<F: Fn(&RpcContext) -> bool + 'static>(mut self, f: F) -> ServerBuilder {
+    pub fn add_interceptor<F: Fn(&RpcContext) -> bool + 'static + Send + Sync>(
+        mut self,
+        f: F,
+    ) -> ServerBuilder {
         self.interceptor = Some(Arc::new(f));
         self
     }

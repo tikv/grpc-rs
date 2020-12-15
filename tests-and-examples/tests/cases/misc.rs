@@ -224,15 +224,15 @@ fn test_shutdown_when_exists_grpc_call() {
 
 #[test]
 fn test_interceptor_for_server() {
-    let counter_1 = Arc::new(atomic::AtomicBool::new(false));
-    let counter_2 = counter_1.clone();
+    let flag_1 = Arc::new(atomic::AtomicBool::new(false));
+    let flag_2 = flag_1.clone();
 
     let env = Arc::new(Environment::new(2));
     // Start a server and delay the process of grpc server.
     let service = create_greeter(SleepService(true));
     let mut server = ServerBuilder::new(env.clone())
         .add_interceptor(move |ctx| {
-            if counter_1.load(Ordering::Relaxed) {
+            if flag_1.load(Ordering::Relaxed) {
                 let call = ctx.call();
                 call.abort(&RpcStatus::new(RpcStatusCode::DATA_LOSS, None));
                 false
@@ -253,7 +253,7 @@ fn test_interceptor_for_server() {
     let _ = client.say_hello(&req).unwrap();
     let _ = client.say_hello(&req).unwrap();
 
-    counter_2.store(true, Ordering::Relaxed);
+    flag_2.store(true, Ordering::Relaxed);
     assert_eq!(
         client.say_hello(&req).unwrap_err().to_string(),
         "RpcFailure: 15-DATA_LOSS ".to_owned()
