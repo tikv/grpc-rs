@@ -346,7 +346,7 @@ impl ServerBuilder {
     /// multiple checkers and they will be executed in the order added.
     ///
     /// TODO: Extend this interface to intercepte each payload like grpc-c++.
-    pub fn add_checker<C: ServerChecker + Send + 'static>(mut self, checker: C) -> ServerBuilder {
+    pub fn add_checker<C: ServerChecker + 'static>(mut self, checker: C) -> ServerBuilder {
         self.checkers.push(Box::new(checker));
         self
     }
