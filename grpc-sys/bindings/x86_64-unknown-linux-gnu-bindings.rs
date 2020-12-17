@@ -168,7 +168,7 @@ pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC (not sorted by"]
 #[doc = " compression level)"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_compression_algorithm {
     GRPC_COMPRESS_NONE = 0,
     GRPC_COMPRESS_DEFLATE = 1,
@@ -181,7 +181,7 @@ pub enum grpc_compression_algorithm {
 #[doc = " encodings to request compression in an abstract way. The level-algorithm"]
 #[doc = " mapping is performed internally and depends on the peer's supported"]
 #[doc = " compression algorithms."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_compression_level {
     GRPC_COMPRESS_LEVEL_NONE = 0,
     GRPC_COMPRESS_LEVEL_LOW = 1,
@@ -298,7 +298,7 @@ impl ::std::fmt::Debug for grpc_slice_buffer {
 }
 #[repr(u32)]
 #[doc = " The clocks we support."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum gpr_clock_type {
     #[doc = " Monotonic clock. Epoch undefined. Always moves forwards."]
     GPR_CLOCK_MONOTONIC = 0,
@@ -533,7 +533,7 @@ extern "C" {
     pub fn grpc_slice_split_tail(s: *mut grpc_slice, split: usize) -> grpc_slice;
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_slice_ref_whom {
     GRPC_SLICE_REF_TAIL = 1,
     GRPC_SLICE_REF_HEAD = 2,
@@ -786,7 +786,7 @@ pub mod grpc_status_code {
     pub const GRPC_STATUS__DO_NOT_USE: Type = -1;
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_byte_buffer_type {
     GRPC_BB_RAW = 0,
 }
@@ -871,7 +871,7 @@ pub struct grpc_socket_factory {
 }
 #[repr(u32)]
 #[doc = " Type specifier for grpc_arg"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_arg_type {
     GRPC_ARG_STRING = 0,
     GRPC_ARG_INTEGER = 1,
@@ -965,7 +965,7 @@ pub struct grpc_channel_args {
 #[doc = "particular operation, the grpc_call_error returned will be GRPC_CALL_OK."]
 #[doc = "Receiving any other value listed here is an indication of a bug in the"]
 #[doc = "caller."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_call_error {
     #[doc = " everything went ok"]
     GRPC_CALL_OK = 0,
@@ -1032,7 +1032,7 @@ impl ::std::fmt::Debug for grpc_metadata {
 }
 #[repr(u32)]
 #[doc = " The type of completion (for grpc_event)"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_completion_type {
     #[doc = " Shutting down"]
     GRPC_QUEUE_SHUTDOWN = 0,
@@ -1082,7 +1082,7 @@ impl ::std::fmt::Debug for grpc_call_details {
     }
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_op_type {
     #[doc = " Send initial metadata: one and only one instance MUST be sent for each"]
     #[doc = "call, unless the call was cancelled - in which case this can be skipped."]
@@ -1272,7 +1272,7 @@ pub struct grpc_resource_quota {
 #[doc = "grpc_completion_queue_pluck() are called on the completion queue (unless the"]
 #[doc = "grpc_cq_polling_type is GRPC_CQ_NON_POLLING) and hence it is very important"]
 #[doc = "to actively call these APIs"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_cq_polling_type {
     #[doc = " The completion queue will have an associated pollset and there is no"]
     #[doc = "restriction on the type of file descriptors the pollset may contain"]
@@ -1289,7 +1289,7 @@ pub enum grpc_cq_polling_type {
 }
 #[repr(u32)]
 #[doc = " Specifies the type of APIs to use to pop events from the completion queue"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_cq_completion_type {
     #[doc = " Events are popped out by calling grpc_completion_queue_next() API ONLY"]
     GRPC_CQ_NEXT = 0,
@@ -1516,7 +1516,7 @@ extern "C" {
 }
 #[repr(u32)]
 #[doc = " Connectivity state of a channel."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_connectivity_state {
     #[doc = " channel is idle"]
     GRPC_CHANNEL_IDLE = 0,
@@ -2032,7 +2032,7 @@ extern "C" {
 }
 #[repr(u32)]
 #[doc = " How to handle payloads for a registered method"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_server_register_method_payload_handling {
     #[doc = " Don't try to read the payload"]
     GRPC_SRM_PAYLOAD_NONE = 0,
@@ -2265,7 +2265,7 @@ extern "C" {
 }
 #[repr(u32)]
 #[doc = " Results for the SSL roots override callback."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_ssl_roots_override_result {
     GRPC_SSL_ROOTS_OVERRIDE_OK = 0,
     GRPC_SSL_ROOTS_OVERRIDE_FAIL_PERMANENTLY = 1,
@@ -2274,14 +2274,14 @@ pub enum grpc_ssl_roots_override_result {
 }
 #[repr(u32)]
 #[doc = " Callback results for dynamically loading a SSL certificate config."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_ssl_certificate_config_reload_status {
     GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_UNCHANGED = 0,
     GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_NEW = 1,
     GRPC_SSL_CERTIFICATE_CONFIG_RELOAD_FAIL = 2,
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_ssl_client_certificate_request_type {
     #[doc = " Server does not request client certificate."]
     #[doc = "The certificate presented by the client is not checked by the server at"]
@@ -2338,14 +2338,14 @@ impl grpc_security_level {
         grpc_security_level::GRPC_PRIVACY_AND_INTEGRITY;
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_security_level {
     GRPC_SECURITY_MIN = 0,
     GRPC_INTEGRITY_ONLY = 1,
     GRPC_PRIVACY_AND_INTEGRITY = 2,
 }
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_tls_server_verification_option {
     #[doc = " Default option: performs server certificate verification and hostname"]
     #[doc = "verification."]
@@ -2362,14 +2362,14 @@ pub enum grpc_tls_server_verification_option {
 #[repr(u32)]
 #[doc = " Type of local connections for which local channel/server credentials will be"]
 #[doc = " applied. It supports UDS and local TCP connections."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_local_connect_type {
     UDS = 0,
     LOCAL_TCP = 1,
 }
 #[repr(u32)]
 #[doc = " The TLS versions that are supported by the SSL stack."]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum grpc_tls_version {
     TLS1_2 = 0,
     TLS1_3 = 1,
@@ -3486,7 +3486,7 @@ extern "C" {
 #[repr(u32)]
 #[doc = " The severity of a log message - use the #defines below when calling into"]
 #[doc = "gpr_log to additionally supply file and line data"]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum gpr_log_severity {
     GPR_LOG_SEVERITY_DEBUG = 0,
     GPR_LOG_SEVERITY_INFO = 1,
