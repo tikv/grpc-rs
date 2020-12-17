@@ -274,7 +274,7 @@ pub enum CheckResult {
     Abort(RpcStatus),
 }
 
-pub(crate) type CheckClosure = Arc<dyn Fn(&RpcContext) -> CheckResult + Send + Sync>;
+pub(crate) type CheckClosure = Arc<dyn Fn(&RpcContext) -> CheckResult + Send>;
 
 /// A gRPC service.
 ///
@@ -337,7 +337,7 @@ impl ServerBuilder {
     /// multiple checkers and they will be executed in the order added.
     ///
     /// TODO: Extend this interface to implement interceptor function like grpc-c++.
-    pub fn add_checker<F: Fn(&RpcContext) -> CheckResult + 'static + Send + Sync>(
+    pub fn add_checker<F: Fn(&RpcContext) -> CheckResult + Send + 'static>(
         mut self,
         f: F,
     ) -> ServerBuilder {
