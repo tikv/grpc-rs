@@ -77,4 +77,6 @@ pub use crate::security::{
     CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
     ServerCredentialsBuilder, ServerCredentialsFetcher,
 };
-pub use crate::server::{Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture};
+pub use crate::server::{
+    CheckResult, Server, ServerBuilder, ServerChecker, Service, ServiceBuilder, ShutdownFuture,
+};
