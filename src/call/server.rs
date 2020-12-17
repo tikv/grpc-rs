@@ -25,7 +25,7 @@ use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
-use crate::server::CheckClosure;
+use crate::server::ServerChecker;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
 use crate::CheckResult;
@@ -779,12 +779,12 @@ fn execute(
     cq: &CompletionQueue,
     payload: Option<MessageReader>,
     f: &mut BoxHandler,
-    checkers: Vec<CheckClosure>,
+    mut checkers: Vec<Box<dyn ServerChecker>>,
 ) {
     let rpc_ctx = RpcContext::new(ctx, cq);
 
-    for check in checkers {
-        match (check)(&rpc_ctx) {
+    for handler in checkers.iter_mut() {
+        match handler.check(&rpc_ctx) {
             CheckResult::Continue => {}
             CheckResult::Abort(status) => {
                 rpc_ctx.call().abort(&status);

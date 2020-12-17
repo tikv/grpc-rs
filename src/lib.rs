@@ -78,5 +78,5 @@ pub use crate::security::{
     ServerCredentialsBuilder, ServerCredentialsFetcher,
 };
 pub use crate::server::{
-    CheckResult, Server, ServerBuilder, Service, ServiceBuilder, ShutdownFuture,
+    CheckResult, Server, ServerBuilder, ServerChecker, Service, ServiceBuilder, ShutdownFuture,
 };

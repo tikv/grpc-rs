@@ -224,23 +224,14 @@ fn test_shutdown_when_exists_grpc_call() {
 
 #[test]
 fn test_custom_checker_server_side() {
-    let flag_1 = Arc::new(atomic::AtomicBool::new(false));
-    let flag_2 = flag_1.clone();
+    let flag = Arc::new(atomic::AtomicBool::new(false));
+    let checker = FlagChecker { flag: flag.clone() };
 
     let env = Arc::new(Environment::new(2));
     // Start a server and delay the process of grpc server.
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
-        .add_checker(move |ctx| {
-            let method = String::from_utf8(ctx.method().to_owned());
-            assert_eq!(&method.unwrap(), "/helloworld.Greeter/SayHello");
-
-            if flag_1.load(Ordering::SeqCst) {
-                CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS, None))
-            } else {
-                CheckResult::Continue
-            }
-        })
+        .add_checker(checker)
         .register_service(service)
         .bind("127.0.0.1", 0)
         .build()
@@ -254,9 +245,31 @@ fn test_custom_checker_server_side() {
     let _ = client.say_hello(&req).unwrap();
     let _ = client.say_hello(&req).unwrap();
 
-    flag_2.store(true, Ordering::SeqCst);
+    flag.store(true, Ordering::SeqCst);
     assert_eq!(
         client.say_hello(&req).unwrap_err().to_string(),
         "RpcFailure: 15-DATA_LOSS ".to_owned()
     );
+}
+
+#[derive(Clone)]
+struct FlagChecker {
+    flag: Arc<atomic::AtomicBool>,
+}
+
+impl ServerChecker for FlagChecker {
+    fn check(&mut self, ctx: &RpcContext) -> CheckResult {
+        let method = String::from_utf8(ctx.method().to_owned());
+        assert_eq!(&method.unwrap(), "/helloworld.Greeter/SayHello");
+
+        if self.flag.load(Ordering::SeqCst) {
+            CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS, None))
+        } else {
+            CheckResult::Continue
+        }
+    }
+
+    fn box_clone(&self) -> Box<dyn ServerChecker> {
+        Box::new(self.clone())
+    }
 }

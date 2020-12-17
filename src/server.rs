@@ -274,7 +274,16 @@ pub enum CheckResult {
     Abort(RpcStatus),
 }
 
-pub(crate) type CheckClosure = Arc<dyn Fn(&RpcContext) -> CheckResult + Send>;
+pub trait ServerChecker: Send {
+    fn check(&mut self, ctx: &RpcContext) -> CheckResult;
+    fn box_clone(&self) -> Box<dyn ServerChecker>;
+}
+
+impl Clone for Box<dyn ServerChecker> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
 
 /// A gRPC service.
 ///
@@ -290,7 +299,7 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    checkers: Vec<CheckClosure>,
+    checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl ServerBuilder {
@@ -336,12 +345,9 @@ impl ServerBuilder {
     /// This allows users to operate grpc call based on the context. Users can add
     /// multiple checkers and they will be executed in the order added.
     ///
-    /// TODO: Extend this interface to implement interceptor function like grpc-c++.
-    pub fn add_checker<F: Fn(&RpcContext) -> CheckResult + Send + 'static>(
-        mut self,
-        f: F,
-    ) -> ServerBuilder {
-        self.checkers.push(Arc::new(f));
+    /// TODO: Extend this interface to intercepte each payload like grpc-c++.
+    pub fn add_checker<C: ServerChecker + Send + 'static>(mut self, checker: C) -> ServerBuilder {
+        self.checkers.push(Box::new(checker));
         self
     }
 
@@ -465,7 +471,7 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
     registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
-    checker: Vec<CheckClosure>,
+    checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl RequestCallContext {
@@ -477,8 +483,8 @@ impl RequestCallContext {
         registry.get_mut(path)
     }
 
-    pub(crate) fn get_checker(&self) -> Vec<CheckClosure> {
-        self.checker.clone()
+    pub(crate) fn get_checker(&self) -> Vec<Box<dyn ServerChecker>> {
+        self.checkers.clone()
     }
 }
 
@@ -537,7 +543,7 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
-    checkers: Vec<CheckClosure>,
+    checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl Server {
@@ -581,7 +587,7 @@ impl Server {
                 let rc = RequestCallContext {
                     server: self.core.clone(),
                     registry: Arc::new(UnsafeCell::new(registry)),
-                    checker: self.checkers.clone(),
+                    checkers: self.checkers.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);
