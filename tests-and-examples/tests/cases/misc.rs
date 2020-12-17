@@ -235,7 +235,7 @@ fn test_custom_checker_server_side() {
             let method = String::from_utf8(ctx.method().to_owned());
             assert_eq!(&method.unwrap(), "/helloworld.Greeter/SayHello");
 
-            if flag_1.load(Ordering::Relaxed) {
+            if flag_1.load(Ordering::SeqCst) {
                 CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS, None))
             } else {
                 CheckResult::Continue
@@ -254,7 +254,7 @@ fn test_custom_checker_server_side() {
     let _ = client.say_hello(&req).unwrap();
     let _ = client.say_hello(&req).unwrap();
 
-    flag_2.store(true, Ordering::Relaxed);
+    flag_2.store(true, Ordering::SeqCst);
     assert_eq!(
         client.say_hello(&req).unwrap_err().to_string(),
         "RpcFailure: 15-DATA_LOSS ".to_owned()
