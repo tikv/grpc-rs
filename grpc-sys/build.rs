@@ -75,7 +75,9 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
             println!("cargo:rustc-link-lib=framework=CoreFoundation");
         }
 
-        if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
+        if let Some(val) = get_env("CXX") {
+            config.define("CMAKE_CXX_COMPILER", val);
+        } else if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
         }
 
@@ -309,6 +311,8 @@ fn bindgen_grpc(file_path: &PathBuf) {
         .clang_arg("-std=c++11")
         .rustfmt_bindings(true)
         .impl_debug(true)
+        .size_t_is_usize(true)
+        .disable_header_comment()
         .whitelist_function(r"\bgrpc_.*")
         .whitelist_function(r"\bgpr_.*")
         .whitelist_function(r"\bgrpcwrap_.*")
