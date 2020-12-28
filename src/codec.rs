@@ -7,6 +7,10 @@ use crate::error::Result;
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut GrpcSlice) -> Result<()>;
 
+/// According to https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md, grpc uses
+/// a four bytes to describe the length of a message, so it should not exceed u32::MAX.
+pub const MAX_MESSAGE_SIZE: usize = u32::MAX as usize;
+
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
     // Use function pointer here to simplify the signature.
@@ -29,7 +33,7 @@ pub struct Marshaller<T> {
 pub mod pb_codec {
     use protobuf::{CodedInputStream, CodedOutputStream, Message};
 
-    use super::MessageReader;
+    use super::{MessageReader, MAX_MESSAGE_SIZE};
     use crate::buf::GrpcSlice;
     use crate::error::{Error, Result};
 
@@ -37,7 +41,7 @@ pub mod pb_codec {
     pub fn ser<T: Message>(t: &T, buf: &mut GrpcSlice) -> Result<()> {
         let cap = t.compute_size() as usize;
         // FIXME: This is not a practical fix until stepancheg/rust-protobuf#530 is fixed.
-        if cap <= u32::MAX as usize {
+        if cap <= MAX_MESSAGE_SIZE {
             unsafe {
                 let bytes = buf.realloc(cap);
                 let raw_bytes = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
@@ -46,7 +50,7 @@ pub mod pb_codec {
             }
         } else {
             Err(Error::Codec(
-                format!("message is too large: {} > u32::MAX", cap).into(),
+                format!("message is too large: {} > {}", cap, MAX_MESSAGE_SIZE).into(),
             ))
         }
     }
@@ -72,7 +76,7 @@ pub mod pr_codec {
     #[inline]
     pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) -> Result<()> {
         let size = msg.encoded_len();
-        if size <= u32::MAX as usize {
+        if size <= MAX_MESSAGE_SIZE {
             unsafe {
                 let bytes = buf.realloc(size);
                 let mut b = &mut *(bytes as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]);
@@ -82,7 +86,7 @@ pub mod pr_codec {
             Ok(())
         } else {
             Err(Error::Codec(
-                format!("message is too large: {} > u32::MAX", size).into(),
+                format!("message is too large: {} > {}", size, MAX_MESSAGE_SIZE).into(),
             ))
         }
     }
