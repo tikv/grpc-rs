@@ -267,7 +267,18 @@ fn get_env(name: &str) -> Option<String> {
 
 // Generate the bindings to grpc C-core.
 // Try to disable the generation of platform-related bindings.
-fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
+#[cfg(feature = "use-bindgen")]
+fn bindgen_grpc(file_path: &PathBuf) {
+    // create a config to generate binding file
+    let mut config = bindgen::Builder::default();
+    if cfg!(feature = "secure") {
+        config = config.clang_arg("-DGRPC_SYS_SECURE");
+    }
+
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
+        config = config.clang_arg("-D _WIN32_WINNT=0x600");
+    }
+
     // Search header files with API interface
     let mut headers = Vec::new();
     for result in WalkDir::new(Path::new("./grpc/include")) {
@@ -333,28 +344,36 @@ fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
 // Determine if need to update bindings. Supported platforms do not
 // need to be updated by default unless the UPDATE_BIND is specified.
 // Other platforms use bindgen to generate the bindings every time.
-fn config_binding_path(config: bindgen::Builder) {
-    let file_path: PathBuf;
+fn config_binding_path() {
     let target = env::var("TARGET").unwrap();
-    match target.as_str() {
+    let file_path: PathBuf = match target.as_str() {
         "x86_64-unknown-linux-gnu" | "aarch64-unknown-linux-gnu" => {
             // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
             // directive when we expect the target-specific pre-generated binding file to be
             // present.
             println!("cargo:rerun-if-changed=bindings/{}-bindings.rs", &target);
 
-            file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+            let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
                 .join(format!("{}-bindings.rs", &target));
-            if env::var("UPDATE_BIND").map(|s| s == "1").unwrap_or(false) {
-                bindgen_grpc(config, &file_path);
+
+            #[cfg(feature = "use-bindgen")]
+            if env::var("UPDATE_BIND").is_ok() {
+                bindgen_grpc(&file_path);
             }
+
+            file_path
         }
         _ => {
-            file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
-            bindgen_grpc(config, &file_path);
+            let file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
+
+            #[cfg(feature = "use-bindgen")]
+            bindgen_grpc(&file_path);
+
+            file_path
         }
     };
+
     println!(
         "cargo:rustc-env=BINDING_PATH={}",
         file_path.to_str().unwrap()
@@ -368,12 +387,9 @@ fn main() {
 
     // create a builder to compile grpc_wrap.cc
     let mut cc = cc::Build::new();
-    // create a config to generate binding file
-    let mut bind_config = bindgen::Builder::default();
 
     let library = if cfg!(feature = "secure") {
         cc.define("GRPC_SYS_SECURE", None);
-        bind_config = bind_config.clang_arg("-DGRPC_SYS_SECURE");
         "grpc"
     } else {
         "grpc_unsecure"
@@ -382,7 +398,6 @@ fn main() {
     if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
         // At lease vista
         cc.define("_WIN32_WINNT", Some("0x600"));
-        bind_config = bind_config.clang_arg("-D _WIN32_WINNT=0x600");
     }
 
     if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
@@ -403,5 +418,5 @@ fn main() {
     cc.warnings_into_errors(true);
     cc.compile("libgrpc_wrap.a");
 
-    config_binding_path(bind_config);
+    config_binding_path();
 }
