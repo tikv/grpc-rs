@@ -399,7 +399,7 @@ impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
             t.close_f = Some(close_f);
         }
 
-        if let Poll::Pending = Pin::new(t.close_f.as_mut().unwrap()).poll(cx)? {
+        if Pin::new(t.close_f.as_mut().unwrap()).poll(cx)?.is_pending() {
             // if call is finished, can return early here.
             call.check_alive()?;
             return Poll::Pending;
