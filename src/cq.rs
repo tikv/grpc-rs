@@ -36,35 +36,39 @@ impl CompletionQueueHandle {
     }
 
     fn add_ref(&self) -> Result<()> {
+        let mut cnt = self.ref_cnt.load(Ordering::SeqCst);
         loop {
-            let cnt = self.ref_cnt.load(Ordering::SeqCst);
             if cnt <= 0 {
                 // `shutdown` has been called, reject any requests.
                 return Err(Error::QueueShutdown);
             }
             let new_cnt = cnt + 1;
-            if cnt
-                == self
-                    .ref_cnt
-                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
-            {
-                return Ok(());
+            match self.ref_cnt.compare_exchange_weak(
+                cnt,
+                new_cnt,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(c) => cnt = c,
             }
         }
     }
 
     fn unref(&self) {
+        let mut cnt = self.ref_cnt.load(Ordering::SeqCst);
         let shutdown = loop {
-            let cnt = self.ref_cnt.load(Ordering::SeqCst);
             // If `shutdown` is not called, `cnt` > 0, so minus 1 to unref.
             // If `shutdown` is called, `cnt` < 0, so plus 1 to unref.
             let new_cnt = cnt - cnt.signum();
-            if cnt
-                == self
-                    .ref_cnt
-                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
-            {
-                break new_cnt == 0;
+            match self.ref_cnt.compare_exchange_weak(
+                cnt,
+                new_cnt,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => break new_cnt == 0,
+                Err(c) => cnt = c,
             }
         };
         if shutdown {
@@ -75,8 +79,8 @@ impl CompletionQueueHandle {
     }
 
     fn shutdown(&self) {
+        let mut cnt = self.ref_cnt.load(Ordering::SeqCst);
         let shutdown = loop {
-            let cnt = self.ref_cnt.load(Ordering::SeqCst);
             if cnt <= 0 {
                 // `shutdown` is called, skipped.
                 return;
@@ -85,12 +89,14 @@ impl CompletionQueueHandle {
             // Because `cnt` is initialized to 1, so minus 1 to make it reach
             // toward 0. That is `new_cnt = -(cnt - 1) = -cnt + 1`.
             let new_cnt = -cnt + 1;
-            if cnt
-                == self
-                    .ref_cnt
-                    .compare_and_swap(cnt, new_cnt, Ordering::SeqCst)
-            {
-                break new_cnt == 0;
+            match self.ref_cnt.compare_exchange_weak(
+                cnt,
+                new_cnt,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => break new_cnt == 0,
+                Err(c) => cnt = c,
             }
         };
         if shutdown {
