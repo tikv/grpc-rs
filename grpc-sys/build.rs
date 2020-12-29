@@ -281,7 +281,7 @@ fn bindgen_grpc(file_path: &PathBuf, grpc_include_dir: &PathBuf) {
 
     // Search header files with API interface
     let mut headers = Vec::new();
-    for result in WalkDir::new(grpc_include_dir) {
+    for result in WalkDir::new(grpc_include_dir.join("grpc")) {
         let dent = result.expect("Error happened when search headers");
         if !dent.file_type().is_file() {
             continue;
@@ -344,7 +344,7 @@ fn bindgen_grpc(file_path: &PathBuf, grpc_include_dir: &PathBuf) {
 // Determine if need to update bindings. Supported platforms do not
 // need to be updated by default unless the UPDATE_BIND is specified.
 // Other platforms use bindgen to generate the bindings every time.
-fn config_binding_path(#[allow(unused_variables)] grpc_include_dir: &PathBuf) {
+fn config_binding_path(_grpc_include_dir: &PathBuf) {
     let target = env::var("TARGET").unwrap();
     let file_path: PathBuf = match target.as_str() {
         "x86_64-unknown-linux-gnu" | "aarch64-unknown-linux-gnu" => {
@@ -359,7 +359,7 @@ fn config_binding_path(#[allow(unused_variables)] grpc_include_dir: &PathBuf) {
 
             #[cfg(feature = "use-bindgen")]
             if env::var("UPDATE_BIND").is_ok() {
-                bindgen_grpc(&file_path, grpc_include_dir);
+                bindgen_grpc(&file_path, _grpc_include_dir);
             }
 
             file_path
@@ -368,7 +368,7 @@ fn config_binding_path(#[allow(unused_variables)] grpc_include_dir: &PathBuf) {
             let file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
 
             #[cfg(feature = "use-bindgen")]
-            bindgen_grpc(&file_path, grpc_include_dir);
+            bindgen_grpc(&file_path, _grpc_include_dir);
 
             file_path
         }
@@ -406,14 +406,14 @@ fn main() {
         let grpc_include_dir = lib_core
             .include_paths
             .iter()
-            .map(|inc_path| inc_path.join("grpc"))
             .find(|grpc_inc_path| grpc_inc_path.is_dir())
             .unwrap_or_else(|| {
                 panic!(
                     "Could not find grpc include dir in {:#?}",
                     lib_core.include_paths
                 )
-            });
+            })
+            .into();
         for inc_path in lib_core.include_paths {
             cc.include(inc_path);
         }
