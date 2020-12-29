@@ -289,7 +289,7 @@ fn bindgen_grpc(file_path: &PathBuf, grpc_include_dir: &PathBuf) {
         let mut file = fs::File::open(dent.path()).expect("couldn't open headers");
         let mut buf = String::new();
         file.read_to_string(&mut buf)
-            .expect("Coundn't read header content");
+            .expect("Couldn't read header content");
         if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
             headers.push(String::from(dent.path().to_str().unwrap()));
         }
