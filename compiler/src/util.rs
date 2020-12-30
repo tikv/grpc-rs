@@ -34,7 +34,7 @@ impl<'a> Iterator for NameSpliter<'a> {
         let mut meet_lower = false;
         for i in self.pos..self.name.len() {
             let c = self.name[i];
-            if b'A' <= c && c <= b'Z' {
+            if (b'A'..=b'Z').contains(&c) {
                 if meet_lower {
                     // So it should be AaA or aaA
                     pos = i;

@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -53,11 +53,15 @@ openssl-sys = { version = "0.9", optional = true, features = ["vendored"] }
 libz-sys = { version = "1.0.25", features = ["static"] }
 
 [features]
-default = []
+default = ["use-bindgen"]
 secure = []
 openssl = ["secure"]
 openssl-vendored = ["openssl", "openssl-sys"]
 no-omit-frame-pointer = []
+# If this feature is disabled, bindgen will not be used and the previously generated bindings will
+# be compiled instead. This only work for the supported targets and will make compilation fails for
+# the other ones.
+use-bindgen = ["bindgen"]
 
 [build-dependencies]
 cc = "1.0"
@@ -65,5 +69,5 @@ cmake = "0.1"
 pkg-config = "0.3"
 walkdir = "2.2.9"
 # Because of rust-lang/cargo#5237, bindgen should not be upgraded util a minor or major release.
-bindgen = { version = "0.51.0", default-features = false }
+bindgen = { version = "0.56.0", default-features = false, optional = true, features = ["runtime"] }
 boringssl-src = "0.1.0"

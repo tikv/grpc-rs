@@ -25,7 +25,7 @@ grpcio = { path = "..", version = "0.7", default-features = false, features = ["
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpcio-proto = { path = "../proto", version = "0.6.0", default-features = false }
+grpcio-proto = { path = "../proto", version = "0.7.0", default-features = false }
 rand = "0.7"
 slog = "2.0"
 slog-async = "2.1"
