@@ -20,7 +20,7 @@ prost-codec = ["prost-derive", "bytes", "lazy_static", "grpcio/prost-codec", "pr
 [dependencies]
 futures = "0.3"
 grpcio = { path = "..", features = ["secure"], version = "0.7.1", default-features = false }
-bytes = { version = "0.5", optional = true }
+bytes = { version = "1.0", optional = true }
 prost = { version = "0.7", optional = true }
 prost-derive = { version = "0.7", optional = true }
 protobuf = "2"

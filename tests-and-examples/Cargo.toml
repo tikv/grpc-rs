@@ -16,8 +16,8 @@ libc = "0.2"
 futures = "0.3"
 futures-timer = "3.0"
 protobuf = { version = "2.0", optional = true }
-prost = { version = "0.6", optional = true }
-bytes = { version = "0.5", optional = true }
+prost = { version = "0.7", optional = true }
+bytes = { version = "1.0", optional = true }
 log = "0.4"
 grpcio = { path = "..", version = "0.7", default-features = false, features = ["secure"] }
 
