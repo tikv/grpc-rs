@@ -29,7 +29,7 @@ jobs:
     arch: arm64
     before_script:
       - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.33.1
+      - export GRPC_VERSION=1.35.0
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
       - sudo apt-get update && sudo apt-get -y install libssl-dev
       - which cmake && cmake --version && openssl version
