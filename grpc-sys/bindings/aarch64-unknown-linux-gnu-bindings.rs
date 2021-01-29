@@ -633,7 +633,7 @@ extern "C" {
     #[doc = " Parses the \\a slice as a grpc_compression_algorithm instance and updating \\a"]
     #[doc = " algorithm. Returns 1 upon success, 0 otherwise."]
     pub fn grpc_compression_algorithm_parse(
-        value: grpc_slice,
+        name: grpc_slice,
         algorithm: *mut grpc_compression_algorithm,
     ) -> ::std::os::raw::c_int;
 }
@@ -1377,7 +1377,7 @@ extern "C" {
 }
 extern "C" {
     #[doc = " Destroys \\a byte_buffer deallocating all its memory."]
-    pub fn grpc_byte_buffer_destroy(byte_buffer: *mut grpc_byte_buffer);
+    pub fn grpc_byte_buffer_destroy(bb: *mut grpc_byte_buffer);
 }
 extern "C" {
     #[doc = " Initialize \\a reader to read over \\a buffer."]
@@ -1477,7 +1477,7 @@ extern "C" {
 extern "C" {
     #[doc = " remove n bytes from the end of a slice buffer"]
     pub fn grpc_slice_buffer_trim_end(
-        src: *mut grpc_slice_buffer,
+        sb: *mut grpc_slice_buffer,
         n: usize,
         garbage: *mut grpc_slice_buffer,
     );
@@ -1508,11 +1508,11 @@ extern "C" {
 }
 extern "C" {
     #[doc = " take the first slice in the slice buffer"]
-    pub fn grpc_slice_buffer_take_first(src: *mut grpc_slice_buffer) -> grpc_slice;
+    pub fn grpc_slice_buffer_take_first(sb: *mut grpc_slice_buffer) -> grpc_slice;
 }
 extern "C" {
     #[doc = " undo the above with (a possibly different) \\a slice"]
-    pub fn grpc_slice_buffer_undo_take_first(src: *mut grpc_slice_buffer, slice: grpc_slice);
+    pub fn grpc_slice_buffer_undo_take_first(sb: *mut grpc_slice_buffer, slice: grpc_slice);
 }
 #[repr(u32)]
 #[doc = " Connectivity state of a channel."]
@@ -1551,7 +1551,7 @@ extern "C" {
 }
 extern "C" {
     #[doc = " Convert a timespec from one clock to another"]
-    pub fn gpr_convert_clock_type(t: gpr_timespec, target_clock: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_convert_clock_type(t: gpr_timespec, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
     #[doc = " Return -ve, 0, or +ve according to whether a < b, a == b, or a > b"]
@@ -1574,22 +1574,22 @@ extern "C" {
 extern "C" {
     #[doc = " Return a timespec representing a given number of time units. INT64_MIN is"]
     #[doc = "interpreted as gpr_inf_past, and INT64_MAX as gpr_inf_future."]
-    pub fn gpr_time_from_micros(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_time_from_micros(us: i64, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
-    pub fn gpr_time_from_nanos(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_time_from_nanos(ns: i64, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
-    pub fn gpr_time_from_millis(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_time_from_millis(ms: i64, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
-    pub fn gpr_time_from_seconds(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_time_from_seconds(s: i64, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
-    pub fn gpr_time_from_minutes(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_time_from_minutes(m: i64, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
-    pub fn gpr_time_from_hours(x: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+    pub fn gpr_time_from_hours(h: i64, clock_type: gpr_clock_type) -> gpr_timespec;
 }
 extern "C" {
     pub fn gpr_time_to_millis(timespec: gpr_timespec) -> i32;
@@ -1673,8 +1673,7 @@ extern "C" {
     pub fn grpc_is_initialized() -> ::std::os::raw::c_int;
 }
 extern "C" {
-    #[doc = " EXPERIMENTAL. Blocking shut down grpc library."]
-    #[doc = "This is only for wrapped language to use now."]
+    #[doc = " DEPRECATED. Recommend to use grpc_shutdown only"]
     pub fn grpc_shutdown_blocking();
 }
 extern "C" {
@@ -2093,6 +2092,27 @@ extern "C" {
         server: *mut grpc_server,
         cq: *mut grpc_completion_queue,
         reserved: *mut ::std::os::raw::c_void,
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_server_config_fetcher {
+    _unused: [u8; 0],
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL.  Creates an xDS config fetcher."]
+    pub fn grpc_server_config_fetcher_xds_create() -> *mut grpc_server_config_fetcher;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL.  Destroys a config fetcher."]
+    pub fn grpc_server_config_fetcher_destroy(config_fetcher: *mut grpc_server_config_fetcher);
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL.  Sets the server's config fetcher.  Takes ownership."]
+    #[doc = "Must be called before adding ports"]
+    pub fn grpc_server_set_config_fetcher(
+        server: *mut grpc_server,
+        config_fetcher: *mut grpc_server_config_fetcher,
     );
 }
 extern "C" {
@@ -2701,6 +2721,17 @@ extern "C" {
     ) -> *mut grpc_call_credentials;
 }
 extern "C" {
+    #[doc = " Builds External Account credentials."]
+    #[doc = "- json_string is the JSON string containing the credentials options."]
+    #[doc = "- scopes_string contains the scopes to be binded with the credentials."]
+    #[doc = "This API is used for experimental purposes for now and may change in the"]
+    #[doc = "future."]
+    pub fn grpc_external_account_credentials_create(
+        json_string: *const ::std::os::raw::c_char,
+        scopes_string: *const ::std::os::raw::c_char,
+    ) -> *mut grpc_call_credentials;
+}
+extern "C" {
     #[doc = " Creates an Oauth2 Refresh Token credentials object for connecting to Google."]
     #[doc = "May return NULL if the input is invalid."]
     #[doc = "WARNING: Do NOT use this credentials to connect to a non-google service as"]
@@ -3159,16 +3190,6 @@ pub struct grpc_tls_error_details {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct grpc_tls_key_materials_config {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_tls_credential_reload_config {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_tls_server_authorization_check_config {
     _unused: [u8; 0],
 }
@@ -3177,184 +3198,166 @@ pub struct grpc_tls_server_authorization_check_config {
 pub struct grpc_tls_credentials_options {
     _unused: [u8; 0],
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_tls_certificate_provider {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_tls_identity_pairs {
+    _unused: [u8; 0],
+}
 extern "C" {
-    #[doc = " Create an empty TLS credentials options. It is used for"]
-    #[doc = "  experimental purpose for now and subject to change."]
+    #[doc = " Creates a grpc_tls_identity_pairs that stores a list of identity credential"]
+    #[doc = " data, including identity private key and identity certificate chain. It is"]
+    #[doc = " used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_identity_pairs_create() -> *mut grpc_tls_identity_pairs;
+}
+extern "C" {
+    #[doc = " Adds a identity private key and a identity certificate chain to"]
+    #[doc = " grpc_tls_identity_pairs. This function will make an internal copy of"]
+    #[doc = " |private_key| and |cert_chain|. It is used for experimental purpose for now"]
+    #[doc = " and subject to change."]
+    pub fn grpc_tls_identity_pairs_add_pair(
+        pairs: *mut grpc_tls_identity_pairs,
+        private_key: *const ::std::os::raw::c_char,
+        cert_chain: *const ::std::os::raw::c_char,
+    );
+}
+extern "C" {
+    #[doc = " Destroys a grpc_tls_identity_pairs object. If this object is passed to a"]
+    #[doc = " provider initiation function, the ownership is transferred so this function"]
+    #[doc = " doesn't need to be called. Otherwise the creator of the"]
+    #[doc = " grpc_tls_identity_pairs object is responsible for its destruction. It is"]
+    #[doc = " used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_identity_pairs_destroy(pairs: *mut grpc_tls_identity_pairs);
+}
+extern "C" {
+    #[doc = " Creates a grpc_tls_certificate_provider that will load credential data from"]
+    #[doc = " static string during initialization. This provider will always return the"]
+    #[doc = " same cert data for all cert names."]
+    #[doc = " root_certificate and pem_key_cert_pairs can be nullptr, indicating the"]
+    #[doc = " corresponding credential data is not needed."]
+    #[doc = " This function will make a copy of |root_certificate|."]
+    #[doc = " The ownership of |pem_key_cert_pairs| is transferred."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_certificate_provider_static_data_create(
+        root_certificate: *const ::std::os::raw::c_char,
+        pem_key_cert_pairs: *mut grpc_tls_identity_pairs,
+    ) -> *mut grpc_tls_certificate_provider;
+}
+extern "C" {
+    #[doc = " Creates a grpc_tls_certificate_provider that will watch the credential"]
+    #[doc = " changes on the file system. This provider will always return the up-to-date"]
+    #[doc = " cert data for all the cert names callers set through"]
+    #[doc = " |grpc_tls_credentials_options|. Note that this API only supports one key-cert"]
+    #[doc = " file and hence one set of identity key-cert pair, so SNI(Server Name"]
+    #[doc = " Indication) is not supported."]
+    #[doc = " - private_key_path is the file path of the private key. This must be set if"]
+    #[doc = "   |identity_certificate_path| is set. Otherwise, it could be null if no"]
+    #[doc = "   identity credentials are needed."]
+    #[doc = " - identity_certificate_path is the file path of the identity certificate"]
+    #[doc = "   chain. This must be set if |private_key_path| is set. Otherwise, it could"]
+    #[doc = "   be null if no identity credentials are needed."]
+    #[doc = " - root_cert_path is the file path to the root certificate bundle. This"]
+    #[doc = "   may be null if no root certs are needed."]
+    #[doc = " - refresh_interval_sec is the refreshing interval that we will check the"]
+    #[doc = "   files for updates."]
+    #[doc = " It does not take ownership of parameters."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_certificate_provider_file_watcher_create(
+        private_key_path: *const ::std::os::raw::c_char,
+        identity_certificate_path: *const ::std::os::raw::c_char,
+        root_cert_path: *const ::std::os::raw::c_char,
+        refresh_interval_sec: ::std::os::raw::c_uint,
+    ) -> *mut grpc_tls_certificate_provider;
+}
+extern "C" {
+    #[doc = " Releases a grpc_tls_certificate_provider object. The creator of the"]
+    #[doc = " grpc_tls_certificate_provider object is responsible for its release. It is"]
+    #[doc = " used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_certificate_provider_release(provider: *mut grpc_tls_certificate_provider);
+}
+extern "C" {
+    #[doc = " Creates an grpc_tls_credentials_options."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_create() -> *mut grpc_tls_credentials_options;
 }
 extern "C" {
-    #[doc = " Set grpc_ssl_client_certificate_request_type field in credentials options"]
-    #[doc = "with the provided type. options should not be NULL."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = "experimental purpose for now and subject to change."]
+    #[doc = " Sets the options of whether to request and verify client certs. This should"]
+    #[doc = " be called only on the server side. It returns 1 on success and 0 on failure."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_cert_request_type(
         options: *mut grpc_tls_credentials_options,
         type_: grpc_ssl_client_certificate_request_type,
-    ) -> ::std::os::raw::c_int;
+    );
 }
 extern "C" {
-    #[doc = " Set grpc_tls_server_verification_option field in credentials options"]
-    #[doc = "with the provided server_verification_option. options should not be NULL."]
-    #[doc = "This should be called only on the client side."]
-    #[doc = "If grpc_tls_server_verification_option is not"]
-    #[doc = "GRPC_TLS_SERVER_VERIFICATION, use of a customer server"]
-    #[doc = "authorization check (grpc_tls_server_authorization_check_config)"]
-    #[doc = "will be mandatory."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = "experimental purpose for now and subject to change."]
+    #[doc = " Sets the options of whether to choose certain checks, e.g. certificate check,"]
+    #[doc = " hostname check, etc. This should be called only on the client side. If"]
+    #[doc = " |server_verification_option| is not GRPC_TLS_SERVER_VERIFICATION, use of a"]
+    #[doc = " custom authorization check (grpc_tls_server_authorization_check_config) is"]
+    #[doc = " mandatory. It returns 1 on success and 0 on failure. It is used for"]
+    #[doc = " experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_server_verification_option(
         options: *mut grpc_tls_credentials_options,
         server_verification_option: grpc_tls_server_verification_option,
-    ) -> ::std::os::raw::c_int;
+    );
 }
 extern "C" {
-    #[doc = " Set grpc_tls_key_materials_config field in credentials options"]
-    #[doc = "with the provided config struct whose ownership is transferred."]
-    #[doc = "Both parameters should not be NULL."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = "experimental purpose for now and subject to change."]
-    pub fn grpc_tls_credentials_options_set_key_materials_config(
+    #[doc = " Sets the credential provider in the options."]
+    #[doc = " The |options| will implicitly take a new ref to the |provider|."]
+    #[doc = " It returns 1 on success and 0 on failure."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_credentials_options_set_certificate_provider(
         options: *mut grpc_tls_credentials_options,
-        config: *mut grpc_tls_key_materials_config,
-    ) -> ::std::os::raw::c_int;
+        provider: *mut grpc_tls_certificate_provider,
+    );
 }
 extern "C" {
-    #[doc = " Set grpc_tls_credential_reload_config field in credentials options"]
-    #[doc = "with the provided config struct whose ownership is transferred."]
-    #[doc = "Both parameters should not be NULL."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = "experimental purpose for now and subject to change."]
-    pub fn grpc_tls_credentials_options_set_credential_reload_config(
+    #[doc = " If set, gRPC stack will keep watching the root certificates with"]
+    #[doc = " name |root_cert_name|. It returns 1 on success and 0 on failure. It is used"]
+    #[doc = " for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_credentials_options_watch_root_certs(
         options: *mut grpc_tls_credentials_options,
-        config: *mut grpc_tls_credential_reload_config,
-    ) -> ::std::os::raw::c_int;
+    );
 }
 extern "C" {
-    #[doc = " Set grpc_tls_server_authorization_check_config field in credentials options"]
-    #[doc = "with the provided config struct whose ownership is transferred."]
-    #[doc = "Both parameters should not be NULL."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = "experimental purpose for now and subject to change."]
+    #[doc = " Sets the name of the root certificates being watched."]
+    #[doc = " If not set, We will use a default empty string as the root certificate name."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_credentials_options_set_root_cert_name(
+        options: *mut grpc_tls_credentials_options,
+        root_cert_name: *const ::std::os::raw::c_char,
+    );
+}
+extern "C" {
+    #[doc = " If set, gRPC stack will keep watching the identity key-cert pairs"]
+    #[doc = " with name |identity_cert_name|. It returns 1 on success and 0 on failure. It"]
+    #[doc = " is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_credentials_options_watch_identity_key_cert_pairs(
+        options: *mut grpc_tls_credentials_options,
+    );
+}
+extern "C" {
+    #[doc = " Sets the name of the identity certificates being watched."]
+    #[doc = " If not set, We will use a default empty string as the identity certificate"]
+    #[doc = " name. It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_credentials_options_set_identity_cert_name(
+        options: *mut grpc_tls_credentials_options,
+        identity_cert_name: *const ::std::os::raw::c_char,
+    );
+}
+extern "C" {
+    #[doc = " Sets the configuration for a custom authorization check performed at the end"]
+    #[doc = " of the handshake. The |options| will implicitly take a new ref to the"]
+    #[doc = " |config|. It returns 1 on success and 0 on failure. It is used for"]
+    #[doc = " experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_server_authorization_check_config(
         options: *mut grpc_tls_credentials_options,
         config: *mut grpc_tls_server_authorization_check_config,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Create an empty grpc_tls_key_materials_config instance."]
-    #[doc = "  It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_key_materials_config_create() -> *mut grpc_tls_key_materials_config;
-}
-extern "C" {
-    #[doc = " Set grpc_tls_key_materials_config instance with provided a TLS certificate."]
-    #[doc = "It's valid for the caller to provide nullptr pem_root_certs, in which case"]
-    #[doc = "the gRPC-provided root cert will be used. pem_key_cert_pairs should not be"]
-    #[doc = "NULL."]
-    #[doc = "The ownerships of |pem_root_certs| and |pem_key_cert_pairs| remain with the"]
-    #[doc = "caller."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for experimental"]
-    #[doc = "purpose for now and subject to change."]
-    pub fn grpc_tls_key_materials_config_set_key_materials(
-        config: *mut grpc_tls_key_materials_config,
-        pem_root_certs: *const ::std::os::raw::c_char,
-        pem_key_cert_pairs: *mut *const grpc_ssl_pem_key_cert_pair,
-        num_key_cert_pairs: usize,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Set grpc_tls_key_materials_config instance with a provided version number,"]
-    #[doc = "which is used to keep track of the version of key materials."]
-    #[doc = "It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = "experimental purpose for now and subject to change."]
-    pub fn grpc_tls_key_materials_config_set_version(
-        config: *mut grpc_tls_key_materials_config,
-        version: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Get the version number of a grpc_tls_key_materials_config instance."]
-    #[doc = "It returns the version number on success and -1 on failure."]
-    #[doc = "It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_key_materials_config_get_version(
-        config: *mut grpc_tls_key_materials_config,
-    ) -> ::std::os::raw::c_int;
-}
-#[doc = " A callback function provided by gRPC to handle the result of credential"]
-#[doc = "reload. It is used when schedule API is implemented asynchronously and"]
-#[doc = "serves to bring the control back to grpc C core. It is used for"]
-#[doc = "experimental purpose for now and subject to change."]
-pub type grpc_tls_on_credential_reload_done_cb =
-    ::std::option::Option<unsafe extern "C" fn(arg: *mut grpc_tls_credential_reload_arg)>;
-#[doc = " A struct containing all information necessary to schedule/cancel a"]
-#[doc = "credential reload request."]
-#[doc = "- cb and cb_user_data represent a gRPC-provided"]
-#[doc = "callback and an argument passed to it."]
-#[doc = "- key_materials_config is an in/output parameter containing currently"]
-#[doc = "used/newly reloaded credentials. If credential reload does not result in"]
-#[doc = "a new credential, key_materials_config should not be modified. The same"]
-#[doc = "key_materials_config object can be updated if new key materials is"]
-#[doc = "available."]
-#[doc = "- status and error_details are used to hold information about"]
-#[doc = "errors occurred when a credential reload request is scheduled/cancelled."]
-#[doc = "- config is a pointer to the unique grpc_tls_credential_reload_config"]
-#[doc = "instance that this argument corresponds to."]
-#[doc = "- context is a pointer to a wrapped language implementation of this"]
-#[doc = "grpc_tls_credential_reload_arg instance."]
-#[doc = "- destroy_context is a pointer to a caller-provided method that cleans"]
-#[doc = "up any data associated with the context pointer."]
-#[doc = "It is used for experimental purposes for now and subject to change."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_tls_credential_reload_arg {
-    pub cb: grpc_tls_on_credential_reload_done_cb,
-    pub cb_user_data: *mut ::std::os::raw::c_void,
-    pub key_materials_config: *mut grpc_tls_key_materials_config,
-    pub status: grpc_ssl_certificate_config_reload_status,
-    pub error_details: *mut grpc_tls_error_details,
-    pub config: *mut grpc_tls_credential_reload_config,
-    pub context: *mut ::std::os::raw::c_void,
-    pub destroy_context:
-        ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>,
-}
-extern "C" {
-    #[doc = " Create a grpc_tls_credential_reload_config instance."]
-    #[doc = "- config_user_data is config-specific, read-only user data"]
-    #[doc = "that works for all channels created with a credential using the config."]
-    #[doc = "- schedule is a pointer to an application-provided callback used to invoke"]
-    #[doc = "credential reload API. The implementation of this method has to be"]
-    #[doc = "non-blocking, but can be performed synchronously or asynchronously."]
-    #[doc = "1) If processing occurs synchronously, it populates"]
-    #[doc = "arg->key_materials_config, arg->status, and arg->error_details"]
-    #[doc = "and returns zero."]
-    #[doc = "2) If processing occurs asynchronously, it returns a non-zero value."]
-    #[doc = "The application then invokes arg->cb when processing is completed. Note"]
-    #[doc = "that arg->cb cannot be invoked before schedule API returns."]
-    #[doc = "- cancel is a pointer to an application-provided callback used to cancel"]
-    #[doc = "a credential reload request scheduled via an asynchronous schedule API."]
-    #[doc = "arg is used to pinpoint an exact reloading request to be cancelled."]
-    #[doc = "The operation may not have any effect if the request has already been"]
-    #[doc = "processed."]
-    #[doc = "- destruct is a pointer to an application-provided callback used to clean up"]
-    #[doc = "any data associated with the config."]
-    #[doc = "It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_credential_reload_config_create(
-        config_user_data: *const ::std::os::raw::c_void,
-        schedule: ::std::option::Option<
-            unsafe extern "C" fn(
-                config_user_data: *mut ::std::os::raw::c_void,
-                arg: *mut grpc_tls_credential_reload_arg,
-            ) -> ::std::os::raw::c_int,
-        >,
-        cancel: ::std::option::Option<
-            unsafe extern "C" fn(
-                config_user_data: *mut ::std::os::raw::c_void,
-                arg: *mut grpc_tls_credential_reload_arg,
-            ),
-        >,
-        destruct: ::std::option::Option<
-            unsafe extern "C" fn(config_user_data: *mut ::std::os::raw::c_void),
-        >,
-    ) -> *mut grpc_tls_credential_reload_config;
+    );
 }
 #[doc = " callback function provided by gRPC used to handle the result of server"]
 #[doc = "authorization check. It is used when schedule API is implemented"]
@@ -3372,6 +3375,8 @@ pub type grpc_tls_on_server_authorization_check_done_cb =
 #[doc = "- target_name is the name of an endpoint the channel is connecting to."]
 #[doc = "- peer_cert represents a complete certificate chain including both"]
 #[doc = "signing and leaf certificates."]
+#[doc = "- \\a subject_alternative_names is an array of size"]
+#[doc = "\\a subject_alternative_names_size consisting of pointers to strings."]
 #[doc = "- status and error_details contain information"]
 #[doc = "about errors occurred when a server authorization check request is"]
 #[doc = "scheduled/cancelled."]
@@ -3392,6 +3397,8 @@ pub struct grpc_tls_server_authorization_check_arg {
     pub target_name: *const ::std::os::raw::c_char,
     pub peer_cert: *const ::std::os::raw::c_char,
     pub peer_cert_full_chain: *const ::std::os::raw::c_char,
+    pub subject_alternative_names: *mut *mut ::std::os::raw::c_char,
+    pub subject_alternative_names_size: usize,
     pub status: grpc_status_code::Type,
     pub error_details: *mut grpc_tls_error_details,
     pub config: *mut grpc_tls_server_authorization_check_config,
@@ -3439,30 +3446,28 @@ extern "C" {
     ) -> *mut grpc_tls_server_authorization_check_config;
 }
 extern "C" {
-    #[doc = " This method creates a TLS channel credential object."]
-    #[doc = " It takes ownership of the options parameter. The security level"]
-    #[doc = " of the resulting connection is GRPC_PRIVACY_AND_INTEGRITY."]
-    #[doc = ""]
-    #[doc = " - options: grpc TLS credentials options instance."]
-    #[doc = ""]
-    #[doc = " It returns the created credential object."]
-    #[doc = ""]
-    #[doc = " It is used for experimental purpose for now and subject"]
-    #[doc = " to change."]
+    #[doc = " Releases a grpc_tls_server_authorization_check_config object. The creator of"]
+    #[doc = " the grpc_tls_server_authorization_check_config object is responsible for its"]
+    #[doc = " release. It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_server_authorization_check_config_release(
+        config: *mut grpc_tls_server_authorization_check_config,
+    );
+}
+extern "C" {
+    #[doc = " Creates a TLS channel credential object based on the"]
+    #[doc = " grpc_tls_credentials_options specified by callers. The"]
+    #[doc = " grpc_channel_credentials will take the ownership of the |options|. The"]
+    #[doc = " security level of the resulting connection is GRPC_PRIVACY_AND_INTEGRITY. It"]
+    #[doc = " is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_create(
         options: *mut grpc_tls_credentials_options,
     ) -> *mut grpc_channel_credentials;
 }
 extern "C" {
-    #[doc = " This method creates a TLS server credential object."]
-    #[doc = " It takes ownership of the options parameter."]
-    #[doc = ""]
-    #[doc = " - options: grpc TLS credentials options instance."]
-    #[doc = ""]
-    #[doc = " It returns the created credential object."]
-    #[doc = ""]
-    #[doc = " It is used for experimental purpose for now and subject"]
-    #[doc = " to change."]
+    #[doc = " Creates a TLS server credential object based on the"]
+    #[doc = " grpc_tls_credentials_options specified by callers. The"]
+    #[doc = " grpc_server_credentials will take the ownership of the |options|. It"]
+    #[doc = " is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_server_credentials_create(
         options: *mut grpc_tls_credentials_options,
     ) -> *mut grpc_server_credentials;
@@ -3470,10 +3475,22 @@ extern "C" {
 extern "C" {
     #[doc = " EXPERIMENTAL API - Subject to change"]
     #[doc = ""]
-    #[doc = " This method creates an XDS channel credentials object."]
+    #[doc = " This method creates an insecure channel credentials object."]
+    pub fn grpc_insecure_credentials_create() -> *mut grpc_channel_credentials;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
     #[doc = ""]
-    #[doc = " Creating a channel with credentials of this type indicates that an xDS"]
-    #[doc = " channel should get credentials configuration from the xDS control plane."]
+    #[doc = " This method creates an insecure server credentials object."]
+    pub fn grpc_insecure_server_credentials_create() -> *mut grpc_server_credentials;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " This method creates an xDS channel credentials object."]
+    #[doc = ""]
+    #[doc = " Creating a channel with credentials of this type indicates that the channel"]
+    #[doc = " should get credentials configuration from the xDS control plane."]
     #[doc = ""]
     #[doc = " \\a fallback_credentials are used if the channel target does not have the"]
     #[doc = " 'xds:///' scheme or if the xDS control plane does not provide information on"]
@@ -3482,6 +3499,20 @@ extern "C" {
     pub fn grpc_xds_credentials_create(
         fallback_credentials: *mut grpc_channel_credentials,
     ) -> *mut grpc_channel_credentials;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " This method creates an xDS server credentials object."]
+    #[doc = ""]
+    #[doc = " \\a fallback_credentials are used if the xDS control plane does not provide"]
+    #[doc = " information on how to fetch credentials dynamically."]
+    #[doc = ""]
+    #[doc = " Does NOT take ownership of the \\a fallback_credentials. (Internally takes"]
+    #[doc = " a ref to the object.)"]
+    pub fn grpc_xds_server_credentials_create(
+        fallback_credentials: *mut grpc_server_credentials,
+    ) -> *mut grpc_server_credentials;
 }
 #[repr(u32)]
 #[doc = " The severity of a log message - use the #defines below when calling into"]
