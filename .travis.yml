@@ -40,9 +40,9 @@ jobs:
           env TEST_BIND=0 scripts/generate-bindings.sh && git diff --exit-code HEAD;
         fi
       - ./scripts/generate-bindings.sh
-      - cargo build --no-default-features
-      - cargo build --no-default-features --features protobuf-codec
-      - cargo build --no-default-features --features prost-codec
-      - cargo build
-      - cargo test --release --all
-      - cargo test --release --features "openssl-vendored" --all
+      - cargo build --no-default-features -j 1
+      - cargo build --no-default-features --features protobuf-codec -j 1
+      - cargo build --no-default-features --features prost-codec -j 1
+      - cargo build -j 1
+      - cargo test --release --all -j 1
+      - cargo test --release --features "openssl-vendored" --all -j 1
