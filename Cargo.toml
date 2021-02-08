@@ -42,6 +42,9 @@ use-bindgen = ["grpcio-sys/use-bindgen"]
 [profile.release]
 debug = true
 
+[profile.dev.package.grpcio-sys]
+opt-level = 1
+
 [badges]
 travis-ci = { repository = "tikv/grpc-rs" }
 

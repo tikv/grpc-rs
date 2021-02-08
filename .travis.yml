@@ -45,5 +45,5 @@ jobs:
       - cargo build --no-default-features --features protobuf-codec
       - cargo build --no-default-features --features prost-codec
       - cargo build
-      - cargo test --release --all
-      - cargo test --release --features "openssl-vendored" --all
+      - cargo test --all
+      - cargo test --features "openssl-vendored" --all
