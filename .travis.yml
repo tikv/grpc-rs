@@ -1,7 +1,7 @@
 # Travis is only used to test ARM64 Linux
 
 dist: focal
-sudo: false
+sudo: true
 language: rust
 git:
   submodules: false
@@ -45,5 +45,7 @@ jobs:
       - cargo build --no-default-features --features protobuf-codec
       - cargo build --no-default-features --features prost-codec
       - cargo build
+      # hosts on some travis vm route localhost to 127.0.1.1, it will break the tests.
+      - echo 127.0.0.1	localhost | sudo tee /etc/hosts
       - travis_wait 40 cargo test --release --all
       - travis_wait 40 cargo test --release --features "openssl-vendored" --all
