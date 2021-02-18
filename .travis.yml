@@ -32,7 +32,6 @@ jobs:
       - scripts/reset-submodule.cmd
       - export GRPC_VERSION=1.35.0
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-      - sudo apt-get update && sudo apt-get -y install libssl-dev
       - which cmake && cmake --version && openssl version
       - eval "$(gimme stable)"
     script:
@@ -48,4 +47,17 @@ jobs:
       # hosts on some travis vm route localhost to 127.0.1.1, it will break the tests.
       - echo 127.0.0.1	localhost | sudo tee /etc/hosts
       - travis_wait 40 cargo test --release --all
+  - os: linux
+    arch: arm64-graviton2
+    vm: virt
+    before_script:
+      - scripts/reset-submodule.cmd
+      - export GRPC_VERSION=1.35.0
+      - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
+      - sudo apt-get update && sudo apt-get -y install libssl-dev
+      - which cmake && cmake --version && openssl version
+      - eval "$(gimme stable)"
+    script:
+      # hosts on some travis vm route localhost to 127.0.1.1, it will break the tests.
+      - echo 127.0.0.1	localhost | sudo tee /etc/hosts
       - travis_wait 40 cargo test --release --features "openssl-vendored" --all
