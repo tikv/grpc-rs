@@ -427,7 +427,7 @@ impl bytes::Buf for GrpcByteBufferReader {
         self.remain
     }
 
-    fn bytes(&self) -> &[u8] {
+    fn chunk(&self) -> &[u8] {
         // This is similar but not identical to `BuffRead::fill_buf`, since `self`
         // is not mutable, we can only return bytes up to the end of the current
         // slice.
@@ -595,7 +595,7 @@ mod tests {
                 let mut count = 100;
                 while reader.remaining() > 0 {
                     assert_eq!(remaining, reader.remaining());
-                    let bytes = Buf::bytes(&reader);
+                    let bytes = Buf::chunk(&reader);
                     bytes.iter().for_each(|b| assert_eq!(*b, len as u8));
                     let mut read = bytes.len();
                     // We don't have to advance by the whole amount we read.

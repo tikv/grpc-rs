@@ -17,17 +17,6 @@ use grpc_proto::testing::messages::{
 use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::util;
 
-enum Error {
-    Grpc(grpc::Error),
-    Abort,
-}
-
-impl From<grpc::Error> for Error {
-    fn from(error: grpc::Error) -> Error {
-        Error::Grpc(error)
-    }
-}
-
 #[derive(Clone)]
 pub struct InteropTestService;
 
@@ -158,9 +147,10 @@ impl TestService for InteropTestService {
             sink.close().await?;
             Ok(())
         }
-        .map_err(|e: Error| match e {
-            Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
-            Error::Grpc(e) => error!("failed to handle duplex call: {:?}", e),
+        .map_err(|e: grpc::Error| {
+            if !matches!(e, grpc::Error::RemoteStopped) {
+                error!("failed to handle duplex call: {:?}", e);
+            }
         })
         .map(|_| ());
         ctx.spawn(f)
