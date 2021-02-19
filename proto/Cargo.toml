@@ -13,9 +13,10 @@ categories = ["network-programming"]
 build = "build.rs"
 
 [features]
-default = ["protobuf-codec"]
+default = ["protobuf-codec", "use-bindgen"]
 protobuf-codec = ["grpcio/protobuf-codec", "protobuf-build/grpcio-protobuf-codec"]
 prost-codec = ["prost-derive", "bytes", "lazy_static", "grpcio/prost-codec", "prost", "protobuf-build/grpcio-prost-codec"]
+use-bindgen = ["grpcio/use-bindgen"]
 
 [dependencies]
 futures = "0.3"
