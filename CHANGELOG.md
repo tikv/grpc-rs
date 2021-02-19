@@ -1,3 +1,10 @@
+# 0.8.0 - 2021-02-19
+
+- Fix clippy warnings (#504)
+- Add a way to not use bindgen (#499)
+- Update gRPC C core to 1.35.0 (#506)
+- Update bindgen to 0.57.0 (#507)
+
 # 0.7.1 - 2020-12-18
 
 - Allow CXX environment variable to override g++ for musl build (#500)
