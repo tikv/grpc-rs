@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-proto"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -19,7 +19,7 @@ prost-codec = ["prost-derive", "bytes", "lazy_static", "grpcio/prost-codec", "pr
 
 [dependencies]
 futures = "0.3"
-grpcio = { path = "..", features = ["secure"], version = "0.7.1", default-features = false }
+grpcio = { path = "..", features = ["secure"], version = "0.8.0", default-features = false }
 bytes = { version = "1.0", optional = true }
 prost = { version = "0.7", optional = true }
 prost-derive = { version = "0.7", optional = true }
