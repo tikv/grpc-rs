@@ -57,6 +57,32 @@ fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
     }
 }
 
+/// If cache is stale, remove it to avoid compilation failure.
+fn clean_up_stale_cache(cxx_compiler: String) {
+    // We don't know the cmake output path before it's configured.
+    let build_dir = format!("{}/build", env::var("OUT_DIR").unwrap());
+    let path = format!("{}/CMakeCache.txt", build_dir);
+    let f = match std::fs::File::open(&path) {
+        Ok(f) => BufReader::new(f),
+        // It may be an empty directory.
+        Err(_) => return,
+    };
+    let cache_stale = f.lines().any(|l| {
+        let l = l.unwrap();
+        trim_start(&l, "CMAKE_CXX_COMPILER:").map_or(false, |s| {
+            let mut splits = s.splitn(2, "=");
+            splits.next();
+            splits.next().map_or(false, |p| p != cxx_compiler)
+        })
+    });
+    // CMake can't handle compiler change well, it will invalidate cache without respecting command
+    // line settings and result in configuration failure.
+    // See https://gitlab.kitware.com/cmake/cmake/-/issues/18959.
+    if cache_stale {
+        let _ = fs::remove_dir_all(&build_dir);
+    }
+}
+
 fn build_grpc(cc: &mut cc::Build, library: &str) {
     prepare_grpc();
 
@@ -75,11 +101,16 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
             println!("cargo:rustc-link-lib=framework=CoreFoundation");
         }
 
-        if let Some(val) = get_env("CXX") {
-            config.define("CMAKE_CXX_COMPILER", val);
+        let cxx_compiler = if let Some(val) = get_env("CXX") {
+            config.define("CMAKE_CXX_COMPILER", val.clone());
+            val
         } else if env::var("CARGO_CFG_TARGET_ENV").unwrap() == "musl" {
             config.define("CMAKE_CXX_COMPILER", "g++");
-        }
+            "g++".to_owned()
+        } else {
+            format!("{}", cc.get_compiler().path().display())
+        };
+        clean_up_stale_cache(cxx_compiler);
 
         // Cross-compile support for iOS
         match target.as_str() {
