@@ -1,3 +1,7 @@
+# grpcio-sys 0.8.1 - 2021-03-02
+
+- Detect changes ahead to ease pain of upgrading compiler (#511)
+
 # 0.8.0 - 2021-02-19
 
 - Fix clippy warnings (#504)
