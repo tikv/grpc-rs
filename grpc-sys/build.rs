@@ -70,7 +70,7 @@ fn clean_up_stale_cache(cxx_compiler: String) {
     let cache_stale = f.lines().any(|l| {
         let l = l.unwrap();
         trim_start(&l, "CMAKE_CXX_COMPILER:").map_or(false, |s| {
-            let mut splits = s.splitn(2, "=");
+            let mut splits = s.splitn(2, '=');
             splits.next();
             splits.next().map_or(false, |p| p != cxx_compiler)
         })
