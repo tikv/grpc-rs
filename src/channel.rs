@@ -628,17 +628,23 @@ impl Channel {
 
     /// Wait for this channel to be connected.
     pub async fn wait_for_connected(&self, deadline: impl Into<Deadline>) -> bool {
+        // Fast path, it's probably connected.
+        let mut state = self.check_connectivity_state(true);
+        if ConnectivityState::GRPC_CHANNEL_READY == state {
+            return true;
+        }
         let deadline = deadline.into();
         loop {
-            let state = self.check_connectivity_state(true);
-            match state {
-                ConnectivityState::GRPC_CHANNEL_READY => return true,
-                ConnectivityState::GRPC_CHANNEL_SHUTDOWN => return false,
-                _ => (),
+            if self.wait_for_state_change(state, deadline).await {
+                state = self.check_connectivity_state(true);
+                match state {
+                    ConnectivityState::GRPC_CHANNEL_READY => return true,
+                    ConnectivityState::GRPC_CHANNEL_SHUTDOWN => return false,
+                    _ => (),
+                }
+                continue;
             }
-            if !self.wait_for_state_change(state, deadline).await {
-                return false;
-            }
+            return false;
         }
     }
 
