@@ -104,24 +104,22 @@ impl Debug for Batch {
     }
 }
 
-/// A promise used to resolve async shutdown result.
-pub struct Shutdown {
-    inner: Arc<Inner<()>>,
+/// A promise used to resolve async action status.
+///
+/// The action can only succeed or fail without extra error hint.
+pub struct Action {
+    inner: Arc<Inner<bool>>,
 }
 
-impl Shutdown {
-    pub fn new(inner: Arc<Inner<()>>) -> Shutdown {
-        Shutdown { inner }
+impl Action {
+    pub fn new(inner: Arc<Inner<bool>>) -> Action {
+        Action { inner }
     }
 
     pub fn resolve(self, success: bool) {
         let task = {
             let mut guard = self.inner.lock();
-            if success {
-                guard.set_result(Ok(()))
-            } else {
-                guard.set_result(Err(Error::ShutdownFailed))
-            }
+            guard.set_result(Ok(success))
         };
         task.map(|t| t.wake());
     }
