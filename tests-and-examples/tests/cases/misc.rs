@@ -273,3 +273,86 @@ impl ServerChecker for FlagChecker {
         Box::new(self.clone())
     }
 }
+
+/// Tests connectivity related API works as expected.
+#[test]
+fn test_connectivity() {
+    let env = Arc::new(Environment::new(2));
+    let service = create_greeter(PeerService);
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("127.0.0.1", 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
+    assert_eq!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_READY
+    );
+
+    // Shutdown server should make the connection transit to failure.
+    block_on(server.shutdown()).unwrap();
+    assert!(block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_READY,
+        Duration::from_secs(3)
+    )));
+    // Shutdown will send goaway, hence the state goes to idle.
+    assert_eq!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_IDLE
+    );
+
+    // There is no pending rpc, so grpc will not retry connecting.
+    assert!(!block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_IDLE,
+        Duration::from_millis(100)
+    )));
+
+    // Ask it to reconnect explicitly.
+    ch.check_connectivity_state(true);
+    assert!(block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_IDLE,
+        Duration::from_secs(3)
+    )));
+    assert_ne!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_IDLE
+    );
+
+    // It can't be ready since no server is running.
+    assert!(!block_on(ch.wait_for_connected(Duration::from_millis(100))));
+    assert!(block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_CONNECTING,
+        Duration::from_secs(3)
+    )));
+    assert_ne!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_READY
+    );
+    assert_ne!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_IDLE
+    );
+
+    // After server is restarted, client should be able to reconnect successfully.
+    // A shutdown server should not be restarted again, using a different instance.
+    let service = create_greeter(PeerService);
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("localhost", port)
+        .build()
+        .unwrap();
+    server.start();
+    assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
+    assert_eq!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_READY
+    );
+    let client = GreeterClient::new(ch);
+    let req = HelloRequest::default();
+    let resp = client.say_hello(&req).unwrap();
+    assert!(!resp.get_message().is_empty());
+}

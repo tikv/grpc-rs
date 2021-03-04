@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use crate::grpc_sys::{self, grpc_call_error, grpc_server};
 use futures::future::Future;
+use futures::ready;
 use futures::task::{Context, Poll};
 
 use crate::call::server::*;
@@ -523,14 +524,19 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
 
 /// A `Future` that will resolve when shutdown completes.
 pub struct ShutdownFuture {
-    cq_f: CqFuture<()>,
+    /// `true` means the future finishes successfully.
+    cq_f: CqFuture<bool>,
 }
 
 impl Future for ShutdownFuture {
     type Output = Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        Pin::new(&mut self.cq_f).poll(cx)
+        match ready!(Pin::new(&mut self.cq_f).poll(cx)) {
+            Ok(true) => Poll::Ready(Ok(())),
+            Ok(false) => Poll::Ready(Err(Error::ShutdownFailed)),
+            Err(e) => unreachable!("action future should never resolve to error: {}", e),
+        }
     }
 }
 
@@ -549,7 +555,7 @@ pub struct Server {
 impl Server {
     /// Shutdown the server asynchronously.
     pub fn shutdown(&mut self) -> ShutdownFuture {
-        let (cq_f, prom) = CallTag::shutdown_pair();
+        let (cq_f, prom) = CallTag::action_pair();
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
         unsafe {

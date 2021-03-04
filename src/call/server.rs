@@ -3,6 +3,7 @@
 use std::ffi::CStr;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 use std::{result, slice};
 
 use crate::grpc_sys::{
@@ -30,8 +31,10 @@ use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
 use crate::CheckResult;
 
+/// A time point that an rpc or operation should finished before it.
+#[derive(Clone, Copy)]
 pub struct Deadline {
-    spec: gpr_timespec,
+    pub(crate) spec: gpr_timespec,
 }
 
 impl Deadline {
@@ -44,11 +47,26 @@ impl Deadline {
         }
     }
 
-    pub fn exceeded(&self) -> bool {
+    /// Checks if the deadline is exceeded.
+    pub fn exceeded(self) -> bool {
         unsafe {
             let now = grpc_sys::gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME);
             grpc_sys::gpr_time_cmp(now, self.spec) >= 0
         }
+    }
+
+    pub(crate) fn spec(self) -> gpr_timespec {
+        self.spec
+    }
+}
+
+impl From<Duration> for Deadline {
+    /// Build a deadline from given duration.
+    ///
+    /// The deadline will be `now + duration`.
+    #[inline]
+    fn from(dur: Duration) -> Deadline {
+        Deadline::new(dur.into())
     }
 }
 
@@ -626,8 +644,8 @@ impl<'a> RpcContext<'a> {
         self.ctx.host()
     }
 
-    pub fn deadline(&self) -> &Deadline {
-        &self.deadline
+    pub fn deadline(&self) -> Deadline {
+        self.deadline
     }
 
     /// Get the initial metadata sent by client.
