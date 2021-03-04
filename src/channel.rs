@@ -599,7 +599,7 @@ impl Channel {
 
     /// Blocking wait for channel state change or deadline expiration.
     ///
-    /// `check_connectivity_state` needs to called to get the current state.
+    /// `check_connectivity_state` needs to be called to get the current state.
     pub async fn wait_for_state_change(
         &self,
         last_observed: ConnectivityState,
