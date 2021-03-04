@@ -8,7 +8,7 @@ fn main() {
         ("grpc/testing", "testing"),
         ("grpc/health/v1/", "health"),
         ("grpc/example", "example"),
-        ("grpc/status", "status"),
+        ("google/rpc", "rpc"),
     ];
     for (dir, package) in modules {
         let out_dir = format!("{}/{}", out_dir, package);
