@@ -123,4 +123,12 @@ pub mod help {
     }
 }
 
+pub mod google {
+    pub mod rpc {
+        include!(concat!(env!("OUT_DIR"), "/status/mod.rs"));
+
+        pub use self::status::*;
+    }
+}
+
 pub mod util;

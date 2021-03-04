@@ -248,7 +248,7 @@ fn test_custom_checker_server_side() {
     flag.store(true, Ordering::SeqCst);
     assert_eq!(
         client.say_hello(&req).unwrap_err().to_string(),
-        "RpcFailure: 15-DATA_LOSS ".to_owned()
+        "RpcFailure: 15-DATA_LOSS".to_owned()
     );
 }
 
@@ -263,7 +263,7 @@ impl ServerChecker for FlagChecker {
         assert_eq!(&method.unwrap(), "/helloworld.Greeter/SayHello");
 
         if self.flag.load(Ordering::SeqCst) {
-            CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS, None))
+            CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS))
         } else {
             CheckResult::Continue
         }

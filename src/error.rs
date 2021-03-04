@@ -38,10 +38,19 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::RpcFailure(RpcStatus { status, details }) => match details {
-                Some(details) => write!(fmt, "RpcFailure: {} {}", status, details),
-                None => write!(fmt, "RpcFailure: {}", status),
-            },
+            Error::RpcFailure(s) => {
+                if s.error_details().is_empty() && s.error_message().is_empty() {
+                    write!(fmt, "RpcFailure: {}", s.error_code())
+                } else {
+                    write!(
+                        fmt,
+                        "RpcFailure: [{}] binary: {} {}",
+                        s.error_code(),
+                        !s.error_details().is_empty(),
+                        s.error_message()
+                    )
+                }
+            }
             other_error => write!(fmt, "{:?}", other_error),
         }
     }

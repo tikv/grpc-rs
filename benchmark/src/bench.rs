@@ -79,7 +79,7 @@ impl BenchmarkService for Benchmark {
         _: SimpleRequest,
         sink: ServerStreamingSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
@@ -90,7 +90,7 @@ impl BenchmarkService for Benchmark {
         _: RequestStream<SimpleRequest>,
         sink: DuplexSink<SimpleResponse>,
     ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
+        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
