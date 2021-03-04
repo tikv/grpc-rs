@@ -31,7 +31,7 @@ use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
 use crate::CheckResult;
 
-/// A point in time.
+/// A time point that an rpc or operation should finished before it.
 #[derive(Clone, Copy)]
 pub struct Deadline {
     pub(crate) spec: gpr_timespec,

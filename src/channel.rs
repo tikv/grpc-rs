@@ -599,7 +599,8 @@ impl Channel {
 
     /// Blocking wait for channel state change or deadline expiration.
     ///
-    /// `check_connectivity_state` needs to be called to get the current state.
+    /// `check_connectivity_state` needs to be called to get the current state. Returns false
+    /// means deadline excceeds before observing any state changes.
     pub async fn wait_for_state_change(
         &self,
         last_observed: ConnectivityState,
@@ -627,6 +628,8 @@ impl Channel {
     }
 
     /// Wait for this channel to be connected.
+    ///
+    /// Returns false means deadline excceeds before connection is connected.
     pub async fn wait_for_connected(&self, deadline: impl Into<Deadline>) -> bool {
         // Fast path, it's probably connected.
         let mut state = self.check_connectivity_state(true);

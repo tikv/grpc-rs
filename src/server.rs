@@ -524,6 +524,7 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
 
 /// A `Future` that will resolve when shutdown completes.
 pub struct ShutdownFuture {
+    /// `true` means the future finishes successfully.
     cq_f: CqFuture<bool>,
 }
 
