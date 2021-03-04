@@ -4,7 +4,6 @@ use crate::google::rpc::Status;
 use grpcio::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
-use protobuf::Message;
 use std::convert::TryFrom;
 
 #[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
@@ -45,7 +44,10 @@ impl TryFrom<grpcio::RpcStatus> for Status {
 
     fn try_from(value: grpcio::RpcStatus) -> grpcio::Result<Self> {
         let mut s = Status::default();
-        s.merge_from_bytes(value.error_details())?;
+        #[cfg(feature = "protobuf-codec")]
+        protobuf::Message::merge_from_bytes(&mut s, value.error_details())?;
+        #[cfg(feature = "prost-codec")]
+        prost::Message::merge(&mut s, value.error_details())?;
         if s.code == value.error_code().into() {
             if s.message == value.error_message() {
                 Ok(s)
@@ -71,7 +73,14 @@ impl TryFrom<Status> for grpcio::RpcStatus {
     type Error = grpcio::Error;
 
     fn try_from(value: Status) -> grpcio::Result<Self> {
-        let details = value.write_to_bytes()?;
+        #[cfg(feature = "protobuf-codec")]
+        let details = protobuf::Message::write_to_bytes(&value)?;
+        #[cfg(feature = "prost-codec")]
+        let details = {
+            let mut v = vec![];
+            prost::Message::encode(&value, &mut v).unwrap();
+            v
+        };
         Ok(grpcio::RpcStatus::with_error_details(
             value.code,
             value.message,

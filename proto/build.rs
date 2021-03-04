@@ -27,6 +27,7 @@ fn main() {
             .includes(&["proto".to_owned()])
             .files(&files)
             .out_dir(&out_dir)
+            .black_list(&["protobuf"])
             .generate();
     }
 }
