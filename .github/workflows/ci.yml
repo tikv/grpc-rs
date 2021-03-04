@@ -40,7 +40,7 @@ jobs:
     - run: cargo build --no-default-features --features protobuf-codec
     - run: cargo build --no-default-features --features prost-codec
     - run: cd proto && cargo build --no-default-features --features prost-codec
-    - run: cd .. && cargo build
+    - run: cargo build
     - run: cargo test --all
 
   Linux-Stable-openssl:
