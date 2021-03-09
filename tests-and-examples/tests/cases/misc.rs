@@ -351,8 +351,11 @@ fn test_connectivity() {
         ch.check_connectivity_state(false),
         ConnectivityState::GRPC_CHANNEL_READY
     );
-    let client = GreeterClient::new(ch);
+    let client = GreeterClient::new(ch.clone());
     let req = HelloRequest::default();
     let resp = client.say_hello(&req).unwrap();
     assert!(!resp.get_message().is_empty());
+    client.spawn(async move {
+        ch.wait_for_connected(Duration::from_secs(3)).await;
+    });
 }
