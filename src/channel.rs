@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp, i32, ptr};
@@ -601,30 +602,30 @@ impl Channel {
     ///
     /// `check_connectivity_state` needs to be called to get the current state. Returns false
     /// means deadline excceeds before observing any state changes.
-    pub async fn wait_for_state_change(
+    pub fn wait_for_state_change(
         &self,
         last_observed: ConnectivityState,
         deadline: impl Into<Deadline>,
-    ) -> bool {
+    ) -> impl Future<Output = bool> {
         let (cq_f, prom) = CallTag::action_pair();
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
-        let cq_ref = match self.cq.borrow() {
-            Ok(r) => r,
+        let should_wait = if let Ok(cq_ref) = self.cq.borrow() {
+            unsafe {
+                grpcio_sys::grpc_channel_watch_connectivity_state(
+                    self.inner.channel,
+                    last_observed,
+                    deadline.into().spec(),
+                    cq_ref.as_ptr(),
+                    tag as *mut _,
+                )
+            }
+            true
+        } else {
             // It's already shutdown.
-            Err(_) => return false,
+            false
         };
-
-        unsafe {
-            grpcio_sys::grpc_channel_watch_connectivity_state(
-                self.inner.channel,
-                last_observed,
-                deadline.into().spec(),
-                cq_ref.as_ptr(),
-                tag as *mut _,
-            )
-        }
-        cq_f.await.unwrap()
+        async move { should_wait && cq_f.await.unwrap() }
     }
 
     /// Wait for this channel to be connected.
