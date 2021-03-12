@@ -163,6 +163,7 @@ impl HealthService {
     }
 }
 
+#[allow(clippy::useless_conversion)]
 fn build_response(status: ServingStatus) -> HealthCheckResponse {
     HealthCheckResponse {
         status: status.into(),

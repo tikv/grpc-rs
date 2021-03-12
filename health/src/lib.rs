@@ -6,7 +6,7 @@
 //!
 //! ### Usage
 //!
-//! The crate provides a default implementation of `Health` service, you can using it
+//! The crate provides a default implementation of `Health` service, you can use it
 //! to maintain the service states. First, you need to register it to the server builder
 //! so that it can serve health check service later.
 //! ```ignore
