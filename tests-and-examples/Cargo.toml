@@ -7,8 +7,8 @@ publish = false
 
 [features]
 default = ["protobuf-codec"]
-protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
-prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec"]
+protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "grpcio-health/protobuf-codec"]
+prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
 
 [dependencies]
 grpcio-sys = { path = "../grpc-sys", version = "0.8" }
@@ -20,6 +20,7 @@ prost = { version = "0.7", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
 grpcio = { path = "..", version = "0.8", default-features = false, features = ["secure"] }
+grpcio-health = { path = "../health", version = "0.8", default-features = false }
 
 [dev-dependencies]
 serde_json = "1.0"

@@ -27,7 +27,14 @@ log = "0.4"
 parking_lot = "0.11"
 
 [workspace]
-members = ["proto", "benchmark", "compiler", "interop", "tests-and-examples"]
+members = [
+    "proto",
+    "benchmark",
+    "compiler",
+    "health",
+    "interop",
+    "tests-and-examples"
+]
 
 [features]
 default = ["protobuf-codec", "secure", "use-bindgen"]
