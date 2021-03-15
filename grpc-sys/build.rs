@@ -300,90 +300,76 @@ fn get_env(name: &str) -> Option<String> {
 // Try to disable the generation of platform-related bindings.
 #[cfg(feature = "use-bindgen")]
 fn bindgen_grpc(file_path: &PathBuf) {
-    fn exec(path: &PathBuf) {
-        // create a config to generate binding file
-        let mut config = bindgen::Builder::default();
-        if cfg!(feature = "secure") {
-            config = config.clang_arg("-DGRPC_SYS_SECURE");
-        }
-
-        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
-            config = config.clang_arg("-D _WIN32_WINNT=0x600");
-        }
-
-        // Search header files with API interface
-        let mut headers = Vec::new();
-        for result in WalkDir::new(Path::new("./grpc/include")) {
-            let dent = result.expect("Error happened when search headers");
-            if !dent.file_type().is_file() {
-                continue;
-            }
-            let mut file = fs::File::open(dent.path()).expect("couldn't open headers");
-            let mut buf = String::new();
-            file.read_to_string(&mut buf)
-                .expect("Coundn't read header content");
-            if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
-                headers.push(String::from(dent.path().to_str().unwrap()));
-            }
-        }
-
-        // To control the order of bindings
-        headers.sort();
-        for path in headers {
-            config = config.header(path);
-        }
-
-        println!("cargo:rerun-if-env-changed=TEST_BIND");
-        let gen_tests = env::var("TEST_BIND").map_or(false, |s| s == "1");
-
-        let cfg = config
-            .header("grpc_wrap.cc")
-            .clang_arg("-xc++")
-            .clang_arg("-I./grpc/include")
-            .clang_arg("-std=c++11")
-            .rustfmt_bindings(true)
-            .impl_debug(true)
-            .size_t_is_usize(true)
-            .disable_header_comment()
-            .whitelist_function(r"\bgrpc_.*")
-            .whitelist_function(r"\bgpr_.*")
-            .whitelist_function(r"\bgrpcwrap_.*")
-            .whitelist_var(r"\bGRPC_.*")
-            .whitelist_type(r"\bgrpc_.*")
-            .whitelist_type(r"\bgpr_.*")
-            .whitelist_type(r"\bgrpcwrap_.*")
-            .whitelist_type(r"\bcensus_context.*")
-            .whitelist_type(r"\bverify_peer_options.*")
-            .blacklist_type(r"(__)?pthread.*")
-            .blacklist_function(r"\bgpr_mu_.*")
-            .blacklist_function(r"\bgpr_cv_.*")
-            .blacklist_function(r"\bgpr_once_.*")
-            .blacklist_type(r"gpr_mu")
-            .blacklist_type(r"gpr_cv")
-            .blacklist_type(r"gpr_once")
-            .constified_enum_module(r"grpc_status_code")
-            .layout_tests(gen_tests)
-            .default_enum_style(bindgen::EnumVariation::Rust {
-                non_exhaustive: false,
-            });
-        println!("running {}", cfg.command_line_flags().join(" "));
-        cfg.generate()
-            .expect("Unable to generate grpc bindings")
-            .write_to_file(path)
-            .expect("Couldn't write bindings!");
+    // create a config to generate binding file
+    let mut config = bindgen::Builder::default();
+    if cfg!(feature = "secure") {
+        config = config.clang_arg("-DGRPC_SYS_SECURE");
     }
 
-    // Due to rust-lang/regex#750, spawn a thread with larger stack to
-    // make it build on Windows.
-    let path = file_path.to_path_buf();
-    std::thread::Builder::new()
-        .stack_size(8 * 1024 * 1024)
-        .spawn(move || {
-            exec(&path);
-        })
-        .unwrap()
-        .join()
-        .unwrap()
+    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
+        config = config.clang_arg("-D _WIN32_WINNT=0x600");
+    }
+
+    // Search header files with API interface
+    let mut headers = Vec::new();
+    for result in WalkDir::new(Path::new("./grpc/include")) {
+        let dent = result.expect("Error happened when search headers");
+        if !dent.file_type().is_file() {
+            continue;
+        }
+        let mut file = fs::File::open(dent.path()).expect("couldn't open headers");
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)
+            .expect("Coundn't read header content");
+        if buf.contains("GRPCAPI") || buf.contains("GPRAPI") {
+            headers.push(String::from(dent.path().to_str().unwrap()));
+        }
+    }
+
+    // To control the order of bindings
+    headers.sort();
+    for path in headers {
+        config = config.header(path);
+    }
+
+    println!("cargo:rerun-if-env-changed=TEST_BIND");
+    let gen_tests = env::var("TEST_BIND").map_or(false, |s| s == "1");
+
+    let cfg = config
+        .header("grpc_wrap.cc")
+        .clang_arg("-xc++")
+        .clang_arg("-I./grpc/include")
+        .clang_arg("-std=c++11")
+        .rustfmt_bindings(true)
+        .impl_debug(true)
+        .size_t_is_usize(true)
+        .disable_header_comment()
+        .whitelist_function(r"\bgrpc_.*")
+        .whitelist_function(r"\bgpr_.*")
+        .whitelist_function(r"\bgrpcwrap_.*")
+        .whitelist_var(r"\bGRPC_.*")
+        .whitelist_type(r"\bgrpc_.*")
+        .whitelist_type(r"\bgpr_.*")
+        .whitelist_type(r"\bgrpcwrap_.*")
+        .whitelist_type(r"\bcensus_context.*")
+        .whitelist_type(r"\bverify_peer_options.*")
+        .blacklist_type(r"(__)?pthread.*")
+        .blacklist_function(r"\bgpr_mu_.*")
+        .blacklist_function(r"\bgpr_cv_.*")
+        .blacklist_function(r"\bgpr_once_.*")
+        .blacklist_type(r"gpr_mu")
+        .blacklist_type(r"gpr_cv")
+        .blacklist_type(r"gpr_once")
+        .constified_enum_module(r"grpc_status_code")
+        .layout_tests(gen_tests)
+        .default_enum_style(bindgen::EnumVariation::Rust {
+            non_exhaustive: false,
+        });
+    println!("running {}", cfg.command_line_flags().join(" "));
+    cfg.generate()
+        .expect("Unable to generate grpc bindings")
+        .write_to_file(file_path)
+        .expect("Couldn't write bindings!");
 }
 
 // Determine if need to update bindings. Supported platforms do not
