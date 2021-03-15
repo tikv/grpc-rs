@@ -15,7 +15,7 @@ fn assert_status(status: ServingStatus, client: &HealthClient, name: &str) {
     let mut req = HealthCheckRequest::default();
     req.service = name.to_string();
     let resp = client.check(&req).unwrap();
-    assert_eq!(status, resp.status)
+    assert_eq!(resp.status, status.into())
 }
 
 #[track_caller]
@@ -39,7 +39,7 @@ fn assert_code(code: RpcStatusCode, client: &HealthClient, name: &str) {
 #[track_caller]
 fn assert_next(status: ServingStatus, ss: &mut ClientSStreamReceiver<HealthCheckResponse>) {
     let resp = block_on(ss.next()).unwrap().unwrap();
-    assert_eq!(status, resp.status);
+    assert_eq!(resp.status, status.into());
 }
 
 fn setup() -> (Server, HealthService, HealthClient) {
@@ -118,7 +118,7 @@ fn test_health_watch() {
     let mut seen = 0;
     loop {
         let resp = block_on(statuses.next()).unwrap().unwrap();
-        if resp.status != ServingStatus::Unknown {
+        if resp.status != ServingStatus::Unknown.into() {
             seen += 1;
             continue;
         }
