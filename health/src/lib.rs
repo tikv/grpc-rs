@@ -34,5 +34,5 @@
 pub mod proto;
 mod service;
 
-pub use self::proto::{create_health, HealthClient};
+pub use self::proto::{create_health, HealthClient, ServingStatus};
 pub use self::service::HealthService;
