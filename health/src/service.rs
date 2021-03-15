@@ -39,9 +39,9 @@ impl StatusCast {
     /// Updates the status to specified one and update version.
     fn broadcast(&self, status: ServingStatus) {
         let mut subscribers = self.subscribers.lock().unwrap();
-        let state = self.state.load(Ordering::Acquire);
+        let state = self.state.load(Ordering::Relaxed);
         let new_state = ((state + VERSION_STEP) & !STATUS_MASK) | (status as usize);
-        self.state.store(new_state, Ordering::Release);
+        self.state.store(new_state, Ordering::Relaxed);
 
         for (_, s) in subscribers.drain() {
             s.wake();
@@ -80,7 +80,7 @@ impl Stream for StatusSubscriber {
 
         let mut subscribers = s.cast.subscribers.lock().unwrap();
 
-        let cur_state = s.cast.state.load(Ordering::Acquire);
+        let cur_state = s.cast.state.load(Ordering::Relaxed);
         if cur_state != s.last_state {
             let status = state_to_status(cur_state);
             s.last_state = cur_state;
