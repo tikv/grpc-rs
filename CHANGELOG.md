@@ -1,6 +1,7 @@
 # 0.8.2 - 2012-03-10
 
 - Fix send requirement in connectivity APIs (#516)
+- Add default health service implemetations (#518)
 
 # 0.8.1 - 2021-03-05
 
