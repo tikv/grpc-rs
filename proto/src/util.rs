@@ -47,7 +47,7 @@ impl TryFrom<grpcio::RpcStatus> for Status {
         #[cfg(feature = "protobuf-codec")]
         protobuf::Message::merge_from_bytes(&mut s, value.details())?;
         #[cfg(feature = "prost-codec")]
-        prost::Message::merge(&mut s, value.error_details())?;
+        prost::Message::merge(&mut s, value.details())?;
         if s.code == value.code().into() {
             if s.message == value.message() {
                 Ok(s)
