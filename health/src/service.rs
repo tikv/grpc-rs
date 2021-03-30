@@ -188,9 +188,9 @@ impl Health for HealthService {
             return;
         }
         ctx.spawn(
-            sink.fail(RpcStatus::new(
+            sink.fail(RpcStatus::with_message(
                 RpcStatusCode::NOT_FOUND,
-                Some("unknown service".to_owned()),
+                "unknown service".to_owned(),
             ))
             .map(|_| ()),
         )

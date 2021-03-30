@@ -181,11 +181,15 @@ impl RpcStatus {
 
     /// Create a new [`RpcStatus`] with given message.
     pub fn with_message<T: Into<RpcStatusCode>>(code: T, message: String) -> RpcStatus {
-        RpcStatus::with_error_details(code, message, vec![])
+        RpcStatus::with_details(code, message, vec![])
     }
 
-    /// Create a new [`RpcStats`] with code, error_message and error_details.
-    pub fn with_error_details<T: Into<RpcStatusCode>>(
+    /// Create a new [`RpcStats`] with code, message and details.
+    ///
+    /// If using rich error model, `details` should be binary message that sets `code` and
+    /// `message` to the same value. Or you can use `into` method to do automatical
+    /// transformation if using `grpcio_proto::google::rpc::Status`.
+    pub fn with_details<T: Into<RpcStatusCode>>(
         code: T,
         message: String,
         details: Vec<u8>,
@@ -204,19 +208,20 @@ impl RpcStatus {
 
     /// Return the instance's error code.
     #[inline]
-    pub fn error_code(&self) -> RpcStatusCode {
+    pub fn code(&self) -> RpcStatusCode {
         self.code
     }
 
     /// Return the instance's error message.
     #[inline]
-    pub fn error_message(&self) -> &str {
+    pub fn message(&self) -> &str {
         &self.message
     }
 
     /// Return the (binary) error details.
+    ///
     /// Usually it contains a serialized `google.rpc.Status` proto.
-    pub fn error_details(&self) -> &[u8] {
+    pub fn details(&self) -> &[u8] {
         &self.details
     }
 }
@@ -271,7 +276,7 @@ impl BatchContext {
                     );
                 let metadata = &*(m_ptr as *const Metadata);
                 let details = metadata.search_binary_error_details().to_vec();
-                RpcStatus::with_error_details(status, message, details)
+                RpcStatus::with_details(status, message, details)
             }
         }
     }
@@ -395,7 +400,7 @@ impl Call {
         let _cq_ref = self.cq.borrow()?;
         let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
-            let (msg_ptr, msg_len) = if status.error_code() == RpcStatusCode::OK {
+            let (msg_ptr, msg_len) = if status.code() == RpcStatusCode::OK {
                 (ptr::null(), 0)
             } else {
                 (status.message.as_ptr(), status.message.len())
@@ -414,7 +419,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 self.call,
                 ctx,
-                status.error_code().into(),
+                status.code().into(),
                 msg_ptr as _,
                 msg_len,
                 trailing_metadata
@@ -442,7 +447,7 @@ impl Call {
         let (batch_ptr, tag_ptr) = box_batch_tag(tag);
 
         let code = unsafe {
-            let (msg_ptr, msg_len) = if status.error_code() == RpcStatusCode::OK {
+            let (msg_ptr, msg_len) = if status.code() == RpcStatusCode::OK {
                 (ptr::null(), 0)
             } else {
                 (status.message.as_ptr(), status.message.len())
@@ -450,7 +455,7 @@ impl Call {
             grpc_sys::grpcwrap_call_send_status_from_server(
                 call_ptr,
                 batch_ptr,
-                status.error_code().into(),
+                status.code().into(),
                 msg_ptr as _,
                 msg_len,
                 ptr::null_mut(),

@@ -39,15 +39,10 @@ impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::RpcFailure(s) => {
-                if s.error_message().is_empty() {
-                    write!(fmt, "RpcFailure: {}", s.error_code())
+                if s.message().is_empty() {
+                    write!(fmt, "RpcFailure: {}", s.code())
                 } else {
-                    write!(
-                        fmt,
-                        "RpcFailure: {} {}",
-                        s.error_code(),
-                        s.error_message()
-                    )
+                    write!(fmt, "RpcFailure: {} {}", s.code(), s.message())
                 }
             }
             other_error => write!(fmt, "{:?}", other_error),

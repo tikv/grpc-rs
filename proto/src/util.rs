@@ -45,25 +45,25 @@ impl TryFrom<grpcio::RpcStatus> for Status {
     fn try_from(value: grpcio::RpcStatus) -> grpcio::Result<Self> {
         let mut s = Status::default();
         #[cfg(feature = "protobuf-codec")]
-        protobuf::Message::merge_from_bytes(&mut s, value.error_details())?;
+        protobuf::Message::merge_from_bytes(&mut s, value.details())?;
         #[cfg(feature = "prost-codec")]
         prost::Message::merge(&mut s, value.error_details())?;
-        if s.code == value.error_code().into() {
-            if s.message == value.error_message() {
+        if s.code == value.code().into() {
+            if s.message == value.message() {
                 Ok(s)
             } else {
                 Err(grpcio::Error::Codec(
                     format!(
                         "message doesn't match {:?} != {:?}",
                         s.message,
-                        value.error_message()
+                        value.message()
                     )
                     .into(),
                 ))
             }
         } else {
             Err(grpcio::Error::Codec(
-                format!("code doesn't match {} != {}", s.code, value.error_code()).into(),
+                format!("code doesn't match {} != {}", s.code, value.code()).into(),
             ))
         }
     }
@@ -81,7 +81,7 @@ impl TryFrom<Status> for grpcio::RpcStatus {
             prost::Message::encode(&value, &mut v).unwrap();
             v
         };
-        Ok(grpcio::RpcStatus::with_error_details(
+        Ok(grpcio::RpcStatus::with_details(
             value.code,
             value.message,
             details,
