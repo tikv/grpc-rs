@@ -1,3 +1,8 @@
+# 0.8.1 - 2021-03-05
+
+- Support watch connectivity state (#513)
+- Fix prost build of grpcio-proto (#515)
+
 # grpcio-sys 0.8.1 - 2021-03-02
 
 - Detect changes ahead to ease pain of upgrading compiler (#511)
