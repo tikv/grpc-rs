@@ -80,3 +80,14 @@ pub use crate::security::{
 pub use crate::server::{
     CheckResult, Server, ServerBuilder, ServerChecker, Service, ServiceBuilder, ShutdownFuture,
 };
+
+/// A shortcut for implementing a service method by returning `UNIMPLEMENTED` status code.
+#[macro_export]
+macro_rules! unimplemented_call {
+    ($ctx:ident, $sink:ident) => {{
+        let f = async move {
+            let _ = $sink.fail($crate::RpcStatus::new($crate::RpcStatusCode::UNIMPLEMENTED, None)).await;
+        };
+        $ctx.spawn(f)
+    }}
+}

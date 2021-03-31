@@ -164,12 +164,4 @@ impl TestService for InteropTestService {
     ) {
         unimplemented!()
     }
-
-    fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
-        let f = sink
-            .fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None))
-            .map_err(|e| error!("failed to report unimplemented method: {:?}", e))
-            .map(|_| ());
-        ctx.spawn(f)
-    }
 }
