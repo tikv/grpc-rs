@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::grpc::{
-    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
+    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
     ServerStreamingSink, UnarySink, WriteFlags,
 };
 use futures::prelude::*;

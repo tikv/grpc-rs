@@ -115,15 +115,19 @@ pub trait Health {
     fn check(
         &mut self,
         ctx: ::grpcio::RpcContext,
-        req: super::health::HealthCheckRequest,
+        _req: super::health::HealthCheckRequest,
         sink: ::grpcio::UnarySink<super::health::HealthCheckResponse>,
-    );
+    ) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
     fn watch(
         &mut self,
         ctx: ::grpcio::RpcContext,
-        req: super::health::HealthCheckRequest,
+        _req: super::health::HealthCheckRequest,
         sink: ::grpcio::ServerStreamingSink<super::health::HealthCheckResponse>,
-    );
+    ) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
 }
 
 pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Service {

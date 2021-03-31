@@ -35,8 +35,8 @@ pub fn watch(&self, req: &HealthCheckRequest) -> ::grpcio::Result<::grpcio::Clie
 pub fn spawn<F>(&self, f: F) where F: ::futures::Future<Output = ()> + Send + 'static {self.client.spawn(f)}
 }
 pub trait Health {
-fn check(&mut self, ctx: ::grpcio::RpcContext, req: HealthCheckRequest, sink: ::grpcio::UnarySink<HealthCheckResponse>);
-fn watch(&mut self, ctx: ::grpcio::RpcContext, req: HealthCheckRequest, sink: ::grpcio::ServerStreamingSink<HealthCheckResponse>);
+fn check(&mut self, ctx: ::grpcio::RpcContext, _req: HealthCheckRequest, sink: ::grpcio::UnarySink<HealthCheckResponse>) { grpcio::unimplemented_call!(ctx, sink) }
+fn watch(&mut self, ctx: ::grpcio::RpcContext, _req: HealthCheckRequest, sink: ::grpcio::ServerStreamingSink<HealthCheckResponse>) { grpcio::unimplemented_call!(ctx, sink) }
 }
 pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
 let mut builder = ::grpcio::ServiceBuilder::new();

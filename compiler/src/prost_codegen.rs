@@ -517,7 +517,7 @@ fn generate_server_method(
     buf.push('<');
     buf.push_str(&method.output_type);
     buf.push('>');
-    buf.push_str(");\n");
+    buf.push_str(") { grpcio::unimplemented_call!(ctx, sink) }\n");
 }
 
 fn generate_method_bind(service_name: &str, method: &Method, buf: &mut String) {
