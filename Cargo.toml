@@ -33,7 +33,8 @@ members = [
     "compiler",
     "health",
     "interop",
-    "tests-and-examples"
+    "tests-and-examples",
+    "xtask"
 ]
 
 [features]
