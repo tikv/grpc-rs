@@ -87,10 +87,7 @@ macro_rules! unimplemented_call {
     ($ctx:ident, $sink:ident) => {{
         let f = async move {
             let _ = $sink
-                .fail($crate::RpcStatus::new(
-                    $crate::RpcStatusCode::UNIMPLEMENTED,
-                    None,
-                ))
+                .fail($crate::RpcStatus::new($crate::RpcStatusCode::UNIMPLEMENTED))
                 .await;
         };
         $ctx.spawn(f)

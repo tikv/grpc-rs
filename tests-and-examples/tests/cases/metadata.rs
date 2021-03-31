@@ -3,6 +3,8 @@
 use futures::*;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::google::rpc::Status;
+use std::convert::TryInto;
 use std::sync::mpsc::{self, Sender};
 use std::sync::*;
 use std::time::*;
@@ -21,6 +23,20 @@ impl Greeter for GreeterService {
     ) {
         for (key, value) in ctx.request_headers() {
             self.tx.send((key.to_owned(), value.to_owned())).unwrap();
+        }
+
+        if req.name == "root" {
+            let mut status = Status::default();
+            status.code = RpcStatusCode::INVALID_ARGUMENT.into();
+            status.message = "name can't be root".to_owned();
+            let any = protobuf::well_known_types::Any::pack(&req).unwrap();
+            status.details.push(any);
+            ctx.spawn(
+                sink.fail(status.try_into().unwrap())
+                    .map_err(|e| panic!("failed to report error: {:?}", e))
+                    .map(|_| ()),
+            );
+            return;
         }
 
         let mut resp = HelloReply::default();
@@ -67,4 +83,32 @@ fn test_metadata() {
     assert_eq!(metadata, ("k1".to_owned(), b"v1".to_vec()));
     let metadata = rx.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(metadata, ("k1-bin".to_owned(), vec![0x00, 0x01, 0x02]));
+}
+
+/// Tests rich error can be accessed correctly.
+#[test]
+fn test_rich_error() {
+    let env = Arc::new(EnvBuilder::new().build());
+    let (tx, _rx) = mpsc::channel();
+    let service = create_greeter(GreeterService { tx });
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("127.0.0.1", 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let client = GreeterClient::new(ch);
+
+    let mut req = HelloRequest::default();
+    req.set_name("root".to_owned());
+    let s: Status = match client.say_hello(&req) {
+        Err(grpcio::Error::RpcFailure(s)) => s.try_into().unwrap(),
+        res => panic!("expected failure, got {:?}", res),
+    };
+    assert_eq!(s.code, RpcStatusCode::INVALID_ARGUMENT.into());
+    assert_eq!(s.message, "name can't be root");
+    let details: Option<HelloRequest> = s.details[0].unpack().unwrap();
+    assert_eq!(Some(req), details);
 }
