@@ -31,7 +31,7 @@ fn assert_code(code: RpcStatusCode, client: &HealthClient, name: &str) {
     let mut req = HealthCheckRequest::default();
     req.service = name.to_string();
     match client.check(&req) {
-        Err(Error::RpcFailure(s)) if s.status == code => return,
+        Err(Error::RpcFailure(s)) if s.code() == code => return,
         r => panic!("{} != {:?}", code, r),
     }
 }
@@ -102,7 +102,7 @@ fn test_health_watch() {
     // Updating other service should not notify the stream.
     service.set_serving_status(TEST_SERVICE, ServingStatus::NotServing);
     match block_on(statuses.next()).unwrap() {
-        Err(Error::RpcFailure(r)) if r.status == RpcStatusCode::DEADLINE_EXCEEDED => (),
+        Err(Error::RpcFailure(r)) if r.code() == RpcStatusCode::DEADLINE_EXCEEDED => (),
         r => panic!("unexpected status {:?}", r),
     }
 
