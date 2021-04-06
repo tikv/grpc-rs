@@ -6,7 +6,7 @@ use std::{
 };
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 fn print_help() {
@@ -135,22 +135,23 @@ const NAMING_PATCH: &[(&str, &[(&str, &str)])] = &[(
         ("SERVICE_UNKNOWN", "ServiceUnknown"),
         ("UNKNOWN", "Unknown"),
         ("SERVING", "Serving"),
+        ("rustfmt_skip", "rustfmt::skip"),
     ],
 )];
 
-fn generate_protobuf(protoc: &str, include: &str, inputs: &[PathBuf], out_dir: &str) {
+fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
     if Path::new(out_dir).exists() {
         fs::remove_dir_all(out_dir).unwrap();
     }
     fs::create_dir_all(out_dir).unwrap();
 
-    protoc_rust::Codegen::new()
-        .protoc_path(&protoc)
-        .out_dir(out_dir)
-        .inputs(inputs)
-        .include(include)
-        .run()
-        .expect("protoc");
+    protoc_rust::run(protoc_rust::Args {
+        out_dir,
+        includes: &[include],
+        input: inputs,
+        customize: protoc_rust::Customize::default(),
+    })
+    .unwrap();
 
     exec(cargo().args(&["build", "-p", "grpcio-compiler"]));
     let mut c = cmd(&protoc);
@@ -178,17 +179,12 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[PathBuf], out_dir: &
     }
 }
 
-fn generate_prost(protoc: &str, include: &str, inputs: &[PathBuf], out_dir: &str) {
+fn generate_prost(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
     env::set_var("PROTOC", protoc);
     if Path::new(out_dir).exists() {
         fs::remove_dir_all(out_dir).unwrap();
     }
     fs::create_dir_all(out_dir).unwrap();
-    let mut s = Vec::new();
-    for i in inputs {
-        write!(s, "{},", i.display()).unwrap();
-    }
-    s.pop();
     exec(
         cargo()
             .args(&[
@@ -203,7 +199,7 @@ fn generate_prost(protoc: &str, include: &str, inputs: &[PathBuf], out_dir: &str
     );
     exec(
         Command::new("target/debug/grpc_rust_prost")
-            .arg(format!("--protos={}", String::from_utf8(s).unwrap()))
+            .arg(format!("--protos={}", inputs.join(",")))
             .arg(format!("--includes={}", include))
             .arg(format!("--out-dir={}", out_dir)),
     );
@@ -229,16 +225,22 @@ fn codegen() {
                     .filter_map(|e| {
                         let e = e.unwrap();
                         match e.path().extension() {
-                            Some(s) if s == "proto" => Some(e.path()),
+                            Some(s) if s == "proto" => Some(format!("{}", e.path().display())),
                             _ => None,
                         }
                     })
             })
             .collect();
-
-        generate_protobuf(&protoc, include, &inputs, &format!("{}/protobuf", out_dir));
-        generate_prost(&protoc, include, &inputs, &format!("{}/prost", out_dir));
+        let inputs_ref: Vec<_> = inputs.iter().map(|s| s.as_str()).collect();
+        generate_protobuf(
+            &protoc,
+            include,
+            &inputs_ref,
+            &format!("{}/protobuf", out_dir),
+        );
+        generate_prost(&protoc, include, &inputs_ref, &format!("{}/prost", out_dir));
     }
+    exec(cargo().args(&["fmt", "--all"]))
 }
 
 fn main() {

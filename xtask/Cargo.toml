@@ -8,4 +8,6 @@ edition = "2018"
 
 [dependencies]
 prost-build = "0.7"
-protoc-rust = "2.0"
+# Use an old enough version to make sure generated code with TiKV's fork.
+# TODO: use latest one when TiKV's fork is updated
+protoc-rust = "=2.8"
