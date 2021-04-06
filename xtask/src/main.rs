@@ -172,9 +172,16 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str
         for (src, target) in *name_fixes {
             content = content.replace(src, target);
         }
+        let mut filtered = String::new();
+        for l in content.lines() {
+            if !l.contains("::protobuf::VERSION") {
+                filtered.push_str(l);
+                filtered.push('\n');
+            }
+        }
         File::create(path)
             .unwrap()
-            .write_all(content.as_bytes())
+            .write_all(filtered.as_bytes())
             .unwrap();
     }
 }

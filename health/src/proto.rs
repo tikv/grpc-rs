@@ -9,6 +9,7 @@ mod reexports {
 
 #[cfg(feature = "protobuf-codec")]
 mod protobuf {
+    #[allow(deprecated)]
     pub mod health;
     pub mod health_grpc;
 }
