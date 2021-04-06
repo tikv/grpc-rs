@@ -36,13 +36,22 @@ fn exec(c: &mut Command) {
     }
 }
 
+fn find_default_arch() -> String {
+    let s = String::from_utf8(Command::new("rustc").args(&["--print", "cfg"]).output().unwrap().stdout).unwrap();
+    for l in s.lines() {
+        if let Some(arch) = l.strip_prefix("target_arch=") {
+            if !arch.is_empty() {
+                return arch[1..arch.len() - 1].to_string();
+            }
+        }
+    }
+    panic!("arch not found in {:?}", s);
+}
+
 fn bindgen() {
     let arch = match env::var("ARCH") {
         Ok(arch) => arch,
-        Err(_) => str::from_utf8(&Command::new("uname").arg("-p").output().unwrap().stdout)
-            .unwrap()
-            .trim()
-            .to_string(),
+        Err(_) => find_default_arch(),
     };
     let tuple = format!("{}-unknown-linux-gnu", arch);
     exec(
