@@ -218,7 +218,7 @@ fn codegen() {
     };
     for (include, protos, out_dir) in PROTOS {
         let inputs: Vec<_> = protos
-            .into_iter()
+            .iter()
             .flat_map(|p| {
                 fs::read_dir(format!("{}/{}", include, p))
                     .unwrap()
