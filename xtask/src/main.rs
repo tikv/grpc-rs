@@ -1,9 +1,12 @@
-use std::fs::{self, File};
 use std::process::{self, Command};
 use std::{
     env,
     io::{Read, Write},
     str,
+};
+use std::{
+    fs::{self, File},
+    path::{Path, PathBuf},
 };
 
 fn print_help() {
@@ -13,6 +16,7 @@ fn print_help() {
     eprintln!("\tbindgen\tGenerate rust-bindgen for grpcio-sys package");
     eprintln!("\tsubmodule\tInit necessary submodules for compilation");
     eprintln!("\tclang-lint\tLint cpp code in grpcio-sys package");
+    eprintln!("\tcodegen\tGenerate rust code for all protocols");
 }
 
 fn cargo() -> Command {
@@ -116,6 +120,127 @@ fn clang_lint() {
     exec(cmd("clang-format").args(&["-i", "grpc-sys/grpc_wrap.cc"]));
 }
 
+const PROTOS: &[(&str, &[&str], &str)] = &[(
+    "grpc-sys/grpc/src/proto",
+    &["grpc/health/v1"],
+    "health/src/proto",
+)];
+
+const NAMING_PATCH: &[(&str, &[(&str, &str)])] = &[(
+    "health/src/proto/protobuf/health.rs",
+    &[
+        ("HealthCheckResponse_ServingStatus", "ServingStatus"),
+        // Order is important.
+        ("NOT_SERVING", "NotServing"),
+        ("SERVICE_UNKNOWN", "ServiceUnknown"),
+        ("UNKNOWN", "Unknown"),
+        ("SERVING", "Serving"),
+    ],
+)];
+
+fn generate_protobuf(protoc: &str, include: &str, inputs: &[PathBuf], out_dir: &str) {
+    if Path::new(out_dir).exists() {
+        fs::remove_dir_all(out_dir).unwrap();
+    }
+    fs::create_dir_all(out_dir).unwrap();
+
+    protoc_rust::Codegen::new()
+        .protoc_path(&protoc)
+        .out_dir(out_dir)
+        .inputs(inputs)
+        .include(include)
+        .run()
+        .expect("protoc");
+
+    exec(cargo().args(&["build", "-p", "grpcio-compiler"]));
+    let mut c = cmd(&protoc);
+    c.arg(format!("-I{}", include))
+        .arg(format!("--grpc_out={}", out_dir))
+        .arg("--plugin=protoc-gen-grpc=./target/debug/grpc_rust_plugin");
+    for i in inputs {
+        c.arg(i);
+    }
+    exec(&mut c);
+
+    for (path, name_fixes) in NAMING_PATCH {
+        let mut content = String::new();
+        File::open(path)
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
+        for (src, target) in *name_fixes {
+            content = content.replace(src, target);
+        }
+        File::create(path)
+            .unwrap()
+            .write_all(content.as_bytes())
+            .unwrap();
+    }
+}
+
+fn generate_prost(protoc: &str, include: &str, inputs: &[PathBuf], out_dir: &str) {
+    env::set_var("PROTOC", protoc);
+    if Path::new(out_dir).exists() {
+        fs::remove_dir_all(out_dir).unwrap();
+    }
+    fs::create_dir_all(out_dir).unwrap();
+    let mut s = Vec::new();
+    for i in inputs {
+        write!(s, "{},", i.display()).unwrap();
+    }
+    s.pop();
+    exec(
+        cargo()
+            .args(&[
+                "build",
+                "--no-default-features",
+                "--features",
+                "prost-codec",
+                "--bin",
+                "grpc_rust_prost",
+            ])
+            .current_dir("compiler"),
+    );
+    exec(
+        Command::new("target/debug/grpc_rust_prost")
+            .arg(format!("--protos={}", String::from_utf8(s).unwrap()))
+            .arg(format!("--includes={}", include))
+            .arg(format!("--out-dir={}", out_dir)),
+    );
+}
+
+fn codegen() {
+    let protoc = if cmd("protoc").arg("--version").output().is_ok() {
+        // Prefer M1 version of protoc.
+        "protoc".to_string()
+    } else {
+        prost_build::protoc()
+            .into_os_string()
+            .to_str()
+            .unwrap()
+            .to_string()
+    };
+    for (include, protos, out_dir) in PROTOS {
+        let inputs: Vec<_> = protos
+            .into_iter()
+            .flat_map(|p| {
+                fs::read_dir(format!("{}/{}", include, p))
+                    .unwrap()
+                    .filter_map(|e| {
+                        let e = e.unwrap();
+                        match e.path().extension() {
+                            Some(s) if s == "proto" => Some(e.path()),
+                            _ => None,
+                        }
+                    })
+            })
+            .collect();
+
+        generate_protobuf(&protoc, include, &inputs, &format!("{}/protobuf", out_dir));
+        generate_prost(&protoc, include, &inputs, &format!("{}/prost", out_dir));
+    }
+}
+
 fn main() {
     let mut args = env::args();
     if args.len() != 2 {
@@ -127,6 +252,7 @@ fn main() {
         "bindgen" => bindgen(),
         "submodule" => submodule(),
         "clang-lint" => clang_lint(),
+        "codegen" => codegen(),
         _ => print_help(),
     }
 }

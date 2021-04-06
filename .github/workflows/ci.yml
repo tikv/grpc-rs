@@ -35,6 +35,7 @@ jobs:
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: cargo xtask submodule
     - run: env TEST_BIND=0 cargo xtask bindgen && git diff --exit-code HEAD
+    - run: cargo xtask codegen && git diff --exit-code HEAD;
     - run: cargo xtask bindgen
     - run: cargo build --no-default-features
     - run: cargo build --no-default-features --features protobuf-codec
