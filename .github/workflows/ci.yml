@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - run: sudo apt install -y protobuf-compiler
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: cargo xtask submodule
     - run: env TEST_BIND=0 cargo xtask bindgen && git diff --exit-code HEAD

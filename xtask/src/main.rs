@@ -164,6 +164,7 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str
     }
     fs::create_dir_all(out_dir).unwrap();
 
+    // TODO: update rust-protobuf to allow specifying protoc explicitly.
     protoc_rust::run(protoc_rust::Args {
         out_dir,
         includes: &[include],
