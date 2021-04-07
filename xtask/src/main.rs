@@ -37,7 +37,14 @@ fn exec(c: &mut Command) {
 }
 
 fn find_default_arch() -> String {
-    let s = String::from_utf8(Command::new("rustc").args(&["--print", "cfg"]).output().unwrap().stdout).unwrap();
+    let s = String::from_utf8(
+        Command::new("rustc")
+            .args(&["--print", "cfg"])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
     for l in s.lines() {
         if let Some(arch) = l.strip_prefix("target_arch=") {
             if !arch.is_empty() {
@@ -46,6 +53,18 @@ fn find_default_arch() -> String {
         }
     }
     panic!("arch not found in {:?}", s);
+}
+
+fn remove_match(data: &str, pattern: impl Fn(&str) -> bool) -> String {
+    let mut target = String::with_capacity(data.len());
+    for l in data.lines() {
+        if pattern(l) {
+            continue;
+        }
+        target.push_str(l);
+        target.push('\n');
+    }
+    target
 }
 
 fn bindgen() {
@@ -61,27 +80,18 @@ fn bindgen() {
     );
     for f in fs::read_dir("grpc-sys/bindings").unwrap() {
         let p = f.unwrap().path();
-        exec(Command::new("rustfmt").arg(format!("{}", p.display())));
         let mut content = String::new();
         File::open(&p)
             .unwrap()
             .read_to_string(&mut content)
             .unwrap();
-        let mut modified = false;
-        let s: String = content
-            .lines()
-            .filter(|l| {
-                if !l.starts_with("pub type ") || !l.contains("= ::std::os::raw::") {
-                    true
-                } else {
-                    modified = true;
-                    false
-                }
-            })
-            .collect();
-        if modified {
-            File::create(&p).unwrap().write_all(s.as_bytes()).unwrap();
-        }
+        let content = remove_match(&content, |l| {
+            l.starts_with("pub type ") && l.contains("= ::std::os::raw::")
+        });
+        File::create(&p)
+            .unwrap()
+            .write_all(content.as_bytes())
+            .unwrap();
     }
 }
 
@@ -181,16 +191,10 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str
         for (src, target) in *name_fixes {
             content = content.replace(src, target);
         }
-        let mut filtered = String::new();
-        for l in content.lines() {
-            if !l.contains("::protobuf::VERSION") {
-                filtered.push_str(l);
-                filtered.push('\n');
-            }
-        }
+        content = remove_match(&content, |l| l.contains("::protobuf::VERSION"));
         File::create(path)
             .unwrap()
-            .write_all(filtered.as_bytes())
+            .write_all(content.as_bytes())
             .unwrap();
     }
 }
