@@ -33,8 +33,11 @@ members = [
     "compiler",
     "health",
     "interop",
-    "tests-and-examples"
+    "tests-and-examples",
 ]
+# Don't include it in workspace to make it possible to use different version of
+# rust-protobuf.
+exclude = ["xtask"]
 
 [features]
 default = ["protobuf-codec", "secure", "use-bindgen"]

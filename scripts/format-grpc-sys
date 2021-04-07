@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-clang-format-5.0 -i grpc-sys/grpc_wrap.cc
