@@ -82,6 +82,14 @@ pub use crate::server::{
 };
 
 /// A shortcut for implementing a service method by returning `UNIMPLEMENTED` status code.
+///
+/// Compiler will provide a default implementations for all methods to invoke this macro, so
+/// you usually won't call it directly. If you really need to, just call it like:
+/// ```ignored
+/// fn method(&self, ctx: grpcio::RpcContext, req: Request, resp: UnarySink<Response>) {
+///     unimplemented_call!(ctx, resp);
+/// }
+/// ```
 #[macro_export]
 macro_rules! unimplemented_call {
     ($ctx:ident, $sink:ident) => {{
