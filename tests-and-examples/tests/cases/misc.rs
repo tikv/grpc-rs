@@ -164,38 +164,46 @@ fn test_soundness() {
 }
 
 #[cfg(unix)]
-#[test]
-fn test_unix_domain_socket() {
-    struct Defer(&'static str);
+mod unix_domain_socket {
+    use super::*;
 
-    impl Drop for Defer {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_file(self.0);
-        }
+    fn test_socket(path: &str) {
+        let env = Arc::new(EnvBuilder::new().build());
+        let service = create_greeter(PeerService);
+
+        let mut server = ServerBuilder::new(env.clone())
+            .register_service(service)
+            .bind(path, 0)
+            .build()
+            .unwrap();
+        server.start();
+        let ch = ChannelBuilder::new(env).connect(path);
+        let client = GreeterClient::new(ch);
+
+        let req = HelloRequest::default();
+        let resp = client.say_hello(&req).unwrap();
+
+        assert_eq!(resp.get_message(), path, "{:?}", resp);
     }
-    let socket_path = Defer("test_socket");
 
-    let env = Arc::new(EnvBuilder::new().build());
-    let service = create_greeter(PeerService);
+    #[test]
+    fn test_unix_domain_socket() {
+        struct Defer(&'static str);
 
-    let mut server = ServerBuilder::new(env.clone())
-        .register_service(service)
-        .bind(format!("unix:{}", socket_path.0), 0)
-        .build()
-        .unwrap();
-    server.start();
-    let ch = ChannelBuilder::new(env).connect(&format!("unix:{}", socket_path.0));
-    let client = GreeterClient::new(ch);
+        impl Drop for Defer {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0[5..]);
+            }
+        }
+        let socket_path = Defer("unix:test_socket");
+        test_socket(socket_path.0);
+    }
 
-    let req = HelloRequest::default();
-    let resp = client.say_hello(&req).unwrap();
-
-    assert_eq!(
-        resp.get_message(),
-        format!("unix:{}", socket_path.0),
-        "{:?}",
-        resp
-    );
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_abstract_unix_domain_socket() {
+        test_socket("unix-abstract:/test_socket");
+    }
 }
 
 #[test]

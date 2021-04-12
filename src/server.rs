@@ -68,7 +68,7 @@ where
 /// Given a host and port, creates a string of the form "host:port" or
 /// "[host]:port", depending on whether the host is an IPv6 literal.
 fn join_host_port(host: &str, port: u16) -> String {
-    if host.starts_with("unix:") {
+    if host.starts_with("unix:") | host.starts_with("unix-abstract:") {
         format!("{}\0", host)
     } else if let Ok(ip) = host.parse::<IpAddr>() {
         format!("{}\0", SocketAddr::new(ip, port))
