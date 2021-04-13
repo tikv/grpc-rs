@@ -510,14 +510,14 @@ fn generate_server_method(
     buf.push_str(&method.name);
     buf.push_str("(&mut self, ctx: ");
     buf.push_str(&fq_grpc("RpcContext"));
-    buf.push_str(", ");
+    buf.push_str(", _");
     buf.push_str(request_arg);
     buf.push_str(", sink: ");
     buf.push_str(&fq_grpc(response_type));
     buf.push('<');
     buf.push_str(&method.output_type);
     buf.push('>');
-    buf.push_str(");\n");
+    buf.push_str(") { grpcio::unimplemented_call!(ctx, sink) }\n");
 }
 
 fn generate_method_bind(service_name: &str, method: &Method, buf: &mut String) {

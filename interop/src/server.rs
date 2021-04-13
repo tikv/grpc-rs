@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::grpc::{
-    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
+    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
     ServerStreamingSink, UnarySink, WriteFlags,
 };
 use futures::prelude::*;
@@ -163,13 +163,5 @@ impl TestService for InteropTestService {
         _: DuplexSink<StreamingOutputCallResponse>,
     ) {
         unimplemented!()
-    }
-
-    fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
-        let f = sink
-            .fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED))
-            .map_err(|e| error!("failed to report unimplemented method: {:?}", e))
-            .map(|_| ());
-        ctx.spawn(f)
     }
 }
