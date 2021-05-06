@@ -7,25 +7,26 @@ publish = false
 
 [features]
 default = ["protobuf-codec"]
-protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
-prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec"]
+protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "grpcio-health/protobuf-codec"]
+prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
 
 [dependencies]
-grpcio-sys = { path = "../grpc-sys", version = "0.7" }
+grpcio-sys = { path = "../grpc-sys", version = "0.8" }
 libc = "0.2"
 futures = "0.3"
 futures-timer = "3.0"
-protobuf = { version = "2.0", optional = true }
-prost = { version = "0.6", optional = true }
-bytes = { version = "0.5", optional = true }
+protobuf = { version = "2.22", optional = true }
+prost = { version = "0.7", optional = true }
+bytes = { version = "1.0", optional = true }
 log = "0.4"
-grpcio = { path = "..", version = "0.7", default-features = false, features = ["secure"] }
+grpcio = { path = "..", version = "0.8", default-features = false, features = ["secure"] }
+grpcio-health = { path = "../health", version = "0.8", default-features = false }
 
 [dev-dependencies]
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpcio-proto = { path = "../proto", version = "0.7.0", default-features = false }
+grpcio-proto = { path = "../proto", version = "0.8.0", default-features = false }
 rand = "0.7"
 slog = "2.0"
 slog-async = "2.1"

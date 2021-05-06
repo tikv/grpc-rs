@@ -115,7 +115,7 @@ impl Client {
         futures_timer::Delay::new(Duration::from_millis(10)).await;
         sender.cancel();
         match receiver.await.unwrap_err() {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.code(), RpcStatusCode::CANCELLED),
             e => panic!("expected cancel, but got: {:?}", e),
         }
         println!("pass");
@@ -134,7 +134,7 @@ impl Client {
         assert_eq!(resp.get_payload().get_body().len(), 31415);
         sender.cancel();
         match receiver.try_next().await {
-            Err(grpc::Error::RpcFailure(s)) => assert_eq!(s.status, RpcStatusCode::CANCELLED),
+            Err(grpc::Error::RpcFailure(s)) => assert_eq!(s.code(), RpcStatusCode::CANCELLED),
             Err(e) => panic!("expected cancel, but got: {:?}", e),
             Ok(r) => panic!("expected error, but got: {:?}", r),
         }
@@ -151,7 +151,7 @@ impl Client {
         let _ = sender.send((req, WriteFlags::default())).await;
         match receiver.try_next().await {
             Err(grpc::Error::RpcFailure(s)) => {
-                assert_eq!(s.status, RpcStatusCode::DEADLINE_EXCEEDED)
+                assert_eq!(s.code(), RpcStatusCode::DEADLINE_EXCEEDED)
             }
             Err(e) => panic!("expected timeout, but got: {:?}", e),
             Ok(r) => panic!("expected error: {:?}", r),
@@ -170,8 +170,8 @@ impl Client {
         req.set_response_status(status.clone());
         match self.client.unary_call_async(&req)?.await.unwrap_err() {
             grpc::Error::RpcFailure(s) => {
-                assert_eq!(s.status, RpcStatusCode::UNKNOWN);
-                assert_eq!(s.details.as_ref().unwrap(), error_msg);
+                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
+                assert_eq!(s.message(), error_msg);
             }
             e => panic!("expected rpc failure: {:?}", e),
         }
@@ -181,8 +181,8 @@ impl Client {
         let _ = sender.send((req, WriteFlags::default())).await;
         match receiver.try_next().await {
             Err(grpc::Error::RpcFailure(s)) => {
-                assert_eq!(s.status, RpcStatusCode::UNKNOWN);
-                assert_eq!(s.details.as_ref().unwrap(), error_msg);
+                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
+                assert_eq!(s.message(), error_msg);
             }
             Err(e) => panic!("expected rpc failure: {:?}", e),
             Ok(r) => panic!("error expected, but got: {:?}", r),
@@ -199,7 +199,7 @@ impl Client {
             .await
             .unwrap_err()
         {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::UNIMPLEMENTED),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.code(), RpcStatusCode::UNIMPLEMENTED),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");
@@ -214,7 +214,7 @@ impl Client {
             .await
             .unwrap_err()
         {
-            grpc::Error::RpcFailure(s) => assert_eq!(s.status, RpcStatusCode::UNIMPLEMENTED),
+            grpc::Error::RpcFailure(s) => assert_eq!(s.code(), RpcStatusCode::UNIMPLEMENTED),
             e => panic!("expected rpc failure: {:?}", e),
         }
         println!("pass");

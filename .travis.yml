@@ -1,7 +1,7 @@
 # Travis is only used to test ARM64 Linux
 
 dist: focal
-sudo: false
+sudo: true
 language: rust
 git:
   submodules: false
@@ -26,23 +26,34 @@ addons:
 jobs:
   include:
   - os: linux
-    arch: arm64
+    arch: arm64-graviton2
+    vm: virt
     before_script:
-      - scripts/reset-submodule.cmd
-      - export GRPC_VERSION=1.33.1
+      - cargo xtask submodule
+      - export GRPC_VERSION=1.35.0
       - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
-      - sudo apt-get update && sudo apt-get -y install libssl-dev
       - which cmake && cmake --version && openssl version
       - eval "$(gimme stable)"
     script:
       - if [[ $TRAVIS_OS_NAME == "linux" ]] && [[ $TRAVIS_RUST_VERSION == "stable" ]]; then
           rustup component add rustfmt && cargo fmt --all -- --check;
-          env TEST_BIND=0 scripts/generate-bindings.sh && git diff --exit-code HEAD;
+          env TEST_BIND=0 cargo xtask bindgen && git diff --exit-code HEAD;
         fi
-      - ./scripts/generate-bindings.sh
+      - cargo xtask bindgen
       - cargo build --no-default-features
       - cargo build --no-default-features --features protobuf-codec
       - cargo build --no-default-features --features prost-codec
       - cargo build
-      - cargo test --release --all
-      - cargo test --release --features "openssl-vendored" --all
+      - travis_wait 40 cargo test --release --all
+  - os: linux
+    arch: arm64-graviton2
+    vm: virt
+    before_script:
+      - cargo xtask submodule
+      - export GRPC_VERSION=1.35.0
+      - export PATH="$PATH:$HOME/.cache/bin:$HOME/.cargo/bin"
+      - sudo apt-get update && sudo apt-get -y install libssl-dev
+      - which cmake && cmake --version && openssl version
+      - eval "$(gimme stable)"
+    script:
+      - travis_wait 40 cargo test --release --features "openssl-vendored" --all

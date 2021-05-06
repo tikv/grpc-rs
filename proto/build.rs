@@ -8,6 +8,7 @@ fn main() {
         ("grpc/testing", "testing"),
         ("grpc/health/v1/", "health"),
         ("grpc/example", "example"),
+        ("google/rpc", "rpc"),
     ];
     for (dir, package) in modules {
         let out_dir = format!("{}/{}", out_dir, package);
@@ -26,6 +27,7 @@ fn main() {
             .includes(&["proto".to_owned()])
             .files(&files)
             .out_dir(&out_dir)
+            .black_list(&["protobuf"])
             .generate();
     }
 }

@@ -31,7 +31,7 @@ This project is still under development. The following features with the check m
 - LLVM and Clang >= 3.9 if you need to generate bindings at compile time.
 - By default, the [secure feature](#feature-secure) is provided by boringssl. You can also use openssl instead by enabling [openssl feature](#feature-openssl).
 
-For Linux and MacOS, you also need to install gcc (or clang) too.
+For Linux and MacOS, you also need to install gcc 4.9+ (or clang) too.
 
 Bindings are pre-generated for x86_64/arm64 Linux. For other platforms, bindings are generated at compile time.
 
@@ -44,7 +44,7 @@ For Windows, you also need to install following software:
 ## Build
 
 ```
-$ ./scripts/reset-submodule.cmd # if you just cloned the repository
+$ cargo xtask submodule # if you just cloned the repository
 $ cargo build
 ```
 
@@ -142,5 +142,5 @@ Make sure to format and test the code before sending a PR.
 If the content in grpc-sys/grpc is updated, you may need to regenerate bindings:
 
 ```
-$ ./scripts/generate-bindings.sh
+$ cargo xtask bindgen
 ```

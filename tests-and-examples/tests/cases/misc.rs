@@ -164,38 +164,46 @@ fn test_soundness() {
 }
 
 #[cfg(unix)]
-#[test]
-fn test_unix_domain_socket() {
-    struct Defer(&'static str);
+mod unix_domain_socket {
+    use super::*;
 
-    impl Drop for Defer {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_file(self.0);
-        }
+    fn test_socket(path: &str) {
+        let env = Arc::new(EnvBuilder::new().build());
+        let service = create_greeter(PeerService);
+
+        let mut server = ServerBuilder::new(env.clone())
+            .register_service(service)
+            .bind(path, 0)
+            .build()
+            .unwrap();
+        server.start();
+        let ch = ChannelBuilder::new(env).connect(path);
+        let client = GreeterClient::new(ch);
+
+        let req = HelloRequest::default();
+        let resp = client.say_hello(&req).unwrap();
+
+        assert_eq!(resp.get_message(), path, "{:?}", resp);
     }
-    let socket_path = Defer("test_socket");
 
-    let env = Arc::new(EnvBuilder::new().build());
-    let service = create_greeter(PeerService);
+    #[test]
+    fn test_unix_domain_socket() {
+        struct Defer(&'static str);
 
-    let mut server = ServerBuilder::new(env.clone())
-        .register_service(service)
-        .bind(format!("unix:{}", socket_path.0), 0)
-        .build()
-        .unwrap();
-    server.start();
-    let ch = ChannelBuilder::new(env).connect(&format!("unix:{}", socket_path.0));
-    let client = GreeterClient::new(ch);
+        impl Drop for Defer {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0[5..]);
+            }
+        }
+        let socket_path = Defer("unix:test_socket");
+        test_socket(socket_path.0);
+    }
 
-    let req = HelloRequest::default();
-    let resp = client.say_hello(&req).unwrap();
-
-    assert_eq!(
-        resp.get_message(),
-        format!("unix:{}", socket_path.0),
-        "{:?}",
-        resp
-    );
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_abstract_unix_domain_socket() {
+        test_socket("unix-abstract:/test_socket");
+    }
 }
 
 #[test]
@@ -248,7 +256,7 @@ fn test_custom_checker_server_side() {
     flag.store(true, Ordering::SeqCst);
     assert_eq!(
         client.say_hello(&req).unwrap_err().to_string(),
-        "RpcFailure: 15-DATA_LOSS ".to_owned()
+        "RpcFailure: 15-DATA_LOSS".to_owned()
     );
 }
 
@@ -263,7 +271,7 @@ impl ServerChecker for FlagChecker {
         assert_eq!(&method.unwrap(), "/helloworld.Greeter/SayHello");
 
         if self.flag.load(Ordering::SeqCst) {
-            CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS, None))
+            CheckResult::Abort(RpcStatus::new(RpcStatusCode::DATA_LOSS))
         } else {
             CheckResult::Continue
         }
@@ -272,4 +280,90 @@ impl ServerChecker for FlagChecker {
     fn box_clone(&self) -> Box<dyn ServerChecker> {
         Box::new(self.clone())
     }
+}
+
+/// Tests connectivity related API works as expected.
+#[test]
+fn test_connectivity() {
+    let env = Arc::new(Environment::new(2));
+    let service = create_greeter(PeerService);
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("127.0.0.1", 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
+    assert_eq!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_READY
+    );
+
+    // Shutdown server should make the connection transit to failure.
+    block_on(server.shutdown()).unwrap();
+    assert!(block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_READY,
+        Duration::from_secs(3)
+    )));
+    // Shutdown will send goaway, hence the state goes to idle.
+    assert_eq!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_IDLE
+    );
+
+    // There is no pending rpc, so grpc will not retry connecting.
+    assert!(!block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_IDLE,
+        Duration::from_millis(100)
+    )));
+
+    // Ask it to reconnect explicitly.
+    ch.check_connectivity_state(true);
+    assert!(block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_IDLE,
+        Duration::from_secs(3)
+    )));
+    assert_ne!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_IDLE
+    );
+
+    // It can't be ready since no server is running.
+    assert!(!block_on(ch.wait_for_connected(Duration::from_millis(100))));
+    assert!(block_on(ch.wait_for_state_change(
+        ConnectivityState::GRPC_CHANNEL_CONNECTING,
+        Duration::from_secs(3)
+    )));
+    assert_ne!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_READY
+    );
+    assert_ne!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_IDLE
+    );
+
+    // After server is restarted, client should be able to reconnect successfully.
+    // A shutdown server should not be restarted again, using a different instance.
+    let service = create_greeter(PeerService);
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("localhost", port)
+        .build()
+        .unwrap();
+    server.start();
+    assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
+    assert_eq!(
+        ch.check_connectivity_state(false),
+        ConnectivityState::GRPC_CHANNEL_READY
+    );
+    let client = GreeterClient::new(ch.clone());
+    let req = HelloRequest::default();
+    let resp = client.say_hello(&req).unwrap();
+    assert!(!resp.get_message().is_empty());
+    client.spawn(async move {
+        ch.wait_for_connected(Duration::from_secs(3)).await;
+    });
 }

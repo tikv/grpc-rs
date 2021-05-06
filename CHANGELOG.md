@@ -1,3 +1,24 @@
+# 0.8.2 - 2012-03-10
+
+- Fix send requirement in connectivity APIs (#516)
+- Add default health service implemetations (#518)
+
+# 0.8.1 - 2021-03-05
+
+- Support watch connectivity state (#513)
+- Fix prost build of grpcio-proto (#515)
+
+# grpcio-sys 0.8.1 - 2021-03-02
+
+- Detect changes ahead to ease pain of upgrading compiler (#511)
+
+# 0.8.0 - 2021-02-19
+
+- Fix clippy warnings (#504)
+- Add a way to not use bindgen (#499)
+- Update gRPC C core to 1.35.0 (#506)
+- Update bindgen to 0.57.0 (#507)
+
 # 0.7.1 - 2020-12-18
 
 - Allow CXX environment variable to override g++ for musl build (#500)

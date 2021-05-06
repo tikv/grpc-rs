@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::grpc::{
-    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode,
+    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
     ServerStreamingSink, UnarySink, WriteFlags,
 };
 use futures::prelude::*;
@@ -16,17 +16,6 @@ use grpc_proto::testing::messages::{
 };
 use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::util;
-
-enum Error {
-    Grpc(grpc::Error),
-    Abort,
-}
-
-impl From<grpc::Error> for Error {
-    fn from(error: grpc::Error) -> Error {
-        Error::Grpc(error)
-    }
-}
 
 #[derive(Clone)]
 pub struct InteropTestService;
@@ -49,8 +38,8 @@ impl TestService for InteropTestService {
     ) {
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
-            let msg = Some(req.take_response_status().take_message());
-            let status = RpcStatus::new(code, msg);
+            let msg = req.take_response_status().take_message();
+            let status = RpcStatus::with_message(code, msg);
             let f = sink
                 .fail(status)
                 .map_err(|e| panic!("failed to send response: {:?}", e))
@@ -131,8 +120,8 @@ impl TestService for InteropTestService {
             while let Some(mut req) = stream.try_next().await? {
                 if req.has_response_status() {
                     let code = req.get_response_status().get_code();
-                    let msg = Some(req.take_response_status().take_message());
-                    let status = RpcStatus::new(code, msg);
+                    let msg = req.take_response_status().take_message();
+                    let status = RpcStatus::with_message(code, msg);
                     sink.fail(status).await?;
                     return Ok(());
                 }
@@ -158,9 +147,10 @@ impl TestService for InteropTestService {
             sink.close().await?;
             Ok(())
         }
-        .map_err(|e: Error| match e {
-            Error::Grpc(grpc::Error::RemoteStopped) | Error::Abort => {}
-            Error::Grpc(e) => error!("failed to handle duplex call: {:?}", e),
+        .map_err(|e: grpc::Error| {
+            if !matches!(e, grpc::Error::RemoteStopped) {
+                error!("failed to handle duplex call: {:?}", e);
+            }
         })
         .map(|_| ());
         ctx.spawn(f)
@@ -173,13 +163,5 @@ impl TestService for InteropTestService {
         _: DuplexSink<StreamingOutputCallResponse>,
     ) {
         unimplemented!()
-    }
-
-    fn unimplemented_call(&mut self, ctx: RpcContext, _: Empty, sink: UnarySink<Empty>) {
-        let f = sink
-            .fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None))
-            .map_err(|e| error!("failed to report unimplemented method: {:?}", e))
-            .map(|_| ());
-        ctx.spawn(f)
     }
 }

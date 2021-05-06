@@ -123,4 +123,16 @@ pub mod help {
     }
 }
 
+pub mod google {
+    pub mod rpc {
+        include!(concat!(env!("OUT_DIR"), "/rpc/mod.rs"));
+
+        #[cfg(feature = "protobuf-codec")]
+        pub use self::status::*;
+
+        #[cfg(feature = "prost-codec")]
+        pub use self::google::rpc::*;
+    }
+}
+
 pub mod util;

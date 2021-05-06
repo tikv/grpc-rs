@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
-use self::promise::{Batch as BatchPromise, Shutdown as ShutdownPromise};
+use self::promise::{Action as ActionPromise, Batch as BatchPromise};
 use crate::call::server::RequestContext;
 use crate::call::{BatchContext, Call, MessageReader};
 use crate::cq::CompletionQueue;
@@ -113,7 +113,7 @@ pub enum CallTag {
     Request(RequestCallback),
     UnaryRequest(UnaryRequestCallback),
     Abort(Abort),
-    Shutdown(ShutdownPromise),
+    Action(ActionPromise),
     Spawn(Arc<SpawnTask>),
 }
 
@@ -131,11 +131,12 @@ impl CallTag {
         CallTag::Request(RequestCallback::new(ctx))
     }
 
-    /// Generate a Future/CallTag pair for shutdown call.
-    pub fn shutdown_pair() -> (CqFuture<()>, CallTag) {
+    /// Generate a Future/CallTag pair for action call that only cares if the result is
+    /// successful.
+    pub fn action_pair() -> (CqFuture<bool>, CallTag) {
         let inner = new_inner();
-        let shutdown = ShutdownPromise::new(inner.clone());
-        (CqFuture::new(inner), CallTag::Shutdown(shutdown))
+        let action = ActionPromise::new(inner.clone());
+        (CqFuture::new(inner), CallTag::Action(action))
     }
 
     /// Generate a CallTag for abort call before handler is called.
@@ -175,7 +176,7 @@ impl CallTag {
             CallTag::Request(cb) => cb.resolve(cq, success),
             CallTag::UnaryRequest(cb) => cb.resolve(cq, success),
             CallTag::Abort(_) => {}
-            CallTag::Shutdown(prom) => prom.resolve(success),
+            CallTag::Action(prom) => prom.resolve(success),
             CallTag::Spawn(notify) => self::executor::resolve(notify, success),
         }
     }
@@ -188,7 +189,7 @@ impl Debug for CallTag {
             CallTag::Request(_) => write!(f, "CallTag::Request(..)"),
             CallTag::UnaryRequest(_) => write!(f, "CallTag::UnaryRequest(..)"),
             CallTag::Abort(_) => write!(f, "CallTag::Abort(..)"),
-            CallTag::Shutdown(_) => write!(f, "CallTag::Shutdown"),
+            CallTag::Action(_) => write!(f, "CallTag::Action"),
             CallTag::Spawn(_) => write!(f, "CallTag::Spawn"),
         }
     }
@@ -208,8 +209,8 @@ mod tests {
     fn test_resolve() {
         let env = Environment::new(1);
 
-        let (cq_f1, tag1) = CallTag::shutdown_pair();
-        let (cq_f2, tag2) = CallTag::shutdown_pair();
+        let (cq_f1, tag1) = CallTag::action_pair();
+        let (cq_f2, tag2) = CallTag::action_pair();
         let (tx, rx) = mpsc::channel();
 
         let handler = thread::spawn(move || {
@@ -224,8 +225,8 @@ mod tests {
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
         tag2.resolve(&env.pick_cq(), false);
         match rx.recv() {
-            Ok(Err(Error::ShutdownFailed)) => {}
-            res => panic!("expect shutdown failed, but got {:?}", res),
+            Ok(Ok(false)) => {}
+            res => panic!("expect Ok(false), but got {:?}", res),
         }
 
         handler.join().unwrap();
