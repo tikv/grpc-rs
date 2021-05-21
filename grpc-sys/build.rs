@@ -16,7 +16,7 @@ const GRPC_VERSION: &str = "1.38.0";
 /// also choose to run pkg-config at build time, but it will requires pkg-config
 /// in path, which is unfriendly for platforms like Windows.
 // grpc_unsecure.pc is not accurate, see also grpc/grpc#24512. Should also include "address_sorting", "upb", "cares", "z".
-#[cfg_attr(rustfmt, rustfmt::skip)]
+#[rustfmt::skip]
 const COMMON_DEPS: &[&str] = &[
     "absl_bad_optional_access", "absl_bad_variant_access", "absl_base", "absl_city", "absl_civil_time",
     "absl_cord", "absl_debugging_internal", "absl_demangle_internal", "absl_exponential_biased",
