@@ -49,9 +49,6 @@ openssl-vendored = ["secure", "grpcio-sys/openssl-vendored"]
 no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
 use-bindgen = ["grpcio-sys/use-bindgen"]
 
-[profile.release]
-debug = true
-
 [badges]
 travis-ci = { repository = "tikv/grpc-rs" }
 
