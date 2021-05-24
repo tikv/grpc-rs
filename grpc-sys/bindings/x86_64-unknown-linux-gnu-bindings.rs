@@ -109,6 +109,8 @@ pub const GRPC_ARG_TCP_TX_ZEROCOPY_MAX_SIMULT_SENDS: &'static [u8; 57usize] =
     b"grpc.experimental.tcp_tx_zerocopy_max_simultaneous_sends\0";
 pub const GRPC_ARG_GRPCLB_CALL_TIMEOUT_MS: &'static [u8; 28usize] =
     b"grpc.grpclb_call_timeout_ms\0";
+pub const GRPC_ARG_TEST_ONLY_DO_NOT_USE_IN_PROD_XDS_BOOTSTRAP_CONFIG: &'static [u8; 55usize] =
+    b"grpc.TEST_ONLY_DO_NOT_USE_IN_PROD.xds_bootstrap_config\0";
 pub const GRPC_ARG_GRPCLB_FALLBACK_TIMEOUT_MS: &'static [u8; 32usize] =
     b"grpc.grpclb_fallback_timeout_ms\0";
 pub const GRPC_ARG_PRIORITY_FAILOVER_TIMEOUT_MS: &'static [u8; 34usize] =
@@ -159,7 +161,10 @@ pub const GRPC_X509_PEM_CERT_PROPERTY_NAME: &'static [u8; 14usize] = b"x509_pem_
 pub const GRPC_X509_PEM_CERT_CHAIN_PROPERTY_NAME: &'static [u8; 20usize] = b"x509_pem_cert_chain\0";
 pub const GRPC_SSL_SESSION_REUSED_PROPERTY: &'static [u8; 19usize] = b"ssl_session_reused\0";
 pub const GRPC_TRANSPORT_SECURITY_LEVEL_PROPERTY_NAME: &'static [u8; 15usize] = b"security_level\0";
+pub const GRPC_PEER_DNS_PROPERTY_NAME: &'static [u8; 9usize] = b"peer_dns\0";
 pub const GRPC_PEER_SPIFFE_ID_PROPERTY_NAME: &'static [u8; 15usize] = b"peer_spiffe_id\0";
+pub const GRPC_PEER_EMAIL_PROPERTY_NAME: &'static [u8; 11usize] = b"peer_email\0";
+pub const GRPC_PEER_IP_PROPERTY_NAME: &'static [u8; 8usize] = b"peer_ip\0";
 pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &'static [u8; 33usize] =
     b"GRPC_DEFAULT_SSL_ROOTS_FILE_PATH\0";
 pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &'static [u8; 31usize] =
@@ -2096,12 +2101,28 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct grpc_server_xds_status_notifier {
+    pub on_serving_status_update: ::std::option::Option<
+        unsafe extern "C" fn(
+            user_data: *mut ::std::os::raw::c_void,
+            uri: *const ::std::os::raw::c_char,
+            code: grpc_status_code::Type,
+            error_message: *const ::std::os::raw::c_char,
+        ),
+    >,
+    pub user_data: *mut ::std::os::raw::c_void,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct grpc_server_config_fetcher {
     _unused: [u8; 0],
 }
 extern "C" {
     #[doc = " EXPERIMENTAL.  Creates an xDS config fetcher."]
-    pub fn grpc_server_config_fetcher_xds_create() -> *mut grpc_server_config_fetcher;
+    pub fn grpc_server_config_fetcher_xds_create(
+        notifier: grpc_server_xds_status_notifier,
+        args: *const grpc_channel_args,
+    ) -> *mut grpc_server_config_fetcher;
 }
 extern "C" {
     #[doc = " EXPERIMENTAL.  Destroys a config fetcher."]
@@ -2209,6 +2230,11 @@ extern "C" {
         resource_quota: *mut grpc_resource_quota,
         new_max_threads: ::std::os::raw::c_int,
     );
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL.  Dumps xDS configs as a serialized ClientConfig proto."]
+    #[doc = "The full name of the proto is envoy.service.status.v3.ClientConfig."]
+    pub fn grpc_dump_xds_configs() -> grpc_slice;
 }
 extern "C" {
     #[doc = " Fetch a vtable for a grpc_channel_arg that points to a grpc_resource_quota"]
@@ -3286,8 +3312,8 @@ extern "C" {
 }
 extern "C" {
     #[doc = " Sets the options of whether to request and verify client certs. This should"]
-    #[doc = " be called only on the server side. It returns 1 on success and 0 on failure."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
+    #[doc = " be called only on the server side. It is used for experimental purpose for"]
+    #[doc = " now and subject to change."]
     pub fn grpc_tls_credentials_options_set_cert_request_type(
         options: *mut grpc_tls_credentials_options,
         type_: grpc_ssl_client_certificate_request_type,
@@ -3298,8 +3324,7 @@ extern "C" {
     #[doc = " hostname check, etc. This should be called only on the client side. If"]
     #[doc = " |server_verification_option| is not GRPC_TLS_SERVER_VERIFICATION, use of a"]
     #[doc = " custom authorization check (grpc_tls_server_authorization_check_config) is"]
-    #[doc = " mandatory. It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = " experimental purpose for now and subject to change."]
+    #[doc = " mandatory. It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_server_verification_option(
         options: *mut grpc_tls_credentials_options,
         server_verification_option: grpc_tls_server_verification_option,
@@ -3308,7 +3333,6 @@ extern "C" {
 extern "C" {
     #[doc = " Sets the credential provider in the options."]
     #[doc = " The |options| will implicitly take a new ref to the |provider|."]
-    #[doc = " It returns 1 on success and 0 on failure."]
     #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_certificate_provider(
         options: *mut grpc_tls_credentials_options,
@@ -3317,8 +3341,14 @@ extern "C" {
 }
 extern "C" {
     #[doc = " If set, gRPC stack will keep watching the root certificates with"]
-    #[doc = " name |root_cert_name|. It returns 1 on success and 0 on failure. It is used"]
-    #[doc = " for experimental purpose for now and subject to change."]
+    #[doc = " name |root_cert_name|."]
+    #[doc = " If this is not set on the client side, we will use the root certificates"]
+    #[doc = " stored in the default system location, since client side must provide root"]
+    #[doc = " certificates in TLS."]
+    #[doc = " If this is not set on the server side, we will not watch any root certificate"]
+    #[doc = " updates, and assume no root certificates needed for the server(single-side"]
+    #[doc = " TLS). Default root certs on the server side is not supported."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_watch_root_certs(
         options: *mut grpc_tls_credentials_options,
     );
@@ -3334,8 +3364,9 @@ extern "C" {
 }
 extern "C" {
     #[doc = " If set, gRPC stack will keep watching the identity key-cert pairs"]
-    #[doc = " with name |identity_cert_name|. It returns 1 on success and 0 on failure. It"]
-    #[doc = " is used for experimental purpose for now and subject to change."]
+    #[doc = " with name |identity_cert_name|."]
+    #[doc = " This is required on the server side, and optional on the client side."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_watch_identity_key_cert_pairs(
         options: *mut grpc_tls_credentials_options,
     );
@@ -3352,8 +3383,8 @@ extern "C" {
 extern "C" {
     #[doc = " Sets the configuration for a custom authorization check performed at the end"]
     #[doc = " of the handshake. The |options| will implicitly take a new ref to the"]
-    #[doc = " |config|. It returns 1 on success and 0 on failure. It is used for"]
-    #[doc = " experimental purpose for now and subject to change."]
+    #[doc = " |config|."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_server_authorization_check_config(
         options: *mut grpc_tls_credentials_options,
         config: *mut grpc_tls_server_authorization_check_config,
