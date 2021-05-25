@@ -299,7 +299,7 @@ fn get_env(name: &str) -> Option<String> {
 // Generate the bindings to grpc C-core.
 // Try to disable the generation of platform-related bindings.
 #[cfg(feature = "use-bindgen")]
-fn bindgen_grpc(file_path: &PathBuf) {
+fn bindgen_grpc(file_path: &Path) {
     // create a config to generate binding file
     let mut config = bindgen::Builder::default();
     if cfg!(feature = "secure") {
