@@ -1,4 +1,8 @@
-# 0.8.2 - 2012-03-10
+# 0.8.3 - 2021-05-25
+
+- Make 0.8.x work with 0.9.x compiler (#529)
+
+# 0.8.2 - 2021-03-10
 
 - Fix send requirement in connectivity APIs (#516)
 - Add default health service implemetations (#518)
