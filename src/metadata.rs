@@ -16,11 +16,11 @@ fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
     let mut is_upper_case = false;
     for b in key.as_bytes() {
         let b = *b;
-        if b >= b'A' && b <= b'Z' {
+        if (b'A'..=b'Z').contains(&b) {
             is_upper_case = true;
             continue;
-        } else if b >= b'a' && b <= b'z'
-            || b >= b'0' && b <= b'9'
+        } else if (b'a'..=b'z').contains(&b)
+            || (b'0'..=b'9').contains(&b)
             || b == b'_'
             || b == b'-'
             || b == b'.'
@@ -83,10 +83,10 @@ impl MetadataBuilder {
             }
         }
         let key = normalize_key(key, false)?;
-        self.add_metadata(&key, value.as_bytes())
+        Ok(self.add_metadata(&key, value.as_bytes()))
     }
 
-    fn add_metadata(&mut self, key: &str, value: &[u8]) -> Result<&mut MetadataBuilder> {
+    fn add_metadata(&mut self, key: &str, value: &[u8]) -> &mut MetadataBuilder {
         unsafe {
             grpc_sys::grpcwrap_metadata_array_add(
                 &mut self.arr.0,
@@ -96,7 +96,7 @@ impl MetadataBuilder {
                 value.len(),
             )
         }
-        Ok(self)
+        self
     }
 
     /// Add a metadata holding a binary value.
@@ -104,7 +104,7 @@ impl MetadataBuilder {
     /// `key` needs to have suffix (-bin) indicating a binary valued metadata entry.
     pub fn add_bytes(&mut self, key: &str, value: &[u8]) -> Result<&mut MetadataBuilder> {
         let key = normalize_key(key, true)?;
-        self.add_metadata(&key, value)
+        Ok(self.add_metadata(&key, value))
     }
 
     /// Create `Metadata` with configured entries.
@@ -221,7 +221,7 @@ impl Clone for Metadata {
         let mut builder = MetadataBuilder::with_capacity(self.len());
         for (k, v) in self.iter() {
             // use `add_metadata` to skip validation.
-            builder.add_metadata(k, v).unwrap();
+            builder.add_metadata(k, v);
         }
         builder.build()
     }

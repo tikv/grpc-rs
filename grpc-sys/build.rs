@@ -267,7 +267,7 @@ fn get_env(name: &str) -> Option<String> {
 
 // Generate the bindings to grpc C-core.
 // Try to disable the generation of platform-related bindings.
-fn bindgen_grpc(mut config: bindgen::Builder, file_path: &PathBuf) {
+fn bindgen_grpc(mut config: bindgen::Builder, file_path: &Path) {
     // Search header files with API interface
     let mut headers = Vec::new();
     for result in WalkDir::new(Path::new("./grpc/include")) {
