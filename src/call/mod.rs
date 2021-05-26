@@ -33,9 +33,9 @@ impl From<i32> for RpcStatusCode {
     }
 }
 
-impl Into<i32> for RpcStatusCode {
-    fn into(self) -> i32 {
-        self.0
+impl From<RpcStatusCode> for i32 {
+    fn from(c: RpcStatusCode) -> i32 {
+        c.0
     }
 }
 
