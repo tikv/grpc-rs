@@ -1,3 +1,7 @@
+# 0.7.2 - 2021-05-28
+
+- Work with 0.9.x compiler
+
 # 0.7.1 - 2020-12-18
 
 - Allow CXX environment variable to override g++ for musl build (#500)
