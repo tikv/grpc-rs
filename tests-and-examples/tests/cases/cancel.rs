@@ -114,7 +114,7 @@ where
 {
     match block_on(rx.try_next()) {
         Err(Error::RpcFailure(s)) | Err(Error::RpcFinished(Some(s))) => {
-            assert_eq!(s.status, RpcStatusCode::CANCELLED)
+            assert_eq!(s.code(), RpcStatusCode::CANCELLED)
         }
         Err(Error::RemoteStopped) if sink => return,
         Err(e) => panic!("expected cancel, but got: {:?}", e),

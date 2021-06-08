@@ -3,6 +3,7 @@
 use std::ffi::CStr;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 use std::{result, slice};
 
 use crate::grpc_sys::{
@@ -25,11 +26,15 @@ use crate::codec::{DeserializeFn, SerializeFn};
 use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::metadata::Metadata;
+use crate::server::ServerChecker;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
+use crate::CheckResult;
 
+/// A time point that an rpc or operation should finished before it.
+#[derive(Clone, Copy)]
 pub struct Deadline {
-    spec: gpr_timespec,
+    pub(crate) spec: gpr_timespec,
 }
 
 impl Deadline {
@@ -42,11 +47,26 @@ impl Deadline {
         }
     }
 
-    pub fn exceeded(&self) -> bool {
+    /// Checks if the deadline is exceeded.
+    pub fn exceeded(self) -> bool {
         unsafe {
             let now = grpc_sys::gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME);
             grpc_sys::gpr_time_cmp(now, self.spec) >= 0
         }
+    }
+
+    pub(crate) fn spec(self) -> gpr_timespec {
+        self.spec
+    }
+}
+
+impl From<Duration> for Deadline {
+    /// Build a deadline from given duration.
+    ///
+    /// The deadline will be `now + duration`.
+    #[inline]
+    fn from(dur: Duration) -> Deadline {
+        Deadline::new(dur.into())
     }
 }
 
@@ -74,12 +94,13 @@ impl RequestContext {
         cq: &CompletionQueue,
         rc: &mut RequestCallContext,
     ) -> result::Result<(), Self> {
+        let checker = rc.get_checker();
         let handler = unsafe { rc.get_handler(self.method()) };
         match handler {
             Some(handler) => match handler.method_type() {
                 MethodType::Unary | MethodType::ServerStreaming => Err(self),
                 _ => {
-                    execute(self, cq, None, handler);
+                    execute(self, cq, None, handler, checker);
                     Ok(())
                 }
             },
@@ -225,12 +246,13 @@ impl UnaryRequestContext {
         cq: &CompletionQueue,
         reader: Option<MessageReader>,
     ) {
+        let checker = rc.get_checker();
         let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
         if reader.is_some() {
-            return execute(self.request, cq, reader, handler);
+            return execute(self.request, cq, reader, handler, checker);
         }
 
-        let status = RpcStatus::new(RpcStatusCode::INTERNAL, Some("No payload".to_owned()));
+        let status = RpcStatus::with_message(RpcStatusCode::INTERNAL, "No payload".to_owned());
         self.request.call(cq.clone()).abort(&status)
     }
 }
@@ -622,8 +644,8 @@ impl<'a> RpcContext<'a> {
         self.ctx.host()
     }
 
-    pub fn deadline(&self) -> &Deadline {
-        &self.deadline
+    pub fn deadline(&self) -> Deadline {
+        self.deadline
     }
 
     /// Get the initial metadata sent by client.
@@ -681,9 +703,9 @@ pub fn execute_unary<P, Q, F>(
     let request = match de(payload) {
         Ok(f) => f,
         Err(e) => {
-            let status = RpcStatus::new(
+            let status = RpcStatus::with_message(
                 RpcStatusCode::INTERNAL,
-                Some(format!("Failed to deserialize response message: {:?}", e)),
+                format!("Failed to deserialize response message: {:?}", e),
             );
             call.abort(&status);
             return;
@@ -727,9 +749,9 @@ pub fn execute_server_streaming<P, Q, F>(
     let request = match de(payload) {
         Ok(t) => t,
         Err(e) => {
-            let status = RpcStatus::new(
+            let status = RpcStatus::with_message(
                 RpcStatusCode::INTERNAL,
-                Some(format!("Failed to deserialize response message: {:?}", e)),
+                format!("Failed to deserialize response message: {:?}", e),
             );
             call.abort(&status);
             return;
@@ -764,7 +786,7 @@ pub fn execute_unimplemented(ctx: RequestContext, cq: CompletionQueue) {
     let ctx = ctx;
     let mut call = ctx.call(cq);
     accept_call!(call);
-    call.abort(&RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None))
+    call.abort(&RpcStatus::new(RpcStatusCode::UNIMPLEMENTED))
 }
 
 // Helper function to call handler.
@@ -775,7 +797,19 @@ fn execute(
     cq: &CompletionQueue,
     payload: Option<MessageReader>,
     f: &mut BoxHandler,
+    mut checkers: Vec<Box<dyn ServerChecker>>,
 ) {
     let rpc_ctx = RpcContext::new(ctx, cq);
+
+    for handler in checkers.iter_mut() {
+        match handler.check(&rpc_ctx) {
+            CheckResult::Continue => {}
+            CheckResult::Abort(status) => {
+                rpc_ctx.call().abort(&status);
+                return;
+            }
+        }
+    }
+
     f.handle(rpc_ctx, payload)
 }

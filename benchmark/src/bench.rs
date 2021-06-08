@@ -10,8 +10,7 @@ use futures::prelude::*;
 use futures::sink::SinkExt;
 use grpc::{
     self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
-    RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, ServiceBuilder, UnarySink,
-    WriteFlags,
+    RpcContext, ServiceBuilder, UnarySink, WriteFlags,
 };
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
 use grpc_proto::testing::services_grpc::BenchmarkService;
@@ -71,28 +70,6 @@ impl BenchmarkService for Benchmark {
         };
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "streaming from client", f)
-    }
-
-    fn streaming_from_server(
-        &mut self,
-        ctx: RpcContext,
-        _: SimpleRequest,
-        sink: ServerStreamingSink<SimpleResponse>,
-    ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
-        let keep_running = self.keep_running.clone();
-        spawn!(ctx, keep_running, "reporting unimplemented method", f)
-    }
-
-    fn streaming_both_ways(
-        &mut self,
-        ctx: RpcContext,
-        _: RequestStream<SimpleRequest>,
-        sink: DuplexSink<SimpleResponse>,
-    ) {
-        let f = sink.fail(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED, None));
-        let keep_running = self.keep_running.clone();
-        spawn!(ctx, keep_running, "reporting unimplemented method", f)
     }
 }
 

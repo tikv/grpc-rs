@@ -2,7 +2,7 @@
 
 use std::io::{Error, ErrorKind, Read};
 use std::path::Path;
-use std::{fs, io, process::Command};
+use std::{env, fs, io, process::Command, str};
 
 use derive_new::new;
 use prost::Message;
@@ -510,14 +510,14 @@ fn generate_server_method(
     buf.push_str(&method.name);
     buf.push_str("(&mut self, ctx: ");
     buf.push_str(&fq_grpc("RpcContext"));
-    buf.push_str(", ");
+    buf.push_str(", _");
     buf.push_str(request_arg);
     buf.push_str(", sink: ");
     buf.push_str(&fq_grpc(response_type));
     buf.push('<');
     buf.push_str(&method.output_type);
     buf.push('>');
-    buf.push_str(");\n");
+    buf.push_str(") { grpcio::unimplemented_call!(ctx, sink) }\n");
 }
 
 fn generate_method_bind(service_name: &str, method: &Method, buf: &mut String) {
@@ -535,4 +535,23 @@ fn generate_method_bind(service_name: &str, method: &Method, buf: &mut String) {
     buf.push_str(", move |ctx, req, resp| instance.");
     buf.push_str(&method.name);
     buf.push_str("(ctx, req, resp));\n");
+}
+
+pub fn protoc_gen_grpc_rust_main() {
+    let mut args = env::args();
+    args.next();
+    let (mut protos, mut includes, mut out_dir): (Vec<_>, Vec<_>, _) = Default::default();
+    for arg in args {
+        if let Some(value) = arg.strip_prefix("--protos=") {
+            protos.extend(value.split(",").map(|s| s.to_string()));
+        } else if let Some(value) = arg.strip_prefix("--includes=") {
+            includes.extend(value.split(",").map(|s| s.to_string()));
+        } else if let Some(value) = arg.strip_prefix("--out-dir=") {
+            out_dir = value.to_string();
+        }
+    }
+    if protos.is_empty() {
+        panic!("should at least specify protos to generate");
+    }
+    compile_protos(&protos, &includes, &out_dir).unwrap();
 }

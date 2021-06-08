@@ -33,19 +33,19 @@ struct DataReload {
 impl ServerCredentialsFetcher for DataReload {
     fn fetch(&self) -> Result<Option<ServerCredentialsBuilder>, Box<dyn std::error::Error>> {
         if self.switch.load(Ordering::Relaxed) {
-            // The CN field in the certificate of server2 is "remotehost".
-            let root = read_single_crt("root")?;
-            let (server2_crt, server2_key) = read_cert_pair("server2")?;
-            let new_cred = ServerCredentialsBuilder::new()
-                .add_cert(server2_crt.into(), server2_key.into())
-                .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
-            Ok(Some(new_cred))
-        } else {
-            // The CN field in the certificate of server1 is "localhost".
-            let root = read_single_crt("root")?;
+            // The CN field in the certificate of server1 is "*.test.google.fr".
+            let root = read_single_crt("ca")?;
             let (server1_crt, server1_key) = read_cert_pair("server1")?;
             let new_cred = ServerCredentialsBuilder::new()
                 .add_cert(server1_crt.into(), server1_key.into())
+                .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
+            Ok(Some(new_cred))
+        } else {
+            // The CN field in the certificate of server0 is "*.test.google.com.au".
+            let root = read_single_crt("ca")?;
+            let (server0_crt, server0_key) = read_cert_pair("server0")?;
+            let new_cred = ServerCredentialsBuilder::new()
+                .add_cert(server0_crt.into(), server0_key.into())
                 .root_cert(root, CertificateRequestType::DontRequestClientCertificate);
             Ok(Some(new_cred))
         }
@@ -62,7 +62,7 @@ impl ServerCredentialsFetcher for DataReloadFail {
             // Should return io::Error here.
             Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "")))
         } else {
-            let root = read_single_crt("root")?;
+            let root = read_single_crt("ca")?;
             let (server1_crt, server1_key) = read_cert_pair("server1")?;
             let new_cred = ServerCredentialsBuilder::new()
                 .add_cert(server1_crt.into(), server1_key.into())
@@ -81,7 +81,7 @@ fn test_reload_new() {
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind_with_fetcher(
-            "localhost",
+            "127.0.0.1",
             0,
             Box::new(DataReload {
                 switch: switch.clone(),
@@ -93,26 +93,27 @@ fn test_reload_new() {
     server.start();
     let port = server.bind_addrs().next().unwrap().1;
 
-    // To connect the server whose CN is "localhost".
+    // To connect the server whose CN is "*.test.google.com.au".
     let cred = ChannelCredentialsBuilder::new()
-        .root_cert(read_single_crt("root").unwrap().into())
+        .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
-        .secure_connect(&format!("localhost:{}", port.clone()), cred);
+        .override_ssl_target("rust.test.google.com.au")
+        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
     let client1 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
     let reply = client1.say_hello(&req).expect("rpc");
     assert_eq!(reply.get_message(), "Hello world");
 
-    // To connect the server whose CN is "remotehost".
+    // To connect the server whose CN is "*.test.google.fr".
     switch.store(true, Ordering::Relaxed);
     let cred = ChannelCredentialsBuilder::new()
-        .root_cert(read_single_crt("root").unwrap().into())
+        .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
-        .override_ssl_target("remotehost")
-        .secure_connect(&format!("localhost:{}", port.clone()), cred);
+        .override_ssl_target("rust.test.google.fr")
+        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
     let client2 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
@@ -133,7 +134,7 @@ fn test_reload_fail() {
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind_with_fetcher(
-            "localhost",
+            "127.0.0.1",
             0,
             Box::new(DataReloadFail {
                 initial: AtomicBool::new(false),
@@ -146,9 +147,11 @@ fn test_reload_fail() {
 
     let port = server.bind_addrs().next().unwrap().1;
     let cred = ChannelCredentialsBuilder::new()
-        .root_cert(read_single_crt("root").unwrap().into())
+        .root_cert(read_single_crt("ca").unwrap().into())
         .build();
-    let ch = ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), cred);
+    let ch = ChannelBuilder::new(env)
+        .override_ssl_target("rust.test.google.fr")
+        .secure_connect(&format!("127.0.0.1:{}", port), cred);
     let client = GreeterClient::new(ch);
 
     for _ in 0..10 {

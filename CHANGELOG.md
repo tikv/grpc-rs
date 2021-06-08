@@ -1,3 +1,47 @@
+# 0.9.0 - 2021-05-24
+
+- Support rich error (#514)
+- Provide default service implementations (#521)
+- Support abstract UDS (#523)
+- Use default-features=false on libz-sys to allow for zlib-ng (#525)
+- Update grpc to 1.38.0 (#526)
+
+# 0.8.2 - 2021-03-10
+
+- Fix send requirement in connectivity APIs (#516)
+- Add default health service implemetations (#518)
+
+# 0.8.1 - 2021-03-05
+
+- Support watch connectivity state (#513)
+- Fix prost build of grpcio-proto (#515)
+
+# grpcio-sys 0.8.1 - 2021-03-02
+
+- Detect changes ahead to ease pain of upgrading compiler (#511)
+
+# 0.8.0 - 2021-02-19
+
+- Fix clippy warnings (#504)
+- Add a way to not use bindgen (#499)
+- Update gRPC C core to 1.35.0 (#506)
+- Update bindgen to 0.57.0 (#507)
+
+# 0.7.1 - 2020-12-18
+
+- Allow CXX environment variable to override g++ for musl build (#500)
+- Add user-defined checker for server side (#502)
+
+# 0.7.0 - 2020-11-02
+
+- Add blocking callback to `EnvBuilder` (#474)
+- Enhance sinks to make them batchable (#469)
+- Remove `rustfmt_skip` attribute since it is unstable (#479)
+- Use `grpc_slice` to reduce memory copy (#481)
+- Fix the bug that server cannot shutdown itself when drop (#484)
+- Add methods for channels from file descriptors (#488)
+- Update gRPC C core to 1.33.1 (#492)
+
 # 0.6.0 - 2020-06-12
 
 - Switch to std::future (#447)

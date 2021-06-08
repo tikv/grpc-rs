@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.6.0"
+version = "0.9.0"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -17,32 +17,40 @@ autoexamples = false
 all-features = true
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.6.0" }
+grpcio-sys = { path = "grpc-sys", version = "0.9", default-features = false }
 libc = "0.2"
 futures = "0.3"
 protobuf = { version = "2.0", optional = true }
-prost = { version = "0.6", optional = true }
-bytes = { version = "0.5", optional = true }
+prost = { version = "0.7", optional = true }
+bytes = { version = "1.0", optional = true }
 log = "0.4"
 parking_lot = "0.11"
 
 [workspace]
-members = ["proto", "benchmark", "compiler", "interop", "tests-and-examples"]
+members = [
+    "proto",
+    "benchmark",
+    "compiler",
+    "health",
+    "interop",
+    "tests-and-examples",
+]
+# Don't include it in workspace to make it possible to use different version of
+# rust-protobuf.
+exclude = ["xtask"]
 
 [features]
-default = ["protobuf-codec", "secure"]
+default = ["protobuf-codec", "secure", "use-bindgen"]
 protobuf-codec = ["protobuf"]
 prost-codec = ["prost", "bytes"]
 secure = ["grpcio-sys/secure"]
 openssl = ["secure", "grpcio-sys/openssl"]
 openssl-vendored = ["secure", "grpcio-sys/openssl-vendored"]
 no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
-
-[profile.release]
-debug = true
+use-bindgen = ["grpcio-sys/use-bindgen"]
 
 [badges]
 travis-ci = { repository = "tikv/grpc-rs" }
 
 [patch.crates-io]
-grpcio-compiler = { path = "compiler", version = "0.6.0", default-features = false }
+grpcio-compiler = { path = "compiler", version = "0.9.0", default-features = false }

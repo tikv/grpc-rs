@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-compiler"
-version = "0.6.0"
+version = "0.9.0"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -18,12 +18,16 @@ prost-codec = ["prost-build", "prost-types", "prost", "derive-new", "tempfile"]
 
 [dependencies]
 protobuf = { version = "2", optional = true }
-prost = { version = "0.6", optional = true }
-prost-build = { version = "0.6", optional = true }
-prost-types = { version = "0.6", optional = true }
+prost = { version = "0.7", optional = true }
+prost-build = { version = "0.7", optional = true }
+prost-types = { version = "0.7", optional = true }
 derive-new = { version = "0.5", optional = true }
 tempfile = { version = "3.0", optional = true }
 
 [[bin]]
 name = "grpc_rust_plugin"
 required-features = ["protobuf-codec"]
+
+[[bin]]
+name = "grpc_rust_prost"
+required-features = ["prost-codec"]

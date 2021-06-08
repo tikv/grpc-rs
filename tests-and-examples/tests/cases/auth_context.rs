@@ -52,7 +52,7 @@ fn test_auth_context() {
     let (server_crt, server_key) = read_cert_pair("server1").unwrap();
     let server_credentials = grpcio::ServerCredentialsBuilder::new()
         .root_cert(
-            read_single_crt("root").unwrap(),
+            read_single_crt("ca").unwrap(),
             CertificateRequestType::RequestClientCertificateAndVerify,
         )
         .add_cert(server_crt.into(), server_key.into())
@@ -67,11 +67,12 @@ fn test_auth_context() {
 
     let (client_crt, client_key) = read_cert_pair("client1").unwrap();
     let client_credentials = ChannelCredentialsBuilder::new()
-        .root_cert(read_single_crt("root").unwrap().into())
+        .root_cert(read_single_crt("ca").unwrap().into())
         .cert(client_crt.clone().into(), client_key.into())
         .build();
-    let ch =
-        ChannelBuilder::new(env).secure_connect(&format!("localhost:{}", port), client_credentials);
+    let ch = ChannelBuilder::new(env)
+        .override_ssl_target("rust.test.google.fr")
+        .secure_connect(&format!("127.0.0.1:{}", port), client_credentials);
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
@@ -84,7 +85,7 @@ fn test_auth_context() {
     let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
 
     assert_eq!(ctx_map.get("transport_security_type").unwrap(), "ssl");
-    assert_eq!(ctx_map.get("x509_common_name").unwrap(), "grpc-client-1");
+    assert_eq!(ctx_map.get("x509_common_name").unwrap(), "testclient1");
     assert_eq!(
         ctx_map.get("x509_pem_cert").unwrap(),
         &client_crt.replace("\r\n", "\n")

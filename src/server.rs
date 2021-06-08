@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use crate::grpc_sys::{self, grpc_call_error, grpc_server};
 use futures::future::Future;
+use futures::ready;
 use futures::task::{Context, Poll};
 
 use crate::call::server::*;
@@ -21,6 +22,7 @@ use crate::env::Environment;
 use crate::error::{Error, Result};
 use crate::task::{CallTag, CqFuture};
 use crate::RpcContext;
+use crate::RpcStatus;
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -66,7 +68,7 @@ where
 /// Given a host and port, creates a string of the form "host:port" or
 /// "[host]:port", depending on whether the host is an IPv6 literal.
 fn join_host_port(host: &str, port: u16) -> String {
-    if host.starts_with("unix:") {
+    if host.starts_with("unix:") | host.starts_with("unix-abstract:") {
         format!("{}\0", host)
     } else if let Ok(ip) = host.parse::<IpAddr>() {
         format!("{}\0", SocketAddr::new(ip, port))
@@ -266,6 +268,24 @@ impl ServiceBuilder {
     }
 }
 
+/// Used to indicate the result of the check. If it returns `Abort`,
+/// skip the subsequent checkers and abort the grpc call.
+pub enum CheckResult {
+    Continue,
+    Abort(RpcStatus),
+}
+
+pub trait ServerChecker: Send {
+    fn check(&mut self, ctx: &RpcContext) -> CheckResult;
+    fn box_clone(&self) -> Box<dyn ServerChecker>;
+}
+
+impl Clone for Box<dyn ServerChecker> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
 /// A gRPC service.
 ///
 /// Use [`ServiceBuilder`] to build a [`Service`].
@@ -280,6 +300,7 @@ pub struct ServerBuilder {
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
+    checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl ServerBuilder {
@@ -291,6 +312,7 @@ impl ServerBuilder {
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
+            checkers: Vec::new(),
         }
     }
 
@@ -317,6 +339,16 @@ impl ServerBuilder {
     /// Register a service.
     pub fn register_service(mut self, service: Service) -> ServerBuilder {
         self.handlers.extend(service.handlers);
+        self
+    }
+
+    /// Add a custom checker to handle some tasks before the grpc call handler starts.
+    /// This allows users to operate grpc call based on the context. Users can add
+    /// multiple checkers and they will be executed in the order added.
+    ///
+    /// TODO: Extend this interface to intercepte each payload like grpc-c++.
+    pub fn add_checker<C: ServerChecker + 'static>(mut self, checker: C) -> ServerBuilder {
+        self.checkers.push(Box::new(checker));
         self
     }
 
@@ -355,6 +387,7 @@ impl ServerBuilder {
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
+                checkers: self.checkers,
             })
         }
     }
@@ -439,6 +472,7 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
     registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
+    checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl RequestCallContext {
@@ -448,6 +482,10 @@ impl RequestCallContext {
     pub unsafe fn get_handler(&mut self, path: &[u8]) -> Option<&mut BoxHandler> {
         let registry = &mut *self.registry.get();
         registry.get_mut(path)
+    }
+
+    pub(crate) fn get_checker(&self) -> Vec<Box<dyn ServerChecker>> {
+        self.checkers.clone()
     }
 }
 
@@ -486,14 +524,19 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
 
 /// A `Future` that will resolve when shutdown completes.
 pub struct ShutdownFuture {
-    cq_f: CqFuture<()>,
+    /// `true` means the future finishes successfully.
+    cq_f: CqFuture<bool>,
 }
 
 impl Future for ShutdownFuture {
     type Output = Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        Pin::new(&mut self.cq_f).poll(cx)
+        match ready!(Pin::new(&mut self.cq_f).poll(cx)) {
+            Ok(true) => Poll::Ready(Ok(())),
+            Ok(false) => Poll::Ready(Err(Error::ShutdownFailed)),
+            Err(e) => unreachable!("action future should never resolve to error: {}", e),
+        }
     }
 }
 
@@ -506,12 +549,13 @@ pub struct Server {
     env: Arc<Environment>,
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
+    checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl Server {
     /// Shutdown the server asynchronously.
     pub fn shutdown(&mut self) -> ShutdownFuture {
-        let (cq_f, prom) = CallTag::shutdown_pair();
+        let (cq_f, prom) = CallTag::action_pair();
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
         unsafe {
@@ -549,6 +593,7 @@ impl Server {
                 let rc = RequestCallContext {
                     server: self.core.clone(),
                     registry: Arc::new(UnsafeCell::new(registry)),
+                    checkers: self.checkers.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);
@@ -560,6 +605,20 @@ impl Server {
     /// Get binded addresses pairs.
     pub fn bind_addrs(&self) -> impl ExactSizeIterator<Item = (&String, u16)> {
         self.core.binders.iter().map(|b| (&b.host, b.port))
+    }
+
+    /// Add an rpc channel for an established connection represented as a file
+    /// descriptor. Takes ownership of the file descriptor, closing it when
+    /// channel is closed.
+    ///
+    /// # Safety
+    ///
+    /// The file descriptor must correspond to a connected stream socket. After
+    /// this call, the socket must not be accessed (read / written / closed)
+    /// by other code.
+    #[cfg(unix)]
+    pub unsafe fn add_insecure_channel_from_fd(&self, fd: ::std::os::raw::c_int) {
+        grpc_sys::grpc_server_add_insecure_channel_from_fd(self.core.server, ptr::null_mut(), fd)
     }
 }
 

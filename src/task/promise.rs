@@ -65,7 +65,7 @@ impl Batch {
             let mut guard = self.inner.lock();
             if succeed {
                 let status = self.ctx.rpc_status();
-                if status.status == RpcStatusCode::OK {
+                if status.code() == RpcStatusCode::OK {
                     guard.set_result(Ok((
                         self.ctx.recv_initial_metadata(),
                         None,
@@ -85,7 +85,7 @@ impl Batch {
         let task = {
             let mut guard = self.inner.lock();
             let status = self.ctx.rpc_status();
-            if status.status == RpcStatusCode::OK {
+            if status.code() == RpcStatusCode::OK {
                 guard.set_result(Ok((
                     self.ctx.recv_initial_metadata(),
                     self.ctx.recv_message(),
@@ -120,24 +120,22 @@ impl Debug for Batch {
     }
 }
 
-/// A promise used to resolve async shutdown result.
-pub struct Shutdown {
-    inner: Arc<Inner<()>>,
+/// A promise used to resolve async action status.
+///
+/// The action can only succeed or fail without extra error hint.
+pub struct Action {
+    inner: Arc<Inner<bool>>,
 }
 
-impl Shutdown {
-    pub fn new(inner: Arc<Inner<()>>) -> Shutdown {
-        Shutdown { inner }
+impl Action {
+    pub fn new(inner: Arc<Inner<bool>>) -> Action {
+        Action { inner }
     }
 
     pub fn resolve(self, success: bool) {
         let task = {
             let mut guard = self.inner.lock();
-            if success {
-                guard.set_result(Ok(()))
-            } else {
-                guard.set_result(Err(Error::ShutdownFailed))
-            }
+            guard.set_result(Ok(success))
         };
         task.map(|t| t.wake());
     }
