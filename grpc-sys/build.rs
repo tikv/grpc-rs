@@ -172,7 +172,11 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BUILD_CODEGEN", "false");
         // We don't need to build benchmarks.
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
-        config.define("gRPC_SSL_PROVIDER", "package");
+
+        if cfg!(feature = "secure") {
+            config.define("gRPC_SSL_PROVIDER", "package");
+        }
+        #[cfg(feature = "secure")]
         if cfg!(feature = "openssl") {
             if cfg!(feature = "openssl-vendored") {
                 config.register_dep("openssl");
@@ -254,6 +258,7 @@ fn figure_ssl_path(build_dir: &str) {
     println!("cargo:rustc-link-lib=crypto");
 }
 
+#[cfg(feature = "secure")]
 fn build_boringssl(config: &mut CmakeConfig) {
     let boringssl_artifact = boringssl_src::Build::new().build();
     config.define(
