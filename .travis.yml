@@ -14,7 +14,8 @@ env:
     # absl deadlock detection performs poorly on arm, so we build it release
     # mode to skip the check. Enabling debug-assertions to get safer test
     # results.
-    - RUSTFLAGS="--deny=warnings -C debug-assertions"
+    # Some of the bindgen tests generate "deref-nullptr" warnings, see https://github.com/rust-lang/rust-bindgen/issues/1651
+    - RUSTFLAGS="--deny=warnings -C debug-assertions --allow deref-nullptr"
     - TEST_BIND=1
 
 addons:
