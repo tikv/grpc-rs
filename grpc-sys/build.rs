@@ -173,6 +173,8 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         // We don't need to build benchmarks.
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
 
+        // `package` should only be set for secure feature, otherwise cmake will always search for
+        // ssl library.
         if cfg!(feature = "secure") {
             config.define("gRPC_SSL_PROVIDER", "package");
         }
