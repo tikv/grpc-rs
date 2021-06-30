@@ -54,3 +54,8 @@ travis-ci = { repository = "tikv/grpc-rs" }
 
 [patch.crates-io]
 grpcio-compiler = { path = "compiler", version = "0.9.0", default-features = false }
+
+[target.'cfg(any(not(linux), not(any(target_arch = "x86_64", target_arch = "aarch64"))))'.dependencies.grpcio]
+version = "0.9.0"
+default-features = false
+features = ["secure", "use-bindgen"]
