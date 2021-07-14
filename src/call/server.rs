@@ -2,7 +2,6 @@
 
 use std::ffi::CStr;
 use std::pin::Pin;
-use std::ptr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{result, slice};
@@ -371,11 +370,12 @@ macro_rules! impl_unary_sink {
                     (self.ser)(t, &mut buf);
                     buf
                 });
-
+                let headers = &mut self.headers;
                 let write_flags = self.write_flags;
+
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, &mut self.headers, true, &mut data, write_flags)
+                        .start_send_status_from_server(&status, headers, true, &mut data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
