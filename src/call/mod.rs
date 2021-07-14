@@ -393,6 +393,7 @@ impl Call {
     pub fn start_send_status_from_server(
         &mut self,
         status: &RpcStatus,
+        initial_metadata: &mut Option<Metadata>,
         send_empty_metadata: bool,
         payload: &mut Option<GrpcSlice>,
         write_flags: u32,
@@ -409,7 +410,7 @@ impl Call {
                 Some(p) => p.as_mut_ptr(),
                 None => ptr::null_mut(),
             };
-            let mut trailing_metadata = if status.details.is_empty() {
+            let mut trailing_metadata: Option<Metadata> = if status.details.is_empty() {
                 None
             } else {
                 let mut builder = MetadataBuilder::new();
@@ -422,6 +423,9 @@ impl Call {
                 status.code().into(),
                 msg_ptr as _,
                 msg_len,
+                initial_metadata
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
                 trailing_metadata
                     .as_mut()
                     .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
@@ -458,6 +462,7 @@ impl Call {
                 status.code().into(),
                 msg_ptr as _,
                 msg_len,
+                ptr::null_mut(),
                 ptr::null_mut(),
                 1,
                 ptr::null_mut(),

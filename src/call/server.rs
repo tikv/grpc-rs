@@ -2,6 +2,7 @@
 
 use std::ffi::CStr;
 use std::pin::Pin;
+use std::ptr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{result, slice};
@@ -338,6 +339,7 @@ macro_rules! impl_unary_sink {
             call: Option<$holder>,
             write_flags: u32,
             ser: SerializeFn<T>,
+            headers: Option<Metadata>,
         }
 
         impl<T> $t<T> {
@@ -346,7 +348,13 @@ macro_rules! impl_unary_sink {
                     call: Some(call),
                     write_flags: 0,
                     ser,
+                    headers: None,
                 }
+            }
+
+            pub fn set_headers(mut self, meta: Metadata) -> $t<T> {
+                self.headers = Some(meta);
+                self
             }
 
             pub fn success(self, t: T) -> $rt {
@@ -367,7 +375,7 @@ macro_rules! impl_unary_sink {
                 let write_flags = self.write_flags;
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, true, &mut data, write_flags)
+                        .start_send_status_from_server(&status, &mut self.headers, true, &mut data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -470,7 +478,7 @@ macro_rules! impl_stream_sink {
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, send_metadata, &mut None, 0)
+                        .start_send_status_from_server(&status, &mut None, send_metadata, &mut None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -536,7 +544,7 @@ macro_rules! impl_stream_sink {
                     let status = &t.status;
                     let flush_f = t.call.as_mut().unwrap().call(|c| {
                         c.call
-                            .start_send_status_from_server(status, send_metadata, &mut None, 0)
+                            .start_send_status_from_server(status, &mut None, send_metadata, &mut None, 0)
                     })?;
                     t.flush_f = Some(flush_f);
                 }
