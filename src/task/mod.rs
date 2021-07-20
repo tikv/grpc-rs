@@ -16,13 +16,14 @@ use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryReq
 use self::executor::SpawnTask;
 use self::promise::{Action as ActionPromise, Batch as BatchPromise};
 use crate::call::server::RequestContext;
-use crate::call::{BatchContext, Call, MessageReader};
+use crate::call::{BatchContext, Call};
 use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
 pub use self::promise::BatchType;
+pub use self::promise::BatchResult;
 
 /// A handle that is used to notify future that the task finishes.
 pub struct NotifyHandle<T> {
@@ -104,7 +105,7 @@ impl<T> Future for CqFuture<T> {
 }
 
 /// Future object for batch jobs.
-pub type BatchFuture = CqFuture<Option<MessageReader>>;
+pub type BatchFuture = CqFuture<BatchResult>;
 
 /// A result holder for asynchronous execution.
 // This enum is going to be passed to FFI, so don't use trait or generic here.

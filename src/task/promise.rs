@@ -4,6 +4,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use super::Inner;
+use crate::Metadata;
 use crate::call::{BatchContext, MessageReader, RpcStatusCode};
 use crate::error::Error;
 
@@ -22,11 +23,14 @@ pub enum BatchType {
 pub struct Batch {
     ty: BatchType,
     ctx: BatchContext,
-    inner: Arc<Inner<Option<MessageReader>>>,
+    inner: Arc<Inner<BatchResult>>,
 }
 
+pub type BatchResult = (Option<MessageReader>, Option<Metadata>, Option<Metadata>); // Message reader, initial metadata, and trailing metadata.
+
+
 impl Batch {
-    pub fn new(ty: BatchType, inner: Arc<Inner<Option<MessageReader>>>) -> Batch {
+    pub fn new(ty: BatchType, inner: Arc<Inner<BatchResult>>) -> Batch {
         Batch {
             ty,
             ctx: BatchContext::new(),
@@ -42,11 +46,11 @@ impl Batch {
         let task = {
             let mut guard = self.inner.lock();
             if success {
-                guard.set_result(Ok(self.ctx.recv_message()))
+                guard.set_result(Ok((self.ctx.recv_message(), None, None)))
             } else {
                 // rely on C core to handle the failed read (e.g. deliver approriate
                 // statusCode on the clientside).
-                guard.set_result(Ok(None))
+                guard.set_result(Ok((None, None, None)))
             }
         };
         task.map(|t| t.wake());
@@ -58,7 +62,7 @@ impl Batch {
             if succeed {
                 let status = self.ctx.rpc_status();
                 if status.code() == RpcStatusCode::OK {
-                    guard.set_result(Ok(None))
+                    guard.set_result(Ok((None, None, None)))
                 } else {
                     guard.set_result(Err(Error::RpcFailure(status)))
                 }
@@ -74,7 +78,13 @@ impl Batch {
             let mut guard = self.inner.lock();
             let status = self.ctx.rpc_status();
             if status.code() == RpcStatusCode::OK {
-                guard.set_result(Ok(self.ctx.recv_message()))
+                guard.set_result(
+                    Ok((
+                        self.ctx.recv_message(),
+                        Some(self.ctx.initial_metadata()),
+                        Some(self.ctx.trailing_metadata()),
+                    ))
+                )
             } else {
                 guard.set_result(Err(Error::RpcFailure(status)))
             }

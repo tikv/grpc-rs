@@ -20,7 +20,7 @@ use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader, GrpcSlice};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
-use crate::task::{self, BatchFuture, BatchType, CallTag};
+use crate::task::{self, BatchFuture, BatchType, CallTag, BatchResult};
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -286,6 +286,28 @@ impl BatchContext {
         let buf = self.take_recv_message()?;
         Some(GrpcByteBufferReader::new(buf))
     }
+
+    pub fn initial_metadata(&self) -> Metadata {
+        unsafe {
+            let ptr = grpc_sys::grpcwrap_batch_context_recv_initial_metadata(self.ctx);
+            Metadata::from_raw_parts(
+                (*ptr).metadata,
+                (*ptr).count,
+                (*ptr).capacity,
+            )
+        }
+    }
+
+    pub fn trailing_metadata(&self) -> Metadata {
+        unsafe {
+            let ptr = grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx);
+            Metadata::from_raw_parts(
+                (*ptr).metadata,
+                (*ptr).count,
+                (*ptr).capacity,
+            )
+        }
+    }
 }
 
 impl Drop for BatchContext {
@@ -523,7 +545,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self, cx: &mut Context) -> Poll<Result<Option<MessageReader>>> {
+    fn poll_finish(&mut self, cx: &mut Context) -> Poll<Result<BatchResult>> {
         let res = match Pin::new(&mut self.close_f).poll(cx) {
             Poll::Ready(Ok(reader)) => {
                 self.status = Some(RpcStatus::ok());
@@ -608,7 +630,7 @@ impl StreamingBase {
         let mut bytes = None;
         if !self.read_done {
             if let Some(msg_f) = &mut self.msg_f {
-                bytes = ready!(Pin::new(msg_f).poll(cx)?);
+                bytes = ready!(Pin::new(msg_f).poll(cx)?).0;
                 if bytes.is_none() {
                     self.read_done = true;
                 }

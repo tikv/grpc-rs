@@ -6,10 +6,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::grpc_sys;
-use futures::ready;
-use futures::sink::Sink;
-use futures::stream::Stream;
-use futures::task::{Context, Poll};
+use futures::{
+    ready,
+    sink::Sink,
+    stream::Stream,
+    task::{Context, Poll},
+};
 use parking_lot::Mutex;
 use std::future::Future;
 
@@ -224,6 +226,9 @@ pub struct ClientUnaryReceiver<T> {
     call: Call,
     resp_f: BatchFuture,
     resp_de: DeserializeFn<T>,
+    message: Option<T>,
+    initial_metadata: Option<Metadata>,
+    trailing_metadata: Option<Metadata>,
 }
 
 impl<T> ClientUnaryReceiver<T> {
@@ -232,6 +237,9 @@ impl<T> ClientUnaryReceiver<T> {
             call,
             resp_f,
             resp_de,
+            message: None,
+            initial_metadata: None,
+            trailing_metadata: None,
         }
     }
 
@@ -245,6 +253,14 @@ impl<T> ClientUnaryReceiver<T> {
     pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
         (self.resp_de)(reader)
     }
+
+    pub fn headers(&self) -> Result<Option<Metadata>> {
+        Ok(self.initial_metadata.clone())
+    }
+
+    pub fn trailer(&self) -> Result<Option<Metadata>> {
+        Ok(self.trailing_metadata.clone())
+    }
 }
 
 impl<T> Future for ClientUnaryReceiver<T> {
@@ -252,7 +268,9 @@ impl<T> Future for ClientUnaryReceiver<T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
         let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
-        let t = self.resp_de(data.unwrap())?;
+        let t = self.resp_de(data.0.unwrap())?;
+        self.initial_metadata = data.1;
+        self.trailing_metadata = data.2;
         Poll::Ready(Ok(t))
     }
 }
@@ -302,7 +320,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             ready!(call.poll_finish(cx)?)
         };
-        let t = (self.resp_de)(data.unwrap())?;
+        let t = (self.resp_de)(data.0.unwrap())?;
         self.finished = true;
         Poll::Ready(Ok(t))
     }
@@ -459,7 +477,7 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
         loop {
             if !self.read_done {
                 if let Some(msg_f) = &mut self.msg_f {
-                    bytes = ready!(Pin::new(msg_f).poll(cx)?);
+                    bytes = ready!(Pin::new(msg_f).poll(cx)?).0;
                     if bytes.is_none() {
                         self.read_done = true;
                     }
