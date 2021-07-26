@@ -266,11 +266,11 @@ impl<T> ClientUnaryReceiver<T> {
 impl<T> Future for ClientUnaryReceiver<T> {
     type Output = Result<T>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
         let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
-        let t = self.resp_de(data.0.unwrap())?;
-        self.initial_metadata = data.1;
-        self.trailing_metadata = data.2;
+        let t = self.resp_de(data.message_reader.unwrap())?;
+        // (*self).initial_metadata = data.initial_metadata;
+        // (*self).trailing_metadata = data.trailing_metadata;
         Poll::Ready(Ok(t))
     }
 }
@@ -320,7 +320,7 @@ impl<T> Future for ClientCStreamReceiver<T> {
             let mut call = self.call.lock();
             ready!(call.poll_finish(cx)?)
         };
-        let t = (self.resp_de)(data.0.unwrap())?;
+        let t = (self.resp_de)(data.message_reader.unwrap())?;
         self.finished = true;
         Poll::Ready(Ok(t))
     }
@@ -477,7 +477,7 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
         loop {
             if !self.read_done {
                 if let Some(msg_f) = &mut self.msg_f {
-                    bytes = ready!(Pin::new(msg_f).poll(cx)?).0;
+                    bytes = ready!(Pin::new(msg_f).poll(cx)?).message_reader;
                     if bytes.is_none() {
                         self.read_done = true;
                     }

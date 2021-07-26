@@ -630,7 +630,7 @@ impl StreamingBase {
         let mut bytes = None;
         if !self.read_done {
             if let Some(msg_f) = &mut self.msg_f {
-                bytes = ready!(Pin::new(msg_f).poll(cx)?).0;
+                bytes = ready!(Pin::new(msg_f).poll(cx)?).message_reader;
                 if bytes.is_none() {
                     self.read_done = true;
                 }
