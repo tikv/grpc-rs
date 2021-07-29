@@ -21,7 +21,7 @@ use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
-use crate::metadata::Metadata;
+use crate::metadata::{Metadata, MetadataBuilder};
 use crate::task::{BatchFuture, BatchType};
 
 /// Update the flag bit in res.
@@ -226,9 +226,8 @@ pub struct ClientUnaryReceiver<T> {
     call: Call,
     resp_f: BatchFuture,
     resp_de: DeserializeFn<T>,
-    message: Option<T>,
-    initial_metadata: Option<Metadata>,
-    trailing_metadata: Option<Metadata>,
+    initial_metadata: Metadata,
+    trailing_metadata: Metadata,
 }
 
 impl<T> ClientUnaryReceiver<T> {
@@ -237,9 +236,8 @@ impl<T> ClientUnaryReceiver<T> {
             call,
             resp_f,
             resp_de,
-            message: None,
-            initial_metadata: None,
-            trailing_metadata: None,
+            initial_metadata: MetadataBuilder::new().build(),
+            trailing_metadata: MetadataBuilder::new().build(),
         }
     }
 
@@ -254,23 +252,23 @@ impl<T> ClientUnaryReceiver<T> {
         (self.resp_de)(reader)
     }
 
-    pub fn headers(&self) -> Result<Option<Metadata>> {
-        Ok(self.initial_metadata.clone())
+    pub fn headers(&self) -> &Metadata {
+        &self.initial_metadata
     }
 
-    pub fn trailer(&self) -> Result<Option<Metadata>> {
-        Ok(self.trailing_metadata.clone())
+    pub fn trailer(&self) -> &Metadata {
+        &self.trailing_metadata
     }
 }
 
 impl<T> Future for ClientUnaryReceiver<T> {
     type Output = Result<T>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
         let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
         let t = self.resp_de(data.message_reader.unwrap())?;
-        // (*self).initial_metadata = data.initial_metadata;
-        // (*self).trailing_metadata = data.trailing_metadata;
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
         Poll::Ready(Ok(t))
     }
 }

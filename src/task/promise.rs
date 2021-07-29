@@ -6,7 +6,7 @@ use std::sync::Arc;
 use super::Inner;
 use crate::call::{BatchContext, MessageReader, RpcStatusCode};
 use crate::error::Error;
-use crate::Metadata;
+use crate::{Metadata, MetadataBuilder};
 
 /// Batch job type.
 #[derive(PartialEq, Debug)]
@@ -19,10 +19,40 @@ pub enum BatchType {
     CheckRead,
 }
 
+/// A promise result which stores a message reader with bundled metadata.
 pub struct BatchResult {
     pub message_reader: Option<MessageReader>,
-    pub initial_metadata: Option<Metadata>,
-    pub trailing_metadata: Option<Metadata>,
+    pub initial_metadata: Metadata,
+    pub trailing_metadata: Metadata,
+}
+
+impl BatchResult {
+    pub fn new(
+        message_reader: Option<MessageReader>,
+        initial_metadata: Option<Metadata>,
+        trailing_metadata: Option<Metadata>,
+    ) -> BatchResult {
+        let initial_metadata = if let Some(m) = initial_metadata {
+            println!("got metadata");
+            for (key, val) in &m {
+                println!("{}: {}", key, std::str::from_utf8(val).unwrap());
+            }
+
+            m
+        } else {
+            MetadataBuilder::new().build()
+        };
+        let trailing_metadata = if let Some(m) = trailing_metadata {
+            m
+        } else {
+            MetadataBuilder::new().build()
+        };
+        BatchResult {
+            message_reader,
+            initial_metadata,
+            trailing_metadata,
+        }
+    }
 }
 
 /// A promise used to resolve batch jobs.
@@ -49,19 +79,11 @@ impl Batch {
         let task = {
             let mut guard = self.inner.lock();
             if success {
-                guard.set_result(Ok(BatchResult {
-                    message_reader: self.ctx.recv_message(),
-                    initial_metadata: None,
-                    trailing_metadata: None,
-                }))
+                guard.set_result(Ok(BatchResult::new(self.ctx.recv_message(), None, None)))
             } else {
                 // rely on C core to handle the failed read (e.g. deliver approriate
                 // statusCode on the clientside).
-                guard.set_result(Ok(BatchResult {
-                    message_reader: None,
-                    initial_metadata: None,
-                    trailing_metadata: None,
-                }))
+                guard.set_result(Ok(BatchResult::new(None, None, None)))
             }
         };
         task.map(|t| t.wake());
@@ -73,11 +95,7 @@ impl Batch {
             if succeed {
                 let status = self.ctx.rpc_status();
                 if status.code() == RpcStatusCode::OK {
-                    guard.set_result(Ok(BatchResult {
-                        message_reader: None,
-                        initial_metadata: None,
-                        trailing_metadata: None,
-                    }))
+                    guard.set_result(Ok(BatchResult::new(None, None, None)))
                 } else {
                     guard.set_result(Err(Error::RpcFailure(status)))
                 }
@@ -93,11 +111,11 @@ impl Batch {
             let mut guard = self.inner.lock();
             let status = self.ctx.rpc_status();
             if status.code() == RpcStatusCode::OK {
-                guard.set_result(Ok(BatchResult {
-                    message_reader: self.ctx.recv_message(),
-                    initial_metadata: Some(self.ctx.initial_metadata()),
-                    trailing_metadata: Some(self.ctx.trailing_metadata()),
-                }))
+                guard.set_result(Ok(BatchResult::new(
+                    self.ctx.recv_message(),
+                    Some(self.ctx.initial_metadata()),
+                    Some(self.ctx.trailing_metadata()),
+                )))
             } else {
                 guard.set_result(Err(Error::RpcFailure(status)))
             }
