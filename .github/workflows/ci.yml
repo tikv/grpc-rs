@@ -122,3 +122,28 @@ jobs:
       run: |
         ls -alh target/package/grpcio-sys-*.crate
         test `cat target/package/grpcio-sys-*.crate | wc -c` -le 10485760
+
+  Linux-Arm64:
+    name: Linux-Arm64
+    runs-on: ARM64
+    steps:
+    - run: cargo xtask submodule
+    - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
+    - name: Check bindings and format
+      run: |
+        rustup component add rustfmt && cargo fmt --all -- --check;
+        env TEST_BIND=0 cargo xtask bindgen && git diff --exit-code HEAD;
+    - run: cargo xtask bindgen
+    - run: cargo build --no-default-features
+    - run: cargo build --no-default-features --features protobuf-codec
+    - run: cargo build --no-default-features --features prost-codec
+    - run: cargo build
+    - run: cargo test --release --all
+  
+  Linux-Arm64-Openssl:
+    name: Linux-Arm64-Openssl
+    runs-on: ARM64
+    steps:
+    - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
+    - run: cargo xtask submodule
+    - run: cargo test --release --features "openssl-vendored" --all
