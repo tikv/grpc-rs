@@ -29,8 +29,15 @@ jobs:
     - run: cargo xtask clang-lint && git diff-index --quiet HEAD
 
   Linux-Stable:
-    name: Linux-Stable
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - host: ubuntu-latest
+            profile: 
+          - host: ARM64
+            profile: --release
+    name: Linux-Stable-${{ matrix.host }}
+    runs-on: ${{ matrix.host }}
     steps:
     - uses: actions/checkout@v2
     - run: sudo apt install -y protobuf-compiler
@@ -44,18 +51,25 @@ jobs:
     - run: cargo build --no-default-features --features prost-codec
     - run: cd proto && cargo build --no-default-features --features prost-codec
     - run: cargo build
-    - run: cargo test --all
+    - run: cargo test --all ${{ matrix.profile }}
 
   Linux-Stable-openssl:
-    name: Linux-Stable-openssl
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - host: ubuntu-latest
+            profile: 
+          - host: ARM64
+            profile: --release
+    name: Linux-Stable-openssl-${{ matrix.host }}
+    runs-on: ${{ matrix.host }}
     steps:
     - uses: actions/checkout@v2
     - run: which go && go version && which cargo && cargo version && clang --version && openssl version
     - run: cargo xtask submodule
-    - run: cargo test --features "openssl-vendored" --all
+    - run: cargo test --features "openssl-vendored" --all ${{ matrix.profile }}
     - run: cargo clean
-    - run: cargo test --features "openssl" --all
+    - run: cargo test --features "openssl" --all ${{ matrix.profile }}
 
   Linux-Nightly:
     name: Linux-Nightly
@@ -122,29 +136,3 @@ jobs:
       run: |
         ls -alh target/package/grpcio-sys-*.crate
         test `cat target/package/grpcio-sys-*.crate | wc -c` -le 10485760
-
-  Linux-Arm64:
-    name: Linux-Arm64
-    runs-on: ARM64
-    steps:
-    - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
-    - run: cargo xtask submodule
-    - name: Check bindings and format
-      run: |
-        rustup component add rustfmt && cargo fmt --all -- --check;
-        env TEST_BIND=0 cargo xtask bindgen && git diff --exit-code HEAD;
-    - run: cargo xtask bindgen
-    - run: cargo build --no-default-features
-    - run: cargo build --no-default-features --features protobuf-codec
-    - run: cargo build --no-default-features --features prost-codec
-    - run: cargo build
-    - run: cargo test --release --all
-  
-  Linux-Arm64-Openssl:
-    name: Linux-Arm64-Openssl
-    runs-on: ARM64
-    steps:
-    - run: ls && pwd
-    - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
-    - run: cargo xtask submodule
-    - run: cargo test --release --features "openssl-vendored" --all
