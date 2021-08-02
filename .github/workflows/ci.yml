@@ -127,13 +127,8 @@ jobs:
     name: Linux-Arm64
     runs-on: ARM64
     steps:
-    - run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-    - name: Install Rust
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
-        rustup toolchain install stable --allow-downgrade --profile minimal --component clippy
-    - run: cargo xtask submodule
     - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
+    - run: cargo xtask submodule
     - name: Check bindings and format
       run: |
         rustup component add rustfmt && cargo fmt --all -- --check;
@@ -149,11 +144,7 @@ jobs:
     name: Linux-Arm64-Openssl
     runs-on: ARM64
     steps:
-    - run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-    - name: Install Rust
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
-        rustup toolchain install stable --allow-downgrade --profile minimal --component clippy
+    - run: ls && pwd
     - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
     - run: cargo xtask submodule
     - run: cargo test --release --features "openssl-vendored" --all
