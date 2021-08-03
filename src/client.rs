@@ -37,7 +37,7 @@ impl Client {
         req: &Req,
         opt: CallOption,
     ) -> Result<Resp> {
-        block_on(self.unary_call_async(method, req, opt)?)
+        block_on(self.unary_call_async(method, req, opt)?.message())
     }
 
     /// Create an asynchronized unary RPC call.

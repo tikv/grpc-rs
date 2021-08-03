@@ -224,8 +224,10 @@ impl Call {
 #[must_use = "if unused the ClientUnaryReceiver may immediately cancel the RPC"]
 pub struct ClientUnaryReceiver<T> {
     call: Call,
+    awaited: bool,
     resp_f: BatchFuture,
     resp_de: DeserializeFn<T>,
+    message: Option<T>,
     initial_metadata: Metadata,
     trailing_metadata: Metadata,
 }
@@ -236,6 +238,8 @@ impl<T> ClientUnaryReceiver<T> {
             call,
             resp_f,
             resp_de,
+            awaited: false,
+            message: None,
             initial_metadata: MetadataBuilder::new().build(),
             trailing_metadata: MetadataBuilder::new().build(),
         }
@@ -248,28 +252,34 @@ impl<T> ClientUnaryReceiver<T> {
     }
 
     #[inline]
-    pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
+    pub fn resp_de(&mut self, reader: MessageReader) -> Result<T> {
         (self.resp_de)(reader)
     }
 
-    pub fn headers(&self) -> &Metadata {
-        &self.initial_metadata
+    async fn wait_for_batch_future(&mut self) -> Result<()> {
+        if self.awaited { return Ok(()) }
+
+        let data = Pin::new(&mut self.resp_f).await?;
+        self.initial_metadata = data.initial_metadata.clone();
+        self.trailing_metadata = data.trailing_metadata.clone();
+        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.awaited = true;
+        Ok(())
     }
 
-    pub fn trailer(&self) -> &Metadata {
-        &self.trailing_metadata
+    pub async fn message(&mut self) -> Result<T> {
+        self.wait_for_batch_future().await?;
+        Ok(self.message.take().unwrap())
     }
-}
 
-impl<T> Future for ClientUnaryReceiver<T> {
-    type Output = Result<T>;
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.initial_metadata)
+    }
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
-        let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
-        let t = self.resp_de(data.message_reader.unwrap())?;
-        self.initial_metadata = data.initial_metadata;
-        self.trailing_metadata = data.trailing_metadata;
-        Poll::Ready(Ok(t))
+    pub async fn trailer(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.trailing_metadata)
     }
 }
 

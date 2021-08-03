@@ -254,6 +254,21 @@ impl Drop for Metadata {
     }
 }
 
+impl From<*const grpc_metadata_array> for Metadata {
+    fn from(src: *const grpc_metadata_array) -> Self {
+        let m = unsafe {
+            Metadata::from_raw_parts(
+                (*src).metadata,
+                (*src).count,
+                (*src).capacity,
+            )
+        };
+        let result = m.clone();
+        m.into_raw_parts(); // Don't auto-drop the source metadata right now. 
+        result
+    }
+}
+
 unsafe impl Send for Metadata {}
 
 /// Immutable metadata iterator

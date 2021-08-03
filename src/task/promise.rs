@@ -33,11 +33,6 @@ impl BatchResult {
         trailing_metadata: Option<Metadata>,
     ) -> BatchResult {
         let initial_metadata = if let Some(m) = initial_metadata {
-            println!("got metadata");
-            for (key, val) in &m {
-                println!("{}: {}", key, std::str::from_utf8(val).unwrap());
-            }
-
             m
         } else {
             MetadataBuilder::new().build()

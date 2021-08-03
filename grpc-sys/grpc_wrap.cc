@@ -701,16 +701,16 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
     ops[nops].reserved = nullptr;
     nops++;
   }
-  if (send_empty_initial_metadata) {
-    ops[nops].op = GRPC_OP_SEND_INITIAL_METADATA;
-    ops[nops].flags = 0;
-    ops[nops].reserved = nullptr;
-    nops++;
-  } else if (initial_metadata) {
+  if (initial_metadata) {
     ops[nops].op = GRPC_OP_SEND_INITIAL_METADATA;
     grpcwrap_metadata_array_move(&(ctx->send_initial_metadata), initial_metadata);
     ops[nops].data.send_initial_metadata.count = ctx->send_initial_metadata.count;
     ops[nops].data.send_initial_metadata.metadata = ctx->send_initial_metadata.metadata;
+    ops[nops].flags = 0;
+    ops[nops].reserved = nullptr;
+    nops++;
+  } else if (send_empty_initial_metadata) {
+    ops[nops].op = GRPC_OP_SEND_INITIAL_METADATA;
     ops[nops].flags = 0;
     ops[nops].reserved = nullptr;
     nops++;
