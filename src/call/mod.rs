@@ -20,7 +20,7 @@ use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader, GrpcSlice};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
-use crate::task::{self, BatchFuture, BatchType, CallTag, BatchResult};
+use crate::task::{self, BatchFuture, BatchResult, BatchType, CallTag};
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -288,14 +288,13 @@ impl BatchContext {
     }
 
     pub fn initial_metadata(&self) -> Metadata {
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_initial_metadata(self.ctx).into()
-        }
+        unsafe { grpc_sys::grpcwrap_batch_context_recv_initial_metadata(self.ctx).into() }
     }
 
     pub fn trailing_metadata(&self) -> Metadata {
         unsafe {
-            grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx).into()
+            grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx)
+                .into()
         }
     }
 }

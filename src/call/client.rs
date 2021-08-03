@@ -257,7 +257,9 @@ impl<T> ClientUnaryReceiver<T> {
     }
 
     async fn wait_for_batch_future(&mut self) -> Result<()> {
-        if self.awaited { return Ok(()) }
+        if self.awaited {
+            return Ok(());
+        }
 
         let data = Pin::new(&mut self.resp_f).await?;
         self.initial_metadata = data.initial_metadata.clone();
