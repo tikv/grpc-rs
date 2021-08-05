@@ -147,7 +147,7 @@ impl MetadataBuilder {
 /// Metadata value can be ascii string or bytes. They are distinguish by the
 /// key suffix, key of bytes value should have suffix '-bin'.
 #[repr(C)]
-pub struct Metadata(grpc_metadata_array);
+pub struct Metadata(pub grpc_metadata_array);
 
 impl Metadata {
     fn with_capacity(cap: usize) -> Metadata {
@@ -251,15 +251,6 @@ impl Drop for Metadata {
         unsafe {
             grpc_sys::grpcwrap_metadata_array_cleanup(&mut self.0);
         }
-    }
-}
-
-impl From<*const grpc_metadata_array> for Metadata {
-    fn from(src: *const grpc_metadata_array) -> Self {
-        let m = unsafe { Metadata::from_raw_parts((*src).metadata, (*src).count, (*src).capacity) };
-        let result = m.clone();
-        m.into_raw_parts(); // Don't auto-drop the source metadata right now.
-        result
     }
 }
 
