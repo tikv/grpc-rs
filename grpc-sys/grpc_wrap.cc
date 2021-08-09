@@ -284,12 +284,6 @@ grpcwrap_batch_context_recv_initial_metadata(
   return &(ctx->recv_initial_metadata);
 }
 
-GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_batch_context_take_recv_initial_metadata(
-    grpcwrap_batch_context* ctx, grpc_metadata_array* initial_metadata) {
-    grpcwrap_metadata_array_move(initial_metadata, &(ctx->recv_initial_metadata));
-}
-
 GPR_EXPORT const char* GPR_CALLTYPE
 grpcwrap_slice_raw_offset(const grpc_slice* slice, size_t offset, size_t* len) {
   *len = GRPC_SLICE_LENGTH(*slice) - offset;
@@ -341,12 +335,6 @@ GPR_EXPORT const grpc_metadata_array* GPR_CALLTYPE
 grpcwrap_batch_context_recv_status_on_client_trailing_metadata(
     const grpcwrap_batch_context* ctx) {
   return &(ctx->recv_status_on_client.trailing_metadata);
-}
-
-GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
-    grpcwrap_batch_context* ctx, grpc_metadata_array* trailing_metadata) {
-    grpcwrap_metadata_array_move(trailing_metadata, &(ctx->recv_status_on_client.trailing_metadata));
 }
 
 GPR_EXPORT grpc_call* GPR_CALLTYPE

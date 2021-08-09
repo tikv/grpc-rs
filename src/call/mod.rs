@@ -288,22 +288,14 @@ impl BatchContext {
     }
 
     pub fn initial_metadata(&self) -> Metadata {
-        let mut metadata = MetadataBuilder::new().build();
-        unsafe {
-            grpc_sys::grpcwrap_batch_context_take_recv_initial_metadata(self.ctx, &mut metadata.0);
-        }
-        metadata
+        unsafe { grpc_sys::grpcwrap_batch_context_recv_initial_metadata(self.ctx).into() }
     }
 
     pub fn trailing_metadata(&self) -> Metadata {
-        let mut metadata = MetadataBuilder::new().build();
         unsafe {
-            grpc_sys::grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
-                self.ctx,
-                &mut metadata.0,
-            );
+            grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx)
+                .into()
         }
-        metadata
     }
 }
 
