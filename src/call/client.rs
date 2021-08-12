@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::grpc_sys;
 use futures::{
+    future::poll_fn,
     ready,
     sink::Sink,
     stream::Stream,
@@ -14,6 +15,7 @@ use futures::{
 };
 use parking_lot::Mutex;
 use std::future::Future;
+
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::buf::GrpcSlice;
@@ -149,11 +151,7 @@ impl Call {
 
         let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
         let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser());
-        let recv = ClientCStreamReceiver {
-            call: share_call,
-            resp_de: method.resp_de(),
-            finished: false,
-        };
+        let recv = ClientCStreamReceiver::new(share_call, method.resp_de());
         Ok((sink, recv))
     }
 
@@ -224,9 +222,9 @@ impl Call {
 #[must_use = "if unused the ClientUnaryReceiver may immediately cancel the RPC"]
 pub struct ClientUnaryReceiver<T> {
     call: Call,
-    awaited: bool,
     resp_f: BatchFuture,
     resp_de: DeserializeFn<T>,
+    finished: bool,
     message: Option<T>,
     initial_metadata: Metadata,
     trailing_metadata: Metadata,
@@ -238,7 +236,7 @@ impl<T> ClientUnaryReceiver<T> {
             call,
             resp_f,
             resp_de,
-            awaited: false,
+            finished: false,
             message: None,
             initial_metadata: MetadataBuilder::new().build(),
             trailing_metadata: MetadataBuilder::new().build(),
@@ -257,7 +255,7 @@ impl<T> ClientUnaryReceiver<T> {
     }
 
     async fn wait_for_batch_future(&mut self) -> Result<()> {
-        if self.awaited {
+        if self.finished {
             return Ok(());
         }
 
@@ -265,7 +263,7 @@ impl<T> ClientUnaryReceiver<T> {
         self.initial_metadata = data.initial_metadata.clone();
         self.trailing_metadata = data.trailing_metadata.clone();
         self.message = Some(self.resp_de(data.message_reader.unwrap())?);
-        self.awaited = true;
+        self.finished = true;
         Ok(())
     }
 
@@ -297,9 +295,25 @@ pub struct ClientCStreamReceiver<T> {
     call: Arc<Mutex<ShareCall>>,
     resp_de: DeserializeFn<T>,
     finished: bool,
+    message: Option<T>,
+    initial_metadata: Metadata,
+    trailing_metadata: Metadata,
 }
 
 impl<T> ClientCStreamReceiver<T> {
+
+    /// Private constructor to simplify code in `impl Call`
+    fn new(call: Arc<Mutex<ShareCall>>, resp_de: DeserializeFn<T>) -> ClientCStreamReceiver<T> {
+        ClientCStreamReceiver {
+            call,
+            resp_de,
+            finished: false,
+            message: None,
+            initial_metadata: MetadataBuilder::new().build(),
+            trailing_metadata: MetadataBuilder::new().build(),
+        }
+    }
+
     /// Cancel the call.
     pub fn cancel(&mut self) {
         let lock = self.call.lock();
@@ -310,6 +324,37 @@ impl<T> ClientCStreamReceiver<T> {
     pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
         (self.resp_de)(reader)
     }
+
+    async fn wait_for_batch_future(&mut self) -> Result<()> {
+        if self.finished {
+            return Ok(());
+        }
+        let data = poll_fn(|cx| {
+            let mut call = self.call.lock();
+            call.poll_finish(cx)
+        }).await?;
+
+        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.initial_metadata = data.initial_metadata.clone();
+        self.trailing_metadata = data.trailing_metadata.clone();
+        self.finished = true;
+        Ok(())
+    }
+
+    pub async fn message(&mut self) -> Result<T> {
+        self.wait_for_batch_future().await?;
+        Ok(self.message.take().unwrap())
+    }
+
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.initial_metadata)
+    }
+
+    pub async fn trailer(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.trailing_metadata)
+    }
 }
 
 impl<T> Drop for ClientCStreamReceiver<T> {
@@ -319,20 +364,6 @@ impl<T> Drop for ClientCStreamReceiver<T> {
         if !self.finished {
             self.cancel();
         }
-    }
-}
-
-impl<T> Future for ClientCStreamReceiver<T> {
-    type Output = Result<T>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
-        let data = {
-            let mut call = self.call.lock();
-            ready!(call.poll_finish(cx)?)
-        };
-        let t = (self.resp_de)(data.message_reader.unwrap())?;
-        self.finished = true;
-        Poll::Ready(Ok(t))
     }
 }
 
