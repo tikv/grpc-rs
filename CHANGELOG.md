@@ -1,4 +1,12 @@
-# 0.8.2 - 2012-03-10
+# 0.9.0 - 2021-05-24
+
+- Support rich error (#514)
+- Provide default service implementations (#521)
+- Support abstract UDS (#523)
+- Use default-features=false on libz-sys to allow for zlib-ng (#525)
+- Update grpc to 1.38.0 (#526)
+
+# 0.8.2 - 2021-03-10
 
 - Fix send requirement in connectivity APIs (#516)
 - Add default health service implemetations (#518)
