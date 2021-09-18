@@ -101,7 +101,10 @@ fn test_client_send_all() {
             send_data.push(p);
         }
         let send_stream = futures::stream::iter(send_data);
-        assert_finish!(sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default())))).await);
+        assert_finish!(
+            sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
+                .await
+        );
         let summary = receiver.await.unwrap();
         assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
@@ -115,7 +118,10 @@ fn test_client_send_all() {
         }
         let send_stream = futures::stream::iter(send_data);
         sink.enhance_batch(true);
-        assert_finish!(sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default())))).await);
+        assert_finish!(
+            sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
+                .await
+        );
         let summary = receiver.await.unwrap();
         assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
