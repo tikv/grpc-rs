@@ -88,6 +88,8 @@ mod imp {
         pub host: String,
         pub port: u16,
         cred: Option<ServerCredentials>,
+        // Double allocation to get around C call.
+        #[allow(clippy::redundant_allocation)]
         _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
     }
 
@@ -102,6 +104,7 @@ mod imp {
             }
         }
 
+        #[allow(clippy::redundant_allocation)]
         pub fn with_cred(
             host: String,
             port: u16,

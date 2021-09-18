@@ -9,7 +9,7 @@ pub type SerializeFn<T> = fn(&T, &mut GrpcSlice) -> Result<()>;
 
 /// According to https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md, grpc uses
 /// a four bytes to describe the length of a message, so it should not exceed u32::MAX.
-pub const MAX_MESSAGE_SIZE: usize = u32::MAX as usize;
+pub const MAX_MESSAGE_SIZE: usize = std::u32::MAX as usize;
 
 /// Defines how to serialize and deserialize between the specialized type and byte slice.
 pub struct Marshaller<T> {
@@ -67,9 +67,8 @@ pub mod pb_codec {
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
     use prost::Message;
-    use std::u32;
 
-    use super::MessageReader;
+    use super::{MessageReader, MAX_MESSAGE_SIZE};
     use crate::buf::GrpcSlice;
     use crate::error::{Error, Result};
 

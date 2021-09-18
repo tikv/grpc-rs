@@ -66,7 +66,7 @@ pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
 pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};
 
 pub use crate::auth_context::{AuthContext, AuthProperty, AuthPropertyIter};
-pub use crate::codec::Marshaller;
+pub use crate::codec::{Marshaller, MAX_MESSAGE_SIZE};
 pub use crate::env::{EnvBuilder, Environment};
 pub use crate::error::{Error, Result};
 pub use crate::log_util::redirect_log;
