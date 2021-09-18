@@ -49,9 +49,6 @@ impl RouteGuide for RouteGuideService {
                     break;
                 }
             }
-            // Sleep a while to avoid the possibility that the client will receive
-            // remotestopped error.
-            std::thread::sleep(std::time::Duration::from_millis(100));
             resp.success(summary).await?;
             Ok(())
         }
@@ -68,6 +65,16 @@ impl RouteGuide for RouteGuideService {
     ) {
         unimplemented!()
     }
+}
+
+macro_rules! assert_finish {
+    ($res:expr) => {
+        match $res {
+            // RouteGuide returns early, so `RpcFinished` is possible returned.
+            Ok(()) | Err(grpcio::Error::RpcFinished(None)) => (),
+            Err(e) => panic!("unexpected error {:?}", e),
+        }
+    };
 }
 
 #[test]
@@ -94,9 +101,7 @@ fn test_client_send_all() {
             send_data.push(p);
         }
         let send_stream = futures::stream::iter(send_data);
-        sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
-            .await
-            .unwrap();
+        assert_finish!(sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default())))).await);
         let summary = receiver.await.unwrap();
         assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
@@ -110,9 +115,7 @@ fn test_client_send_all() {
         }
         let send_stream = futures::stream::iter(send_data);
         sink.enhance_batch(true);
-        sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
-            .await
-            .unwrap();
+        assert_finish!(sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default())))).await);
         let summary = receiver.await.unwrap();
         assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
