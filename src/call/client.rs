@@ -486,6 +486,7 @@ struct ResponseStreamImpl<H, T> {
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
+    initial_metadata: Metadata,
 }
 
 impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
@@ -496,6 +497,7 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
             read_done: false,
             finished: false,
             resp_de,
+            initial_metadata: MetadataBuilder::new().build(),
         }
     }
 
@@ -518,9 +520,11 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
         loop {
             if !self.read_done {
                 if let Some(msg_f) = &mut self.msg_f {
-                    bytes = ready!(Pin::new(msg_f).poll(cx)?).message_reader;
+                    let batch_result = ready!(Pin::new(msg_f).poll(cx)?);
+                    bytes = batch_result.message_reader;
                     if bytes.is_none() {
                         self.read_done = true;
+                        dbg!(batch_result.initial_metadata);
                     }
                 }
             }

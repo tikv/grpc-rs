@@ -71,9 +71,11 @@ impl Batch {
     }
 
     fn read_one_msg(&mut self, success: bool) {
+        println!("read_one_msg");
         let task = {
             let mut guard = self.inner.lock();
             if success {
+                dbg!(self.ctx.initial_metadata());
                 guard.set_result(Ok(BatchResult::new(self.ctx.recv_message(), None, None)))
             } else {
                 // rely on C core to handle the failed read (e.g. deliver approriate
@@ -90,7 +92,11 @@ impl Batch {
             if succeed {
                 let status = self.ctx.rpc_status();
                 if status.code() == RpcStatusCode::OK {
-                    guard.set_result(Ok(BatchResult::new(None, None, None)))
+                    guard.set_result(Ok(BatchResult::new(
+                        None,
+                        None,
+                        None,
+                    )))
                 } else {
                     guard.set_result(Err(Error::RpcFailure(status)))
                 }

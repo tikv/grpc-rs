@@ -3993,7 +3993,7 @@ extern "C" {
         ctx: *mut grpcwrap_batch_context,
         send_buffer: *mut grpc_slice,
         write_flags: u32,
-        send_empty_initial_metadata: i32,
+        initial_metadata: *mut grpc_metadata_array,
         tag: *mut ::std::os::raw::c_void,
     ) -> grpc_call_error;
 }

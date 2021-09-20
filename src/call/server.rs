@@ -455,6 +455,10 @@ macro_rules! impl_stream_sink {
                 }
             }
 
+            pub fn set_headers(&mut self, meta: Metadata) {
+                self.base.headers = meta;
+            }
+
             /// By default it always sends messages with their configured buffer hint. But when the
             /// `enhance_batch` is enabled, messages will be batched together as many as possible.
             /// The rules are listed as below:

@@ -2,6 +2,7 @@
 
 use crate::grpc_sys::{self, grpc_metadata, grpc_metadata_array};
 use std::borrow::Cow;
+use std::fmt;
 use std::mem::ManuallyDrop;
 use std::{mem, slice, str};
 
@@ -225,7 +226,7 @@ impl Metadata {
     }
 
     pub fn from_raw(src: *const grpc_metadata_array) -> Self {
-        unsafe { 
+        unsafe {
             let metadata = &*(src as *const Metadata);
             metadata.clone()
         }
@@ -242,6 +243,16 @@ impl Metadata {
     }
 }
 
+impl fmt::Debug for Metadata {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_map()
+            .entries(
+                self.iter()
+                    .map(|(k, v)| (k, std::str::from_utf8(v).unwrap_or("?"))),
+            )
+            .finish()
+    }
+}
 
 impl Clone for Metadata {
     fn clone(&self) -> Metadata {

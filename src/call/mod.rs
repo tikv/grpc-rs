@@ -359,17 +359,16 @@ impl Call {
         &mut self,
         msg: &mut GrpcSlice,
         write_flags: u32,
-        initial_meta: bool,
+        initial_metadata: Option<&mut Metadata>,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
                 msg.as_mut_ptr(),
                 write_flags,
-                i,
+                initial_metadata.map_or_else(ptr::null_mut, |m| m as *mut _ as _),
                 tag,
             )
         });
@@ -703,6 +702,7 @@ impl WriteFlags {
 struct SinkBase {
     // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
+    headers: Metadata,
     send_metadata: bool,
     // Flag to indicate if enhance batch strategy. This behavior will modify the `buffer_hint` to batch
     // messages as much as possible.
@@ -720,11 +720,12 @@ impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
+            headers: MetadataBuilder::new().build(),
+            send_metadata,
+            enhance_buffer_strategy: false,
             buffer: GrpcSlice::default(),
             buf_flags: None,
             last_buf_hint: true,
-            send_metadata,
-            enhance_buffer_strategy: false,
         }
     }
 
@@ -802,12 +803,17 @@ impl SinkBase {
         // `start_send` is supposed to be called after `poll_ready` returns ready.
         assert!(self.batch_f.is_none());
 
+        let buffer = &mut self.buffer;
         let mut flags = self.buf_flags.clone().unwrap();
         flags = flags.buffer_hint(buffer_hint);
-        let write_f = call.call(|c| {
-            c.call
-                .start_send_message(&mut self.buffer, flags.flags, self.send_metadata)
-        })?;
+
+        let headers = if self.send_metadata {
+            Some(&mut self.headers)
+        } else {
+            None
+        };
+
+        let write_f = call.call(|c| c.call.start_send_message(buffer, flags.flags, headers))?;
         self.batch_f = Some(write_f);
         if !self.buffer.is_inline() {
             self.buffer = GrpcSlice::default();
