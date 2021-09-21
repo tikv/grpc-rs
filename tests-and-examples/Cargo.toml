@@ -19,14 +19,14 @@ protobuf = { version = "2.22", optional = true }
 prost = { version = "0.8", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
-grpcio = { path = "..", version = "0.10", default-features = false, features = ["secure"] }
-grpcio-health = { path = "../health", version = "0.10", default-features = false }
+grpcio = { path = "..", version = "0.9", default-features = false, features = ["secure"] }
+grpcio-health = { path = "../health", version = "0.9", default-features = false }
 
 [dev-dependencies]
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpcio-proto = { path = "../proto", version = "0.10.0", default-features = false }
+grpcio-proto = { path = "../proto", version = "0.9.0", default-features = false }
 rand = "0.7"
 slog = "2.0"
 slog-async = "2.1"
