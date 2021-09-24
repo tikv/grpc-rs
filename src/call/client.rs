@@ -178,12 +178,11 @@ impl Call {
             )
         });
 
-        // TODO: handle header
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let headers_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        Ok(ClientSStreamReceiver::new(call, cq_f, method.resp_de()))
+        Ok(ClientSStreamReceiver::new(call, cq_f, method.resp_de(), headers_f))
     }
 
     pub fn duplex_streaming<Req, Resp>(
@@ -204,14 +203,13 @@ impl Call {
             )
         });
 
-        // TODO: handle header.
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let headers_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
         let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
         let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
-        let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
+        let recv = ClientDuplexReceiver::new(share_call, method.resp_de(), headers_f);
         Ok((sink, recv))
     }
 }
@@ -486,18 +484,19 @@ struct ResponseStreamImpl<H, T> {
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
-    initial_metadata: Metadata,
+    headers_f: BatchFuture,
+    // headers_finished
 }
 
 impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
-    fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
+    fn new(call: H, resp_de: DeserializeFn<T>, headers_f: BatchFuture) -> ResponseStreamImpl<H, T> {
         ResponseStreamImpl {
             call,
             msg_f: None,
             read_done: false,
             finished: false,
             resp_de,
-            initial_metadata: MetadataBuilder::new().build(),
+            headers_f,
         }
     }
 
@@ -524,7 +523,6 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
                     bytes = batch_result.message_reader;
                     if bytes.is_none() {
                         self.read_done = true;
-                        dbg!(batch_result.initial_metadata);
                     }
                 }
             }
@@ -567,15 +565,20 @@ impl<Resp> ClientSStreamReceiver<Resp> {
         call: Call,
         finish_f: BatchFuture,
         de: DeserializeFn<Resp>,
+        headers_f: BatchFuture,
     ) -> ClientSStreamReceiver<Resp> {
         let share_call = ShareCall::new(call, finish_f);
         ClientSStreamReceiver {
-            imp: ResponseStreamImpl::new(share_call, de),
+            imp: ResponseStreamImpl::new(share_call, de, headers_f),
         }
     }
 
     pub fn cancel(&mut self) {
         self.imp.cancel()
+    }
+
+    pub async fn headers(&mut self) -> Result<Metadata> {
+        Ok(Pin::new(&mut self.imp.headers_f).await?.initial_metadata)
     }
 }
 
@@ -601,14 +604,18 @@ pub struct ClientDuplexReceiver<Resp> {
 }
 
 impl<Resp> ClientDuplexReceiver<Resp> {
-    fn new(call: Arc<Mutex<ShareCall>>, de: DeserializeFn<Resp>) -> ClientDuplexReceiver<Resp> {
+    fn new(call: Arc<Mutex<ShareCall>>, de: DeserializeFn<Resp>, headers_f: BatchFuture) -> ClientDuplexReceiver<Resp> {
         ClientDuplexReceiver {
-            imp: ResponseStreamImpl::new(call, de),
+            imp: ResponseStreamImpl::new(call, de, headers_f),
         }
     }
 
     pub fn cancel(&mut self) {
         self.imp.cancel()
+    }
+
+    pub async fn headers(&mut self) -> Result<Metadata> {
+        Ok(Pin::new(&mut self.imp.headers_f).await?.initial_metadata)
     }
 }
 
