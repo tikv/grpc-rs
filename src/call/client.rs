@@ -248,7 +248,7 @@ impl<T> ClientUnaryReceiver<T> {
     }
 
     #[inline]
-    pub fn resp_de(&mut self, reader: MessageReader) -> Result<T> {
+    pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
         (self.resp_de)(reader)
     }
 
