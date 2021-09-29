@@ -3994,6 +3994,7 @@ extern "C" {
         send_buffer: *mut grpc_slice,
         write_flags: u32,
         initial_metadata: *mut grpc_metadata_array,
+        initial_metadata_flags: u32,
         tag: *mut ::std::os::raw::c_void,
     ) -> grpc_call_error;
 }

@@ -527,7 +527,7 @@ macro_rules! impl_stream_sink {
             #[inline]
             fn start_send(mut self: Pin<&mut Self>, (msg, flags): (T, WriteFlags)) -> Result<()> {
                 let t = &mut *self;
-                t.base.start_send(t.call.as_mut().unwrap(), &msg, flags, t.ser)
+                t.base.start_send(t.call.as_mut().unwrap(), &msg, flags, t.ser, 0)
             }
 
             #[inline]
@@ -536,7 +536,7 @@ macro_rules! impl_stream_sink {
                     return Poll::Ready(Err(Error::RemoteStopped));
                 }
                 let t = &mut *self;
-                Pin::new(&mut t.base).poll_flush(cx, t.call.as_mut().unwrap())
+                Pin::new(&mut t.base).poll_flush(cx, t.call.as_mut().unwrap(), 0)
             }
 
             fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {

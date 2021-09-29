@@ -150,7 +150,7 @@ impl Call {
         });
 
         let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
-        let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser());
+        let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser(), opt.call_flags);
         let recv = ClientCStreamReceiver::new(share_call, method.resp_de());
         Ok((sink, recv))
     }
@@ -208,7 +208,7 @@ impl Call {
         });
 
         let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
-        let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
+        let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser(), opt.call_flags);
         let recv = ClientDuplexReceiver::new(share_call, method.resp_de(), headers_f);
         Ok((sink, recv))
     }
@@ -375,15 +375,17 @@ pub struct StreamingCallSink<Req> {
     sink_base: SinkBase,
     close_f: Option<BatchFuture>,
     req_ser: SerializeFn<Req>,
+    call_flags: u32,
 }
 
 impl<Req> StreamingCallSink<Req> {
-    fn new(call: Arc<Mutex<ShareCall>>, req_ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
+    fn new(call: Arc<Mutex<ShareCall>>, req_ser: SerializeFn<Req>, call_flags: u32) -> StreamingCallSink<Req> {
         StreamingCallSink {
             call,
             sink_base: SinkBase::new(false),
             close_f: None,
             req_ser,
+            call_flags,
         }
     }
 
@@ -433,7 +435,7 @@ impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
             call.check_alive()?;
         }
         let t = &mut *self;
-        Pin::new(&mut t.sink_base).start_send(&mut t.call, &msg, flags, t.req_ser)
+        Pin::new(&mut t.sink_base).start_send(&mut t.call, &msg, flags, t.req_ser, t.call_flags)
     }
 
     #[inline]
@@ -443,7 +445,7 @@ impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
             call.check_alive()?;
         }
         let t = &mut *self;
-        Pin::new(&mut t.sink_base).poll_flush(cx, &mut t.call)
+        Pin::new(&mut t.sink_base).poll_flush(cx, &mut t.call, t.call_flags)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {

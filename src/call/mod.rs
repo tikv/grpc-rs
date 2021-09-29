@@ -360,6 +360,7 @@ impl Call {
         msg: &mut GrpcSlice,
         write_flags: u32,
         initial_metadata: Option<&mut Metadata>,
+        call_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
@@ -369,6 +370,7 @@ impl Call {
                 msg.as_mut_ptr(),
                 write_flags,
                 initial_metadata.map_or_else(ptr::null_mut, |m| m as *mut _ as _),
+                call_flags,
                 tag,
             )
         });
@@ -735,13 +737,14 @@ impl SinkBase {
         t: &T,
         flags: WriteFlags,
         ser: SerializeFn<T>,
+        call_flags: u32,
     ) -> Result<()> {
         // temporary fix: buffer hint with send meta will not send out any metadata.
         // note: only the first message can enter this code block.
         if self.send_metadata {
             ser(t, &mut self.buffer);
             self.buf_flags = Some(flags);
-            self.start_send_buffer_message(false, call)?;
+            self.start_send_buffer_message(false, call, call_flags)?;
             self.send_metadata = false;
             return Ok(());
         }
@@ -749,7 +752,7 @@ impl SinkBase {
         // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
         // that this is not the last message.
         if self.buf_flags.is_some() {
-            self.start_send_buffer_message(true, call)?;
+            self.start_send_buffer_message(true, call, call_flags)?;
         }
 
         ser(t, &mut self.buffer);
@@ -759,7 +762,7 @@ impl SinkBase {
 
         // If sink disable batch, start sending the message in buffer immediately.
         if !self.enhance_buffer_strategy {
-            self.start_send_buffer_message(hint, call)?;
+            self.start_send_buffer_message(hint, call, call_flags)?;
         }
 
         Ok(())
@@ -782,12 +785,13 @@ impl SinkBase {
         &mut self,
         cx: &mut Context,
         call: &mut C,
+        call_flags: u32,
     ) -> Poll<Result<()>> {
         if self.batch_f.is_some() {
             ready!(self.poll_ready(cx)?);
         }
         if self.buf_flags.is_some() {
-            self.start_send_buffer_message(self.last_buf_hint, call)?;
+            self.start_send_buffer_message(self.last_buf_hint, call, call_flags)?;
             ready!(self.poll_ready(cx)?);
         }
         self.last_buf_hint = true;
@@ -799,6 +803,7 @@ impl SinkBase {
         &mut self,
         buffer_hint: bool,
         call: &mut C,
+        call_flags: u32,
     ) -> Result<()> {
         // `start_send` is supposed to be called after `poll_ready` returns ready.
         assert!(self.batch_f.is_none());
@@ -813,7 +818,7 @@ impl SinkBase {
             None
         };
 
-        let write_f = call.call(|c| c.call.start_send_message(buffer, flags.flags, headers))?;
+        let write_f = call.call(|c| c.call.start_send_message(buffer, flags.flags, headers, call_flags))?;
         self.batch_f = Some(write_f);
         if !self.buffer.is_inline() {
             self.buffer = GrpcSlice::default();
