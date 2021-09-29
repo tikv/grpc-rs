@@ -682,8 +682,7 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
     grpc_call* call, grpcwrap_batch_context* ctx, grpc_status_code status_code,
     const char* status_details, size_t status_details_len,
     grpc_metadata_array* initial_metadata, grpc_metadata_array* trailing_metadata,
-    int32_t send_empty_initial_metadata, grpc_slice* optional_send_buffer,
-    uint32_t write_flags, void* tag) {
+    grpc_slice* optional_send_buffer, uint32_t write_flags, void* tag) {
   /* TODO: don't use magic number */
   grpc_op ops[3];
   memset(ops, 0, sizeof(ops));
@@ -717,11 +716,6 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
     grpcwrap_metadata_array_move(&(ctx->send_initial_metadata), initial_metadata);
     ops[nops].data.send_initial_metadata.count = ctx->send_initial_metadata.count;
     ops[nops].data.send_initial_metadata.metadata = ctx->send_initial_metadata.metadata;
-    ops[nops].flags = 0;
-    ops[nops].reserved = nullptr;
-    nops++;
-  } else if (send_empty_initial_metadata) {
-    ops[nops].op = GRPC_OP_SEND_INITIAL_METADATA;
     ops[nops].flags = 0;
     ops[nops].reserved = nullptr;
     nops++;

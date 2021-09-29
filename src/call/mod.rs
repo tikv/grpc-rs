@@ -416,7 +416,13 @@ impl Call {
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
+
+        if initial_metadata.is_none() {
+            if send_empty_metadata {
+                initial_metadata.replace(MetadataBuilder::new().build());
+            }
+        }
+
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let (msg_ptr, msg_len) = if status.code() == RpcStatusCode::OK {
                 (ptr::null(), 0)
@@ -446,7 +452,6 @@ impl Call {
                 trailing_metadata
                     .as_mut()
                     .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
-                send_empty_metadata,
                 payload_p,
                 write_flags,
                 tag,
@@ -479,9 +484,8 @@ impl Call {
                 status.code().into(),
                 msg_ptr as _,
                 msg_len,
+                (&mut MetadataBuilder::new().build()) as *mut _ as _,
                 ptr::null_mut(),
-                ptr::null_mut(),
-                1,
                 ptr::null_mut(),
                 0,
                 tag_ptr as *mut c_void,

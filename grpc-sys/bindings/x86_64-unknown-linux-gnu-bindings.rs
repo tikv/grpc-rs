@@ -4013,7 +4013,6 @@ extern "C" {
         status_details_len: usize,
         initial_metadata: *mut grpc_metadata_array,
         trailing_metadata: *mut grpc_metadata_array,
-        send_empty_initial_metadata: i32,
         optional_send_buffer: *mut grpc_slice,
         write_flags: u32,
         tag: *mut ::std::os::raw::c_void,
