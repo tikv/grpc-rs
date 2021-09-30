@@ -258,8 +258,8 @@ impl<T> ClientUnaryReceiver<T> {
         }
 
         let data = Pin::new(&mut self.resp_f).await?;
-        self.initial_metadata = data.initial_metadata.clone();
-        self.trailing_metadata = data.trailing_metadata.clone();
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
         self.message = Some(self.resp_de(data.message_reader.unwrap())?);
         self.finished = true;
         Ok(())
