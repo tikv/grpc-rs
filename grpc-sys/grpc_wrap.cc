@@ -278,10 +278,11 @@ grpcwrap_request_call_context_destroy(grpcwrap_request_call_context* ctx) {
   gpr_free(ctx);
 }
 
-GPR_EXPORT const grpc_metadata_array* GPR_CALLTYPE
-grpcwrap_batch_context_recv_initial_metadata(
-    const grpcwrap_batch_context* ctx) {
-  return &(ctx->recv_initial_metadata);
+
+GPR_EXPORT void GPR_CALLTYPE
+grpcwrap_batch_context_take_recv_initial_metadata(
+    grpcwrap_batch_context* ctx, grpc_metadata_array* res) {
+  grpcwrap_metadata_array_move(res, &(ctx->recv_initial_metadata));
 }
 
 GPR_EXPORT const char* GPR_CALLTYPE

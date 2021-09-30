@@ -225,13 +225,6 @@ impl Metadata {
         })
     }
 
-    pub fn from_raw(src: *const grpc_metadata_array) -> Self {
-        unsafe {
-            let metadata = &*(src as *const Metadata);
-            metadata.clone()
-        }
-    }
-
     /// Search for binary error details.
     pub(crate) fn search_binary_error_details(&self) -> &[u8] {
         for (k, v) in self.iter() {
@@ -270,6 +263,12 @@ impl Drop for Metadata {
         unsafe {
             grpc_sys::grpcwrap_metadata_array_cleanup(&mut self.0);
         }
+    }
+}
+
+impl AsMut<grpc_metadata_array> for Metadata {
+    fn as_mut(&mut self) -> &mut grpc_metadata_array {
+        &mut self.0
     }
 }
 

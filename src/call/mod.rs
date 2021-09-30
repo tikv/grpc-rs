@@ -288,18 +288,22 @@ impl BatchContext {
     }
 
     pub fn initial_metadata(&self) -> Metadata {
+        let mut res = MetadataBuilder::with_capacity(0).build();
         unsafe {
-            Metadata::from_raw(grpc_sys::grpcwrap_batch_context_recv_initial_metadata(
+            grpcio_sys::grpcwrap_batch_context_take_recv_initial_metadata(
                 self.ctx,
-            ))
+                (&mut res).as_mut() as *mut _,
+            );
         }
+        res
     }
 
     pub fn trailing_metadata(&self) -> Metadata {
         unsafe {
-            Metadata::from_raw(
-                grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx),
-            )
+            let p =
+                grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx);
+            let metadata = &*(p as *const Metadata);
+            metadata.clone()
         }
     }
 }
@@ -822,7 +826,10 @@ impl SinkBase {
             None
         };
 
-        let write_f = call.call(|c| c.call.start_send_message(buffer, flags.flags, headers, call_flags))?;
+        let write_f = call.call(|c| {
+            c.call
+                .start_send_message(buffer, flags.flags, headers, call_flags)
+        })?;
         self.batch_f = Some(write_f);
         if !self.buffer.is_inline() {
             self.buffer = GrpcSlice::default();
