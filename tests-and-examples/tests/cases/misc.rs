@@ -367,3 +367,46 @@ fn test_connectivity() {
         ch.wait_for_connected(Duration::from_secs(3)).await;
     });
 }
+
+/// Tests channelz related API works as expected.
+#[test]
+fn test_channelz() {
+    let env = Arc::new(Environment::new(2));
+    let service = create_greeter(PeerService);
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .bind("127.0.0.1", 0)
+        .build()
+        .unwrap();
+    server.start();
+    let port = server.bind_addrs().next().unwrap().1;
+    let mut res = None;
+    channelz::get_servers(0, |s| {
+        res = Some(s.to_string());
+    });
+    // There should be at least one server.
+    assert!(
+        res.as_ref().map_or(false, |s| s.contains("serverId")),
+        "{:?}",
+        res
+    );
+    res = None;
+    channelz::get_server(0, |s| {
+        res = Some(s.to_string());
+    });
+    // 0 will never be used as id.
+    assert_eq!(res, Some(String::new()));
+
+    res = None;
+    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
+    channelz::get_top_channels(0, |s| {
+        res = Some(s.to_string());
+    });
+    // There should be at least one channel.
+    assert!(
+        res.as_ref().map_or(false, |s| s.contains("channelId")),
+        "{:?}",
+        res
+    );
+}
