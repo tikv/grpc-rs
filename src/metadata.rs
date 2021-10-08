@@ -255,6 +255,7 @@ impl Drop for Metadata {
 }
 
 unsafe impl Send for Metadata {}
+unsafe impl Sync for Metadata {}
 
 /// Immutable metadata iterator
 ///
