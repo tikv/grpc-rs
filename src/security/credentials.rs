@@ -178,7 +178,7 @@ impl ServerCredentialsBuilder {
             self.key_cert_pairs.len(),
         );
         if !root_cert.is_null() {
-            CString::from_raw(root_cert);
+            drop(CString::from_raw(root_cert));
         }
         cfg
     }
@@ -201,7 +201,7 @@ impl Drop for ServerCredentialsBuilder {
     fn drop(&mut self) {
         for pair in self.key_cert_pairs.drain(..) {
             unsafe {
-                CString::from_raw(pair.cert_chain as *mut _);
+                drop(CString::from_raw(pair.cert_chain as *mut _));
                 let s = CString::from_raw(pair.private_key as *mut _);
                 clear_key_securely(&mut s.into_bytes_with_nul());
             }
