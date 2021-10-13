@@ -30,6 +30,7 @@ mod auth_context;
 mod buf;
 mod call;
 mod channel;
+pub mod channelz;
 mod client;
 mod codec;
 mod cq;
