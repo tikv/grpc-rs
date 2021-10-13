@@ -520,7 +520,7 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
         )
     };
     if code != grpc_call_error::GRPC_CALL_OK {
-        Box::from(tag);
+        drop(Box::from(tag));
         panic!("failed to request call: {:?}", code);
     }
 }
