@@ -119,6 +119,8 @@ pub const GRPC_ARG_WORKAROUND_CRONET_COMPRESSION: &'static [u8; 35usize] =
     b"grpc.workaround.cronet_compression\0";
 pub const GRPC_ARG_OPTIMIZATION_TARGET: &'static [u8; 25usize] = b"grpc.optimization_target\0";
 pub const GRPC_ARG_ENABLE_RETRIES: &'static [u8; 20usize] = b"grpc.enable_retries\0";
+pub const GRPC_ARG_EXPERIMENTAL_ENABLE_HEDGING: &'static [u8; 33usize] =
+    b"grpc.experimental.enable_hedging\0";
 pub const GRPC_ARG_PER_RPC_RETRY_BUFFER_SIZE: &'static [u8; 31usize] =
     b"grpc.per_rpc_retry_buffer_size\0";
 pub const GRPC_ARG_MOBILE_LOG_CONTEXT: &'static [u8; 24usize] = b"grpc.mobile_log_context\0";
@@ -137,6 +139,8 @@ pub const GRPC_ARG_USE_LOCAL_SUBCHANNEL_POOL: &'static [u8; 31usize] =
     b"grpc.use_local_subchannel_pool\0";
 pub const GRPC_ARG_CHANNEL_POOL_DOMAIN: &'static [u8; 28usize] = b"grpc.channel_pooling_domain\0";
 pub const GRPC_ARG_CHANNEL_ID: &'static [u8; 16usize] = b"grpc.channel_id\0";
+pub const GRPC_ARG_AUTHORIZATION_POLICY_PROVIDER: &'static [u8; 35usize] =
+    b"grpc.authorization_policy_provider\0";
 pub const GRPC_DEFAULT_MAX_SEND_MESSAGE_LENGTH: i32 = -1;
 pub const GRPC_DEFAULT_MAX_RECV_MESSAGE_LENGTH: u32 = 4194304;
 pub const GRPC_WRITE_BUFFER_HINT: u32 = 1;
@@ -163,6 +167,7 @@ pub const GRPC_SSL_SESSION_REUSED_PROPERTY: &'static [u8; 19usize] = b"ssl_sessi
 pub const GRPC_TRANSPORT_SECURITY_LEVEL_PROPERTY_NAME: &'static [u8; 15usize] = b"security_level\0";
 pub const GRPC_PEER_DNS_PROPERTY_NAME: &'static [u8; 9usize] = b"peer_dns\0";
 pub const GRPC_PEER_SPIFFE_ID_PROPERTY_NAME: &'static [u8; 15usize] = b"peer_spiffe_id\0";
+pub const GRPC_PEER_URI_PROPERTY_NAME: &'static [u8; 9usize] = b"peer_uri\0";
 pub const GRPC_PEER_EMAIL_PROPERTY_NAME: &'static [u8; 11usize] = b"peer_email\0";
 pub const GRPC_PEER_IP_PROPERTY_NAME: &'static [u8; 8usize] = b"peer_ip\0";
 pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &'static [u8; 33usize] =
@@ -846,11 +851,6 @@ pub struct grpc_completion_queue {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct grpc_alarm {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_channel {
     _unused: [u8; 0],
 }
@@ -1015,7 +1015,6 @@ pub struct grpc_metadata {
     #[doc = "changing them, update metadata.h at the same time."]
     pub key: grpc_slice,
     pub value: grpc_slice,
-    pub flags: u32,
     pub internal_data: grpc_metadata__bindgen_ty_1,
 }
 #[doc = " The following fields are reserved for grpc internal use."]
@@ -1030,8 +1029,8 @@ impl ::std::fmt::Debug for grpc_metadata {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
             f,
-            "grpc_metadata {{ key: {:?}, value: {:?}, flags: {:?}, internal_data: {:?} }}",
-            self.key, self.value, self.flags, self.internal_data
+            "grpc_metadata {{ key: {:?}, value: {:?}, internal_data: {:?} }}",
+            self.key, self.value, self.internal_data
         )
     }
 }
@@ -1300,33 +1299,29 @@ pub enum grpc_cq_completion_type {
     GRPC_CQ_NEXT = 0,
     #[doc = " Events are popped out by calling grpc_completion_queue_pluck() API ONLY"]
     GRPC_CQ_PLUCK = 1,
-    #[doc = " EXPERIMENTAL: Events trigger a callback specified as the tag"]
+    #[doc = " Events trigger a callback specified as the tag"]
     GRPC_CQ_CALLBACK = 2,
 }
-#[doc = " EXPERIMENTAL: Specifies an interface class to be used as a tag"]
-#[doc = "for callback-based completion queues. This can be used directly,"]
-#[doc = "as the first element of a struct in C, or as a base class in C++."]
-#[doc = "Its \"run\" value should be assigned to some non-member function, such as"]
-#[doc = "a static method."]
+#[doc = " Specifies an interface class to be used as a tag for callback-based"]
+#[doc = " completion queues. This can be used directly, as the first element of a"]
+#[doc = " struct in C, or as a base class in C++. Its \"run\" value should be assigned to"]
+#[doc = " some non-member function, such as a static method."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct grpc_experimental_completion_queue_functor {
+pub struct grpc_completion_queue_functor {
     #[doc = " The run member specifies a function that will be called when this"]
     #[doc = "tag is extracted from the completion queue. Its arguments will be a"]
     #[doc = "pointer to this functor and a boolean that indicates whether the"]
     #[doc = "operation succeeded (non-zero) or failed (zero)"]
     pub functor_run: ::std::option::Option<
-        unsafe extern "C" fn(
-            arg1: *mut grpc_experimental_completion_queue_functor,
-            arg2: ::std::os::raw::c_int,
-        ),
+        unsafe extern "C" fn(arg1: *mut grpc_completion_queue_functor, arg2: ::std::os::raw::c_int),
     >,
     #[doc = " The inlineable member specifies whether this functor can be run inline."]
     #[doc = "This should only be used for trivial internally-defined functors."]
     pub inlineable: ::std::os::raw::c_int,
     #[doc = " The following fields are not API. They are meant for internal use."]
     pub internal_success: ::std::os::raw::c_int,
-    pub internal_next: *mut grpc_experimental_completion_queue_functor,
+    pub internal_next: *mut grpc_completion_queue_functor,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1339,7 +1334,7 @@ pub struct grpc_completion_queue_attributes {
     pub cq_polling_type: grpc_cq_polling_type,
     #[doc = " When creating a callbackable CQ, pass in a functor to get invoked when"]
     #[doc = " shutdown is complete"]
-    pub cq_shutdown_cb: *mut grpc_experimental_completion_queue_functor,
+    pub cq_shutdown_cb: *mut grpc_completion_queue_functor,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1715,7 +1710,7 @@ extern "C" {
     #[doc = "of GRPC_CQ_CALLBACK and grpc_cq_polling_type of GRPC_CQ_DEFAULT_POLLING."]
     #[doc = "This function is experimental."]
     pub fn grpc_completion_queue_create_for_callback(
-        shutdown_callback: *mut grpc_experimental_completion_queue_functor,
+        shutdown_callback: *mut grpc_completion_queue_functor,
         reserved: *mut ::std::os::raw::c_void,
     ) -> *mut grpc_completion_queue;
 }
@@ -2101,13 +2096,18 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct grpc_serving_status_update {
+    pub code: grpc_status_code::Type,
+    pub error_message: *const ::std::os::raw::c_char,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct grpc_server_xds_status_notifier {
     pub on_serving_status_update: ::std::option::Option<
         unsafe extern "C" fn(
             user_data: *mut ::std::os::raw::c_void,
             uri: *const ::std::os::raw::c_char,
-            code: grpc_status_code::Type,
-            error_message: *const ::std::os::raw::c_char,
+            update: grpc_serving_status_update,
         ),
     >,
     pub user_data: *mut ::std::os::raw::c_void,
@@ -2278,6 +2278,12 @@ extern "C" {
     pub fn grpc_channelz_get_socket(socket_id: isize) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL - Subject to change."]
+    #[doc = " Fetch a vtable for grpc_channel_arg that points to"]
+    #[doc = " grpc_authorization_policy_provider."]
+    pub fn grpc_authorization_policy_provider_arg_vtable() -> *const grpc_arg_pointer_vtable;
+}
+extern "C" {
     pub fn grpc_cronet_secure_channel_create(
         engine: *mut ::std::os::raw::c_void,
         target: *const ::std::os::raw::c_char,
@@ -2303,6 +2309,9 @@ extern "C" {
     #[doc = "grpc_server_register_completion_queue API)."]
     #[doc = ""]
     #[doc = "The 'reserved' pointer MUST be NULL."]
+    #[doc = ""]
+    #[doc = "TODO(hork): add channel_args to this API to allow endpoints and transports"]
+    #[doc = "created in this function to participate in the resource quota feature."]
     pub fn grpc_server_add_insecure_channel_from_fd(
         server: *mut grpc_server,
         reserved: *mut ::std::os::raw::c_void,
@@ -3544,6 +3553,35 @@ extern "C" {
     pub fn grpc_xds_server_credentials_create(
         fallback_credentials: *mut grpc_server_credentials,
     ) -> *mut grpc_server_credentials;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_authorization_policy_provider {
+    _unused: [u8; 0],
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL - Subject to change."]
+    #[doc = " Creates a grpc_authorization_policy_provider using SDK authorization policy"]
+    #[doc = " from static string."]
+    #[doc = " - authz_policy is the input SDK authorization policy."]
+    #[doc = " - code is the error status code on failure. On success, it equals"]
+    #[doc = "   GRPC_STATUS_OK."]
+    #[doc = " - error_details contains details about the error if any. If the"]
+    #[doc = "   initialization is successful, it will be null. Caller must use gpr_free to"]
+    #[doc = "   destroy this string."]
+    pub fn grpc_authorization_policy_provider_static_data_create(
+        authz_policy: *const ::std::os::raw::c_char,
+        code: *mut grpc_status_code::Type,
+        error_details: *mut *const ::std::os::raw::c_char,
+    ) -> *mut grpc_authorization_policy_provider;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL - Subject to change."]
+    #[doc = " Releases grpc_authorization_policy_provider object. The creator of"]
+    #[doc = " grpc_authorization_policy_provider is responsible for its release."]
+    pub fn grpc_authorization_policy_provider_release(
+        provider: *mut grpc_authorization_policy_provider,
+    );
 }
 #[repr(u32)]
 #[doc = " The severity of a log message - use the #defines below when calling into"]
