@@ -1,3 +1,8 @@
+# 0.9.1 - 2021-09-18
+
+- Make boringssl-src optional (#537)
+- codec: avoid overflowing error (#495)
+
 # 0.9.0 - 2021-05-24
 
 - Support rich error (#514)

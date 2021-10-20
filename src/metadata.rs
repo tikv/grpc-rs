@@ -273,6 +273,7 @@ impl AsMut<grpc_metadata_array> for Metadata {
 }
 
 unsafe impl Send for Metadata {}
+unsafe impl Sync for Metadata {}
 
 /// Immutable metadata iterator
 ///

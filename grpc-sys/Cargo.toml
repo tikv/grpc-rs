@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.9.0+1.38.0"
+version = "0.9.1+1.41.0"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -54,7 +54,7 @@ libz-sys = { version = "1.1.3", default-features = false, features = ["libc", "s
 
 [features]
 default = ["use-bindgen"]
-secure = []
+secure = ["boringssl-src"]
 openssl = ["secure"]
 openssl-vendored = ["openssl", "openssl-sys"]
 no-omit-frame-pointer = []
@@ -70,4 +70,4 @@ pkg-config = "0.3"
 walkdir = "2.2.9"
 # Because of rust-lang/cargo#5237, bindgen should not be upgraded util a minor or major release.
 bindgen = { version = "0.57.0", default-features = false, optional = true, features = ["runtime"] }
-boringssl-src = "0.3.0"
+boringssl-src = { version = "0.4.0", optional = true }

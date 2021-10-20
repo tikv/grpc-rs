@@ -37,12 +37,13 @@
 // (rust-lang/rust#32836),
 // so we need to wrap the type and expose more safer interfaces.
 
+#include <grpc/support/port_platform.h>
+
 #include <grpc/byte_buffer_reader.h>
 #include <grpc/grpc.h>
 #include <grpc/slice.h>
 #include <grpc/support/alloc.h>
 #include <grpc/support/log.h>
-#include <grpc/support/port_platform.h>
 #include <grpc/support/string_util.h>
 #include <grpc/support/thd_id.h>
 
