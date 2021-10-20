@@ -16,7 +16,6 @@ use futures::{
 use parking_lot::Mutex;
 use std::future::Future;
 
-
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::buf::GrpcSlice;
 use crate::call::{check_run, Call, MessageReader, Method};
@@ -182,7 +181,12 @@ impl Call {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        Ok(ClientSStreamReceiver::new(call, cq_f, method.resp_de(), headers_f))
+        Ok(ClientSStreamReceiver::new(
+            call,
+            cq_f,
+            method.resp_de(),
+            headers_f,
+        ))
     }
 
     pub fn duplex_streaming<Req, Resp>(
@@ -299,7 +303,6 @@ pub struct ClientCStreamReceiver<T> {
 }
 
 impl<T> ClientCStreamReceiver<T> {
-
     /// Private constructor to simplify code in `impl Call`
     fn new(call: Arc<Mutex<ShareCall>>, resp_de: DeserializeFn<T>) -> ClientCStreamReceiver<T> {
         ClientCStreamReceiver {
@@ -330,7 +333,8 @@ impl<T> ClientCStreamReceiver<T> {
         let data = poll_fn(|cx| {
             let mut call = self.call.lock();
             call.poll_finish(cx)
-        }).await?;
+        })
+        .await?;
 
         self.message = Some(self.resp_de(data.message_reader.unwrap())?);
         self.initial_metadata = data.initial_metadata.clone();
@@ -379,7 +383,11 @@ pub struct StreamingCallSink<Req> {
 }
 
 impl<Req> StreamingCallSink<Req> {
-    fn new(call: Arc<Mutex<ShareCall>>, req_ser: SerializeFn<Req>, call_flags: u32) -> StreamingCallSink<Req> {
+    fn new(
+        call: Arc<Mutex<ShareCall>>,
+        req_ser: SerializeFn<Req>,
+        call_flags: u32,
+    ) -> StreamingCallSink<Req> {
         StreamingCallSink {
             call,
             sink_base: SinkBase::new(false),
@@ -606,7 +614,11 @@ pub struct ClientDuplexReceiver<Resp> {
 }
 
 impl<Resp> ClientDuplexReceiver<Resp> {
-    fn new(call: Arc<Mutex<ShareCall>>, de: DeserializeFn<Resp>, headers_f: BatchFuture) -> ClientDuplexReceiver<Resp> {
+    fn new(
+        call: Arc<Mutex<ShareCall>>,
+        de: DeserializeFn<Resp>,
+        headers_f: BatchFuture,
+    ) -> ClientDuplexReceiver<Resp> {
         ClientDuplexReceiver {
             imp: ResponseStreamImpl::new(call, de, headers_f),
         }
