@@ -421,10 +421,8 @@ impl Call {
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
 
-        if initial_metadata.is_none() {
-            if send_empty_metadata {
-                initial_metadata.replace(MetadataBuilder::new().build());
-            }
+        if initial_metadata.is_none() && send_empty_metadata {
+            initial_metadata.replace(MetadataBuilder::new().build());
         }
 
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {

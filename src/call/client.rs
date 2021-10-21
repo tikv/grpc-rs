@@ -337,8 +337,8 @@ impl<T> ClientCStreamReceiver<T> {
         .await?;
 
         self.message = Some(self.resp_de(data.message_reader.unwrap())?);
-        self.initial_metadata = data.initial_metadata.clone();
-        self.trailing_metadata = data.trailing_metadata.clone();
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
         Ok(())
     }
