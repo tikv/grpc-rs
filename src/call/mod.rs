@@ -818,7 +818,7 @@ impl SinkBase {
         assert!(self.batch_f.is_none());
 
         let buffer = &mut self.buffer;
-        let mut flags = self.buf_flags.clone().unwrap();
+        let mut flags = self.buf_flags.unwrap();
         flags = flags.buffer_hint(buffer_hint);
 
         let headers = if self.send_metadata {
