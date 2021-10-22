@@ -4051,6 +4051,7 @@ extern "C" {
         status_details: *const ::std::os::raw::c_char,
         status_details_len: usize,
         initial_metadata: *mut grpc_metadata_array,
+        initial_metadata_flags: u32,
         trailing_metadata: *mut grpc_metadata_array,
         optional_send_buffer: *mut grpc_slice,
         write_flags: u32,

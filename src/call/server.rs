@@ -339,6 +339,7 @@ macro_rules! impl_unary_sink {
             write_flags: u32,
             ser: SerializeFn<T>,
             headers: Option<Metadata>,
+            call_flags: u32,
         }
 
         impl<T> $t<T> {
@@ -348,11 +349,18 @@ macro_rules! impl_unary_sink {
                     write_flags: 0,
                     ser,
                     headers: None,
+                    call_flags: 0,
                 }
             }
 
             pub fn set_headers(mut self, meta: Metadata) -> $t<T> {
                 self.headers = Some(meta);
+                self
+            }
+
+            pub fn set_call_flags(mut self, flags: u32) -> $t<T> {
+                // TODO: implement a server-side call flags interface similar to the client-side .CallOption.
+                self.call_flags = flags;
                 self
             }
 
@@ -381,11 +389,12 @@ macro_rules! impl_unary_sink {
                 };
 
                 let headers = &mut self.headers;
+                let call_flags = self.call_flags;
                 let write_flags = self.write_flags;
 
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, headers, true, &mut data, write_flags)
+                        .start_send_status_from_server(&status, headers, call_flags, true, &mut data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -492,7 +501,7 @@ macro_rules! impl_stream_sink {
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, &mut None, send_metadata, &mut None, 0)
+                        .start_send_status_from_server(&status, &mut None, 0, send_metadata, &mut None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -558,7 +567,7 @@ macro_rules! impl_stream_sink {
                     let status = &t.status;
                     let flush_f = t.call.as_mut().unwrap().call(|c| {
                         c.call
-                            .start_send_status_from_server(status, &mut None, send_metadata, &mut None, 0)
+                            .start_send_status_from_server(status, &mut None, 0, send_metadata, &mut None, 0)
                     })?;
                     t.flush_f = Some(flush_f);
                 }

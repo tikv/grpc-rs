@@ -415,6 +415,7 @@ impl Call {
         &mut self,
         status: &RpcStatus,
         initial_metadata: &mut Option<Metadata>,
+        call_flags: u32,
         send_empty_metadata: bool,
         payload: &mut Option<GrpcSlice>,
         write_flags: u32,
@@ -451,6 +452,7 @@ impl Call {
                 initial_metadata
                     .as_mut()
                     .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
+                call_flags,
                 trailing_metadata
                     .as_mut()
                     .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
@@ -487,6 +489,7 @@ impl Call {
                 msg_ptr as _,
                 msg_len,
                 (&mut MetadataBuilder::new().build()) as *mut _ as _,
+                0,
                 ptr::null_mut(),
                 ptr::null_mut(),
                 0,
