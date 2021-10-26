@@ -168,7 +168,13 @@ impl Client {
         status.set_message(error_msg.to_owned());
         let mut req = SimpleRequest::default();
         req.set_response_status(status.clone());
-        match self.client.unary_call_async(&req)?.message().await.unwrap_err() {
+        match self
+            .client
+            .unary_call_async(&req)?
+            .message()
+            .await
+            .unwrap_err()
+        {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
                 assert_eq!(s.message(), error_msg);
