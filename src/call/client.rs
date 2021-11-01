@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::grpc_sys;
 use futures::{
+    executor::block_on,
     future::poll_fn,
     ready,
     sink::Sink,
@@ -282,6 +283,16 @@ impl<T> ClientUnaryReceiver<T> {
     pub async fn trailer(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
         Ok(&self.trailing_metadata)
+    }
+
+    pub fn receive_sync(&mut self) -> Result<(Metadata, T, Metadata)> {
+        Ok(block_on(async {
+            Ok::<(Metadata, T, Metadata), Error>((
+                self.headers().await?.clone(),
+                self.message().await?,
+                self.trailer().await?.clone(),
+            ))
+        })?)
     }
 }
 
