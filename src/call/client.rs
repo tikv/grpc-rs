@@ -286,13 +286,12 @@ impl<T> ClientUnaryReceiver<T> {
     }
 
     pub fn receive_sync(&mut self) -> Result<(Metadata, T, Metadata)> {
-        Ok(block_on(async {
-            Ok::<(Metadata, T, Metadata), Error>((
-                self.headers().await?.clone(),
-                self.message().await?,
-                self.trailer().await?.clone(),
-            ))
-        })?)
+        block_on(async {
+            let headers = self.headers().await?.clone();
+            let message = self.message().await?;
+            let trailer = self.trailer().await?.clone();
+            Ok::<(Metadata, T, Metadata), Error>((headers, message, trailer))
+        })
     }
 }
 
