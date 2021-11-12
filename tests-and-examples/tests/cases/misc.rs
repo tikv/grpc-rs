@@ -136,11 +136,12 @@ fn test_soundness() {
     let spawn_reqs = |env| -> JoinHandle<()> {
         let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
         let client = GreeterClient::new(ch);
-        let mut resps = Vec::with_capacity(3000);
+        let mut receivers = Vec::with_capacity(3000);
         thread::spawn(move || {
             for _ in 0..3000 {
-                resps.push(client.say_hello_async(&HelloRequest::default()).unwrap());
+                receivers.push(client.say_hello_async(&HelloRequest::default()).unwrap());
             }
+            let resps = receivers.iter_mut().map(|r| r.message()).collect::<Vec<_>>();
             block_on(futures::future::try_join_all(resps)).unwrap();
         })
     };
@@ -222,10 +223,11 @@ fn test_shutdown_when_exists_grpc_call() {
     let client = GreeterClient::new(ch);
 
     let req = HelloRequest::default();
-    let send_task = client.say_hello_async(&req).unwrap();
+    let mut rx= client.say_hello_async(&req).unwrap();
+
     drop(server);
     assert!(
-        block_on(send_task).is_err(),
+        block_on(rx.message()).is_err(),
         "Send should get error because server is shutdown, so the grpc is cancelled."
     );
 }

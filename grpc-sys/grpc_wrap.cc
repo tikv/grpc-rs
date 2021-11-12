@@ -279,14 +279,14 @@ grpcwrap_request_call_context_destroy(grpcwrap_request_call_context* ctx) {
   gpr_free(ctx);
 }
 
-
-GPR_EXPORT void GPR_CALLTYPE
-grpcwrap_batch_context_take_recv_initial_metadata(
+GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_take_recv_initial_metadata(
     grpcwrap_batch_context* ctx, grpc_metadata_array* res) {
   grpcwrap_metadata_array_move(res, &(ctx->recv_initial_metadata));
 
-  /* According to the documentation for struct grpc_op in grpc_types.h, ownership of keys and values for
-   * metadata stays with the call object. This means we have ref each of the keys and values here. */
+  /* According to the documentation for struct grpc_op in grpc_types.h,
+   * ownership of keys and values for
+   * metadata stays with the call object. This means we have ref each of the
+   * keys and values here. */
   size_t i;
   for (i = 0; i < res->count; i++) {
     grpc_slice_ref(res->metadata[i].key);
@@ -666,13 +666,16 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_message(
 
   if (initial_metadata) {
     ops[nops].op = GRPC_OP_SEND_INITIAL_METADATA;
-    grpcwrap_metadata_array_move(&(ctx->send_initial_metadata), initial_metadata);
-    ops[nops].data.send_initial_metadata.count = ctx->send_initial_metadata.count;
-    ops[nops].data.send_initial_metadata.metadata = ctx->send_initial_metadata.metadata;
+    grpcwrap_metadata_array_move(&(ctx->send_initial_metadata),
+                                 initial_metadata);
+    ops[nops].data.send_initial_metadata.count =
+        ctx->send_initial_metadata.count;
+    ops[nops].data.send_initial_metadata.metadata =
+        ctx->send_initial_metadata.metadata;
     ops[nops].flags = initial_metadata_flags;
     ops[nops].reserved = nullptr;
     nops++;
-  } 
+  }
   return grpc_call_start_batch(call, ops, nops, tag, nullptr);
 }
 
@@ -724,9 +727,12 @@ GPR_EXPORT grpc_call_error GPR_CALLTYPE grpcwrap_call_send_status_from_server(
   }
   if (initial_metadata) {
     ops[nops].op = GRPC_OP_SEND_INITIAL_METADATA;
-    grpcwrap_metadata_array_move(&(ctx->send_initial_metadata), initial_metadata);
-    ops[nops].data.send_initial_metadata.count = ctx->send_initial_metadata.count;
-    ops[nops].data.send_initial_metadata.metadata = ctx->send_initial_metadata.metadata;
+    grpcwrap_metadata_array_move(&(ctx->send_initial_metadata),
+                                 initial_metadata);
+    ops[nops].data.send_initial_metadata.count =
+        ctx->send_initial_metadata.count;
+    ops[nops].data.send_initial_metadata.metadata =
+        ctx->send_initial_metadata.metadata;
     ops[nops].flags = initial_metadata_flags;
     ops[nops].reserved = nullptr;
     nops++;

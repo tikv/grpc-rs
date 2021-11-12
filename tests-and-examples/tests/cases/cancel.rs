@@ -152,9 +152,9 @@ fn test_client_cancel_on_dropping() {
             });
         Box::pin(f)
     }));
-    let (tx, rx) = client.record_route().unwrap();
+    let (tx, mut rx) = client.record_route().unwrap();
     drop(tx);
-    check_cancel(rx.into_stream(), false);
+    check_cancel(Box::pin(rx.message().into_stream()), false);
 
     let (mut tx, rx) = client.record_route().unwrap();
     drop(rx);
@@ -183,8 +183,8 @@ fn test_server_cancel_on_dropping() {
     let (service, client, _server) = prepare_suite();
 
     // Unary
-    let rx = client.get_feature_async(&Default::default()).unwrap();
-    check_cancel(rx.into_stream(), false);
+    let mut rx = client.get_feature_async(&Default::default()).unwrap();
+    check_cancel(Box::pin(rx.message().into_stream()), false);
 
     // Server streaming
     let rx = client.list_features(&Default::default()).unwrap();
@@ -239,14 +239,14 @@ fn test_server_cancel_on_dropping() {
     // Client streaming, drop sink.
     *service.record_route_handler.lock().unwrap() =
         Some(Box::new(|stream, sink| drop_sink(stream, sink)));
-    let (_tx, rx) = client.record_route().unwrap();
-    check_cancel(rx.into_stream(), false);
+    let (_tx, mut rx) = client.record_route().unwrap();
+    check_cancel(Box::pin(rx.message().into_stream()), false);
 
     // Client streaming, drop stream.
     *service.record_route_handler.lock().unwrap() =
         Some(Box::new(|stream, sink| drop_stream(stream, sink)));
-    let (_tx, rx) = client.record_route().unwrap();
-    check_cancel(rx.into_stream(), false);
+    let (_tx, mut rx) = client.record_route().unwrap();
+    check_cancel(Box::pin(rx.message().into_stream()), false);
 
     // Duplex streaming, drop sink.
     *service.route_chat_handler.lock().unwrap() =

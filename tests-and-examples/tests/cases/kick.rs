@@ -56,7 +56,7 @@ fn test_kick() {
     let client = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
-    let f = client.say_hello_async(&req).unwrap();
+    let mut f = client.say_hello_async(&req).unwrap();
     loop {
         thread::sleep(Duration::from_millis(10));
         let mut tx = tx.lock().unwrap();
@@ -66,7 +66,7 @@ fn test_kick() {
         tx.take().unwrap().send("hello".to_owned()).unwrap();
         break;
     }
-    let reply = block_on(f).expect("rpc");
+    let reply = block_on(f.message()).expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
 
     // Spawn a future in the client.
@@ -210,13 +210,13 @@ fn test_deadlock() {
     let client = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
-    let f = client.say_hello_async(&req).unwrap();
+    let mut f = client.say_hello_async(&req).unwrap();
     if let Err(e) = rx.recv_timeout(Duration::from_secs(5)) {
         // Panic will still calling drop method of server, which will wait for
         // deadlock forever.
         eprintln!("failed to wait for the case to finish: {:?}", e);
         std::process::exit(1);
     }
-    let reply = block_on(f).expect("rpc");
+    let reply = block_on(f.message()).expect("rpc");
     assert_eq!(reply.get_message(), "hello world");
 }
