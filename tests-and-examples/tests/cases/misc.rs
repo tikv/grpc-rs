@@ -141,7 +141,10 @@ fn test_soundness() {
             for _ in 0..3000 {
                 receivers.push(client.say_hello_async(&HelloRequest::default()).unwrap());
             }
-            let resps = receivers.iter_mut().map(|r| r.message()).collect::<Vec<_>>();
+            let resps = receivers
+                .iter_mut()
+                .map(|r| r.message())
+                .collect::<Vec<_>>();
             block_on(futures::future::try_join_all(resps)).unwrap();
         })
     };
@@ -223,7 +226,7 @@ fn test_shutdown_when_exists_grpc_call() {
     let client = GreeterClient::new(ch);
 
     let req = HelloRequest::default();
-    let mut rx= client.say_hello_async(&req).unwrap();
+    let mut rx = client.say_hello_async(&req).unwrap();
 
     drop(server);
     assert!(
