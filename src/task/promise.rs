@@ -91,7 +91,7 @@ impl Batch {
                 let status = self.ctx.rpc_status();
                 if status.code() == RpcStatusCode::OK {
                     guard.set_result(Ok(BatchResult::new(
-                        self.ctx.recv_message(),
+                        None,
                         Some(self.ctx.initial_metadata()),
                         Some(self.ctx.trailing_metadata()),
                     )))

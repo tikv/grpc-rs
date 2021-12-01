@@ -234,6 +234,10 @@ impl Metadata {
         }
         &[]
     }
+
+    pub(crate) fn as_mut_ptr(&mut self) -> *mut grpc_metadata_array {
+        &mut self.0 as _
+    }
 }
 
 impl fmt::Debug for Metadata {
@@ -263,12 +267,6 @@ impl Drop for Metadata {
         unsafe {
             grpc_sys::grpcwrap_metadata_array_cleanup(&mut self.0);
         }
-    }
-}
-
-impl AsMut<grpc_metadata_array> for Metadata {
-    fn as_mut(&mut self) -> &mut grpc_metadata_array {
-        &mut self.0
     }
 }
 

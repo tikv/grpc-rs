@@ -292,7 +292,7 @@ impl BatchContext {
         unsafe {
             grpcio_sys::grpcwrap_batch_context_take_recv_initial_metadata(
                 self.ctx,
-                (&mut res).as_mut() as *mut _,
+                (&mut res).as_mut_ptr(),
             );
         }
         res
