@@ -505,7 +505,6 @@ struct ResponseStreamImpl<H, T> {
     finished: bool,
     resp_de: DeserializeFn<T>,
     headers_f: BatchFuture,
-    // headers_finished
 }
 
 impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
