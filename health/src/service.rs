@@ -1,7 +1,7 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
 use crate::proto::{Health, HealthCheckRequest, HealthCheckResponse, ServingStatus};
-use futures::{FutureExt, SinkExt, Stream, StreamExt};
+use futures_util::{FutureExt as _, SinkExt as _, Stream, StreamExt as _};
 use grpcio::{RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, UnarySink, WriteFlags};
 use log::info;
 use std::collections::hash_map::Entry;

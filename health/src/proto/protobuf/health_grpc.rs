@@ -65,7 +65,7 @@ impl HealthClient {
     pub fn watch(&self, req: &super::health::HealthCheckRequest) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<super::health::HealthCheckResponse>> {
         self.watch_opt(req, ::grpcio::CallOption::default())
     }
-    pub fn spawn<F>(&self, f: F) where F: ::futures::Future<Output = ()> + Send + 'static {
+    pub fn spawn<F>(&self, f: F) where F: ::std::future::Future<Output = ()> + Send + 'static {
         self.client.spawn(f)
     }
 }

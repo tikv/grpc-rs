@@ -4,15 +4,15 @@ pub mod client;
 pub mod server;
 
 use std::fmt::{self, Debug, Display};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::{ptr, slice};
 
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
 use crate::{cq::CompletionQueue, Metadata, MetadataBuilder};
-use futures::future::Future;
-use futures::ready;
-use futures::task::{Context, Poll};
+use futures_util::ready;
 use libc::c_void;
 use parking_lot::Mutex;
 

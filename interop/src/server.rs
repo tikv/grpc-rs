@@ -6,8 +6,8 @@ use crate::grpc::{
     self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
     ServerStreamingSink, UnarySink, WriteFlags,
 };
-use futures::prelude::*;
 use futures_timer::Delay;
+use futures_util::{FutureExt as _, SinkExt as _, TryFutureExt as _, TryStreamExt as _};
 
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{

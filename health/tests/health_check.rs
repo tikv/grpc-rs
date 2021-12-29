@@ -1,7 +1,7 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::executor::block_on;
-use futures::prelude::*;
+use futures_executor::block_on;
+use futures_util::StreamExt as _;
 use grpcio::*;
 use grpcio_health::proto::*;
 use grpcio_health::*;

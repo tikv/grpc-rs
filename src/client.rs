@@ -1,5 +1,7 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::future::Future;
+
 use crate::call::client::{
     CallOption, ClientCStreamReceiver, ClientCStreamSender, ClientDuplexReceiver,
     ClientDuplexSender, ClientSStreamReceiver, ClientUnaryReceiver,
@@ -9,8 +11,7 @@ use crate::channel::Channel;
 use crate::error::Result;
 use crate::task::Executor;
 use crate::task::Kicker;
-use futures::executor::block_on;
-use futures::Future;
+use futures_executor::block_on;
 
 /// A generic client for making RPC calls.
 #[derive(Clone)]
@@ -29,7 +30,7 @@ impl Client {
 
     /// Create a synchronized unary RPC call.
     ///
-    /// It uses futures::executor::block_on to wait for the futures. It's recommended to use
+    /// It uses futures_executor::block_on to wait for the futures. It's recommended to use
     /// the asynchronous version.
     pub fn unary_call<Req, Resp>(
         &self,

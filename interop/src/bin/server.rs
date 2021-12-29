@@ -1,17 +1,14 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-extern crate clap;
-extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
-extern crate interop;
 #[macro_use]
 extern crate log;
 
 use std::sync::Arc;
 
 use clap::{App, Arg};
-use futures::executor::block_on;
+use futures_executor::block_on;
 use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::test_grpc::create_test_service;
 use grpc_proto::util;
@@ -64,5 +61,5 @@ fn main() {
     }
     server.start();
 
-    block_on(futures::future::pending::<()>());
+    block_on(futures_util::future::pending::<()>());
 }

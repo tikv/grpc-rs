@@ -1,13 +1,14 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::channel::oneshot::{self, Sender};
-use futures::executor::block_on;
-use futures::prelude::*;
-use futures::task::*;
+use futures_channel::oneshot::{self, Sender};
+use futures_executor::block_on;
+use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::*;
+use std::task::{Context, Poll, Waker};
 use std::thread;
 use std::time::*;
 

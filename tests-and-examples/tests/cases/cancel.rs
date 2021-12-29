@@ -1,16 +1,17 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};
+use std::task::Poll;
 use std::thread;
 use std::time::Duration;
 
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::prelude::*;
-use futures::stream::StreamExt;
-use futures::task::*;
+use futures_channel::mpsc;
+use futures_executor::block_on;
+use futures_util::{future, stream, Stream};
+use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _, TryStreamExt as _};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
 
@@ -198,10 +199,8 @@ fn test_server_cancel_on_dropping() {
         T: Send + 'static,
     {
         let f = async move {
-            futures::join!(
-                stream
-                    .try_for_each(|_| futures::future::ready(Ok(())))
-                    .map(|_| ()),
+            futures_util::join!(
+                stream.try_for_each(|_| future::ready(Ok(()))).map(|_| ()),
                 async move {
                     drop(sink);
                 }
@@ -218,7 +217,7 @@ fn test_server_cancel_on_dropping() {
         T: Send + 'static,
     {
         let mut stream = Some(stream);
-        let f = futures::stream::poll_fn(move |cx| -> Poll<Option<Result<()>>> {
+        let f = stream::poll_fn(move |cx| -> Poll<Option<Result<()>>> {
             if stream.is_some() {
                 let s = stream.as_mut().unwrap();
                 // start the call.

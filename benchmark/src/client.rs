@@ -1,14 +1,17 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CString;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use futures::channel::oneshot::{self, Receiver, Sender};
-use futures::prelude::*;
-use futures::stream;
+use futures_channel::oneshot::{self, Receiver, Sender};
+use futures_util::stream;
+use futures_util::{
+    FutureExt as _, SinkExt as _, StreamExt as _, TryFutureExt as _, TryStreamExt as _,
+};
 use grpcio::{
     CallOption, Channel, ChannelBuilder, Client as GrpcClient, EnvBuilder, Environment, WriteFlags,
 };
@@ -442,6 +445,6 @@ impl Client {
     pub fn shutdown(&mut self) -> impl Future<Output = ()> + Send {
         self.keep_running.store(false, Ordering::Relaxed);
         let tasks = self.running_reqs.take().unwrap();
-        futures::future::join_all(tasks).map(|_| ())
+        futures_util::future::join_all(tasks).map(|_| ())
     }
 }

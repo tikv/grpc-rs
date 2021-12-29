@@ -6,8 +6,9 @@ use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use futures::prelude::*;
-use futures::sink::SinkExt;
+use futures_util::{
+    FutureExt as _, SinkExt as _, StreamExt as _, TryFutureExt as _, TryStreamExt as _,
+};
 use grpc::{
     self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
     RpcContext, ServiceBuilder, UnarySink, WriteFlags,

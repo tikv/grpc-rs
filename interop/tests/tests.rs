@@ -44,7 +44,7 @@ macro_rules! mk_test {
         mod $func {
             use std::sync::Arc;
 
-            use futures::executor::block_on;
+            use futures_executor::block_on;
             use grpc::{ChannelBuilder, Environment, ServerBuilder};
             use grpc_proto::testing::test_grpc::create_test_service;
             use grpc_proto::util;
