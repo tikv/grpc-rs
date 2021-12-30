@@ -10,9 +10,9 @@ use std::io::Read;
 use std::sync::Arc;
 use std::{io, thread};
 
-use futures::channel::oneshot;
-use futures::executor::block_on;
-use futures::prelude::*;
+use futures_channel::oneshot;
+use futures_executor::block_on;
+use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::{ChannelBuilder, Environment, ResourceQuota, RpcContext, ServerBuilder, UnarySink};
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};

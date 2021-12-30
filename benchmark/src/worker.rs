@@ -2,8 +2,8 @@
 
 use std::sync::{Arc, Mutex};
 
-use futures::channel::oneshot::Sender;
-use futures::prelude::*;
+use futures_channel::oneshot::Sender;
+use futures_util::{FutureExt as _, SinkExt as _, TryFutureExt as _, TryStreamExt as _};
 use grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };

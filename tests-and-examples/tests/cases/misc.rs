@@ -1,8 +1,8 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use futures::executor::block_on;
-use futures::prelude::*;
+use futures_executor::block_on;
 use futures_timer::Delay;
+use futures_util::future::{self, FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 use std::sync::atomic::*;
@@ -141,7 +141,7 @@ fn test_soundness() {
             for _ in 0..3000 {
                 resps.push(client.say_hello_async(&HelloRequest::default()).unwrap());
             }
-            block_on(futures::future::try_join_all(resps)).unwrap();
+            block_on(future::try_join_all(resps)).unwrap();
         })
     };
     let j1 = spawn_reqs(env.clone());

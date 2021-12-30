@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
-use futures::prelude::*;
+use futures_util::{SinkExt as _, TryStreamExt as _};
 
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{

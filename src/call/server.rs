@@ -1,19 +1,18 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::ffi::CStr;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 use std::{result, slice};
 
 use crate::grpc_sys::{
     self, gpr_clock_type, gpr_timespec, grpc_call_error, grpcwrap_request_call_context,
 };
-use futures::future::Future;
-use futures::ready;
-use futures::sink::Sink;
-use futures::stream::Stream;
-use futures::task::{Context, Poll};
+use futures_util::ready;
+use futures_util::{Sink, Stream};
 use parking_lot::Mutex;
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};

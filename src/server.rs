@@ -3,16 +3,16 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use crate::grpc_sys::{self, grpc_call_error, grpc_server};
-use futures::future::Future;
-use futures::ready;
-use futures::task::{Context, Poll};
+use futures_util::ready;
 
 use crate::call::server::*;
 use crate::call::{MessageReader, Method, MethodType};
@@ -635,7 +635,7 @@ impl Drop for Server {
             None
         };
         self.cancel_all_calls();
-        let _ = f.map(futures::executor::block_on);
+        let _ = f.map(futures_executor::block_on);
     }
 }
 

@@ -12,7 +12,9 @@ prost-codec = ["grpcio/prost-codec", "grpcio-proto/prost-codec"]
 [dependencies]
 grpcio = { path = ".." }
 grpcio-proto = { path = "../proto", default-features = false }
-futures = "0.3"
+futures-channel = "0.3"
+futures-executor = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 libc = "0.2"
 grpcio-sys = { path = "../grpc-sys" }
 rand = "0.7"

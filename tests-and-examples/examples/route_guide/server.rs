@@ -14,9 +14,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{io, thread};
 
-use futures::channel::oneshot;
-use futures::executor::block_on;
-use futures::prelude::*;
+use futures_channel::oneshot;
+use futures_executor::block_on;
+use futures_util::{FutureExt as _, SinkExt as _, TryFutureExt as _, TryStreamExt as _};
 use grpcio::*;
 
 use crate::util::*;

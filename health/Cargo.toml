@@ -19,7 +19,8 @@ prost-codec = ["grpcio/prost-codec", "prost"]
 use-bindgen = ["grpcio/use-bindgen"]
 
 [dependencies]
-futures = "0.3"
+futures-executor = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 grpcio = { path = "..", features = ["secure"], version = "0.9.0", default-features = false }
 prost = { version = "0.8", optional = true }
 protobuf = { version = "2", optional = true }

@@ -439,7 +439,7 @@ impl<'a> ClientMethod<'a> {
 fn generate_spawn(buf: &mut String) {
     buf.push_str(
         "pub fn spawn<F>(&self, f: F) \
-         where F: ::futures::Future<Output = ()> + Send + 'static {\
+         where F: ::std::future::Future<Output = ()> + Send + 'static {\
          self.client.spawn(f)\
          }\n",
     );

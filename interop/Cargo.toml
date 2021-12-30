@@ -9,7 +9,8 @@ grpcio = { path = ".." }
 grpcio-sys = { path = "../grpc-sys" }
 grpcio-proto = { path = "../proto" }
 protobuf = "2"
-futures = "0.3"
+futures-executor = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 log = "0.4"
 clap = "2.23"
 futures-timer = "3.0"
@@ -21,4 +22,3 @@ path = "src/bin/client.rs"
 [[bin]]
 name = "interop_server"
 path = "src/bin/server.rs"
-

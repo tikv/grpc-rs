@@ -592,7 +592,7 @@ impl<'a> ServiceGen<'a> {
                 method.write_client(w);
             }
             w.pub_fn(
-                "spawn<F>(&self, f: F) where F: ::futures::Future<Output = ()> + Send + 'static",
+                "spawn<F>(&self, f: F) where F: ::std::future::Future<Output = ()> + Send + 'static",
                 |w| {
                     w.write_line("self.client.spawn(f)");
                 },
