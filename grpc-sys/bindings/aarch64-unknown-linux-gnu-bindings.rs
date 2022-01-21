@@ -3859,6 +3859,12 @@ extern "C" {
     );
 }
 extern "C" {
+    pub fn grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
+        ctx: *mut grpcwrap_batch_context,
+        res: *mut grpc_metadata_array,
+    );
+}
+extern "C" {
     pub fn grpcwrap_slice_raw_offset(
         slice: *const grpc_slice,
         offset: usize,

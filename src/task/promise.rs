@@ -92,8 +92,8 @@ impl Batch {
                 if status.code() == RpcStatusCode::OK {
                     guard.set_result(Ok(BatchResult::new(
                         None,
-                        Some(self.ctx.initial_metadata()),
-                        Some(self.ctx.trailing_metadata()),
+                        Some(self.ctx.take_initial_metadata()),
+                        Some(self.ctx.take_trailing_metadata()),
                     )))
                 } else {
                     guard.set_result(Err(Error::RpcFailure(status)))
@@ -112,8 +112,8 @@ impl Batch {
             if status.code() == RpcStatusCode::OK {
                 guard.set_result(Ok(BatchResult::new(
                     self.ctx.recv_message(),
-                    Some(self.ctx.initial_metadata()),
-                    Some(self.ctx.trailing_metadata()),
+                    Some(self.ctx.take_initial_metadata()),
+                    Some(self.ctx.take_trailing_metadata()),
                 )))
             } else {
                 guard.set_result(Err(Error::RpcFailure(status)))

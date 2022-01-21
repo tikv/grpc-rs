@@ -287,24 +287,34 @@ impl BatchContext {
         Some(GrpcByteBufferReader::new(buf))
     }
 
-    pub fn initial_metadata(&self) -> Metadata {
+    /// Get the initial metadata from response.
+    ///
+    /// If initial metadata is not fetched or the method has been called, empty metadata will be
+    /// returned.
+    pub fn take_initial_metadata(&mut self) -> Metadata {
         let mut res = MetadataBuilder::with_capacity(0).build();
         unsafe {
             grpcio_sys::grpcwrap_batch_context_take_recv_initial_metadata(
                 self.ctx,
-                (&mut res).as_mut_ptr(),
+                res.as_mut_ptr(),
             );
         }
         res
     }
 
-    pub fn trailing_metadata(&self) -> Metadata {
+    /// Get the trailing metadata from response.
+    ///
+    /// If trailing metadata is not fetched or the method has been called, empty metadata will be
+    /// returned.
+    pub fn take_trailing_metadata(&mut self) -> Metadata {
+        let mut res = MetadataBuilder::with_capacity(0).build();
         unsafe {
-            let p =
-                grpc_sys::grpcwrap_batch_context_recv_status_on_client_trailing_metadata(self.ctx);
-            let metadata = &*(p as *const Metadata);
-            metadata.clone()
+            grpc_sys::grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
+                self.ctx,
+                res.as_mut_ptr(),
+            );
         }
+        res
     }
 }
 
