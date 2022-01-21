@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use crate::grpc_sys;
 use futures_executor::block_on;
-use futures_util::{ready, Sink, Stream};
 use futures_util::future::poll_fn;
+use futures_util::{ready, Sink, Stream};
 use parking_lot::Mutex;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
