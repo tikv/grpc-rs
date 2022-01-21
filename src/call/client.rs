@@ -1,21 +1,17 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::future::Future;
 use std::pin::Pin;
 use std::ptr;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use crate::grpc_sys;
-use futures::{
-    executor::block_on,
-    future::poll_fn,
-    ready,
-    sink::Sink,
-    stream::Stream,
-    task::{Context, Poll},
-};
+use futures_executor::block_on;
+use futures_util::{ready, Sink, Stream};
+use futures_util::future::poll_fn;
 use parking_lot::Mutex;
-use std::future::Future;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::buf::GrpcSlice;

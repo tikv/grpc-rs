@@ -8,12 +8,13 @@
 //! same completion queue as its inner call. Hence method `Executor::spawn` is provided.
 
 use std::cell::UnsafeCell;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
-use futures::future::Future;
-use futures::task::{waker_ref, ArcWake, Context, Poll};
+use futures_util::task::{waker_ref, ArcWake};
 
 use super::CallTag;
 use crate::call::Call;

@@ -1,21 +1,16 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-extern crate benchmark;
-extern crate clap;
-extern crate futures;
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
 #[macro_use]
 extern crate log;
-extern crate rand;
 
 use std::env;
 use std::sync::Arc;
 
 use benchmark::{init_log, Worker};
 use clap::{App, Arg};
-use futures::channel::oneshot;
-use futures::executor::block_on;
+use futures_channel::oneshot;
 use grpc::{Environment, ServerBuilder};
 use grpc_proto::testing::services_grpc::create_worker_service;
 use rand::Rng;
@@ -55,6 +50,6 @@ fn main() {
 
     server.start();
 
-    let _ = block_on(rx);
-    let _ = block_on(server.shutdown());
+    let _ = futures_executor::block_on(rx);
+    let _ = futures_executor::block_on(server.shutdown());
 }

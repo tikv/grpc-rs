@@ -2,12 +2,13 @@
 
 use std::sync::Arc;
 
-use futures::channel::mpsc;
-use futures::executor::block_on;
-use futures::join;
-use futures::prelude::*;
-use futures::sink::SinkExt;
+use futures_channel::mpsc;
+use futures_executor::block_on;
 use futures_timer::Delay;
+use futures_util::{join, stream};
+use futures_util::{
+    FutureExt as _, SinkExt as _, StreamExt as _, TryFutureExt as _, TryStreamExt as _,
+};
 use grpcio::{
     ChannelBuilder, ClientStreamingSink, DuplexSink, EnvBuilder, RequestStream, RpcContext,
     ServerBuilder, ServerStreamingSink, UnarySink, WriteFlags,
@@ -100,7 +101,7 @@ fn test_client_send_all() {
             p.set_longitude(i);
             send_data.push(p);
         }
-        let send_stream = futures::stream::iter(send_data);
+        let send_stream = stream::iter(send_data);
         assert_finish!(
             sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
                 .await
@@ -116,7 +117,7 @@ fn test_client_send_all() {
             p.set_longitude(i);
             send_data.push(p);
         }
-        let send_stream = futures::stream::iter(send_data);
+        let send_stream = stream::iter(send_data);
         sink.enhance_batch(true);
         assert_finish!(
             sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
@@ -133,7 +134,7 @@ fn test_client_send_all() {
             p.set_longitude(i);
             send_data.push(p);
         }
-        let send_stream = futures::stream::iter(send_data);
+        let send_stream = stream::iter(send_data);
         sink.enhance_batch(false);
         sink.send_all(
             &mut send_stream.map(move |item| Ok((item, WriteFlags::default().buffer_hint(true)))),

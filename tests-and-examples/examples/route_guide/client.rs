@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use futures::prelude::*;
+use futures_util::{SinkExt as _, TryStreamExt as _};
 use grpcio::*;
 use grpcio_proto::example::route_guide::{Point, Rectangle, RouteNote};
 use grpcio_proto::example::route_guide_grpc::RouteGuideClient;
@@ -129,7 +129,7 @@ async fn route_chat(client: &RouteGuideClient) -> Result<()> {
         }
         Ok(()) as Result<_>
     };
-    let (sr, rr) = futures::join!(send, receive);
+    let (sr, rr) = futures_util::join!(send, receive);
     sr.and(rr)?;
     Ok(())
 }
@@ -157,5 +157,5 @@ async fn async_main() -> Result<()> {
 }
 
 fn main() {
-    futures::executor::block_on(async_main()).unwrap()
+    futures_executor::block_on(async_main()).unwrap()
 }

@@ -5,11 +5,11 @@ mod executor;
 mod promise;
 
 use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll, Waker};
 
-use futures::future::Future;
-use futures::task::{Context, Poll, Waker};
 use parking_lot::Mutex;
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
@@ -204,7 +204,7 @@ mod tests {
 
     use super::*;
     use crate::env::Environment;
-    use futures::executor::block_on;
+    use futures_executor::block_on;
 
     #[test]
     fn test_resolve() {

@@ -32,7 +32,7 @@ pub fn check_async_opt(&self, req: &HealthCheckRequest, opt: ::grpcio::CallOptio
 pub fn check_async(&self, req: &HealthCheckRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<HealthCheckResponse>,> { self.check_async_opt(req, ::grpcio::CallOption::default()) }
 pub fn watch_opt(&self, req: &HealthCheckRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<HealthCheckResponse>,> { self.client.server_streaming(&METHOD_HEALTH_WATCH, req, opt) }
 pub fn watch(&self, req: &HealthCheckRequest) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<HealthCheckResponse>,> { self.watch_opt(req, ::grpcio::CallOption::default()) }
-pub fn spawn<F>(&self, f: F) where F: ::futures::Future<Output = ()> + Send + 'static {self.client.spawn(f)}
+pub fn spawn<F>(&self, f: F) where F: ::std::future::Future<Output = ()> + Send + 'static {self.client.spawn(f)}
 }
 pub trait Health {
 fn check(&mut self, ctx: ::grpcio::RpcContext, _req: HealthCheckRequest, sink: ::grpcio::UnarySink<HealthCheckResponse>) { grpcio::unimplemented_call!(ctx, sink) }
