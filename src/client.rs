@@ -32,13 +32,13 @@ impl Client {
     ///
     /// It uses futures_executor::block_on to wait for the futures. It's recommended to use
     /// the asynchronous version.
-    pub fn unary_call<Req, Resp>(
+    pub fn unary_call<Req, Resp: Unpin>(
         &self,
         method: &Method<Req, Resp>,
         req: &Req,
         opt: CallOption,
     ) -> Result<Resp> {
-        block_on(self.unary_call_async(method, req, opt)?.message())
+        block_on(self.unary_call_async(method, req, opt)?)
     }
 
     /// Create an asynchronized unary RPC call.

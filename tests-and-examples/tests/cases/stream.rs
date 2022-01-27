@@ -94,7 +94,7 @@ fn test_client_send_all() {
 
     let exec_test_f = async move {
         // Test for send all disable batch
-        let (mut sink, mut receiver) = client.record_route().unwrap();
+        let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
         for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
@@ -106,11 +106,11 @@ fn test_client_send_all() {
             sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
                 .await
         );
-        let summary = receiver.message().await.unwrap();
+        let summary = receiver.await.unwrap();
         assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
         // Test for send all enable batch
-        let (mut sink, mut receiver) = client.record_route().unwrap();
+        let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
         for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
@@ -123,11 +123,11 @@ fn test_client_send_all() {
             sink.send_all(&mut send_stream.map(move |item| Ok((item, WriteFlags::default()))))
                 .await
         );
-        let summary = receiver.message().await.unwrap();
+        let summary = receiver.await.unwrap();
         assert_eq!(summary.get_point_count(), MESSAGE_NUM);
 
         // Test for send all and all buffer hints are true
-        let (mut sink, mut receiver) = client.record_route().unwrap();
+        let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
         for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
@@ -152,7 +152,7 @@ fn test_client_send_all() {
             rx.try_next().unwrap();
         };
         let recv_msg_task = async move {
-            let summary = receiver.message().await.unwrap();
+            let summary = receiver.await.unwrap();
             tx.send(()).await.unwrap();
             assert_eq!(summary.get_point_count(), MESSAGE_NUM);
         };

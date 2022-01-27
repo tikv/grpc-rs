@@ -291,6 +291,26 @@ impl<T> ClientUnaryReceiver<T> {
     }
 }
 
+impl<T: Unpin> Future for ClientUnaryReceiver<T> {
+    type Output = Result<T>;
+
+    /// Note this method is conflict with method `message`.
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+        if self.finished {
+            if let Some(message) = self.message.take() {
+                return Poll::Ready(Ok(message));
+            }
+            panic!("future should not be polled twice.");
+        }
+
+        let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
+        self.finished = true;
+        Poll::Ready(self.resp_de(data.message_reader.unwrap()))
+    }
+}
+
 /// A receiver for client streaming call.
 ///
 /// If the corresponding sink has dropped or cancelled, this will poll a
@@ -372,6 +392,29 @@ impl<T> Drop for ClientCStreamReceiver<T> {
         if !self.finished {
             self.cancel();
         }
+    }
+}
+
+impl<T: Unpin> Future for ClientCStreamReceiver<T> {
+    type Output = Result<T>;
+
+    /// Note this method is conflict with method `message`.
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+        if self.finished {
+            if let Some(message) = self.message.take() {
+                return Poll::Ready(Ok(message));
+            }
+            panic!("future should not be polled twice.");
+        }
+
+        let data = {
+            let mut call = self.call.lock();
+            ready!(call.poll_finish(cx)?)
+        };
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
+        self.finished = true;
+        Poll::Ready((self.resp_de)(data.message_reader.unwrap()))
     }
 }
 

@@ -28,7 +28,7 @@ impl Client {
     pub async fn empty_unary(&self) -> grpcio::Result<()> {
         print!("testing empty unary ... ");
         let req = Empty::default();
-        let resp = self.client.empty_call_async(&req)?.message().await?;
+        let resp = self.client.empty_call_async(&req)?.await?;
         assert_eq!(req, resp);
         println!("pass");
         Ok(())
@@ -39,7 +39,7 @@ impl Client {
         let mut req = SimpleRequest::default();
         req.set_response_size(314_159);
         req.set_payload(util::new_payload(271_828));
-        let resp = self.client.unary_call_async(&req)?.message().await?;
+        let resp = self.client.unary_call_async(&req)?.await?;
         assert_eq!(314_159, resp.get_payload().get_body().len());
         println!("pass");
         Ok(())
@@ -48,14 +48,14 @@ impl Client {
     pub async fn client_streaming(&self) -> grpcio::Result<()> {
         print!("testing client streaming ... ");
         let payload_size = vec![27182usize, 8, 1828, 45904];
-        let (mut sender, mut receiver) = self.client.streaming_input_call()?;
+        let (mut sender, receiver) = self.client.streaming_input_call()?;
         for size in payload_size {
             let mut req = StreamingInputCallRequest::default();
             req.set_payload(util::new_payload(size));
             sender.send((req, WriteFlags::default())).await?;
         }
         sender.close().await?;
-        let resp = receiver.message().await?;
+        let resp = receiver.await?;
         assert_eq!(74922, resp.get_aggregated_payload_size());
         println!("pass");
         Ok(())
@@ -110,11 +110,11 @@ impl Client {
 
     pub async fn cancel_after_begin(&self) -> grpcio::Result<()> {
         print!("testing cancel_after_begin ... ");
-        let (mut sender, mut receiver) = self.client.streaming_input_call()?;
+        let (mut sender, receiver) = self.client.streaming_input_call()?;
         // so request has been sent.
         futures_timer::Delay::new(Duration::from_millis(10)).await;
         sender.cancel();
-        match receiver.message().await.unwrap_err() {
+        match receiver.await.unwrap_err() {
             grpc::Error::RpcFailure(s) => assert_eq!(s.code(), RpcStatusCode::CANCELLED),
             e => panic!("expected cancel, but got: {:?}", e),
         }
@@ -168,13 +168,7 @@ impl Client {
         status.set_message(error_msg.to_owned());
         let mut req = SimpleRequest::default();
         req.set_response_status(status.clone());
-        match self
-            .client
-            .unary_call_async(&req)?
-            .message()
-            .await
-            .unwrap_err()
-        {
+        match self.client.unary_call_async(&req)?.await.unwrap_err() {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
                 assert_eq!(s.message(), error_msg);
@@ -202,7 +196,6 @@ impl Client {
         match self
             .client
             .unimplemented_call_async(&Empty::default())?
-            .message()
             .await
             .unwrap_err()
         {
@@ -218,7 +211,6 @@ impl Client {
         let client = UnimplementedServiceClient::new(self.channel.clone());
         match client
             .unimplemented_call_async(&Empty::default())?
-            .message()
             .await
             .unwrap_err()
         {

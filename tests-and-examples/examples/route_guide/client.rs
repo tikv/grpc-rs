@@ -42,8 +42,8 @@ fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
 }
 
 async fn get_feature(client: &RouteGuideClient, point: &Point) -> Result<()> {
-    let mut get_feature = client.get_feature_async(point)?;
-    let f = get_feature.message().await?;
+    let get_feature = client.get_feature_async(point)?;
+    let f = get_feature.await?;
     if !f.has_location() {
         warn!("Server returns incomplete feature.");
         return Ok(());
@@ -79,7 +79,7 @@ async fn list_features(client: &RouteGuideClient) -> Result<()> {
 async fn record_route(client: &RouteGuideClient) -> Result<()> {
     let features = util::load_db();
     let mut rng = rand::thread_rng();
-    let (mut sink, mut receiver) = client.record_route()?;
+    let (mut sink, receiver) = client.record_route()?;
     for _ in 0..10usize {
         let f = features.choose(&mut rng).unwrap();
         let point = f.get_location();
@@ -89,7 +89,7 @@ async fn record_route(client: &RouteGuideClient) -> Result<()> {
     }
     // flush
     sink.close().await?;
-    let summary = receiver.message().await?;
+    let summary = receiver.await?;
     info!("Finished trip with {} points", summary.get_point_count());
     info!("Passed {} features", summary.get_feature_count());
     info!("Travelled {} meters", summary.get_distance());

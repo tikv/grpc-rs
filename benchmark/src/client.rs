@@ -216,7 +216,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let f = async move {
             loop {
                 let latency_timer = Instant::now();
-                self.client.unary_call_async(&self.req)?.message().await?;
+                self.client.unary_call_async(&self.req)?.await?;
                 let elapsed = latency_timer.elapsed();
                 self.ctx.observe_latency(elapsed);
                 let mut time = self.ctx.backoff_async();
@@ -264,7 +264,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
         let keep_running = self.ctx.keep_running.clone();
 
         let f = async move {
-            let (mut sender, mut receiver) = self.client.streaming_from_client().unwrap();
+            let (mut sender, receiver) = self.client.streaming_from_client().unwrap();
 
             let send_stream = Box::pin(stream::unfold(
                 (self, true, Instant::now()),
@@ -290,7 +290,7 @@ impl<B: Backoff + Send + 'static> RequestExecutor<B> {
                 .await?;
 
             sender.close().await?;
-            receiver.message().await?;
+            receiver.await?;
             Ok(())
         };
         spawn!(client, keep_running, "streaming from client", f);
