@@ -352,15 +352,15 @@ macro_rules! impl_unary_sink {
                 }
             }
 
-            pub fn set_headers(mut self, meta: Metadata) -> $t<T> {
+            #[inline]
+            pub fn set_headers(&mut self, meta: Metadata) {
                 self.headers = Some(meta);
-                self
             }
 
-            pub fn set_call_flags(mut self, flags: u32) -> $t<T> {
+            #[inline]
+            pub fn set_call_flags(&mut self, flags: u32) {
                 // TODO: implement a server-side call flags interface similar to the client-side .CallOption.
                 self.call_flags = flags;
-                self
             }
 
             pub fn success(self, t: T) -> $rt {

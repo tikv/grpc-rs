@@ -276,7 +276,7 @@ impl<T> ClientUnaryReceiver<T> {
         Ok(&self.initial_metadata)
     }
 
-    pub async fn trailer(&mut self) -> Result<&Metadata> {
+    pub async fn trailers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
         Ok(&self.trailing_metadata)
     }
@@ -285,7 +285,7 @@ impl<T> ClientUnaryReceiver<T> {
         block_on(async {
             let headers = self.headers().await?.clone();
             let message = self.message().await?;
-            let trailer = self.trailer().await?.clone();
+            let trailer = self.trailers().await?.clone();
             Ok::<(Metadata, T, Metadata), Error>((headers, message, trailer))
         })
     }
@@ -379,7 +379,7 @@ impl<T> ClientCStreamReceiver<T> {
         Ok(&self.initial_metadata)
     }
 
-    pub async fn trailer(&mut self) -> Result<&Metadata> {
+    pub async fn trailers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
         Ok(&self.trailing_metadata)
     }

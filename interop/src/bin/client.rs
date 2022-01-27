@@ -100,6 +100,7 @@ async fn run_test(client: Client, case: Option<&str>) -> grpcio::Result<()> {
         "CLIENT_STREAMING" => client.client_streaming().await,
         "SERVER_STREAMING" => client.server_streaming().await,
         "PING_PONG" => client.ping_pong().await,
+        "CUSTOM_METADATA" => client.custom_metadata().await,
         "EMPTY_STREAM" => client.empty_stream().await,
         "CANCEL_AFTER_BEGIN" => client.cancel_after_begin().await,
         "CANCEL_AFTER_FIRST_RESPONSE" => client.cancel_after_first_response().await,
