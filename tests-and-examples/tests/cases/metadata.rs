@@ -2,10 +2,10 @@
 
 use futures_executor::block_on;
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
-use futures_util::{future, stream, SinkExt, TryStreamExt};
+use futures_util::{SinkExt, TryStreamExt};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::example::route_guide::{Feature, Point, Rectangle, RouteSummary};
+use grpcio_proto::example::route_guide::{Feature, Rectangle};
 use grpcio_proto::example::route_guide_grpc::{create_route_guide, RouteGuide, RouteGuideClient};
 use grpcio_proto::google::rpc::Status;
 use std::convert::TryInto;
