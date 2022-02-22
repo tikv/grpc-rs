@@ -271,6 +271,7 @@ impl<T> ClientUnaryReceiver<T> {
         Ok(self.message.take().unwrap())
     }
 
+    /// Get the initial metadata.
     pub async fn headers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
         Ok(&self.initial_metadata)
@@ -374,6 +375,7 @@ impl<T> ClientCStreamReceiver<T> {
         Ok(self.message.take().unwrap())
     }
 
+    /// Get the initial metadata.
     pub async fn headers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
         Ok(&self.initial_metadata)
@@ -537,13 +539,18 @@ pub type ClientCStreamSender<T> = StreamingCallSink<T>;
 /// [`close`]: #method.close
 pub type ClientDuplexSender<T> = StreamingCallSink<T>;
 
+enum FutureOrValue<F, V> {
+    Future(F),
+    Value(V),
+}
+
 struct ResponseStreamImpl<H, T> {
     call: H,
     msg_f: Option<BatchFuture>,
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
-    headers_f: BatchFuture,
+    headers_f: FutureOrValue<BatchFuture, Metadata>,
 }
 
 impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
@@ -554,7 +561,7 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
             read_done: false,
             finished: false,
             resp_de,
-            headers_f,
+            headers_f: FutureOrValue::Future(headers_f),
         }
     }
 
@@ -610,6 +617,16 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
             self.cancel();
         }
     }
+
+    async fn headers(&mut self) -> Result<&Metadata> {
+        if let FutureOrValue::Future(f) = &mut self.headers_f {
+            self.headers_f = FutureOrValue::Value(Pin::new(f).await?.initial_metadata);
+        }
+        match &self.headers_f {
+            FutureOrValue::Value(v) => Ok(v),
+            _ => unreachable!(),
+        }
+    }
 }
 
 /// A receiver for server streaming call.
@@ -635,8 +652,10 @@ impl<Resp> ClientSStreamReceiver<Resp> {
         self.imp.cancel()
     }
 
-    pub async fn headers(&mut self) -> Result<Metadata> {
-        Ok(Pin::new(&mut self.imp.headers_f).await?.initial_metadata)
+    /// Get the initial metadata.
+    #[inline]
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.imp.headers().await
     }
 }
 
@@ -676,8 +695,10 @@ impl<Resp> ClientDuplexReceiver<Resp> {
         self.imp.cancel()
     }
 
-    pub async fn headers(&mut self) -> Result<Metadata> {
-        Ok(Pin::new(&mut self.imp.headers_f).await?.initial_metadata)
+    /// Get the initial metadata.
+    #[inline]
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.imp.headers().await
     }
 }
 
