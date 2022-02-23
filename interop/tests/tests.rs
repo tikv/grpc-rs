@@ -65,6 +65,7 @@ mk_test!(server_streaming);
 // FIXME(#306) Intermittent test.
 #[cfg(not(feature = "openssl"))]
 mk_test!(ping_pong);
+mk_test!(custom_metadata);
 mk_test!(empty_stream);
 mk_test!(cancel_after_begin);
 mk_test!(cancel_after_first_response);

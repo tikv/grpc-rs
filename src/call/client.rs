@@ -8,6 +8,8 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use crate::grpc_sys;
+use futures_executor::block_on;
+use futures_util::future::poll_fn;
 use futures_util::{ready, Sink, Stream};
 use parking_lot::Mutex;
 
@@ -17,7 +19,7 @@ use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
-use crate::metadata::Metadata;
+use crate::metadata::{Metadata, MetadataBuilder};
 use crate::task::{BatchFuture, BatchType};
 
 /// Update the flag bit in res.
@@ -144,12 +146,8 @@ impl Call {
         });
 
         let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
-        let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser());
-        let recv = ClientCStreamReceiver {
-            call: share_call,
-            resp_de: method.resp_de(),
-            finished: false,
-        };
+        let sink = ClientCStreamSender::new(share_call.clone(), method.req_ser(), opt.call_flags);
+        let recv = ClientCStreamReceiver::new(share_call, method.resp_de());
         Ok((sink, recv))
     }
 
@@ -176,12 +174,16 @@ impl Call {
             )
         });
 
-        // TODO: handle header
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let headers_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
-        Ok(ClientSStreamReceiver::new(call, cq_f, method.resp_de()))
+        Ok(ClientSStreamReceiver::new(
+            call,
+            cq_f,
+            method.resp_de(),
+            headers_f,
+        ))
     }
 
     pub fn duplex_streaming<Req, Resp>(
@@ -202,14 +204,13 @@ impl Call {
             )
         });
 
-        // TODO: handle header.
-        check_run(BatchType::Finish, |ctx, tag| unsafe {
+        let headers_f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_recv_initial_metadata(call.call, ctx, tag)
         });
 
         let share_call = Arc::new(Mutex::new(ShareCall::new(call, cq_f)));
-        let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser());
-        let recv = ClientDuplexReceiver::new(share_call, method.resp_de());
+        let sink = ClientDuplexSender::new(share_call.clone(), method.req_ser(), opt.call_flags);
+        let recv = ClientDuplexReceiver::new(share_call, method.resp_de(), headers_f);
         Ok((sink, recv))
     }
 }
@@ -222,6 +223,10 @@ pub struct ClientUnaryReceiver<T> {
     call: Call,
     resp_f: BatchFuture,
     resp_de: DeserializeFn<T>,
+    finished: bool,
+    message: Option<T>,
+    initial_metadata: Metadata,
+    trailing_metadata: Metadata,
 }
 
 impl<T> ClientUnaryReceiver<T> {
@@ -230,6 +235,10 @@ impl<T> ClientUnaryReceiver<T> {
             call,
             resp_f,
             resp_de,
+            finished: false,
+            message: None,
+            initial_metadata: MetadataBuilder::new().build(),
+            trailing_metadata: MetadataBuilder::new().build(),
         }
     }
 
@@ -243,15 +252,63 @@ impl<T> ClientUnaryReceiver<T> {
     pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
         (self.resp_de)(reader)
     }
+
+    async fn wait_for_batch_future(&mut self) -> Result<()> {
+        if self.finished {
+            return Ok(());
+        }
+
+        let data = Pin::new(&mut self.resp_f).await?;
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
+        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.finished = true;
+        Ok(())
+    }
+
+    pub async fn message(&mut self) -> Result<T> {
+        self.wait_for_batch_future().await?;
+        Ok(self.message.take().unwrap())
+    }
+
+    /// Get the initial metadata.
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.initial_metadata)
+    }
+
+    pub async fn trailers(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.trailing_metadata)
+    }
+
+    pub fn receive_sync(&mut self) -> Result<(Metadata, T, Metadata)> {
+        block_on(async {
+            let headers = self.headers().await?.clone();
+            let message = self.message().await?;
+            let trailer = self.trailers().await?.clone();
+            Ok::<(Metadata, T, Metadata), Error>((headers, message, trailer))
+        })
+    }
 }
 
-impl<T> Future for ClientUnaryReceiver<T> {
+impl<T: Unpin> Future for ClientUnaryReceiver<T> {
     type Output = Result<T>;
 
+    /// Note this method is conflict with method `message`.
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+        if self.finished {
+            if let Some(message) = self.message.take() {
+                return Poll::Ready(Ok(message));
+            }
+            panic!("future should not be polled twice.");
+        }
+
         let data = ready!(Pin::new(&mut self.resp_f).poll(cx)?);
-        let t = self.resp_de(data.unwrap())?;
-        Poll::Ready(Ok(t))
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
+        self.finished = true;
+        Poll::Ready(self.resp_de(data.message_reader.unwrap()))
     }
 }
 
@@ -267,9 +324,24 @@ pub struct ClientCStreamReceiver<T> {
     call: Arc<Mutex<ShareCall>>,
     resp_de: DeserializeFn<T>,
     finished: bool,
+    message: Option<T>,
+    initial_metadata: Metadata,
+    trailing_metadata: Metadata,
 }
 
 impl<T> ClientCStreamReceiver<T> {
+    /// Private constructor to simplify code in `impl Call`
+    fn new(call: Arc<Mutex<ShareCall>>, resp_de: DeserializeFn<T>) -> ClientCStreamReceiver<T> {
+        ClientCStreamReceiver {
+            call,
+            resp_de,
+            finished: false,
+            message: None,
+            initial_metadata: MetadataBuilder::new().build(),
+            trailing_metadata: MetadataBuilder::new().build(),
+        }
+    }
+
     /// Cancel the call.
     pub fn cancel(&mut self) {
         let lock = self.call.lock();
@@ -279,6 +351,39 @@ impl<T> ClientCStreamReceiver<T> {
     #[inline]
     pub fn resp_de(&self, reader: MessageReader) -> Result<T> {
         (self.resp_de)(reader)
+    }
+
+    async fn wait_for_batch_future(&mut self) -> Result<()> {
+        if self.finished {
+            return Ok(());
+        }
+        let data = poll_fn(|cx| {
+            let mut call = self.call.lock();
+            call.poll_finish(cx)
+        })
+        .await?;
+
+        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
+        self.finished = true;
+        Ok(())
+    }
+
+    pub async fn message(&mut self) -> Result<T> {
+        self.wait_for_batch_future().await?;
+        Ok(self.message.take().unwrap())
+    }
+
+    /// Get the initial metadata.
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.initial_metadata)
+    }
+
+    pub async fn trailers(&mut self) -> Result<&Metadata> {
+        self.wait_for_batch_future().await?;
+        Ok(&self.trailing_metadata)
     }
 }
 
@@ -292,17 +397,26 @@ impl<T> Drop for ClientCStreamReceiver<T> {
     }
 }
 
-impl<T> Future for ClientCStreamReceiver<T> {
+impl<T: Unpin> Future for ClientCStreamReceiver<T> {
     type Output = Result<T>;
 
+    /// Note this method is conflict with method `message`.
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<T>> {
+        if self.finished {
+            if let Some(message) = self.message.take() {
+                return Poll::Ready(Ok(message));
+            }
+            panic!("future should not be polled twice.");
+        }
+
         let data = {
             let mut call = self.call.lock();
             ready!(call.poll_finish(cx)?)
         };
-        let t = (self.resp_de)(data.unwrap())?;
+        self.initial_metadata = data.initial_metadata;
+        self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready(Ok(t))
+        Poll::Ready((self.resp_de)(data.message_reader.unwrap()))
     }
 }
 
@@ -316,15 +430,21 @@ pub struct StreamingCallSink<Req> {
     sink_base: SinkBase,
     close_f: Option<BatchFuture>,
     req_ser: SerializeFn<Req>,
+    call_flags: u32,
 }
 
 impl<Req> StreamingCallSink<Req> {
-    fn new(call: Arc<Mutex<ShareCall>>, req_ser: SerializeFn<Req>) -> StreamingCallSink<Req> {
+    fn new(
+        call: Arc<Mutex<ShareCall>>,
+        req_ser: SerializeFn<Req>,
+        call_flags: u32,
+    ) -> StreamingCallSink<Req> {
         StreamingCallSink {
             call,
             sink_base: SinkBase::new(false),
             close_f: None,
             req_ser,
+            call_flags,
         }
     }
 
@@ -374,7 +494,7 @@ impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
             call.check_alive()?;
         }
         let t = &mut *self;
-        Pin::new(&mut t.sink_base).start_send(&mut t.call, &msg, flags, t.req_ser)
+        Pin::new(&mut t.sink_base).start_send(&mut t.call, &msg, flags, t.req_ser, t.call_flags)
     }
 
     #[inline]
@@ -384,7 +504,7 @@ impl<Req> Sink<(Req, WriteFlags)> for StreamingCallSink<Req> {
             call.check_alive()?;
         }
         let t = &mut *self;
-        Pin::new(&mut t.sink_base).poll_flush(cx, &mut t.call)
+        Pin::new(&mut t.sink_base).poll_flush(cx, &mut t.call, t.call_flags)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
@@ -419,22 +539,29 @@ pub type ClientCStreamSender<T> = StreamingCallSink<T>;
 /// [`close`]: #method.close
 pub type ClientDuplexSender<T> = StreamingCallSink<T>;
 
+enum FutureOrValue<F, V> {
+    Future(F),
+    Value(V),
+}
+
 struct ResponseStreamImpl<H, T> {
     call: H,
     msg_f: Option<BatchFuture>,
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
+    headers_f: FutureOrValue<BatchFuture, Metadata>,
 }
 
 impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
-    fn new(call: H, resp_de: DeserializeFn<T>) -> ResponseStreamImpl<H, T> {
+    fn new(call: H, resp_de: DeserializeFn<T>, headers_f: BatchFuture) -> ResponseStreamImpl<H, T> {
         ResponseStreamImpl {
             call,
             msg_f: None,
             read_done: false,
             finished: false,
             resp_de,
+            headers_f: FutureOrValue::Future(headers_f),
         }
     }
 
@@ -457,7 +584,8 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
         loop {
             if !self.read_done {
                 if let Some(msg_f) = &mut self.msg_f {
-                    bytes = ready!(Pin::new(msg_f).poll(cx)?);
+                    let batch_result = ready!(Pin::new(msg_f).poll(cx)?);
+                    bytes = batch_result.message_reader;
                     if bytes.is_none() {
                         self.read_done = true;
                     }
@@ -489,6 +617,16 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
             self.cancel();
         }
     }
+
+    async fn headers(&mut self) -> Result<&Metadata> {
+        if let FutureOrValue::Future(f) = &mut self.headers_f {
+            self.headers_f = FutureOrValue::Value(Pin::new(f).await?.initial_metadata);
+        }
+        match &self.headers_f {
+            FutureOrValue::Value(v) => Ok(v),
+            _ => unreachable!(),
+        }
+    }
 }
 
 /// A receiver for server streaming call.
@@ -502,15 +640,22 @@ impl<Resp> ClientSStreamReceiver<Resp> {
         call: Call,
         finish_f: BatchFuture,
         de: DeserializeFn<Resp>,
+        headers_f: BatchFuture,
     ) -> ClientSStreamReceiver<Resp> {
         let share_call = ShareCall::new(call, finish_f);
         ClientSStreamReceiver {
-            imp: ResponseStreamImpl::new(share_call, de),
+            imp: ResponseStreamImpl::new(share_call, de, headers_f),
         }
     }
 
     pub fn cancel(&mut self) {
         self.imp.cancel()
+    }
+
+    /// Get the initial metadata.
+    #[inline]
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.imp.headers().await
     }
 }
 
@@ -536,14 +681,24 @@ pub struct ClientDuplexReceiver<Resp> {
 }
 
 impl<Resp> ClientDuplexReceiver<Resp> {
-    fn new(call: Arc<Mutex<ShareCall>>, de: DeserializeFn<Resp>) -> ClientDuplexReceiver<Resp> {
+    fn new(
+        call: Arc<Mutex<ShareCall>>,
+        de: DeserializeFn<Resp>,
+        headers_f: BatchFuture,
+    ) -> ClientDuplexReceiver<Resp> {
         ClientDuplexReceiver {
-            imp: ResponseStreamImpl::new(call, de),
+            imp: ResponseStreamImpl::new(call, de, headers_f),
         }
     }
 
     pub fn cancel(&mut self) {
         self.imp.cancel()
+    }
+
+    /// Get the initial metadata.
+    #[inline]
+    pub async fn headers(&mut self) -> Result<&Metadata> {
+        self.imp.headers().await
     }
 }
 

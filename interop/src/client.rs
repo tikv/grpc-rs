@@ -2,8 +2,8 @@
 
 use std::time::Duration;
 
-use crate::grpc::{self, CallOption, Channel, RpcStatusCode, WriteFlags};
 use futures_util::{SinkExt as _, TryStreamExt as _};
+use grpcio::{self, CallOption, Channel, Metadata, MetadataBuilder, RpcStatusCode, WriteFlags};
 
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{
@@ -11,6 +11,16 @@ use grpc_proto::testing::messages::{
 };
 use grpc_proto::testing::test_grpc::{TestServiceClient, UnimplementedServiceClient};
 use grpc_proto::util;
+
+fn create_test_metadata() -> Metadata {
+    let mut builder = MetadataBuilder::with_capacity(2);
+    builder
+        .add_str("x-grpc-test-echo-initial", "test_initial_metadata_value")
+        .unwrap()
+        .add_bytes("x-grpc-test-echo-trailing-bin", &[0xab, 0xab, 0xab])
+        .unwrap();
+    builder.build()
+}
 
 pub struct Client {
     channel: Channel,
@@ -95,6 +105,48 @@ impl Client {
         }
         sender.close().await?;
         assert_eq!(receiver.try_next().await?, None);
+        println!("pass");
+        Ok(())
+    }
+
+    pub async fn custom_metadata(&self) -> grpcio::Result<()> {
+        print!("testing custom metadata ... ");
+
+        // Step 1: test unary call
+        let mut req = SimpleRequest::default();
+        req.set_response_size(314159);
+        req.set_payload(util::new_payload(271828));
+        let mut resp_call = self
+            .client
+            .unary_call_async_opt(&req, CallOption::default().headers(create_test_metadata()))?;
+        let headers = resp_call.headers().await?;
+        let v = headers
+            .iter()
+            .find(|(k, _)| *k == "x-grpc-test-echo-initial")
+            .unwrap()
+            .1;
+        assert_eq!(v, b"test_initial_metadata_value");
+
+        // Step 2: test full duplex call
+        let mut req = StreamingOutputCallRequest::default();
+        req.mut_response_parameters()
+            .push(util::new_parameters(314159));
+        req.set_payload(util::new_payload(271828));
+        let (mut tx, mut rx) = self
+            .client
+            .full_duplex_call_opt(CallOption::default().headers(create_test_metadata()))?;
+        tx.send((req, WriteFlags::default().buffer_hint(true)))
+            .await?;
+        tx.close().await?;
+        rx.try_next().await?;
+        let headers = rx.headers().await?;
+        let v = headers
+            .iter()
+            .find(|(k, _)| *k == "x-grpc-test-echo-initial")
+            .unwrap()
+            .1;
+        assert_eq!(v, b"test_initial_metadata_value");
+
         println!("pass");
         Ok(())
     }
@@ -227,6 +279,7 @@ impl Client {
         self.client_streaming().await?;
         self.server_streaming().await?;
         self.ping_pong().await?;
+        self.custom_metadata().await?;
         self.empty_stream().await?;
         self.cancel_after_begin().await?;
         self.cancel_after_first_response().await?;

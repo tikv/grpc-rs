@@ -337,6 +337,8 @@ macro_rules! impl_unary_sink {
             call: Option<$holder>,
             write_flags: u32,
             ser: SerializeFn<T>,
+            headers: Option<Metadata>,
+            call_flags: u32,
         }
 
         impl<T> $t<T> {
@@ -345,7 +347,20 @@ macro_rules! impl_unary_sink {
                     call: Some(call),
                     write_flags: 0,
                     ser,
+                    headers: None,
+                    call_flags: 0,
                 }
+            }
+
+            #[inline]
+            pub fn set_headers(&mut self, meta: Metadata) {
+                self.headers = Some(meta);
+            }
+
+            #[inline]
+            pub fn set_call_flags(&mut self, flags: u32) {
+                // TODO: implement a server-side call flags interface similar to the client-side .CallOption.
+                self.call_flags = flags;
             }
 
             pub fn success(self, t: T) -> $rt {
@@ -372,10 +387,13 @@ macro_rules! impl_unary_sink {
                     None => None,
                 };
 
+                let headers = &mut self.headers;
+                let call_flags = self.call_flags;
                 let write_flags = self.write_flags;
+
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, true, &mut data, write_flags)
+                        .start_send_status_from_server(&status, headers, call_flags, true, &mut data, write_flags)
                 });
 
                 let (cq_f, err) = match res {
@@ -455,6 +473,10 @@ macro_rules! impl_stream_sink {
                 }
             }
 
+            pub fn set_headers(&mut self, meta: Metadata) {
+                self.base.headers = meta;
+            }
+
             /// By default it always sends messages with their configured buffer hint. But when the
             /// `enhance_batch` is enabled, messages will be batched together as many as possible.
             /// The rules are listed as below:
@@ -478,7 +500,7 @@ macro_rules! impl_stream_sink {
                 let send_metadata = self.base.send_metadata;
                 let res = self.call.as_mut().unwrap().call(|c| {
                     c.call
-                        .start_send_status_from_server(&status, send_metadata, &mut None, 0)
+                        .start_send_status_from_server(&status, &mut None, 0, send_metadata, &mut None, 0)
                 });
 
                 let (fail_f, err) = match res {
@@ -523,7 +545,7 @@ macro_rules! impl_stream_sink {
             #[inline]
             fn start_send(mut self: Pin<&mut Self>, (msg, flags): (T, WriteFlags)) -> Result<()> {
                 let t = &mut *self;
-                t.base.start_send(t.call.as_mut().unwrap(), &msg, flags, t.ser)
+                t.base.start_send(t.call.as_mut().unwrap(), &msg, flags, t.ser, 0)
             }
 
             #[inline]
@@ -532,7 +554,7 @@ macro_rules! impl_stream_sink {
                     return Poll::Ready(Err(Error::RemoteStopped));
                 }
                 let t = &mut *self;
-                Pin::new(&mut t.base).poll_flush(cx, t.call.as_mut().unwrap())
+                Pin::new(&mut t.base).poll_flush(cx, t.call.as_mut().unwrap(), 0)
             }
 
             fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
@@ -544,7 +566,7 @@ macro_rules! impl_stream_sink {
                     let status = &t.status;
                     let flush_f = t.call.as_mut().unwrap().call(|c| {
                         c.call
-                            .start_send_status_from_server(status, send_metadata, &mut None, 0)
+                            .start_send_status_from_server(status, &mut None, 0, send_metadata, &mut None, 0)
                     })?;
                     t.flush_f = Some(flush_f);
                 }

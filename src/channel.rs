@@ -570,6 +570,7 @@ pub struct Channel {
     cq: CompletionQueue,
 }
 
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for Channel {}
 unsafe impl Sync for Channel {}
 

@@ -3853,9 +3853,16 @@ extern "C" {
     pub fn grpcwrap_request_call_context_destroy(ctx: *mut grpcwrap_request_call_context);
 }
 extern "C" {
-    pub fn grpcwrap_batch_context_recv_initial_metadata(
-        ctx: *const grpcwrap_batch_context,
-    ) -> *const grpc_metadata_array;
+    pub fn grpcwrap_batch_context_take_recv_initial_metadata(
+        ctx: *mut grpcwrap_batch_context,
+        res: *mut grpc_metadata_array,
+    );
+}
+extern "C" {
+    pub fn grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
+        ctx: *mut grpcwrap_batch_context,
+        res: *mut grpc_metadata_array,
+    );
 }
 extern "C" {
     pub fn grpcwrap_slice_raw_offset(
@@ -4031,7 +4038,8 @@ extern "C" {
         ctx: *mut grpcwrap_batch_context,
         send_buffer: *mut grpc_slice,
         write_flags: u32,
-        send_empty_initial_metadata: i32,
+        initial_metadata: *mut grpc_metadata_array,
+        initial_metadata_flags: u32,
         tag: *mut ::std::os::raw::c_void,
     ) -> grpc_call_error;
 }
@@ -4048,8 +4056,9 @@ extern "C" {
         status_code: grpc_status_code::Type,
         status_details: *const ::std::os::raw::c_char,
         status_details_len: usize,
+        initial_metadata: *mut grpc_metadata_array,
+        initial_metadata_flags: u32,
         trailing_metadata: *mut grpc_metadata_array,
-        send_empty_initial_metadata: i32,
         optional_send_buffer: *mut grpc_slice,
         write_flags: u32,
         tag: *mut ::std::os::raw::c_void,

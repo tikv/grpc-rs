@@ -494,6 +494,7 @@ impl RequestCallContext {
 
 // Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
 // to other thread. However it's not `Sync`, as `BoxHandler` is unnecessarily `Sync`.
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.

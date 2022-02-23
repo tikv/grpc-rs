@@ -2,12 +2,12 @@
 
 use std::time::Duration;
 
-use crate::grpc::{
-    self, ClientStreamingSink, DuplexSink, RequestStream, RpcContext, RpcStatus,
-    ServerStreamingSink, UnarySink, WriteFlags,
-};
 use futures_timer::Delay;
 use futures_util::{FutureExt as _, SinkExt as _, TryFutureExt as _, TryStreamExt as _};
+use grpcio::{
+    self, ClientStreamingSink, DuplexSink, Metadata, MetadataBuilder, RequestStream, RpcContext,
+    RpcStatus, ServerStreamingSink, UnarySink, WriteFlags,
+};
 
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{
@@ -16,6 +16,22 @@ use grpc_proto::testing::messages::{
 };
 use grpc_proto::testing::test_grpc::TestService;
 use grpc_proto::util;
+
+fn may_echo_metadata(ctx: &RpcContext) -> Metadata {
+    let mut builder = MetadataBuilder::new();
+    for (key, val) in ctx.request_headers().iter() {
+        if key.starts_with("x-grpc-test-echo") {
+            if key.ends_with("-bin") {
+                builder.add_bytes(key, val).unwrap();
+            } else {
+                builder
+                    .add_str(key, std::str::from_utf8(val).unwrap())
+                    .unwrap();
+            }
+        }
+    }
+    builder.build()
+}
 
 #[derive(Clone)]
 pub struct InteropTestService;
@@ -34,8 +50,12 @@ impl TestService for InteropTestService {
         &mut self,
         ctx: RpcContext,
         mut req: SimpleRequest,
-        sink: UnarySink<SimpleResponse>,
+        mut sink: UnarySink<SimpleResponse>,
     ) {
+        let metadata = may_echo_metadata(&ctx);
+        if !metadata.is_empty() {
+            sink.set_headers(metadata);
+        }
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = req.take_response_status().take_message();
@@ -55,15 +75,6 @@ impl TestService for InteropTestService {
             .map_err(|e| panic!("failed to send response: {:?}", e))
             .map(|_| ());
         ctx.spawn(f)
-    }
-
-    fn cacheable_unary_call(
-        &mut self,
-        _: RpcContext,
-        _: SimpleRequest,
-        _: UnarySink<SimpleResponse>,
-    ) {
-        unimplemented!()
     }
 
     fn streaming_output_call(
@@ -116,6 +127,10 @@ impl TestService for InteropTestService {
         mut stream: RequestStream<StreamingOutputCallRequest>,
         mut sink: DuplexSink<StreamingOutputCallResponse>,
     ) {
+        let metadata = may_echo_metadata(&ctx);
+        if !metadata.is_empty() {
+            sink.set_headers(metadata);
+        }
         let f = async move {
             while let Some(mut req) = stream.try_next().await? {
                 if req.has_response_status() {
@@ -154,14 +169,5 @@ impl TestService for InteropTestService {
         })
         .map(|_| ());
         ctx.spawn(f)
-    }
-
-    fn half_duplex_call(
-        &mut self,
-        _: RpcContext,
-        _: RequestStream<StreamingOutputCallRequest>,
-        _: DuplexSink<StreamingOutputCallResponse>,
-    ) {
-        unimplemented!()
     }
 }

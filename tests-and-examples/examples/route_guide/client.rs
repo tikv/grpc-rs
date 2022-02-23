@@ -89,11 +89,11 @@ async fn record_route(client: &RouteGuideClient) -> Result<()> {
     }
     // flush
     sink.close().await?;
-    let sumary = receiver.await?;
-    info!("Finished trip with {} points", sumary.get_point_count());
-    info!("Passed {} features", sumary.get_feature_count());
-    info!("Travelled {} meters", sumary.get_distance());
-    info!("It took {} seconds", sumary.get_elapsed_time());
+    let summary = receiver.await?;
+    info!("Finished trip with {} points", summary.get_point_count());
+    info!("Passed {} features", summary.get_feature_count());
+    info!("Travelled {} meters", summary.get_distance());
+    info!("It took {} seconds", summary.get_elapsed_time());
     Ok(())
 }
 

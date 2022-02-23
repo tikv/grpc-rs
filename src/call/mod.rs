@@ -20,7 +20,7 @@ use crate::buf::{GrpcByteBuffer, GrpcByteBufferReader, GrpcSlice};
 use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
-use crate::task::{self, BatchFuture, BatchType, CallTag};
+use crate::task::{self, BatchFuture, BatchResult, BatchType, CallTag};
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -286,6 +286,36 @@ impl BatchContext {
         let buf = self.take_recv_message()?;
         Some(GrpcByteBufferReader::new(buf))
     }
+
+    /// Get the initial metadata from response.
+    ///
+    /// If initial metadata is not fetched or the method has been called, empty metadata will be
+    /// returned.
+    pub fn take_initial_metadata(&mut self) -> Metadata {
+        let mut res = MetadataBuilder::with_capacity(0).build();
+        unsafe {
+            grpcio_sys::grpcwrap_batch_context_take_recv_initial_metadata(
+                self.ctx,
+                res.as_mut_ptr(),
+            );
+        }
+        res
+    }
+
+    /// Get the trailing metadata from response.
+    ///
+    /// If trailing metadata is not fetched or the method has been called, empty metadata will be
+    /// returned.
+    pub fn take_trailing_metadata(&mut self) -> Metadata {
+        let mut res = MetadataBuilder::with_capacity(0).build();
+        unsafe {
+            grpc_sys::grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
+                self.ctx,
+                res.as_mut_ptr(),
+            );
+        }
+        res
+    }
 }
 
 impl Drop for BatchContext {
@@ -343,17 +373,18 @@ impl Call {
         &mut self,
         msg: &mut GrpcSlice,
         write_flags: u32,
-        initial_meta: bool,
+        initial_metadata: Option<&mut Metadata>,
+        call_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let i = if initial_meta { 1 } else { 0 };
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             grpc_sys::grpcwrap_call_send_message(
                 self.call,
                 ctx,
                 msg.as_mut_ptr(),
                 write_flags,
-                i,
+                initial_metadata.map_or_else(ptr::null_mut, |m| m as *mut _ as _),
+                call_flags,
                 tag,
             )
         });
@@ -393,12 +424,18 @@ impl Call {
     pub fn start_send_status_from_server(
         &mut self,
         status: &RpcStatus,
+        initial_metadata: &mut Option<Metadata>,
+        call_flags: u32,
         send_empty_metadata: bool,
         payload: &mut Option<GrpcSlice>,
         write_flags: u32,
     ) -> Result<BatchFuture> {
         let _cq_ref = self.cq.borrow()?;
-        let send_empty_metadata = if send_empty_metadata { 1 } else { 0 };
+
+        if initial_metadata.is_none() && send_empty_metadata {
+            initial_metadata.replace(MetadataBuilder::new().build());
+        }
+
         let f = check_run(BatchType::Finish, |ctx, tag| unsafe {
             let (msg_ptr, msg_len) = if status.code() == RpcStatusCode::OK {
                 (ptr::null(), 0)
@@ -409,7 +446,7 @@ impl Call {
                 Some(p) => p.as_mut_ptr(),
                 None => ptr::null_mut(),
             };
-            let mut trailing_metadata = if status.details.is_empty() {
+            let mut trailing_metadata: Option<Metadata> = if status.details.is_empty() {
                 None
             } else {
                 let mut builder = MetadataBuilder::new();
@@ -422,10 +459,13 @@ impl Call {
                 status.code().into(),
                 msg_ptr as _,
                 msg_len,
+                initial_metadata
+                    .as_mut()
+                    .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
+                call_flags,
                 trailing_metadata
                     .as_mut()
                     .map_or_else(ptr::null_mut, |m| m as *mut _ as _),
-                send_empty_metadata,
                 payload_p,
                 write_flags,
                 tag,
@@ -458,8 +498,9 @@ impl Call {
                 status.code().into(),
                 msg_ptr as _,
                 msg_len,
+                (&mut MetadataBuilder::new().build()) as *mut _ as _,
+                0,
                 ptr::null_mut(),
-                1,
                 ptr::null_mut(),
                 0,
                 tag_ptr as *mut c_void,
@@ -518,7 +559,7 @@ impl ShareCall {
     /// Poll if the call is still alive.
     ///
     /// If the call is still running, will register a notification for its completion.
-    fn poll_finish(&mut self, cx: &mut Context) -> Poll<Result<Option<MessageReader>>> {
+    fn poll_finish(&mut self, cx: &mut Context) -> Poll<Result<BatchResult>> {
         let res = match Pin::new(&mut self.close_f).poll(cx) {
             Poll::Ready(Ok(reader)) => {
                 self.status = Some(RpcStatus::ok());
@@ -603,7 +644,7 @@ impl StreamingBase {
         let mut bytes = None;
         if !self.read_done {
             if let Some(msg_f) = &mut self.msg_f {
-                bytes = ready!(Pin::new(msg_f).poll(cx)?);
+                bytes = ready!(Pin::new(msg_f).poll(cx)?).message_reader;
                 if bytes.is_none() {
                     self.read_done = true;
                 }
@@ -682,6 +723,7 @@ impl WriteFlags {
 struct SinkBase {
     // Batch job to be executed in `poll_ready`.
     batch_f: Option<BatchFuture>,
+    headers: Metadata,
     send_metadata: bool,
     // Flag to indicate if enhance batch strategy. This behavior will modify the `buffer_hint` to batch
     // messages as much as possible.
@@ -699,11 +741,12 @@ impl SinkBase {
     fn new(send_metadata: bool) -> SinkBase {
         SinkBase {
             batch_f: None,
+            headers: MetadataBuilder::new().build(),
+            send_metadata,
+            enhance_buffer_strategy: false,
             buffer: GrpcSlice::default(),
             buf_flags: None,
             last_buf_hint: true,
-            send_metadata,
-            enhance_buffer_strategy: false,
         }
     }
 
@@ -713,13 +756,14 @@ impl SinkBase {
         t: &T,
         flags: WriteFlags,
         ser: SerializeFn<T>,
+        call_flags: u32,
     ) -> Result<()> {
         // temporary fix: buffer hint with send meta will not send out any metadata.
         // note: only the first message can enter this code block.
         if self.send_metadata {
             ser(t, &mut self.buffer)?;
             self.buf_flags = Some(flags);
-            self.start_send_buffer_message(false, call)?;
+            self.start_send_buffer_message(false, call, call_flags)?;
             self.send_metadata = false;
             return Ok(());
         }
@@ -727,7 +771,7 @@ impl SinkBase {
         // If there is already a buffered message waiting to be sent, set `buffer_hint` to true to indicate
         // that this is not the last message.
         if self.buf_flags.is_some() {
-            self.start_send_buffer_message(true, call)?;
+            self.start_send_buffer_message(true, call, call_flags)?;
         }
 
         ser(t, &mut self.buffer)?;
@@ -737,7 +781,7 @@ impl SinkBase {
 
         // If sink disable batch, start sending the message in buffer immediately.
         if !self.enhance_buffer_strategy {
-            self.start_send_buffer_message(hint, call)?;
+            self.start_send_buffer_message(hint, call, call_flags)?;
         }
 
         Ok(())
@@ -760,12 +804,13 @@ impl SinkBase {
         &mut self,
         cx: &mut Context,
         call: &mut C,
+        call_flags: u32,
     ) -> Poll<Result<()>> {
         if self.batch_f.is_some() {
             ready!(self.poll_ready(cx)?);
         }
         if self.buf_flags.is_some() {
-            self.start_send_buffer_message(self.last_buf_hint, call)?;
+            self.start_send_buffer_message(self.last_buf_hint, call, call_flags)?;
             ready!(self.poll_ready(cx)?);
         }
         self.last_buf_hint = true;
@@ -777,15 +822,24 @@ impl SinkBase {
         &mut self,
         buffer_hint: bool,
         call: &mut C,
+        call_flags: u32,
     ) -> Result<()> {
         // `start_send` is supposed to be called after `poll_ready` returns ready.
         assert!(self.batch_f.is_none());
 
+        let buffer = &mut self.buffer;
         let mut flags = self.buf_flags.unwrap();
         flags = flags.buffer_hint(buffer_hint);
+
+        let headers = if self.send_metadata {
+            Some(&mut self.headers)
+        } else {
+            None
+        };
+
         let write_f = call.call(|c| {
             c.call
-                .start_send_message(&mut self.buffer, flags.flags, self.send_metadata)
+                .start_send_message(buffer, flags.flags, headers, call_flags)
         })?;
         self.batch_f = Some(write_f);
         if !self.buffer.is_inline() {

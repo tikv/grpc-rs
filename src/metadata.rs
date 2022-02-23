@@ -2,6 +2,7 @@
 
 use crate::grpc_sys::{self, grpc_metadata, grpc_metadata_array};
 use std::borrow::Cow;
+use std::fmt;
 use std::mem::ManuallyDrop;
 use std::{mem, slice, str};
 
@@ -232,6 +233,21 @@ impl Metadata {
             }
         }
         &[]
+    }
+
+    pub(crate) fn as_mut_ptr(&mut self) -> *mut grpc_metadata_array {
+        &mut self.0 as _
+    }
+}
+
+impl fmt::Debug for Metadata {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_map()
+            .entries(
+                self.iter()
+                    .map(|(k, v)| (k, std::str::from_utf8(v).unwrap_or("?"))),
+            )
+            .finish()
     }
 }
 
