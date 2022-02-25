@@ -1,146 +1,128 @@
 pub const GRPC_ARES: u32 = 1;
 pub const GRPC_IF_NAMETOINDEX: u32 = 1;
 pub const GRPC_ALLOW_EXCEPTIONS: u32 = 1;
-pub const GRPC_COMPRESSION_REQUEST_ALGORITHM_MD_KEY: &'static [u8; 31usize] =
+pub const GRPC_COMPRESSION_REQUEST_ALGORITHM_MD_KEY: &[u8; 31usize] =
     b"grpc-internal-encoding-request\0";
-pub const GRPC_COMPRESSION_CHANNEL_DEFAULT_ALGORITHM: &'static [u8; 35usize] =
+pub const GRPC_COMPRESSION_CHANNEL_DEFAULT_ALGORITHM: &[u8; 35usize] =
     b"grpc.default_compression_algorithm\0";
-pub const GRPC_COMPRESSION_CHANNEL_DEFAULT_LEVEL: &'static [u8; 31usize] =
+pub const GRPC_COMPRESSION_CHANNEL_DEFAULT_LEVEL: &[u8; 31usize] =
     b"grpc.default_compression_level\0";
-pub const GRPC_COMPRESSION_CHANNEL_ENABLED_ALGORITHMS_BITSET: &'static [u8; 43usize] =
+pub const GRPC_COMPRESSION_CHANNEL_ENABLED_ALGORITHMS_BITSET: &[u8; 43usize] =
     b"grpc.compression_enabled_algorithms_bitset\0";
 pub const GRPC_ALLOW_GPR_SLICE_FUNCTIONS: u32 = 1;
 pub const GRPC_SLICE_BUFFER_INLINE_ELEMENTS: u32 = 8;
-pub const GRPC_ARG_ENABLE_CENSUS: &'static [u8; 12usize] = b"grpc.census\0";
-pub const GRPC_ARG_ENABLE_LOAD_REPORTING: &'static [u8; 19usize] = b"grpc.loadreporting\0";
-pub const GRPC_ARG_MINIMAL_STACK: &'static [u8; 19usize] = b"grpc.minimal_stack\0";
-pub const GRPC_ARG_MAX_CONCURRENT_STREAMS: &'static [u8; 28usize] =
-    b"grpc.max_concurrent_streams\0";
-pub const GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH: &'static [u8; 32usize] =
+pub const GRPC_ARG_ENABLE_CENSUS: &[u8; 12usize] = b"grpc.census\0";
+pub const GRPC_ARG_ENABLE_LOAD_REPORTING: &[u8; 19usize] = b"grpc.loadreporting\0";
+pub const GRPC_ARG_MINIMAL_STACK: &[u8; 19usize] = b"grpc.minimal_stack\0";
+pub const GRPC_ARG_MAX_CONCURRENT_STREAMS: &[u8; 28usize] = b"grpc.max_concurrent_streams\0";
+pub const GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH: &[u8; 32usize] =
     b"grpc.max_receive_message_length\0";
-pub const GRPC_ARG_MAX_MESSAGE_LENGTH: &'static [u8; 32usize] =
-    b"grpc.max_receive_message_length\0";
-pub const GRPC_ARG_MAX_SEND_MESSAGE_LENGTH: &'static [u8; 29usize] =
-    b"grpc.max_send_message_length\0";
-pub const GRPC_ARG_MAX_CONNECTION_IDLE_MS: &'static [u8; 28usize] =
-    b"grpc.max_connection_idle_ms\0";
-pub const GRPC_ARG_MAX_CONNECTION_AGE_MS: &'static [u8; 27usize] = b"grpc.max_connection_age_ms\0";
-pub const GRPC_ARG_MAX_CONNECTION_AGE_GRACE_MS: &'static [u8; 33usize] =
+pub const GRPC_ARG_MAX_MESSAGE_LENGTH: &[u8; 32usize] = b"grpc.max_receive_message_length\0";
+pub const GRPC_ARG_MAX_SEND_MESSAGE_LENGTH: &[u8; 29usize] = b"grpc.max_send_message_length\0";
+pub const GRPC_ARG_MAX_CONNECTION_IDLE_MS: &[u8; 28usize] = b"grpc.max_connection_idle_ms\0";
+pub const GRPC_ARG_MAX_CONNECTION_AGE_MS: &[u8; 27usize] = b"grpc.max_connection_age_ms\0";
+pub const GRPC_ARG_MAX_CONNECTION_AGE_GRACE_MS: &[u8; 33usize] =
     b"grpc.max_connection_age_grace_ms\0";
-pub const GRPC_ARG_CLIENT_IDLE_TIMEOUT_MS: &'static [u8; 28usize] =
-    b"grpc.client_idle_timeout_ms\0";
-pub const GRPC_ARG_ENABLE_PER_MESSAGE_COMPRESSION: &'static [u8; 29usize] =
+pub const GRPC_ARG_CLIENT_IDLE_TIMEOUT_MS: &[u8; 28usize] = b"grpc.client_idle_timeout_ms\0";
+pub const GRPC_ARG_ENABLE_PER_MESSAGE_COMPRESSION: &[u8; 29usize] =
     b"grpc.per_message_compression\0";
-pub const GRPC_ARG_ENABLE_PER_MESSAGE_DECOMPRESSION: &'static [u8; 31usize] =
+pub const GRPC_ARG_ENABLE_PER_MESSAGE_DECOMPRESSION: &[u8; 31usize] =
     b"grpc.per_message_decompression\0";
-pub const GRPC_ARG_ENABLE_DEADLINE_CHECKS: &'static [u8; 30usize] =
-    b"grpc.enable_deadline_checking\0";
-pub const GRPC_ARG_HTTP2_INITIAL_SEQUENCE_NUMBER: &'static [u8; 35usize] =
+pub const GRPC_ARG_ENABLE_DEADLINE_CHECKS: &[u8; 30usize] = b"grpc.enable_deadline_checking\0";
+pub const GRPC_ARG_HTTP2_INITIAL_SEQUENCE_NUMBER: &[u8; 35usize] =
     b"grpc.http2.initial_sequence_number\0";
-pub const GRPC_ARG_HTTP2_STREAM_LOOKAHEAD_BYTES: &'static [u8; 27usize] =
-    b"grpc.http2.lookahead_bytes\0";
-pub const GRPC_ARG_HTTP2_HPACK_TABLE_SIZE_DECODER: &'static [u8; 36usize] =
+pub const GRPC_ARG_HTTP2_STREAM_LOOKAHEAD_BYTES: &[u8; 27usize] = b"grpc.http2.lookahead_bytes\0";
+pub const GRPC_ARG_HTTP2_HPACK_TABLE_SIZE_DECODER: &[u8; 36usize] =
     b"grpc.http2.hpack_table_size.decoder\0";
-pub const GRPC_ARG_HTTP2_HPACK_TABLE_SIZE_ENCODER: &'static [u8; 36usize] =
+pub const GRPC_ARG_HTTP2_HPACK_TABLE_SIZE_ENCODER: &[u8; 36usize] =
     b"grpc.http2.hpack_table_size.encoder\0";
-pub const GRPC_ARG_HTTP2_MAX_FRAME_SIZE: &'static [u8; 26usize] = b"grpc.http2.max_frame_size\0";
-pub const GRPC_ARG_HTTP2_BDP_PROBE: &'static [u8; 21usize] = b"grpc.http2.bdp_probe\0";
-pub const GRPC_ARG_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &'static [u8; 37usize] =
+pub const GRPC_ARG_HTTP2_MAX_FRAME_SIZE: &[u8; 26usize] = b"grpc.http2.max_frame_size\0";
+pub const GRPC_ARG_HTTP2_BDP_PROBE: &[u8; 21usize] = b"grpc.http2.bdp_probe\0";
+pub const GRPC_ARG_HTTP2_MIN_SENT_PING_INTERVAL_WITHOUT_DATA_MS: &[u8; 37usize] =
     b"grpc.http2.min_time_between_pings_ms\0";
-pub const GRPC_ARG_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &'static [u8; 45usize] =
+pub const GRPC_ARG_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS: &[u8; 45usize] =
     b"grpc.http2.min_ping_interval_without_data_ms\0";
-pub const GRPC_ARG_HTTP2_SCHEME: &'static [u8; 18usize] = b"grpc.http2_scheme\0";
-pub const GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA: &'static [u8; 34usize] =
+pub const GRPC_ARG_HTTP2_SCHEME: &[u8; 18usize] = b"grpc.http2_scheme\0";
+pub const GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA: &[u8; 34usize] =
     b"grpc.http2.max_pings_without_data\0";
-pub const GRPC_ARG_HTTP2_MAX_PING_STRIKES: &'static [u8; 28usize] =
-    b"grpc.http2.max_ping_strikes\0";
-pub const GRPC_ARG_HTTP2_WRITE_BUFFER_SIZE: &'static [u8; 29usize] =
-    b"grpc.http2.write_buffer_size\0";
-pub const GRPC_ARG_HTTP2_ENABLE_TRUE_BINARY: &'static [u8; 23usize] = b"grpc.http2.true_binary\0";
-pub const GRPC_ARG_KEEPALIVE_TIME_MS: &'static [u8; 23usize] = b"grpc.keepalive_time_ms\0";
-pub const GRPC_ARG_KEEPALIVE_TIMEOUT_MS: &'static [u8; 26usize] = b"grpc.keepalive_timeout_ms\0";
-pub const GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS: &'static [u8; 36usize] =
+pub const GRPC_ARG_HTTP2_MAX_PING_STRIKES: &[u8; 28usize] = b"grpc.http2.max_ping_strikes\0";
+pub const GRPC_ARG_HTTP2_WRITE_BUFFER_SIZE: &[u8; 29usize] = b"grpc.http2.write_buffer_size\0";
+pub const GRPC_ARG_HTTP2_ENABLE_TRUE_BINARY: &[u8; 23usize] = b"grpc.http2.true_binary\0";
+pub const GRPC_ARG_KEEPALIVE_TIME_MS: &[u8; 23usize] = b"grpc.keepalive_time_ms\0";
+pub const GRPC_ARG_KEEPALIVE_TIMEOUT_MS: &[u8; 26usize] = b"grpc.keepalive_timeout_ms\0";
+pub const GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8; 36usize] =
     b"grpc.keepalive_permit_without_calls\0";
-pub const GRPC_ARG_DEFAULT_AUTHORITY: &'static [u8; 23usize] = b"grpc.default_authority\0";
-pub const GRPC_ARG_PRIMARY_USER_AGENT_STRING: &'static [u8; 24usize] = b"grpc.primary_user_agent\0";
-pub const GRPC_ARG_SECONDARY_USER_AGENT_STRING: &'static [u8; 26usize] =
-    b"grpc.secondary_user_agent\0";
-pub const GRPC_ARG_MIN_RECONNECT_BACKOFF_MS: &'static [u8; 30usize] =
-    b"grpc.min_reconnect_backoff_ms\0";
-pub const GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: &'static [u8; 30usize] =
-    b"grpc.max_reconnect_backoff_ms\0";
-pub const GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS: &'static [u8; 34usize] =
+pub const GRPC_ARG_DEFAULT_AUTHORITY: &[u8; 23usize] = b"grpc.default_authority\0";
+pub const GRPC_ARG_PRIMARY_USER_AGENT_STRING: &[u8; 24usize] = b"grpc.primary_user_agent\0";
+pub const GRPC_ARG_SECONDARY_USER_AGENT_STRING: &[u8; 26usize] = b"grpc.secondary_user_agent\0";
+pub const GRPC_ARG_MIN_RECONNECT_BACKOFF_MS: &[u8; 30usize] = b"grpc.min_reconnect_backoff_ms\0";
+pub const GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: &[u8; 30usize] = b"grpc.max_reconnect_backoff_ms\0";
+pub const GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS: &[u8; 34usize] =
     b"grpc.initial_reconnect_backoff_ms\0";
-pub const GRPC_ARG_DNS_MIN_TIME_BETWEEN_RESOLUTIONS_MS: &'static [u8; 41usize] =
+pub const GRPC_ARG_DNS_MIN_TIME_BETWEEN_RESOLUTIONS_MS: &[u8; 41usize] =
     b"grpc.dns_min_time_between_resolutions_ms\0";
-pub const GRPC_ARG_SERVER_HANDSHAKE_TIMEOUT_MS: &'static [u8; 33usize] =
+pub const GRPC_ARG_SERVER_HANDSHAKE_TIMEOUT_MS: &[u8; 33usize] =
     b"grpc.server_handshake_timeout_ms\0";
-pub const GRPC_SSL_TARGET_NAME_OVERRIDE_ARG: &'static [u8; 30usize] =
-    b"grpc.ssl_target_name_override\0";
-pub const GRPC_SSL_SESSION_CACHE_ARG: &'static [u8; 23usize] = b"grpc.ssl_session_cache\0";
-pub const GRPC_ARG_TSI_MAX_FRAME_SIZE: &'static [u8; 24usize] = b"grpc.tsi.max_frame_size\0";
-pub const GRPC_ARG_MAX_METADATA_SIZE: &'static [u8; 23usize] = b"grpc.max_metadata_size\0";
-pub const GRPC_ARG_ALLOW_REUSEPORT: &'static [u8; 18usize] = b"grpc.so_reuseport\0";
-pub const GRPC_ARG_RESOURCE_QUOTA: &'static [u8; 20usize] = b"grpc.resource_quota\0";
-pub const GRPC_ARG_EXPAND_WILDCARD_ADDRS: &'static [u8; 27usize] = b"grpc.expand_wildcard_addrs\0";
-pub const GRPC_ARG_SERVICE_CONFIG: &'static [u8; 20usize] = b"grpc.service_config\0";
-pub const GRPC_ARG_SERVICE_CONFIG_DISABLE_RESOLUTION: &'static [u8; 39usize] =
+pub const GRPC_SSL_TARGET_NAME_OVERRIDE_ARG: &[u8; 30usize] = b"grpc.ssl_target_name_override\0";
+pub const GRPC_SSL_SESSION_CACHE_ARG: &[u8; 23usize] = b"grpc.ssl_session_cache\0";
+pub const GRPC_ARG_TSI_MAX_FRAME_SIZE: &[u8; 24usize] = b"grpc.tsi.max_frame_size\0";
+pub const GRPC_ARG_MAX_METADATA_SIZE: &[u8; 23usize] = b"grpc.max_metadata_size\0";
+pub const GRPC_ARG_ALLOW_REUSEPORT: &[u8; 18usize] = b"grpc.so_reuseport\0";
+pub const GRPC_ARG_RESOURCE_QUOTA: &[u8; 20usize] = b"grpc.resource_quota\0";
+pub const GRPC_ARG_EXPAND_WILDCARD_ADDRS: &[u8; 27usize] = b"grpc.expand_wildcard_addrs\0";
+pub const GRPC_ARG_SERVICE_CONFIG: &[u8; 20usize] = b"grpc.service_config\0";
+pub const GRPC_ARG_SERVICE_CONFIG_DISABLE_RESOLUTION: &[u8; 39usize] =
     b"grpc.service_config_disable_resolution\0";
-pub const GRPC_ARG_LB_POLICY_NAME: &'static [u8; 20usize] = b"grpc.lb_policy_name\0";
-pub const GRPC_ARG_SOCKET_MUTATOR: &'static [u8; 20usize] = b"grpc.socket_mutator\0";
-pub const GRPC_ARG_SOCKET_FACTORY: &'static [u8; 20usize] = b"grpc.socket_factory\0";
-pub const GRPC_ARG_MAX_CHANNEL_TRACE_EVENT_MEMORY_PER_NODE: &'static [u8; 45usize] =
+pub const GRPC_ARG_LB_POLICY_NAME: &[u8; 20usize] = b"grpc.lb_policy_name\0";
+pub const GRPC_ARG_SOCKET_MUTATOR: &[u8; 20usize] = b"grpc.socket_mutator\0";
+pub const GRPC_ARG_SOCKET_FACTORY: &[u8; 20usize] = b"grpc.socket_factory\0";
+pub const GRPC_ARG_MAX_CHANNEL_TRACE_EVENT_MEMORY_PER_NODE: &[u8; 45usize] =
     b"grpc.max_channel_trace_event_memory_per_node\0";
-pub const GRPC_ARG_ENABLE_CHANNELZ: &'static [u8; 21usize] = b"grpc.enable_channelz\0";
-pub const GRPC_ARG_USE_CRONET_PACKET_COALESCING: &'static [u8; 34usize] =
+pub const GRPC_ARG_ENABLE_CHANNELZ: &[u8; 21usize] = b"grpc.enable_channelz\0";
+pub const GRPC_ARG_USE_CRONET_PACKET_COALESCING: &[u8; 34usize] =
     b"grpc.use_cronet_packet_coalescing\0";
-pub const GRPC_ARG_TCP_READ_CHUNK_SIZE: &'static [u8; 38usize] =
-    b"grpc.experimental.tcp_read_chunk_size\0";
+pub const GRPC_ARG_TCP_READ_CHUNK_SIZE: &[u8; 38usize] = b"grpc.experimental.tcp_read_chunk_size\0";
 pub const GRPC_TCP_DEFAULT_READ_SLICE_SIZE: u32 = 8192;
-pub const GRPC_ARG_TCP_MIN_READ_CHUNK_SIZE: &'static [u8; 42usize] =
+pub const GRPC_ARG_TCP_MIN_READ_CHUNK_SIZE: &[u8; 42usize] =
     b"grpc.experimental.tcp_min_read_chunk_size\0";
-pub const GRPC_ARG_TCP_MAX_READ_CHUNK_SIZE: &'static [u8; 42usize] =
+pub const GRPC_ARG_TCP_MAX_READ_CHUNK_SIZE: &[u8; 42usize] =
     b"grpc.experimental.tcp_max_read_chunk_size\0";
-pub const GRPC_ARG_TCP_TX_ZEROCOPY_ENABLED: &'static [u8; 42usize] =
+pub const GRPC_ARG_TCP_TX_ZEROCOPY_ENABLED: &[u8; 42usize] =
     b"grpc.experimental.tcp_tx_zerocopy_enabled\0";
-pub const GRPC_ARG_TCP_TX_ZEROCOPY_SEND_BYTES_THRESHOLD: &'static [u8; 55usize] =
+pub const GRPC_ARG_TCP_TX_ZEROCOPY_SEND_BYTES_THRESHOLD: &[u8; 55usize] =
     b"grpc.experimental.tcp_tx_zerocopy_send_bytes_threshold\0";
-pub const GRPC_ARG_TCP_TX_ZEROCOPY_MAX_SIMULT_SENDS: &'static [u8; 57usize] =
+pub const GRPC_ARG_TCP_TX_ZEROCOPY_MAX_SIMULT_SENDS: &[u8; 57usize] =
     b"grpc.experimental.tcp_tx_zerocopy_max_simultaneous_sends\0";
-pub const GRPC_ARG_GRPCLB_CALL_TIMEOUT_MS: &'static [u8; 28usize] =
-    b"grpc.grpclb_call_timeout_ms\0";
-pub const GRPC_ARG_TEST_ONLY_DO_NOT_USE_IN_PROD_XDS_BOOTSTRAP_CONFIG: &'static [u8; 55usize] =
+pub const GRPC_ARG_GRPCLB_CALL_TIMEOUT_MS: &[u8; 28usize] = b"grpc.grpclb_call_timeout_ms\0";
+pub const GRPC_ARG_TEST_ONLY_DO_NOT_USE_IN_PROD_XDS_BOOTSTRAP_CONFIG: &[u8; 55usize] =
     b"grpc.TEST_ONLY_DO_NOT_USE_IN_PROD.xds_bootstrap_config\0";
-pub const GRPC_ARG_GRPCLB_FALLBACK_TIMEOUT_MS: &'static [u8; 32usize] =
+pub const GRPC_ARG_GRPCLB_FALLBACK_TIMEOUT_MS: &[u8; 32usize] =
     b"grpc.grpclb_fallback_timeout_ms\0";
-pub const GRPC_ARG_PRIORITY_FAILOVER_TIMEOUT_MS: &'static [u8; 34usize] =
+pub const GRPC_ARG_PRIORITY_FAILOVER_TIMEOUT_MS: &[u8; 34usize] =
     b"grpc.priority_failover_timeout_ms\0";
-pub const GRPC_ARG_WORKAROUND_CRONET_COMPRESSION: &'static [u8; 35usize] =
+pub const GRPC_ARG_WORKAROUND_CRONET_COMPRESSION: &[u8; 35usize] =
     b"grpc.workaround.cronet_compression\0";
-pub const GRPC_ARG_OPTIMIZATION_TARGET: &'static [u8; 25usize] = b"grpc.optimization_target\0";
-pub const GRPC_ARG_ENABLE_RETRIES: &'static [u8; 20usize] = b"grpc.enable_retries\0";
-pub const GRPC_ARG_EXPERIMENTAL_ENABLE_HEDGING: &'static [u8; 33usize] =
+pub const GRPC_ARG_OPTIMIZATION_TARGET: &[u8; 25usize] = b"grpc.optimization_target\0";
+pub const GRPC_ARG_ENABLE_RETRIES: &[u8; 20usize] = b"grpc.enable_retries\0";
+pub const GRPC_ARG_EXPERIMENTAL_ENABLE_HEDGING: &[u8; 33usize] =
     b"grpc.experimental.enable_hedging\0";
-pub const GRPC_ARG_PER_RPC_RETRY_BUFFER_SIZE: &'static [u8; 31usize] =
-    b"grpc.per_rpc_retry_buffer_size\0";
-pub const GRPC_ARG_MOBILE_LOG_CONTEXT: &'static [u8; 24usize] = b"grpc.mobile_log_context\0";
-pub const GRPC_ARG_DISABLE_CLIENT_AUTHORITY_FILTER: &'static [u8; 37usize] =
+pub const GRPC_ARG_PER_RPC_RETRY_BUFFER_SIZE: &[u8; 31usize] = b"grpc.per_rpc_retry_buffer_size\0";
+pub const GRPC_ARG_MOBILE_LOG_CONTEXT: &[u8; 24usize] = b"grpc.mobile_log_context\0";
+pub const GRPC_ARG_DISABLE_CLIENT_AUTHORITY_FILTER: &[u8; 37usize] =
     b"grpc.disable_client_authority_filter\0";
-pub const GRPC_ARG_ENABLE_HTTP_PROXY: &'static [u8; 23usize] = b"grpc.enable_http_proxy\0";
-pub const GRPC_ARG_HTTP_PROXY: &'static [u8; 16usize] = b"grpc.http_proxy\0";
-pub const GRPC_ARG_SURFACE_USER_AGENT: &'static [u8; 24usize] = b"grpc.surface_user_agent\0";
-pub const GRPC_ARG_INHIBIT_HEALTH_CHECKING: &'static [u8; 29usize] =
-    b"grpc.inhibit_health_checking\0";
-pub const GRPC_ARG_DNS_ENABLE_SRV_QUERIES: &'static [u8; 28usize] =
-    b"grpc.dns_enable_srv_queries\0";
-pub const GRPC_ARG_DNS_ARES_QUERY_TIMEOUT_MS: &'static [u8; 28usize] =
-    b"grpc.dns_ares_query_timeout\0";
-pub const GRPC_ARG_USE_LOCAL_SUBCHANNEL_POOL: &'static [u8; 31usize] =
-    b"grpc.use_local_subchannel_pool\0";
-pub const GRPC_ARG_CHANNEL_POOL_DOMAIN: &'static [u8; 28usize] = b"grpc.channel_pooling_domain\0";
-pub const GRPC_ARG_CHANNEL_ID: &'static [u8; 16usize] = b"grpc.channel_id\0";
-pub const GRPC_ARG_AUTHORIZATION_POLICY_PROVIDER: &'static [u8; 35usize] =
+pub const GRPC_ARG_ENABLE_HTTP_PROXY: &[u8; 23usize] = b"grpc.enable_http_proxy\0";
+pub const GRPC_ARG_HTTP_PROXY: &[u8; 16usize] = b"grpc.http_proxy\0";
+pub const GRPC_ARG_SURFACE_USER_AGENT: &[u8; 24usize] = b"grpc.surface_user_agent\0";
+pub const GRPC_ARG_INHIBIT_HEALTH_CHECKING: &[u8; 29usize] = b"grpc.inhibit_health_checking\0";
+pub const GRPC_ARG_DNS_ENABLE_SRV_QUERIES: &[u8; 28usize] = b"grpc.dns_enable_srv_queries\0";
+pub const GRPC_ARG_DNS_ARES_QUERY_TIMEOUT_MS: &[u8; 28usize] = b"grpc.dns_ares_query_timeout\0";
+pub const GRPC_ARG_USE_LOCAL_SUBCHANNEL_POOL: &[u8; 31usize] = b"grpc.use_local_subchannel_pool\0";
+pub const GRPC_ARG_CHANNEL_POOL_DOMAIN: &[u8; 28usize] = b"grpc.channel_pooling_domain\0";
+pub const GRPC_ARG_CHANNEL_ID: &[u8; 16usize] = b"grpc.channel_id\0";
+pub const GRPC_ARG_AUTHORIZATION_POLICY_PROVIDER: &[u8; 35usize] =
     b"grpc.authorization_policy_provider\0";
+pub const GRPC_ARG_SERVER_CONFIG_CHANGE_DRAIN_GRACE_TIME_MS: &[u8; 59usize] =
+    b"grpc.experimental.server_config_change_drain_grace_time_ms\0";
 pub const GRPC_DEFAULT_MAX_SEND_MESSAGE_LENGTH: i32 = -1;
 pub const GRPC_DEFAULT_MAX_RECV_MESSAGE_LENGTH: u32 = 4194304;
 pub const GRPC_WRITE_BUFFER_HINT: u32 = 1;
@@ -156,24 +138,24 @@ pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 500;
 pub const GRPC_CQ_CURRENT_VERSION: u32 = 2;
 pub const GRPC_CQ_VERSION_MINIMUM_FOR_CALLBACKABLE: u32 = 2;
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: u32 = 6;
-pub const GRPC_TRANSPORT_SECURITY_TYPE_PROPERTY_NAME: &'static [u8; 24usize] =
-    b"transport_security_type\0";
-pub const GRPC_SSL_TRANSPORT_SECURITY_TYPE: &'static [u8; 4usize] = b"ssl\0";
-pub const GRPC_X509_CN_PROPERTY_NAME: &'static [u8; 17usize] = b"x509_common_name\0";
-pub const GRPC_X509_SAN_PROPERTY_NAME: &'static [u8; 30usize] = b"x509_subject_alternative_name\0";
-pub const GRPC_X509_PEM_CERT_PROPERTY_NAME: &'static [u8; 14usize] = b"x509_pem_cert\0";
-pub const GRPC_X509_PEM_CERT_CHAIN_PROPERTY_NAME: &'static [u8; 20usize] = b"x509_pem_cert_chain\0";
-pub const GRPC_SSL_SESSION_REUSED_PROPERTY: &'static [u8; 19usize] = b"ssl_session_reused\0";
-pub const GRPC_TRANSPORT_SECURITY_LEVEL_PROPERTY_NAME: &'static [u8; 15usize] = b"security_level\0";
-pub const GRPC_PEER_DNS_PROPERTY_NAME: &'static [u8; 9usize] = b"peer_dns\0";
-pub const GRPC_PEER_SPIFFE_ID_PROPERTY_NAME: &'static [u8; 15usize] = b"peer_spiffe_id\0";
-pub const GRPC_PEER_URI_PROPERTY_NAME: &'static [u8; 9usize] = b"peer_uri\0";
-pub const GRPC_PEER_EMAIL_PROPERTY_NAME: &'static [u8; 11usize] = b"peer_email\0";
-pub const GRPC_PEER_IP_PROPERTY_NAME: &'static [u8; 8usize] = b"peer_ip\0";
-pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &'static [u8; 33usize] =
+pub const GRPC_TRANSPORT_SECURITY_TYPE_PROPERTY_NAME: &[u8; 24usize] = b"transport_security_type\0";
+pub const GRPC_SSL_TRANSPORT_SECURITY_TYPE: &[u8; 4usize] = b"ssl\0";
+pub const GRPC_TLS_TRANSPORT_SECURITY_TYPE: &[u8; 4usize] = b"tls\0";
+pub const GRPC_X509_CN_PROPERTY_NAME: &[u8; 17usize] = b"x509_common_name\0";
+pub const GRPC_X509_SUBJECT_PROPERTY_NAME: &[u8; 13usize] = b"x509_subject\0";
+pub const GRPC_X509_SAN_PROPERTY_NAME: &[u8; 30usize] = b"x509_subject_alternative_name\0";
+pub const GRPC_X509_PEM_CERT_PROPERTY_NAME: &[u8; 14usize] = b"x509_pem_cert\0";
+pub const GRPC_X509_PEM_CERT_CHAIN_PROPERTY_NAME: &[u8; 20usize] = b"x509_pem_cert_chain\0";
+pub const GRPC_SSL_SESSION_REUSED_PROPERTY: &[u8; 19usize] = b"ssl_session_reused\0";
+pub const GRPC_TRANSPORT_SECURITY_LEVEL_PROPERTY_NAME: &[u8; 15usize] = b"security_level\0";
+pub const GRPC_PEER_DNS_PROPERTY_NAME: &[u8; 9usize] = b"peer_dns\0";
+pub const GRPC_PEER_SPIFFE_ID_PROPERTY_NAME: &[u8; 15usize] = b"peer_spiffe_id\0";
+pub const GRPC_PEER_URI_PROPERTY_NAME: &[u8; 9usize] = b"peer_uri\0";
+pub const GRPC_PEER_EMAIL_PROPERTY_NAME: &[u8; 11usize] = b"peer_email\0";
+pub const GRPC_PEER_IP_PROPERTY_NAME: &[u8; 8usize] = b"peer_ip\0";
+pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &[u8; 33usize] =
     b"GRPC_DEFAULT_SSL_ROOTS_FILE_PATH\0";
-pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &'static [u8; 31usize] =
-    b"GOOGLE_APPLICATION_CREDENTIALS\0";
+pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &[u8; 31usize] = b"GOOGLE_APPLICATION_CREDENTIALS\0";
 pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC (not sorted by"]
@@ -183,8 +165,7 @@ pub enum grpc_compression_algorithm {
     GRPC_COMPRESS_NONE = 0,
     GRPC_COMPRESS_DEFLATE = 1,
     GRPC_COMPRESS_GZIP = 2,
-    GRPC_COMPRESS_STREAM_GZIP = 3,
-    GRPC_COMPRESS_ALGORITHMS_COUNT = 4,
+    GRPC_COMPRESS_ALGORITHMS_COUNT = 3,
 }
 #[repr(u32)]
 #[doc = " Compression levels allow a party with knowledge of its peer's accepted"]
@@ -253,7 +234,6 @@ pub struct grpc_slice {
 pub union grpc_slice_grpc_slice_data {
     pub refcounted: grpc_slice_grpc_slice_data_grpc_slice_refcounted,
     pub inlined: grpc_slice_grpc_slice_data_grpc_slice_inlined,
-    _bindgen_union_align: [u64; 3usize],
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -303,7 +283,11 @@ pub struct grpc_slice_buffer {
 }
 impl ::std::fmt::Debug for grpc_slice_buffer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! (f , "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, count: {:?}, capacity: {:?}, length: {:?}, inlined: {:?} }}" , self . base_slices , self . slices , self . count , self . capacity , self . length , self . inlined)
+        write!(
+            f,
+            "grpc_slice_buffer {{ base_slices: {:?}, slices: {:?}, inlined: {:?} }}",
+            self.base_slices, self.slices, self.inlined
+        )
     }
 }
 #[repr(u32)]
@@ -812,7 +796,6 @@ pub struct grpc_byte_buffer {
 pub union grpc_byte_buffer_grpc_byte_buffer_data {
     pub reserved: grpc_byte_buffer_grpc_byte_buffer_data__bindgen_ty_1,
     pub raw: grpc_byte_buffer_grpc_byte_buffer_data_grpc_compressed_buffer,
-    _bindgen_union_align: [u64; 38usize],
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -921,7 +904,6 @@ pub union grpc_arg_grpc_arg_value {
     pub string: *mut ::std::os::raw::c_char,
     pub integer: ::std::os::raw::c_int,
     pub pointer: grpc_arg_grpc_arg_value_grpc_arg_pointer,
-    _bindgen_union_align: [u64; 2usize],
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1082,7 +1064,11 @@ pub struct grpc_call_details {
 }
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! (f , "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, flags: {:?}, reserved: {:?} }}" , self . method , self . host , self . deadline , self . flags , self . reserved)
+        write!(
+            f,
+            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, reserved: {:?} }}",
+            self.method, self.host, self.deadline, self.reserved
+        )
     }
 }
 #[repr(u32)]
@@ -1153,7 +1139,6 @@ pub union grpc_op_grpc_op_data {
     pub recv_message: grpc_op_grpc_op_data_grpc_op_recv_message,
     pub recv_status_on_client: grpc_op_grpc_op_data_grpc_op_recv_status_on_client,
     pub recv_close_on_server: grpc_op_grpc_op_data_grpc_op_recv_close_on_server,
-    _bindgen_union_align: [u64; 8usize],
 }
 #[doc = " Reserved for future usage"]
 #[repr(C)]
@@ -1245,8 +1230,8 @@ impl ::std::fmt::Debug for grpc_op {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
             f,
-            "grpc_op {{ op: {:?}, flags: {:?}, reserved: {:?}, data: {:?} }}",
-            self.op, self.flags, self.reserved, self.data
+            "grpc_op {{ op: {:?}, reserved: {:?}, data: {:?} }}",
+            self.op, self.reserved, self.data
         )
     }
 }
@@ -2001,6 +1986,9 @@ extern "C" {
     ) -> grpc_call_error;
 }
 extern "C" {
+    pub fn grpc_call_failed_before_recv_message(c: *const grpc_call) -> ::std::os::raw::c_int;
+}
+extern "C" {
     #[doc = " Ref a call."]
     #[doc = "THREAD SAFETY: grpc_call_ref is thread-compatible"]
     pub fn grpc_call_ref(call: *mut grpc_call);
@@ -2398,21 +2386,6 @@ pub enum grpc_security_level {
     GRPC_SECURITY_MIN = 0,
     GRPC_INTEGRITY_ONLY = 1,
     GRPC_PRIVACY_AND_INTEGRITY = 2,
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum grpc_tls_server_verification_option {
-    #[doc = " Default option: performs server certificate verification and hostname"]
-    #[doc = "verification."]
-    GRPC_TLS_SERVER_VERIFICATION = 0,
-    #[doc = " Performs server certificate verification, but skips hostname verification"]
-    #[doc = "Client is responsible for verifying server's identity via"]
-    #[doc = "server authorization check callback."]
-    GRPC_TLS_SKIP_HOSTNAME_VERIFICATION = 1,
-    #[doc = " Skips both server certificate and hostname verification."]
-    #[doc = "Client is responsible for verifying server's identity and"]
-    #[doc = "server's certificate via server authorization check callback."]
-    GRPC_TLS_SKIP_ALL_SERVER_VERIFICATION = 2,
 }
 #[repr(u32)]
 #[doc = " Type of local connections for which local channel/server credentials will be"]
@@ -3220,16 +3193,6 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct grpc_tls_error_details {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_tls_server_authorization_check_config {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct grpc_tls_credentials_options {
     _unused: [u8; 0],
 }
@@ -3244,16 +3207,18 @@ pub struct grpc_tls_identity_pairs {
     _unused: [u8; 0],
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Creates a grpc_tls_identity_pairs that stores a list of identity credential"]
-    #[doc = " data, including identity private key and identity certificate chain. It is"]
-    #[doc = " used for experimental purpose for now and subject to change."]
+    #[doc = " data, including identity private key and identity certificate chain."]
     pub fn grpc_tls_identity_pairs_create() -> *mut grpc_tls_identity_pairs;
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Adds a identity private key and a identity certificate chain to"]
     #[doc = " grpc_tls_identity_pairs. This function will make an internal copy of"]
-    #[doc = " |private_key| and |cert_chain|. It is used for experimental purpose for now"]
-    #[doc = " and subject to change."]
+    #[doc = " |private_key| and |cert_chain|."]
     pub fn grpc_tls_identity_pairs_add_pair(
         pairs: *mut grpc_tls_identity_pairs,
         private_key: *const ::std::os::raw::c_char,
@@ -3261,14 +3226,17 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Destroys a grpc_tls_identity_pairs object. If this object is passed to a"]
     #[doc = " provider initiation function, the ownership is transferred so this function"]
     #[doc = " doesn't need to be called. Otherwise the creator of the"]
-    #[doc = " grpc_tls_identity_pairs object is responsible for its destruction. It is"]
-    #[doc = " used for experimental purpose for now and subject to change."]
+    #[doc = " grpc_tls_identity_pairs object is responsible for its destruction."]
     pub fn grpc_tls_identity_pairs_destroy(pairs: *mut grpc_tls_identity_pairs);
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Creates a grpc_tls_certificate_provider that will load credential data from"]
     #[doc = " static string during initialization. This provider will always return the"]
     #[doc = " same cert data for all cert names."]
@@ -3276,13 +3244,14 @@ extern "C" {
     #[doc = " corresponding credential data is not needed."]
     #[doc = " This function will make a copy of |root_certificate|."]
     #[doc = " The ownership of |pem_key_cert_pairs| is transferred."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_certificate_provider_static_data_create(
         root_certificate: *const ::std::os::raw::c_char,
         pem_key_cert_pairs: *mut grpc_tls_identity_pairs,
     ) -> *mut grpc_tls_certificate_provider;
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Creates a grpc_tls_certificate_provider that will watch the credential"]
     #[doc = " changes on the file system. This provider will always return the up-to-date"]
     #[doc = " cert data for all the cert names callers set through"]
@@ -3300,7 +3269,6 @@ extern "C" {
     #[doc = " - refresh_interval_sec is the refreshing interval that we will check the"]
     #[doc = "   files for updates."]
     #[doc = " It does not take ownership of parameters."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_certificate_provider_file_watcher_create(
         private_key_path: *const ::std::os::raw::c_char,
         identity_certificate_path: *const ::std::os::raw::c_char,
@@ -3309,46 +3277,31 @@ extern "C" {
     ) -> *mut grpc_tls_certificate_provider;
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Releases a grpc_tls_certificate_provider object. The creator of the"]
-    #[doc = " grpc_tls_certificate_provider object is responsible for its release. It is"]
-    #[doc = " used for experimental purpose for now and subject to change."]
+    #[doc = " grpc_tls_certificate_provider object is responsible for its release."]
     pub fn grpc_tls_certificate_provider_release(provider: *mut grpc_tls_certificate_provider);
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Creates an grpc_tls_credentials_options."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_create() -> *mut grpc_tls_credentials_options;
 }
 extern "C" {
-    #[doc = " Sets the options of whether to request and verify client certs. This should"]
-    #[doc = " be called only on the server side. It is used for experimental purpose for"]
-    #[doc = " now and subject to change."]
-    pub fn grpc_tls_credentials_options_set_cert_request_type(
-        options: *mut grpc_tls_credentials_options,
-        type_: grpc_ssl_client_certificate_request_type,
-    );
-}
-extern "C" {
-    #[doc = " Sets the options of whether to choose certain checks, e.g. certificate check,"]
-    #[doc = " hostname check, etc. This should be called only on the client side. If"]
-    #[doc = " |server_verification_option| is not GRPC_TLS_SERVER_VERIFICATION, use of a"]
-    #[doc = " custom authorization check (grpc_tls_server_authorization_check_config) is"]
-    #[doc = " mandatory. It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_credentials_options_set_server_verification_option(
-        options: *mut grpc_tls_credentials_options,
-        server_verification_option: grpc_tls_server_verification_option,
-    );
-}
-extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Sets the credential provider in the options."]
     #[doc = " The |options| will implicitly take a new ref to the |provider|."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_certificate_provider(
         options: *mut grpc_tls_credentials_options,
         provider: *mut grpc_tls_certificate_provider,
     );
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " If set, gRPC stack will keep watching the root certificates with"]
     #[doc = " name |root_cert_name|."]
     #[doc = " If this is not set on the client side, we will use the root certificates"]
@@ -3357,157 +3310,308 @@ extern "C" {
     #[doc = " If this is not set on the server side, we will not watch any root certificate"]
     #[doc = " updates, and assume no root certificates needed for the server(single-side"]
     #[doc = " TLS). Default root certs on the server side is not supported."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_watch_root_certs(
         options: *mut grpc_tls_credentials_options,
     );
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Sets the name of the root certificates being watched."]
     #[doc = " If not set, We will use a default empty string as the root certificate name."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_set_root_cert_name(
         options: *mut grpc_tls_credentials_options,
         root_cert_name: *const ::std::os::raw::c_char,
     );
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " If set, gRPC stack will keep watching the identity key-cert pairs"]
     #[doc = " with name |identity_cert_name|."]
     #[doc = " This is required on the server side, and optional on the client side."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
     pub fn grpc_tls_credentials_options_watch_identity_key_cert_pairs(
         options: *mut grpc_tls_credentials_options,
     );
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Sets the name of the identity certificates being watched."]
     #[doc = " If not set, We will use a default empty string as the identity certificate"]
-    #[doc = " name. It is used for experimental purpose for now and subject to change."]
+    #[doc = " name."]
     pub fn grpc_tls_credentials_options_set_identity_cert_name(
         options: *mut grpc_tls_credentials_options,
         identity_cert_name: *const ::std::os::raw::c_char,
     );
 }
 extern "C" {
-    #[doc = " Sets the configuration for a custom authorization check performed at the end"]
-    #[doc = " of the handshake. The |options| will implicitly take a new ref to the"]
-    #[doc = " |config|."]
-    #[doc = " It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_credentials_options_set_server_authorization_check_config(
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Sets the options of whether to request and/or verify client certs. This shall"]
+    #[doc = " only be called on the server side."]
+    pub fn grpc_tls_credentials_options_set_cert_request_type(
         options: *mut grpc_tls_credentials_options,
-        config: *mut grpc_tls_server_authorization_check_config,
+        type_: grpc_ssl_client_certificate_request_type,
     );
 }
-#[doc = " callback function provided by gRPC used to handle the result of server"]
-#[doc = "authorization check. It is used when schedule API is implemented"]
-#[doc = "asynchronously, and serves to bring the control back to gRPC C core. It is"]
-#[doc = "used for experimental purpose for now and subject to change."]
-pub type grpc_tls_on_server_authorization_check_done_cb =
-    ::std::option::Option<unsafe extern "C" fn(arg: *mut grpc_tls_server_authorization_check_arg)>;
-#[doc = " A struct containing all information necessary to schedule/cancel a server"]
-#[doc = "authorization check request."]
-#[doc = "- cb and cb_user_data represent a gRPC-provided callback and an argument"]
-#[doc = "passed to it."]
-#[doc = "- success will store the result of server authorization check. That is,"]
-#[doc = "if success returns a non-zero value, it means the authorization check"]
-#[doc = "passes and if returning zero, it means the check fails."]
-#[doc = "- target_name is the name of an endpoint the channel is connecting to."]
-#[doc = "- peer_cert represents a complete certificate chain including both"]
-#[doc = "signing and leaf certificates."]
-#[doc = "- \\a subject_alternative_names is an array of size"]
-#[doc = "\\a subject_alternative_names_size consisting of pointers to strings."]
-#[doc = "- status and error_details contain information"]
-#[doc = "about errors occurred when a server authorization check request is"]
-#[doc = "scheduled/cancelled."]
-#[doc = "- config is a pointer to the unique"]
-#[doc = "grpc_tls_server_authorization_check_config instance that this argument"]
-#[doc = "corresponds to."]
-#[doc = "- context is a pointer to a wrapped language implementation of this"]
-#[doc = "grpc_tls_server_authorization_check_arg instance."]
-#[doc = "- destroy_context is a pointer to a caller-provided method that cleans"]
-#[doc = "up any data associated with the context pointer."]
-#[doc = "It is used for experimental purpose for now and subject to change."]
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " If set, gRPC will read all hashed x.509 CRL files in the directory and"]
+    #[doc = " enforce the CRL files on all TLS handshakes. Only supported for OpenSSL"]
+    #[doc = " version > 1.1."]
+    #[doc = " It is used for experimental purpose for now and subject to change."]
+    pub fn grpc_tls_credentials_options_set_crl_directory(
+        options: *mut grpc_tls_credentials_options,
+        crl_directory: *const ::std::os::raw::c_char,
+    );
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Sets the options of whether to verify server certs on the client side."]
+    #[doc = " Passing in a non-zero value indicates verifying the certs."]
+    pub fn grpc_tls_credentials_options_set_verify_server_cert(
+        options: *mut grpc_tls_credentials_options,
+        verify_server_cert: ::std::os::raw::c_int,
+    );
+}
+#[doc = " EXPERIMENTAL API - Subject to change"]
+#[doc = ""]
+#[doc = " The read-only request information exposed in a verification call."]
+#[doc = " Callers should not directly manage the ownership of it. We will make sure it"]
+#[doc = " is always available inside verify() or cancel() call, and will destroy the"]
+#[doc = " object at the end of custom verification."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct grpc_tls_server_authorization_check_arg {
-    pub cb: grpc_tls_on_server_authorization_check_done_cb,
-    pub cb_user_data: *mut ::std::os::raw::c_void,
-    pub success: ::std::os::raw::c_int,
+pub struct grpc_tls_custom_verification_check_request {
     pub target_name: *const ::std::os::raw::c_char,
+    pub peer_info: grpc_tls_custom_verification_check_request_peer_info,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_tls_custom_verification_check_request_peer_info {
+    pub common_name: *const ::std::os::raw::c_char,
+    pub san_names: grpc_tls_custom_verification_check_request_peer_info_san_names,
     pub peer_cert: *const ::std::os::raw::c_char,
     pub peer_cert_full_chain: *const ::std::os::raw::c_char,
-    pub subject_alternative_names: *mut *mut ::std::os::raw::c_char,
-    pub subject_alternative_names_size: usize,
-    pub status: grpc_status_code::Type,
-    pub error_details: *mut grpc_tls_error_details,
-    pub config: *mut grpc_tls_server_authorization_check_config,
-    pub context: *mut ::std::os::raw::c_void,
-    pub destroy_context:
-        ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_tls_custom_verification_check_request_peer_info_san_names {
+    pub uri_names: *mut *mut ::std::os::raw::c_char,
+    pub uri_names_size: usize,
+    pub dns_names: *mut *mut ::std::os::raw::c_char,
+    pub dns_names_size: usize,
+    pub email_names: *mut *mut ::std::os::raw::c_char,
+    pub email_names_size: usize,
+    pub ip_names: *mut *mut ::std::os::raw::c_char,
+    pub ip_names_size: usize,
+}
+#[doc = " EXPERIMENTAL API - Subject to change"]
+#[doc = ""]
+#[doc = " A callback function provided by gRPC as a parameter of the |verify| function"]
+#[doc = " in grpc_tls_certificate_verifier_external. If |verify| is expected to be run"]
+#[doc = " asynchronously, the implementer of |verify| will need to invoke this callback"]
+#[doc = " with |callback_arg| and proper verification status at the end to bring the"]
+#[doc = " control back to gRPC C core."]
+pub type grpc_tls_on_custom_verification_check_done_cb = ::std::option::Option<
+    unsafe extern "C" fn(
+        request: *mut grpc_tls_custom_verification_check_request,
+        callback_arg: *mut ::std::os::raw::c_void,
+        status: grpc_status_code::Type,
+        error_details: *const ::std::os::raw::c_char,
+    ),
+>;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_tls_certificate_verifier {
+    _unused: [u8; 0],
+}
+#[doc = " EXPERIMENTAL API - Subject to change"]
+#[doc = ""]
+#[doc = " A struct containing all the necessary functions a custom external verifier"]
+#[doc = " needs to implement to be able to be converted to an internal verifier."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_tls_certificate_verifier_external {
+    pub user_data: *mut ::std::os::raw::c_void,
+    #[doc = " A function pointer containing the verification logic that will be"]
+    #[doc = " performed after the TLS handshake is done. It could be processed"]
+    #[doc = " synchronously or asynchronously."]
+    #[doc = " - If expected to be processed synchronously, the implementer should"]
+    #[doc = "   populate the verification result through |sync_status| and"]
+    #[doc = "   |sync_error_details|, and then return true."]
+    #[doc = " - If expected to be processed asynchronously, the implementer should return"]
+    #[doc = "   false immediately, and then in the asynchronous thread invoke |callback|"]
+    #[doc = "   with the verification result. The implementer MUST NOT invoke the async"]
+    #[doc = "   |callback| in the same thread before |verify| returns, otherwise it can"]
+    #[doc = "   lead to deadlocks."]
+    #[doc = ""]
+    #[doc = " user_data: any argument that is passed in the user_data of"]
+    #[doc = "            grpc_tls_certificate_verifier_external during construction time"]
+    #[doc = "            can be retrieved later here."]
+    #[doc = " request: request information exposed to the function implementer."]
+    #[doc = " callback: the callback that the function implementer needs to invoke, if"]
+    #[doc = "           return a non-zero value. It is usually invoked when the"]
+    #[doc = "           asynchronous verification is done, and serves to bring the"]
+    #[doc = "           control back to gRPC."]
+    #[doc = " callback_arg: A pointer to the internal ExternalVerifier instance. This is"]
+    #[doc = "               mainly used as an argument in |callback|, if want to invoke"]
+    #[doc = "               |callback| in async mode."]
+    #[doc = " sync_status: indicates if a connection should be allowed. This should only"]
+    #[doc = "              be used if the verification check is done synchronously."]
+    #[doc = " sync_error_details: the error generated while verifying a connection. This"]
+    #[doc = "                     should only be used if the verification check is done"]
+    #[doc = "                     synchronously. the implementation must allocate the"]
+    #[doc = "                     error string via gpr_malloc() or gpr_strdup()."]
+    #[doc = " return: return 0 if |verify| is expected to be executed asynchronously,"]
+    #[doc = "         otherwise return a non-zero value."]
+    pub verify: ::std::option::Option<
+        unsafe extern "C" fn(
+            user_data: *mut ::std::os::raw::c_void,
+            request: *mut grpc_tls_custom_verification_check_request,
+            callback: grpc_tls_on_custom_verification_check_done_cb,
+            callback_arg: *mut ::std::os::raw::c_void,
+            sync_status: *mut grpc_status_code::Type,
+            sync_error_details: *mut *mut ::std::os::raw::c_char,
+        ) -> ::std::os::raw::c_int,
+    >,
+    #[doc = " A function pointer that cleans up the caller-specified resources when the"]
+    #[doc = " verifier is still running but the whole connection got cancelled. This"]
+    #[doc = " could happen when the verifier is doing some async operations, and the"]
+    #[doc = " whole handshaker object got destroyed because of connection time limit is"]
+    #[doc = " reached, or any other reasons. In such cases, function implementers might"]
+    #[doc = " want to be notified, and properly clean up some resources."]
+    #[doc = ""]
+    #[doc = " user_data: any argument that is passed in the user_data of"]
+    #[doc = "            grpc_tls_certificate_verifier_external during construction time"]
+    #[doc = "            can be retrieved later here."]
+    #[doc = " request: request information exposed to the function implementer. It will"]
+    #[doc = "          be the same request object that was passed to verify(), and it"]
+    #[doc = "          tells the cancel() which request to cancel."]
+    pub cancel: ::std::option::Option<
+        unsafe extern "C" fn(
+            user_data: *mut ::std::os::raw::c_void,
+            request: *mut grpc_tls_custom_verification_check_request,
+        ),
+    >,
+    #[doc = " A function pointer that does some additional destruction work when the"]
+    #[doc = " verifier is destroyed. This is used when the caller wants to associate some"]
+    #[doc = " objects to the lifetime of external_verifier, and destroy them when"]
+    #[doc = " external_verifier got destructed. For example, in C++, the class containing"]
+    #[doc = " user-specified callback functions should not be destroyed before"]
+    #[doc = " external_verifier, since external_verifier will invoke them while being"]
+    #[doc = " used."]
+    #[doc = " Note that the caller MUST delete the grpc_tls_certificate_verifier_external"]
+    #[doc = " object itself in this function, otherwise it will cause memory leaks. That"]
+    #[doc = " also means the user_data has to carries at least a self pointer, for the"]
+    #[doc = " callers to later delete it in destruct()."]
+    #[doc = ""]
+    #[doc = " user_data: any argument that is passed in the user_data of"]
+    #[doc = "            grpc_tls_certificate_verifier_external during construction time"]
+    #[doc = "            can be retrieved later here."]
+    pub destruct:
+        ::std::option::Option<unsafe extern "C" fn(user_data: *mut ::std::os::raw::c_void)>,
 }
 extern "C" {
-    #[doc = " Create a grpc_tls_server_authorization_check_config instance."]
-    #[doc = "- config_user_data is config-specific, read-only user data"]
-    #[doc = "that works for all channels created with a credential using the config."]
-    #[doc = "- schedule is a pointer to an application-provided callback used to invoke"]
-    #[doc = "server authorization check API. The implementation of this method has to"]
-    #[doc = "be non-blocking, but can be performed synchronously or asynchronously."]
-    #[doc = "1)If processing occurs synchronously, it populates arg->result,"]
-    #[doc = "arg->status, and arg->error_details and returns zero."]
-    #[doc = "2) If processing occurs asynchronously, it returns a non-zero value. The"]
-    #[doc = "application then invokes arg->cb when processing is completed. Note that"]
-    #[doc = "arg->cb cannot be invoked before schedule API returns."]
-    #[doc = "- cancel is a pointer to an application-provided callback used to cancel a"]
-    #[doc = "server authorization check request scheduled via an asynchronous schedule"]
-    #[doc = "API. arg is used to pinpoint an exact check request to be cancelled. The"]
-    #[doc = "operation may not have any effect if the request has already been"]
-    #[doc = "processed."]
-    #[doc = "- destruct is a pointer to an application-provided callback used to clean up"]
-    #[doc = "any data associated with the config."]
-    #[doc = "It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_server_authorization_check_config_create(
-        config_user_data: *const ::std::os::raw::c_void,
-        schedule: ::std::option::Option<
-            unsafe extern "C" fn(
-                config_user_data: *mut ::std::os::raw::c_void,
-                arg: *mut grpc_tls_server_authorization_check_arg,
-            ) -> ::std::os::raw::c_int,
-        >,
-        cancel: ::std::option::Option<
-            unsafe extern "C" fn(
-                config_user_data: *mut ::std::os::raw::c_void,
-                arg: *mut grpc_tls_server_authorization_check_arg,
-            ),
-        >,
-        destruct: ::std::option::Option<
-            unsafe extern "C" fn(config_user_data: *mut ::std::os::raw::c_void),
-        >,
-    ) -> *mut grpc_tls_server_authorization_check_config;
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Converts an external verifier to an internal verifier."]
+    #[doc = " Note that we will not take the ownership of the external_verifier. Callers"]
+    #[doc = " will need to delete external_verifier in its own destruct function."]
+    pub fn grpc_tls_certificate_verifier_external_create(
+        external_verifier: *mut grpc_tls_certificate_verifier_external,
+    ) -> *mut grpc_tls_certificate_verifier;
 }
 extern "C" {
-    #[doc = " Releases a grpc_tls_server_authorization_check_config object. The creator of"]
-    #[doc = " the grpc_tls_server_authorization_check_config object is responsible for its"]
-    #[doc = " release. It is used for experimental purpose for now and subject to change."]
-    pub fn grpc_tls_server_authorization_check_config_release(
-        config: *mut grpc_tls_server_authorization_check_config,
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Factory function for an internal verifier that will do the default hostname"]
+    #[doc = " check."]
+    pub fn grpc_tls_certificate_verifier_host_name_create() -> *mut grpc_tls_certificate_verifier;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Releases a grpc_tls_certificate_verifier object. The creator of the"]
+    #[doc = " grpc_tls_certificate_verifier object is responsible for its release."]
+    pub fn grpc_tls_certificate_verifier_release(verifier: *mut grpc_tls_certificate_verifier);
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Sets the verifier in options. The |options| will implicitly take a new ref to"]
+    #[doc = " the |verifier|. If not set on the client side, we will verify server's"]
+    #[doc = " certificates, and check the default hostname. If not set on the server side,"]
+    #[doc = " we will verify client's certificates."]
+    pub fn grpc_tls_credentials_options_set_certificate_verifier(
+        options: *mut grpc_tls_credentials_options,
+        verifier: *mut grpc_tls_certificate_verifier,
     );
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Sets the options of whether to check the hostname of the peer on a per-call"]
+    #[doc = " basis. This is usually used in a combination with virtual hosting at the"]
+    #[doc = " client side, where each individual call on a channel can have a different"]
+    #[doc = " host associated with it."]
+    #[doc = " This check is intended to verify that the host specified for the individual"]
+    #[doc = " call is covered by the cert that the peer presented."]
+    #[doc = " The default is a non-zero value, which indicates performing such checks."]
+    pub fn grpc_tls_credentials_options_set_check_call_host(
+        options: *mut grpc_tls_credentials_options,
+        check_call_host: ::std::os::raw::c_int,
+    );
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Performs the verification logic of an internal verifier."]
+    #[doc = " This is typically used when composing the internal verifiers as part of the"]
+    #[doc = " custom verification."]
+    #[doc = " If |grpc_tls_certificate_verifier_verify| returns true, inspect the"]
+    #[doc = " verification result through request->status and request->error_details."]
+    #[doc = " Otherwise, inspect through the parameter of |callback|."]
+    pub fn grpc_tls_certificate_verifier_verify(
+        verifier: *mut grpc_tls_certificate_verifier,
+        request: *mut grpc_tls_custom_verification_check_request,
+        callback: grpc_tls_on_custom_verification_check_done_cb,
+        callback_arg: *mut ::std::os::raw::c_void,
+        sync_status: *mut grpc_status_code::Type,
+        sync_error_details: *mut *mut ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Performs the cancellation logic of an internal verifier."]
+    #[doc = " This is typically used when composing the internal verifiers as part of the"]
+    #[doc = " custom verification."]
+    pub fn grpc_tls_certificate_verifier_cancel(
+        verifier: *mut grpc_tls_certificate_verifier,
+        request: *mut grpc_tls_custom_verification_check_request,
+    );
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Creates a TLS channel credential object based on the"]
     #[doc = " grpc_tls_credentials_options specified by callers. The"]
     #[doc = " grpc_channel_credentials will take the ownership of the |options|. The"]
-    #[doc = " security level of the resulting connection is GRPC_PRIVACY_AND_INTEGRITY. It"]
-    #[doc = " is used for experimental purpose for now and subject to change."]
+    #[doc = " security level of the resulting connection is GRPC_PRIVACY_AND_INTEGRITY."]
     pub fn grpc_tls_credentials_create(
         options: *mut grpc_tls_credentials_options,
     ) -> *mut grpc_channel_credentials;
 }
 extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
     #[doc = " Creates a TLS server credential object based on the"]
     #[doc = " grpc_tls_credentials_options specified by callers. The"]
-    #[doc = " grpc_server_credentials will take the ownership of the |options|. It"]
-    #[doc = " is used for experimental purpose for now and subject to change."]
+    #[doc = " grpc_server_credentials will take the ownership of the |options|."]
     pub fn grpc_tls_server_credentials_create(
         options: *mut grpc_tls_credentials_options,
     ) -> *mut grpc_server_credentials;
@@ -3571,6 +3675,25 @@ extern "C" {
     #[doc = "   destroy this string."]
     pub fn grpc_authorization_policy_provider_static_data_create(
         authz_policy: *const ::std::os::raw::c_char,
+        code: *mut grpc_status_code::Type,
+        error_details: *mut *const ::std::os::raw::c_char,
+    ) -> *mut grpc_authorization_policy_provider;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL - Subject to change."]
+    #[doc = " Creates a grpc_authorization_policy_provider by watching for SDK"]
+    #[doc = " authorization policy changes in filesystem."]
+    #[doc = " - authz_policy is the file path of SDK authorization policy."]
+    #[doc = " - refresh_interval_sec is the amount of time the internal thread would wait"]
+    #[doc = "   before checking for file updates."]
+    #[doc = " - code is the error status code on failure. On success, it equals"]
+    #[doc = "   GRPC_STATUS_OK."]
+    #[doc = " - error_details contains details about the error if any. If the"]
+    #[doc = "   initialization is successful, it will be null. Caller must use gpr_free to"]
+    #[doc = "   destroy this string."]
+    pub fn grpc_authorization_policy_provider_file_watcher_create(
+        authz_policy_path: *const ::std::os::raw::c_char,
+        refresh_interval_sec: ::std::os::raw::c_uint,
         code: *mut grpc_status_code::Type,
         error_details: *mut *const ::std::os::raw::c_char,
     ) -> *mut grpc_authorization_policy_provider;
@@ -3724,7 +3847,6 @@ pub struct grpc_byte_buffer_reader {
 pub union grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
     #[doc = " Index into a slice buffer's array of slices"]
     pub index: ::std::os::raw::c_uint,
-    _bindgen_union_align: u32,
 }
 impl ::std::fmt::Debug for grpc_byte_buffer_reader_grpc_byte_buffer_reader_current {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -3795,11 +3917,9 @@ extern "C" {
     pub fn grpcwrap_request_call_context_create() -> *mut grpcwrap_request_call_context;
 }
 extern "C" {
-    #[link_name = "\u{1}_Z45grpcwrap_metadata_array_destroy_metadata_onlyP19grpc_metadata_array"]
     pub fn grpcwrap_metadata_array_destroy_metadata_only(array: *mut grpc_metadata_array);
 }
 extern "C" {
-    #[link_name = "\u{1}_Z58grpcwrap_metadata_array_destroy_metadata_including_entriesP19grpc_metadata_array"]
     pub fn grpcwrap_metadata_array_destroy_metadata_including_entries(
         array: *mut grpc_metadata_array,
     );
@@ -3840,7 +3960,6 @@ extern "C" {
     pub fn grpcwrap_metadata_array_shrink_to_fit(array: *mut grpc_metadata_array);
 }
 extern "C" {
-    #[link_name = "\u{1}_Z28grpcwrap_metadata_array_moveP19grpc_metadata_arrayS0_"]
     pub fn grpcwrap_metadata_array_move(
         dest: *mut grpc_metadata_array,
         src: *mut grpc_metadata_array,

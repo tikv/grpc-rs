@@ -354,22 +354,23 @@ fn bindgen_grpc(file_path: &Path) {
         .impl_debug(true)
         .size_t_is_usize(true)
         .disable_header_comment()
-        .whitelist_function(r"\bgrpc_.*")
-        .whitelist_function(r"\bgpr_.*")
-        .whitelist_function(r"\bgrpcwrap_.*")
-        .whitelist_var(r"\bGRPC_.*")
-        .whitelist_type(r"\bgrpc_.*")
-        .whitelist_type(r"\bgpr_.*")
-        .whitelist_type(r"\bgrpcwrap_.*")
-        .whitelist_type(r"\bcensus_context.*")
-        .whitelist_type(r"\bverify_peer_options.*")
-        .blacklist_type(r"(__)?pthread.*")
-        .blacklist_function(r"\bgpr_mu_.*")
-        .blacklist_function(r"\bgpr_cv_.*")
-        .blacklist_function(r"\bgpr_once_.*")
-        .blacklist_type(r"gpr_mu")
-        .blacklist_type(r"gpr_cv")
-        .blacklist_type(r"gpr_once")
+        .allowlist_function(r"\bgrpc_.*")
+        .allowlist_function(r"\bgpr_.*")
+        .allowlist_function(r"\bgrpcwrap_.*")
+        .allowlist_var(r"\bGRPC_.*")
+        .allowlist_type(r"\bgrpc_.*")
+        .allowlist_type(r"\bgpr_.*")
+        .allowlist_type(r"\bgrpcwrap_.*")
+        .allowlist_type(r"\bcensus_context.*")
+        .allowlist_type(r"\bverify_peer_options.*")
+        // Block all system headers.
+        .blocklist_file(r"^/.*")
+        .blocklist_function(r"\bgpr_mu_.*")
+        .blocklist_function(r"\bgpr_cv_.*")
+        .blocklist_function(r"\bgpr_once_.*")
+        .blocklist_type(r"gpr_mu")
+        .blocklist_type(r"gpr_cv")
+        .blocklist_type(r"gpr_once")
         .constified_enum_module(r"grpc_status_code")
         .layout_tests(gen_tests)
         .default_enum_style(bindgen::EnumVariation::Rust {
@@ -392,11 +393,11 @@ fn config_binding_path() {
             // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
             // directive when we expect the target-specific pre-generated binding file to be
             // present.
-            println!("cargo:rerun-if-changed=bindings/{}-bindings.rs", &target);
+            println!("cargo:rerun-if-changed=bindings/bindings.rs");
 
             let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
-                .join(format!("{}-bindings.rs", &target));
+                .join("bindings.rs");
 
             #[cfg(feature = "use-bindgen")]
             if env::var("UPDATE_BIND").is_ok() {
