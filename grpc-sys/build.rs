@@ -419,7 +419,18 @@ fn config_binding_path() {
             any(target_arch = "x86_64", target_arch = "aarch64")
         ))
     ))]
-    bindgen_grpc(&file_path);
+    {
+        // On some system (like Windows), stack size of main thread may
+        // be too small.
+        let f = file_path.clone();
+        std::thread::Builder::new()
+            .stack_size(8 * 1024 * 1024)
+            .name("bindgen_grpc".to_string())
+            .spawn(move || bindgen_grpc(&f))
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 
     println!(
         "cargo:rustc-env=BINDING_PATH={}",

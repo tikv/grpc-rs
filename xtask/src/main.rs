@@ -30,29 +30,17 @@ fn cargo() -> Command {
 }
 
 fn exec(c: &mut Command) {
-    if let Err(e) = c.status() {
-        eprintln!("failed to execute {:?}: {}", c, e);
-        process::exit(-1);
-    }
-}
-
-fn find_default_arch() -> String {
-    let s = String::from_utf8(
-        Command::new("rustc")
-            .args(&["--print", "cfg"])
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-    for l in s.lines() {
-        if let Some(arch) = l.strip_prefix("target_arch=") {
-            if !arch.is_empty() {
-                return arch[1..arch.len() - 1].to_string();
+    match c.status() {
+        Err(e) => {
+            eprintln!("failed to execute {:?}: {}", c, e);
+            process::exit(-1);
+        }
+        Ok(s) => {
+            if !s.success() {
+                process::exit(s.code().unwrap_or(-1));
             }
         }
     }
-    panic!("arch not found in {:?}", s);
 }
 
 fn remove_match(data: &str, pattern: impl Fn(&str) -> bool) -> String {
@@ -68,31 +56,11 @@ fn remove_match(data: &str, pattern: impl Fn(&str) -> bool) -> String {
 }
 
 fn bindgen() {
-    let arch = match env::var("ARCH") {
-        Ok(arch) => arch,
-        Err(_) => find_default_arch(),
-    };
-    let tuple = format!("{}-unknown-linux-gnu", arch);
     exec(
         cargo()
             .current_dir("grpc-sys")
-            .args(&["build", "-p", "grpcio-sys", "--target", &tuple, "--features", "_gen-bindings"]),
+            .args(&["build", "-p", "grpcio-sys", "--features", "_gen-bindings"]),
     );
-    for f in fs::read_dir("grpc-sys/bindings").unwrap() {
-        let p = f.unwrap().path();
-        let mut content = String::new();
-        File::open(&p)
-            .unwrap()
-            .read_to_string(&mut content)
-            .unwrap();
-        let content = remove_match(&content, |l| {
-            l.starts_with("pub type ") && l.contains("= ::std::os::raw::")
-        });
-        File::create(&p)
-            .unwrap()
-            .write_all(content.as_bytes())
-            .unwrap();
-    }
 }
 
 fn cmd(c: &str) -> Command {
