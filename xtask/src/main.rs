@@ -75,8 +75,8 @@ fn bindgen() {
     let tuple = format!("{}-unknown-linux-gnu", arch);
     exec(
         cargo()
-            .env("UPDATE_BIND", "1")
-            .args(&["build", "-p", "grpcio-sys", "--target", &tuple]),
+            .current_dir("grpc-sys")
+            .args(&["build", "-p", "grpcio-sys", "--target", &tuple, "--features", "_gen-bindings"]),
     );
     for f in fs::read_dir("grpc-sys/bindings").unwrap() {
         let p = f.unwrap().path();

@@ -13,10 +13,9 @@ categories = ["network-programming"]
 readme = "README.md"
 
 [features]
-default = ["protobuf-codec", "use-bindgen"]
+default = ["protobuf-codec"]
 protobuf-codec = ["grpcio/protobuf-codec", "protobuf"]
 prost-codec = ["grpcio/prost-codec", "prost"]
-use-bindgen = ["grpcio/use-bindgen"]
 
 [dependencies]
 futures-executor = "0.3"

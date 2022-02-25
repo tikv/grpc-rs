@@ -308,7 +308,7 @@ fn get_env(name: &str) -> Option<String> {
 
 // Generate the bindings to grpc C-core.
 // Try to disable the generation of platform-related bindings.
-#[cfg(feature = "use-bindgen")]
+#[cfg(any(feature = "_gen-bindings", not(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64")))))]
 fn bindgen_grpc(file_path: &Path) {
     // create a config to generate binding file
     let mut config = bindgen::Builder::default();
@@ -384,7 +384,7 @@ fn bindgen_grpc(file_path: &Path) {
 }
 
 // Determine if need to update bindings. Supported platforms do not
-// need to be updated by default unless the UPDATE_BIND is specified.
+// need to be updated by default unless the _gen-bindings feature is specified.
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path() {
     let target = env::var("TARGET").unwrap();
@@ -398,26 +398,17 @@ fn config_binding_path() {
             // present.
             println!("cargo:rerun-if-changed=bindings/bindings.rs");
 
-            let file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("bindings")
-                .join("bindings.rs");
-
-            #[cfg(feature = "use-bindgen")]
-            if env::var("UPDATE_BIND").is_ok() {
-                bindgen_grpc(&file_path);
-            }
-
-            file_path
+                .join("bindings.rs")
         }
         _ => {
-            let file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
-
-            #[cfg(feature = "use-bindgen")]
-            bindgen_grpc(&file_path);
-
-            file_path
+            PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs")
         }
     };
+
+    #[cfg(any(feature = "_gen-bindings", not(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64")))))]
+    bindgen_grpc(&file_path);
 
     println!(
         "cargo:rustc-env=BINDING_PATH={}",
@@ -428,7 +419,6 @@ fn config_binding_path() {
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
     println!("cargo:rerun-if-changed=grpc");
-    println!("cargo:rerun-if-env-changed=UPDATE_BIND");
 
     // create a builder to compile grpc_wrap.cc
     let mut cc = cc::Build::new();
