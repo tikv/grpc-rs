@@ -77,7 +77,7 @@ fn join_host_port(host: &str, port: u16) -> String {
     }
 }
 
-#[cfg(feature = "secure")]
+#[cfg(feature = "_secure")]
 mod imp {
     use super::join_host_port;
     use crate::grpc_sys::{self, grpc_server};
@@ -135,7 +135,7 @@ mod imp {
     }
 }
 
-#[cfg(not(feature = "secure"))]
+#[cfg(not(feature = "_secure"))]
 mod imp {
     use super::join_host_port;
     use crate::grpc_sys::{self, grpc_server};
@@ -396,7 +396,7 @@ impl ServerBuilder {
     }
 }
 
-#[cfg(feature = "secure")]
+#[cfg(feature = "_secure")]
 mod secure_server {
     use super::{Binder, ServerBuilder};
     use crate::grpc_sys;

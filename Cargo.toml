@@ -41,12 +41,14 @@ members = [
 exclude = ["xtask"]
 
 [features]
-default = ["protobuf-codec", "secure"]
+default = ["protobuf-codec", "boringssl"]
+_secure = []
 protobuf-codec = ["protobuf"]
 prost-codec = ["prost", "bytes"]
-secure = ["grpcio-sys/secure"]
-openssl = ["secure", "grpcio-sys/openssl"]
-openssl-vendored = ["secure", "grpcio-sys/openssl-vendored"]
+# Perhaps should rename to boringssl
+boringssl = ["grpcio-sys/boringssl", "_secure"]
+openssl = ["_secure", "grpcio-sys/openssl"]
+openssl-vendored = ["_secure", "grpcio-sys/openssl-vendored"]
 no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
 
 [badges]

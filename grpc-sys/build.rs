@@ -179,15 +179,16 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
 
         // `package` should only be set for secure feature, otherwise cmake will always search for
         // ssl library.
-        if cfg!(feature = "secure") {
+        if cfg!(feature = "_secure") {
             config.define("gRPC_SSL_PROVIDER", "package");
         }
-        #[cfg(feature = "secure")]
+        #[cfg(feature = "_secure")]
         if cfg!(feature = "openssl") {
             if cfg!(feature = "openssl-vendored") {
                 config.register_dep("openssl");
             }
         } else {
+            #[cfg(feature = "boringssl")]
             build_boringssl(&mut config);
         }
         if cfg!(feature = "no-omit-frame-pointer") {
@@ -225,7 +226,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         println!("cargo:rustc-link-lib=static={}", l);
     }
 
-    if cfg!(feature = "secure") {
+    if cfg!(feature = "_secure") {
         if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
             figure_ssl_path(&build_dir);
         } else {
@@ -264,7 +265,7 @@ fn figure_ssl_path(build_dir: &str) {
     println!("cargo:rustc-link-lib=crypto");
 }
 
-#[cfg(feature = "secure")]
+#[cfg(feature = "boringssl")]
 fn build_boringssl(config: &mut CmakeConfig) {
     let boringssl_artifact = boringssl_src::Build::new().build();
     config.define(
@@ -308,11 +309,17 @@ fn get_env(name: &str) -> Option<String> {
 
 // Generate the bindings to grpc C-core.
 // Try to disable the generation of platform-related bindings.
-#[cfg(any(feature = "_gen-bindings", not(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64")))))]
+#[cfg(any(
+    feature = "_gen-bindings",
+    not(all(
+        any(target_os = "linux", target_os = "macos"),
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ))
+))]
 fn bindgen_grpc(file_path: &Path) {
     // create a config to generate binding file
     let mut config = bindgen::Builder::default();
-    if cfg!(feature = "secure") {
+    if cfg!(feature = "_secure") {
         config = config.clang_arg("-DGRPC_SYS_SECURE");
     }
 
@@ -402,12 +409,16 @@ fn config_binding_path() {
                 .join("bindings")
                 .join("bindings.rs")
         }
-        _ => {
-            PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs")
-        }
+        _ => PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs"),
     };
 
-    #[cfg(any(feature = "_gen-bindings", not(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64")))))]
+    #[cfg(any(
+        feature = "_gen-bindings",
+        not(all(
+            any(target_os = "linux", target_os = "macos"),
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        ))
+    ))]
     bindgen_grpc(&file_path);
 
     println!(
@@ -423,7 +434,7 @@ fn main() {
     // create a builder to compile grpc_wrap.cc
     let mut cc = cc::Build::new();
 
-    let library = if cfg!(feature = "secure") {
+    let library = if cfg!(feature = "_secure") {
         cc.define("GRPC_SYS_SECURE", None);
         "grpc"
     } else {
