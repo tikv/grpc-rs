@@ -389,7 +389,10 @@ fn bindgen_grpc(file_path: &Path) {
 fn config_binding_path() {
     let target = env::var("TARGET").unwrap();
     let file_path: PathBuf = match target.as_str() {
-        "x86_64-unknown-linux-gnu" | "aarch64-unknown-linux-gnu" => {
+        "x86_64-unknown-linux-gnu"
+        | "aarch64-unknown-linux-gnu"
+        | "x86_64-apple-darwin"
+        | "aarch64-apple-darwin" => {
             // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
             // directive when we expect the target-specific pre-generated binding file to be
             // present.
