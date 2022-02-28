@@ -87,7 +87,7 @@ fn clean_up_stale_cache(cxx_compiler: String) {
 }
 
 /// List packages needed for linking in working directory.
-fn list_packages(dst: &PathBuf) {
+fn list_packages(dst: &Path) {
     env::set_var(
         "PKG_CONFIG_PATH",
         format!("{}/lib/pkgconfig", dst.display()),
