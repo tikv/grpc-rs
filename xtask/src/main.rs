@@ -17,6 +17,7 @@ fn print_help() {
     eprintln!("\tsubmodule\tInit necessary submodules for compilation");
     eprintln!("\tclang-lint\tLint cpp code in grpcio-sys package");
     eprintln!("\tcodegen\tGenerate rust code for all protocols");
+    eprintln!("\trefresh-package\tRegenerate grpc-sys/link-deps.rs to show the latest linking dependencies.");
 }
 
 fn cargo() -> Command {
@@ -232,6 +233,15 @@ fn codegen() {
     exec(cargo().args(&["fmt", "--all"]))
 }
 
+fn refresh_link_package() {
+    exec(
+        cargo()
+            .current_dir("grpc-sys")
+            .args(&["build", "-p", "grpcio-sys", "--features", "_list-package"]),
+    );
+    exec(Command::new("rustfmt").args(&["grpc-sys/link-deps.rs"]));
+}
+
 fn main() {
     let mut args = env::args();
     if args.len() != 2 {
@@ -245,6 +255,7 @@ fn main() {
         "submodule" => submodule(),
         "clang-lint" => clang_lint(),
         "codegen" => codegen(),
+        "refresh-package" => refresh_link_package(),
         _ => print_help(),
     }
 }
