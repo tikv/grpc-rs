@@ -118,7 +118,8 @@ grpcwrap_request_call_context_create() {
  * Destroys array->metadata.
  * The array pointer itself is not freed.
  */
-void grpcwrap_metadata_array_destroy_metadata_only(grpc_metadata_array* array) {
+GPR_EXPORT void grpcwrap_metadata_array_destroy_metadata_only(
+    grpc_metadata_array* array) {
   gpr_free(array->metadata);
 }
 
@@ -126,7 +127,7 @@ void grpcwrap_metadata_array_destroy_metadata_only(grpc_metadata_array* array) {
  * Destroys keys, values and array->metadata.
  * The array pointer itself is not freed.
  */
-void grpcwrap_metadata_array_destroy_metadata_including_entries(
+GPR_EXPORT void grpcwrap_metadata_array_destroy_metadata_including_entries(
     grpc_metadata_array* array) {
   size_t i;
   if (array->metadata) {
@@ -221,8 +222,8 @@ grpcwrap_metadata_array_shrink_to_fit(grpc_metadata_array* array) {
 }
 
 /* Move contents of metadata array */
-void grpcwrap_metadata_array_move(grpc_metadata_array* dest,
-                                  grpc_metadata_array* src) {
+GPR_EXPORT void grpcwrap_metadata_array_move(grpc_metadata_array* dest,
+                                             grpc_metadata_array* src) {
   if (!src) {
     dest->capacity = 0;
     dest->count = 0;

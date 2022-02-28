@@ -29,7 +29,6 @@ This project is still under development. The following features with the check m
 - Rust >= 1.36.0
 - binutils >= 2.22
 - LLVM and Clang >= 3.9 if you need to generate bindings at compile time.
-- By default, the [secure feature](#feature-secure) is provided by boringssl. You can also use openssl instead by enabling [openssl feature](#feature-openssl).
 
 For Linux and MacOS, you also need to install gcc 4.9+ (or clang) too.
 
@@ -93,9 +92,9 @@ To include this project as a dependency:
 grpcio = "0.6"
 ```
 
-### Feature `secure`
+### Feature `boringssl`
 
-`secure` feature enables support for TLS encryption and some authentication
+`boringssl` feature enables support for TLS encryption and some authentication
 mechanism. When you do not need it, for example when working in intranet,
 you can disable it by using the following configuration:
 ```

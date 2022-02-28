@@ -12,8 +12,10 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
 
 ## Optional features
 
-- **`secure`** *(enabled by default)* - Enables support for TLS encryption and some authentication
+- **`boringssl`** *(enabled by default)* - Enables support for TLS encryption and some authentication
   mechanisms.
+- **`openssl`** - Same as `boringssl`, but base on the system openssl.
+- **`openssl-vendored`** - Same as `openssl`, but build openssl from source.
 
 */
 
@@ -39,7 +41,7 @@ mod error;
 mod log_util;
 mod metadata;
 mod quota;
-#[cfg(feature = "secure")]
+#[cfg(feature = "_secure")]
 mod security;
 mod server;
 mod task;
@@ -73,7 +75,7 @@ pub use crate::error::{Error, Result};
 pub use crate::log_util::redirect_log;
 pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
 pub use crate::quota::ResourceQuota;
-#[cfg(feature = "secure")]
+#[cfg(feature = "_secure")]
 pub use crate::security::{
     CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
     ServerCredentialsBuilder, ServerCredentialsFetcher,

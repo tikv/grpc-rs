@@ -472,7 +472,7 @@ impl ChannelBuilder {
     }
 }
 
-#[cfg(feature = "secure")]
+#[cfg(feature = "_secure")]
 mod secure_channel {
     use std::borrow::Cow;
     use std::ffi::CString;

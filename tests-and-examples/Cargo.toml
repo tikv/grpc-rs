@@ -21,7 +21,7 @@ protobuf = { version = "2.22", optional = true }
 prost = { version = "0.8", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
-grpcio = { path = "..", version = "0.9", default-features = false, features = ["secure"] }
+grpcio = { path = "..", version = "0.9", default-features = false, features = ["boringssl"] }
 grpcio-health = { path = "../health", version = "0.9", default-features = false }
 
 [dev-dependencies]
