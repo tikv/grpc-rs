@@ -26,10 +26,10 @@ $ cargo build -p benchmark --release
 
 ```
 $ cd ../grpc
-$ python2.7 tools/run_tests/run_performance_tests.py -l rust
+$ python3 tools/run_tests/run_performance_tests.py -l rust
 ```
 
-Checkout `python2.7 tools/run_tests/run_performance_tests.py --help` to see custom options.
+Checkout `python3 tools/run_tests/run_performance_tests.py --help` to see custom options.
 
 Flame Graph
 ===========
@@ -38,5 +38,5 @@ To generate flame graph, please download FrameGraph release package and extract 
 Please make sure the name of extracted directory is FlameGraph. Then run following command:
 
 ```
-# python2.7 tools/run_tests/run_performance_tests.py -l rust --perf_args="record -F 99 -g"
+# python3 tools/run_tests/run_performance_tests.py -l rust --perf_args="record -F 99 -g"
 ```
