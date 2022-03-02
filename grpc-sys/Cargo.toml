@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.9.1+1.41.0"
+version = "0.10.0+1.44.0"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]

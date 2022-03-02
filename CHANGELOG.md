@@ -1,3 +1,15 @@
+# 0.10.0 - 2022-03-02
+
+- Update prost to 0.9.0 (#544) (#559)
+- Make `CallOption` sync (#551)
+- Update grpc c core to 1.44.0 (#549) (#558)
+- Support querying channelz by API (#550)
+- Reduce dependency on future crate (#554)
+- Support headers on all call types (#555)
+- Rename features "secure" to "boringssl" (#558)
+- Drop dependency on bindgen for both MacOS and x86_64/aarch64 Linux (#558)
+- Make health crate not depend on secure feature (#558)
+
 # 0.9.1 - 2021-09-18
 
 - Make boringssl-src optional (#537)

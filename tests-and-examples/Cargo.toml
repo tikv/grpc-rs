@@ -11,7 +11,7 @@ protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-co
 prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
 
 [dependencies]
-grpcio-sys = { path = "../grpc-sys", version = "0.9" }
+grpcio-sys = { path = "../grpc-sys" }
 libc = "0.2"
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-executor = "0.3"
@@ -21,14 +21,14 @@ protobuf = { version = "2.22", optional = true }
 prost = { version = "0.8", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
-grpcio = { path = "..", version = "0.9", default-features = false, features = ["boringssl"] }
-grpcio-health = { path = "../health", version = "0.9", default-features = false }
+grpcio = { path = "..", default-features = false, features = ["boringssl"] }
+grpcio-health = { path = "../health", default-features = false }
 
 [dev-dependencies]
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-grpcio-proto = { path = "../proto", version = "0.9.0", default-features = false }
+grpcio-proto = { path = "../proto", default-features = false }
 rand = "0.7"
 slog = "2.0"
 slog-async = "2.1"
