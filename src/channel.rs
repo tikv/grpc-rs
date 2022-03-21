@@ -373,6 +373,17 @@ impl ChannelBuilder {
         self
     }
 
+    /// Set use local subchannel pool 
+    /// 
+    /// This method allows channel use it's owned subchannel pool.
+    pub fn use_local_subchannel_pool(mut self, enable: bool) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_USE_LOCAL_SUBCHANNEL_POOL),
+            Options::Integer(enable as i32),
+        );
+        self
+    }
+
     /// Set a raw integer configuration.
     ///
     /// This method is only for bench usage, users should use the encapsulated API instead.
