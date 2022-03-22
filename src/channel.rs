@@ -373,8 +373,8 @@ impl ChannelBuilder {
         self
     }
 
-    /// Set use local subchannel pool 
-    /// 
+    /// Set use local subchannel pool
+    ///
     /// This method allows channel use it's owned subchannel pool.
     pub fn use_local_subchannel_pool(mut self, enable: bool) -> ChannelBuilder {
         self.options.insert(
