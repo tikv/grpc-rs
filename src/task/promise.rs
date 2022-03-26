@@ -6,7 +6,7 @@ use std::sync::Arc;
 use super::Inner;
 use crate::call::{BatchContext, MessageReader, RpcStatusCode};
 use crate::error::Error;
-use crate::{Metadata, MetadataBuilder};
+use crate::metadata::UnownedMetadata;
 
 /// Batch job type.
 #[derive(PartialEq, Debug)]
@@ -22,25 +22,25 @@ pub enum BatchType {
 /// A promise result which stores a message reader with bundled metadata.
 pub struct BatchResult {
     pub message_reader: Option<MessageReader>,
-    pub initial_metadata: Metadata,
-    pub trailing_metadata: Metadata,
+    pub initial_metadata: UnownedMetadata,
+    pub trailing_metadata: UnownedMetadata,
 }
 
 impl BatchResult {
     pub fn new(
         message_reader: Option<MessageReader>,
-        initial_metadata: Option<Metadata>,
-        trailing_metadata: Option<Metadata>,
+        initial_metadata: Option<UnownedMetadata>,
+        trailing_metadata: Option<UnownedMetadata>,
     ) -> BatchResult {
         let initial_metadata = if let Some(m) = initial_metadata {
             m
         } else {
-            MetadataBuilder::new().build()
+            UnownedMetadata::empty()
         };
         let trailing_metadata = if let Some(m) = trailing_metadata {
             m
         } else {
-            MetadataBuilder::new().build()
+            UnownedMetadata::empty()
         };
         BatchResult {
             message_reader,
@@ -109,6 +109,7 @@ impl Batch {
         let task = {
             let mut guard = self.inner.lock();
             let status = self.ctx.rpc_status();
+            eprintln!("{:?}", status);
             if status.code() == RpcStatusCode::OK {
                 guard.set_result(Ok(BatchResult::new(
                     self.ctx.recv_message(),

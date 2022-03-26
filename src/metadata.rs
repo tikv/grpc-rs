@@ -234,10 +234,6 @@ impl Metadata {
         }
         &[]
     }
-
-    pub(crate) fn as_mut_ptr(&mut self) -> *mut grpc_metadata_array {
-        &mut self.0 as _
-    }
 }
 
 impl fmt::Debug for Metadata {
@@ -272,6 +268,38 @@ impl Drop for Metadata {
 
 unsafe impl Send for Metadata {}
 unsafe impl Sync for Metadata {}
+
+/// A special metadata that only for receiving metadata from remote.
+///
+/// gRPC C Core manages metadata internally, it's unsafe to read them unless
+/// call is not destroyed.
+#[repr(C)]
+pub struct UnownedMetadata(grpc_metadata_array);
+
+impl UnownedMetadata {
+    #[inline]
+    pub fn empty() -> UnownedMetadata {
+        unsafe { mem::transmute(Metadata::with_capacity(0)) }
+    }
+    #[inline]
+    pub unsafe fn assume_valid(&self) -> &Metadata {
+        mem::transmute(self)
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut grpc_metadata_array {
+        &mut self.0 as _
+    }
+}
+
+impl Drop for UnownedMetadata {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe { grpcio_sys::grpcwrap_metadata_array_destroy_metadata_only(&mut self.0) }
+    }
+}
+
+unsafe impl Send for UnownedMetadata {}
+unsafe impl Sync for UnownedMetadata {}
 
 /// Immutable metadata iterator
 ///
