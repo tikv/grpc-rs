@@ -109,7 +109,6 @@ impl Batch {
         let task = {
             let mut guard = self.inner.lock();
             let status = self.ctx.rpc_status();
-            eprintln!("{:?}", status);
             if status.code() == RpcStatusCode::OK {
                 guard.set_result(Ok(BatchResult::new(
                     self.ctx.recv_message(),
