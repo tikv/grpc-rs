@@ -147,7 +147,7 @@ impl MetadataBuilder {
 ///
 /// Metadata value can be ascii string or bytes. They are distinguish by the
 /// key suffix, key of bytes value should have suffix '-bin'.
-#[repr(C)]
+#[repr(transparent)]
 pub struct Metadata(grpc_metadata_array);
 
 impl Metadata {
@@ -273,7 +273,7 @@ unsafe impl Sync for Metadata {}
 ///
 /// gRPC C Core manages metadata internally, it's unsafe to read them unless
 /// call is not destroyed.
-#[repr(C)]
+#[repr(transparent)]
 pub struct UnownedMetadata(grpc_metadata_array);
 
 impl UnownedMetadata {
