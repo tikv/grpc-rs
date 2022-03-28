@@ -1,3 +1,7 @@
+# 0.10.1 - 2022-03-28
+
+- Fix potential UAF and double free (#566)
+
 # 0.10.0 - 2022-03-02
 
 - Update prost to 0.9.0 (#544) (#559)

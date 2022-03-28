@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -17,7 +17,7 @@ autoexamples = false
 all-features = true
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.10.0", default-features = false }
+grpcio-sys = { path = "grpc-sys", version = "0.10.1", default-features = false }
 libc = "0.2"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
