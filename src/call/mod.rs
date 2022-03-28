@@ -11,6 +11,7 @@ use std::task::{Context, Poll};
 use std::{ptr, slice};
 
 use crate::grpc_sys::{self, grpc_call, grpc_call_error, grpcwrap_batch_context};
+use crate::metadata::UnownedMetadata;
 use crate::{cq::CompletionQueue, Metadata, MetadataBuilder};
 use futures_util::ready;
 use libc::c_void;
@@ -291,8 +292,8 @@ impl BatchContext {
     ///
     /// If initial metadata is not fetched or the method has been called, empty metadata will be
     /// returned.
-    pub fn take_initial_metadata(&mut self) -> Metadata {
-        let mut res = MetadataBuilder::with_capacity(0).build();
+    pub fn take_initial_metadata(&mut self) -> UnownedMetadata {
+        let mut res = UnownedMetadata::empty();
         unsafe {
             grpcio_sys::grpcwrap_batch_context_take_recv_initial_metadata(
                 self.ctx,
@@ -306,8 +307,8 @@ impl BatchContext {
     ///
     /// If trailing metadata is not fetched or the method has been called, empty metadata will be
     /// returned.
-    pub fn take_trailing_metadata(&mut self) -> Metadata {
-        let mut res = MetadataBuilder::with_capacity(0).build();
+    pub fn take_trailing_metadata(&mut self) -> UnownedMetadata {
+        let mut res = UnownedMetadata::empty();
         unsafe {
             grpc_sys::grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
                 self.ctx,

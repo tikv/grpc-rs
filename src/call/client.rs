@@ -19,7 +19,7 @@ use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
-use crate::metadata::{Metadata, MetadataBuilder};
+use crate::metadata::{Metadata, UnownedMetadata};
 use crate::task::{BatchFuture, BatchType};
 
 /// Update the flag bit in res.
@@ -225,8 +225,8 @@ pub struct ClientUnaryReceiver<T> {
     resp_de: DeserializeFn<T>,
     finished: bool,
     message: Option<T>,
-    initial_metadata: Metadata,
-    trailing_metadata: Metadata,
+    initial_metadata: UnownedMetadata,
+    trailing_metadata: UnownedMetadata,
 }
 
 impl<T> ClientUnaryReceiver<T> {
@@ -237,8 +237,8 @@ impl<T> ClientUnaryReceiver<T> {
             resp_de,
             finished: false,
             message: None,
-            initial_metadata: MetadataBuilder::new().build(),
-            trailing_metadata: MetadataBuilder::new().build(),
+            initial_metadata: UnownedMetadata::empty(),
+            trailing_metadata: UnownedMetadata::empty(),
         }
     }
 
@@ -274,12 +274,14 @@ impl<T> ClientUnaryReceiver<T> {
     /// Get the initial metadata.
     pub async fn headers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
-        Ok(&self.initial_metadata)
+        // Because we have a reference to call, so it's safe to read.
+        Ok(unsafe { self.initial_metadata.assume_valid() })
     }
 
     pub async fn trailers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
-        Ok(&self.trailing_metadata)
+        // Because we have a reference to call, so it's safe to read.
+        Ok(unsafe { self.trailing_metadata.assume_valid() })
     }
 
     pub fn receive_sync(&mut self) -> Result<(Metadata, T, Metadata)> {
@@ -325,8 +327,8 @@ pub struct ClientCStreamReceiver<T> {
     resp_de: DeserializeFn<T>,
     finished: bool,
     message: Option<T>,
-    initial_metadata: Metadata,
-    trailing_metadata: Metadata,
+    initial_metadata: UnownedMetadata,
+    trailing_metadata: UnownedMetadata,
 }
 
 impl<T> ClientCStreamReceiver<T> {
@@ -337,8 +339,8 @@ impl<T> ClientCStreamReceiver<T> {
             resp_de,
             finished: false,
             message: None,
-            initial_metadata: MetadataBuilder::new().build(),
-            trailing_metadata: MetadataBuilder::new().build(),
+            initial_metadata: UnownedMetadata::empty(),
+            trailing_metadata: UnownedMetadata::empty(),
         }
     }
 
@@ -378,12 +380,14 @@ impl<T> ClientCStreamReceiver<T> {
     /// Get the initial metadata.
     pub async fn headers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
-        Ok(&self.initial_metadata)
+        // We still have a reference in share call.
+        Ok(unsafe { self.initial_metadata.assume_valid() })
     }
 
     pub async fn trailers(&mut self) -> Result<&Metadata> {
         self.wait_for_batch_future().await?;
-        Ok(&self.trailing_metadata)
+        // We still have a reference in share call.
+        Ok(unsafe { self.trailing_metadata.assume_valid() })
     }
 }
 
@@ -550,7 +554,7 @@ struct ResponseStreamImpl<H, T> {
     read_done: bool,
     finished: bool,
     resp_de: DeserializeFn<T>,
-    headers_f: FutureOrValue<BatchFuture, Metadata>,
+    headers_f: FutureOrValue<BatchFuture, UnownedMetadata>,
 }
 
 impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
@@ -623,7 +627,8 @@ impl<H: ShareCallHolder + Unpin, T> ResponseStreamImpl<H, T> {
             self.headers_f = FutureOrValue::Value(Pin::new(f).await?.initial_metadata);
         }
         match &self.headers_f {
-            FutureOrValue::Value(v) => Ok(v),
+            // We still have reference to call.
+            FutureOrValue::Value(v) => Ok(unsafe { v.assume_valid() }),
             _ => unreachable!(),
         }
     }
