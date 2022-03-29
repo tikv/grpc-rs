@@ -283,16 +283,6 @@ grpcwrap_request_call_context_destroy(grpcwrap_request_call_context* ctx) {
 GPR_EXPORT void GPR_CALLTYPE grpcwrap_batch_context_take_recv_initial_metadata(
     grpcwrap_batch_context* ctx, grpc_metadata_array* res) {
   grpcwrap_metadata_array_move(res, &(ctx->recv_initial_metadata));
-
-  /* According to the documentation for struct grpc_op in grpc_types.h,
-   * ownership of keys and values for
-   * metadata stays with the call object. This means we have ref each of the
-   * keys and values here. */
-  size_t i;
-  for (i = 0; i < res->count; i++) {
-    grpc_slice_ref(res->metadata[i].key);
-    grpc_slice_ref(res->metadata[i].value);
-  }
 }
 
 GPR_EXPORT void GPR_CALLTYPE
@@ -300,16 +290,6 @@ grpcwrap_batch_context_take_recv_status_on_client_trailing_metadata(
     grpcwrap_batch_context* ctx, grpc_metadata_array* res) {
   grpcwrap_metadata_array_move(res,
                                &(ctx->recv_status_on_client.trailing_metadata));
-
-  /* According to the documentation for struct grpc_op in grpc_types.h,
-   * ownership of keys and values for
-   * metadata stays with the call object. This means we have ref each of the
-   * keys and values here. */
-  size_t i;
-  for (i = 0; i < res->count; i++) {
-    grpc_slice_ref(res->metadata[i].key);
-    grpc_slice_ref(res->metadata[i].value);
-  }
 }
 
 GPR_EXPORT const char* GPR_CALLTYPE

@@ -22,7 +22,7 @@ use crate::error::{Error, Result};
 use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
-pub use self::promise::BatchResult;
+pub(crate) use self::promise::BatchResult;
 pub use self::promise::BatchType;
 
 /// A handle that is used to notify future that the task finishes.

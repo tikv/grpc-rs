@@ -15,7 +15,7 @@ const INLINED_SIZE: usize = mem::size_of::<libc::size_t>() + mem::size_of::<*mut
 /// A convenient rust wrapper for the type `grpc_slice`.
 ///
 /// It's expected that the slice should be initialized.
-#[repr(C)]
+#[repr(transparent)]
 pub struct GrpcSlice(grpc_slice);
 
 impl GrpcSlice {
