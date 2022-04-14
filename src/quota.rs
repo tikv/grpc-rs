@@ -45,9 +45,7 @@ impl Clone for ResourceQuota {
         unsafe {
             grpc_sys::grpc_resource_quota_ref(self.raw);
         }
-        Self {
-            raw: self.raw,
-        }
+        Self { raw: self.raw }
     }
 }
 
