@@ -1,3 +1,8 @@
+# 0.10.2 - 2022-04-15
+
+- Make `ResourceQuota` cloneable (#568)
+- Allow use local subchannel pool (#565)
+
 # 0.10.1 - 2022-03-28
 
 - Fix potential UAF and double free (#566)
