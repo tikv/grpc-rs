@@ -40,6 +40,15 @@ impl ResourceQuota {
     }
 }
 
+impl Clone for ResourceQuota {
+    fn clone(&self) -> Self {
+        unsafe {
+            grpc_sys::grpc_resource_quota_ref(self.raw);
+        }
+        Self { raw: self.raw }
+    }
+}
+
 impl Drop for ResourceQuota {
     fn drop(&mut self) {
         unsafe {
