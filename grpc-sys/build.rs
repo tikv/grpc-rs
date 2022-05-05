@@ -276,7 +276,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     };
 
     let modifier = if cfg!(feature = "whole-archive") {
-        ":+whole-archive"
+        ":-bundle,+whole-archive"
     } else {
         ""
     };
