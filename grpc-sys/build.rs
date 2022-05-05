@@ -274,16 +274,23 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     } else {
         GRPC_DEPS
     };
+
+    let modifier = if cfg!(feature = "whole-archive") {
+        ":+whole-archive"
+    } else {
+        ""
+    };
+
     for l in COMMON_DEPS.iter().chain(libs) {
-        println!("cargo:rustc-link-lib=static={}", l);
+        println!("cargo:rustc-link-lib=static{}={}", modifier, l);
     }
 
     if cfg!(feature = "_secure") {
         if cfg!(feature = "openssl") && !cfg!(feature = "openssl-vendored") {
             figure_ssl_path(&build_dir);
         } else {
-            println!("cargo:rustc-link-lib=static=ssl");
-            println!("cargo:rustc-link-lib=static=crypto");
+            println!("cargo:rustc-link-lib=static{}=ssl", modifier);
+            println!("cargo:rustc-link-lib=static{}=crypto", modifier);
         }
     }
 

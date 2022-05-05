@@ -59,6 +59,8 @@ boringssl = ["boringssl-src", "_secure"]
 openssl = ["_secure"]
 openssl-vendored = ["openssl", "openssl-sys"]
 no-omit-frame-pointer = []
+# do not throw away unused objects when bundling dependencies
+whole-archive = []
 # A hidden feature that is used to force regenerating bindings.
 _gen-bindings = ["bindgen"]
 _list-package = []
