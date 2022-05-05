@@ -17,7 +17,7 @@ autoexamples = false
 all-features = true
 
 [dependencies]
-grpcio-sys = { path = "grpc-sys", version = "0.10.1", default-features = false }
+grpcio-sys = { path = "grpc-sys", version = "0.10.2", default-features = false }
 libc = "0.2"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
