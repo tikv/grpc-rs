@@ -275,8 +275,8 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         GRPC_DEPS
     };
 
-    let modifier = if cfg!(feature = "whole-archive") {
-        ":+whole-archive"
+    let modifier = if cfg!(feature = "no-bundle") {
+        ":-bundle"
     } else {
         ""
     };
