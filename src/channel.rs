@@ -296,6 +296,15 @@ impl ChannelBuilder {
         self
     }
 
+    /// If set to zero, disables use of http proxies.
+    pub fn enable_http_proxy(mut self, num: bool) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_ENABLE_HTTP_PROXY),
+            Options::Integer(num as i32),
+        );
+        self
+    }
+
     /// Set default compression algorithm for the channel.
     pub fn default_compression_algorithm(mut self, algo: CompressionAlgorithms) -> ChannelBuilder {
         self.options.insert(
