@@ -76,6 +76,9 @@ pub const GRPC_ARG_SERVICE_CONFIG_DISABLE_RESOLUTION: &[u8; 39usize] =
 pub const GRPC_ARG_LB_POLICY_NAME: &[u8; 20usize] = b"grpc.lb_policy_name\0";
 pub const GRPC_ARG_SOCKET_MUTATOR: &[u8; 20usize] = b"grpc.socket_mutator\0";
 pub const GRPC_ARG_SOCKET_FACTORY: &[u8; 20usize] = b"grpc.socket_factory\0";
+pub const GRPC_ARG_GZIP_COMPRESSION_LEVEL: &[u8; 28usize] = b"grpc.gzip_compression_level\0";
+pub const GRPC_ARG_MIN_MESSAGE_SIZE_TO_COMPRESS: &[u8; 39usize] =
+    b"grpc.gprc_min_message_size_to_compress\0";
 pub const GRPC_ARG_MAX_CHANNEL_TRACE_EVENT_MEMORY_PER_NODE: &[u8; 45usize] =
     b"grpc.max_channel_trace_event_memory_per_node\0";
 pub const GRPC_ARG_ENABLE_CHANNELZ: &[u8; 21usize] = b"grpc.enable_channelz\0";

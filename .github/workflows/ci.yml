@@ -89,6 +89,7 @@ jobs:
     - run: cargo build
     - run: cargo test --all
     - run: RUSTFLAGS="-Z sanitizer=address" cargo test --all --target x86_64-unknown-linux-gnu
+    - run: cargo test --features "nightly"
 
   Mac:
     name: Mac
@@ -104,6 +105,7 @@ jobs:
     - run: cargo build --no-default-features --features "prost-codec"
     - run: cargo build
     - run: cargo test --all
+    - run: cargo test --features "nightly"
 
   Mac-openssl:
     name: Mac-openssl
@@ -130,6 +132,7 @@ jobs:
     - run: cargo xtask submodule
     - run: cargo build
     - run: cargo test --all
+    - run: cargo test --features "nightly"
   
   Pre-Release:
     name: Pre-Release
