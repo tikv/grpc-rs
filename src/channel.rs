@@ -314,6 +314,29 @@ impl ChannelBuilder {
         self
     }
 
+    /// Set default gzip compression level.
+    #[cfg(feature = "nightly")]
+    pub fn default_gzip_compression_level(mut self, level: usize) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_GZIP_COMPRESSION_LEVEL),
+            Options::Integer(level as i32),
+        );
+        self
+    }
+
+    /// Set default grpc min message size to compression.
+    #[cfg(feature = "nightly")]
+    pub fn default_grpc_min_message_size_to_compress(
+        mut self,
+        lower_bound: usize,
+    ) -> ChannelBuilder {
+        self.options.insert(
+            Cow::Borrowed(grpcio_sys::GRPC_ARG_MIN_MESSAGE_SIZE_TO_COMPRESS),
+            Options::Integer(lower_bound as i32),
+        );
+        self
+    }
+
     /// Set default compression level for the channel.
     pub fn default_compression_level(mut self, level: CompressionLevel) -> ChannelBuilder {
         self.options.insert(
@@ -731,5 +754,28 @@ impl Channel {
 
     pub(crate) fn cq(&self) -> &CompletionQueue {
         &self.cq
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "nightly")]
+mod tests {
+    use crate::env::Environment;
+    use crate::ChannelBuilder;
+    use std::sync::Arc;
+
+    #[test]
+    #[cfg(feature = "nightly")]
+    fn test_grpc_min_message_size_to_compress() {
+        let env = Arc::new(Environment::new(1));
+        let cb = ChannelBuilder::new(env);
+        cb.default_grpc_min_message_size_to_compress(1);
+    }
+    #[test]
+    #[cfg(feature = "nightly")]
+    fn test_gzip_compression_level() {
+        let env = Arc::new(Environment::new(1));
+        let cb = ChannelBuilder::new(env);
+        cb.default_gzip_compression_level(1);
     }
 }

@@ -35,9 +35,6 @@ jobs:
           - host: ubuntu-latest
             profile: 
             suffix:
-          - host: ARM64
-            profile: --release
-            suffix: -Arm64
     name: Linux-Stable${{ matrix.suffix }}
     runs-on: ${{ matrix.host }}
     steps:
@@ -62,9 +59,6 @@ jobs:
           - host: ubuntu-latest
             profile: 
             suffix:
-          - host: ARM64
-            profile: --release
-            suffix: -Arm64
     name: Linux-Stable-openssl${{ matrix.suffix }}
     runs-on: ${{ matrix.host }}
     steps:
@@ -89,6 +83,7 @@ jobs:
     - run: cargo build
     - run: cargo test --all
     - run: RUSTFLAGS="-Z sanitizer=address" cargo test --all --target x86_64-unknown-linux-gnu
+    - run: cargo test --features "nightly"
 
   Mac:
     name: Mac
@@ -104,6 +99,7 @@ jobs:
     - run: cargo build --no-default-features --features "prost-codec"
     - run: cargo build
     - run: cargo test --all
+    - run: cargo test --features "nightly"
 
   Mac-openssl:
     name: Mac-openssl
@@ -130,6 +126,7 @@ jobs:
     - run: cargo xtask submodule
     - run: cargo build
     - run: cargo test --all
+    - run: cargo test --features "nightly"
   
   Pre-Release:
     name: Pre-Release
