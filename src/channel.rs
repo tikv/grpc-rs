@@ -758,6 +758,7 @@ impl Channel {
 }
 
 #[cfg(test)]
+#[cfg(feature = "nightly")]
 mod tests {
     use crate::env::Environment;
     use crate::ChannelBuilder;
