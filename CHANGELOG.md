@@ -1,3 +1,8 @@
+# 0.10.3 - 2022-06-27
+
+- Add support for GRPC_ARG_ENABLE_HTTP_PROXY parameter (#575)
+- Support setting gzip level (#577)
+
 # 0.10.2 - 2022-04-15
 
 - Make `ResourceQuota` cloneable (#568)
