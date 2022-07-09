@@ -21,6 +21,6 @@ prost-codec = ["grpcio/prost-codec", "prost"]
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 grpcio = { path = "..", version = "0.10.0", default-features = false }
-prost = { version = "0.9", optional = true }
+prost = { version = "0.10", optional = true }
 protobuf = { version = "2", optional = true }
 log = "0.4"
