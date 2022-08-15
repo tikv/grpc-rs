@@ -95,12 +95,13 @@ fn test_reload_new() {
     let port = server.bind_addrs().next().unwrap().1;
 
     // To connect the server whose CN is "*.test.google.com.au".
-    let cred = ChannelCredentialsBuilder::new()
+    let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
         .override_ssl_target("rust.test.google.com.au")
-        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
+        .set_credentials(creds)
+        .connect(&format!("127.0.0.1:{}", port.clone()));
     let client1 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
@@ -109,12 +110,13 @@ fn test_reload_new() {
 
     // To connect the server whose CN is "*.test.google.fr".
     switch.store(true, Ordering::Relaxed);
-    let cred = ChannelCredentialsBuilder::new()
+    let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
         .override_ssl_target("rust.test.google.fr")
-        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
+        .set_credentials(creds)
+        .connect(&format!("127.0.0.1:{}", port.clone()));
     let client2 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
@@ -147,12 +149,13 @@ fn test_reload_fail() {
     server.start();
 
     let port = server.bind_addrs().next().unwrap().1;
-    let cred = ChannelCredentialsBuilder::new()
+    let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env)
         .override_ssl_target("rust.test.google.fr")
-        .secure_connect(&format!("127.0.0.1:{}", port), cred);
+        .set_credentials(creds)
+        .connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
     for _ in 0..10 {

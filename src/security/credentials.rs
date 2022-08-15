@@ -8,9 +8,9 @@ use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_ssl_certificate_config_reload_status::{self, *};
 use crate::grpc_sys::grpc_ssl_client_certificate_request_type::*;
 use crate::grpc_sys::{
-    self, grpc_channel_credentials, grpc_server_credentials,
-    grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
+    self, grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
 };
+use crate::{ChannelCredentials, ServerCredentials};
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -209,33 +209,6 @@ impl Drop for ServerCredentialsBuilder {
     }
 }
 
-/// Server-side SSL credentials.
-///
-/// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
-pub struct ServerCredentials {
-    creds: *mut grpc_server_credentials,
-}
-
-unsafe impl Send for ServerCredentials {}
-
-impl ServerCredentials {
-    pub(crate) unsafe fn frow_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
-        ServerCredentials { creds }
-    }
-
-    pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {
-        self.creds
-    }
-}
-
-impl Drop for ServerCredentials {
-    fn drop(&mut self) {
-        unsafe {
-            grpc_sys::grpc_server_credentials_release(self.creds);
-        }
-    }
-}
-
 /// [`ChannelCredentials`] factory in order to configure the properties.
 pub struct ChannelCredentialsBuilder {
     root: Option<CString>,
@@ -331,19 +304,7 @@ impl Drop for ChannelCredentialsBuilder {
     }
 }
 
-/// Client-side SSL credentials.
-///
-/// Use [`ChannelCredentialsBuilder`] or [`ChannelCredentials::google_default_credentials`] to
-/// build a [`ChannelCredentials`].
-pub struct ChannelCredentials {
-    creds: *mut grpc_channel_credentials,
-}
-
 impl ChannelCredentials {
-    pub fn as_mut_ptr(&mut self) -> *mut grpc_channel_credentials {
-        self.creds
-    }
-
     /// Try to build a [`ChannelCredentials`] to authenticate with Google OAuth credentials.
     pub fn google_default_credentials() -> Result<ChannelCredentials> {
         // Initialize the runtime here. Because this is an associated method
@@ -358,11 +319,5 @@ impl ChannelCredentials {
         } else {
             Ok(ChannelCredentials { creds })
         }
-    }
-}
-
-impl Drop for ChannelCredentials {
-    fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_channel_credentials_release(self.creds) }
     }
 }

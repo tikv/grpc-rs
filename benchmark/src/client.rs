@@ -376,10 +376,10 @@ impl Client {
                         builder = builder
                             .override_ssl_target(params.get_server_host_override().to_owned());
                     }
-                    builder.secure_connect(addr, proto_util::create_test_channel_credentials())
-                } else {
-                    builder.connect(addr)
+                    builder =
+                        builder.set_credentials(proto_util::create_test_channel_credentials());
                 }
+                builder.connect(addr)
             });
 
         let client_type = cfg.get_client_type();

@@ -41,7 +41,6 @@ mod error;
 mod log_util;
 mod metadata;
 mod quota;
-#[cfg(feature = "_secure")]
 mod security;
 mod server;
 mod task;
@@ -75,11 +74,7 @@ pub use crate::error::{Error, Result};
 pub use crate::log_util::redirect_log;
 pub use crate::metadata::{Metadata, MetadataBuilder, MetadataIter};
 pub use crate::quota::ResourceQuota;
-#[cfg(feature = "_secure")]
-pub use crate::security::{
-    CertificateRequestType, ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials,
-    ServerCredentialsBuilder, ServerCredentialsFetcher,
-};
+pub use crate::security::*;
 pub use crate::server::{
     CheckResult, Server, ServerBuilder, ServerChecker, Service, ServiceBuilder, ShutdownFuture,
 };

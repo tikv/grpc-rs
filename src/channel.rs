@@ -21,8 +21,8 @@ use crate::env::Environment;
 use crate::error::Result;
 use crate::task::CallTag;
 use crate::task::Kicker;
-use crate::CallOption;
 use crate::ResourceQuota;
+use crate::{CallOption, ChannelCredentials};
 
 pub use crate::grpc_sys::{
     grpc_compression_algorithm as CompressionAlgorithms,
@@ -73,6 +73,7 @@ pub enum LbPolicy {
 pub struct ChannelBuilder {
     env: Arc<Environment>,
     options: HashMap<Cow<'static, [u8]>, Options>,
+    credentials: Option<ChannelCredentials>,
 }
 
 impl ChannelBuilder {
@@ -81,6 +82,7 @@ impl ChannelBuilder {
         ChannelBuilder {
             env,
             options: HashMap::new(),
+            credentials: None,
         }
     }
 
@@ -481,18 +483,21 @@ impl ChannelBuilder {
         self.build_args()
     }
 
-    /// Build an insecure [`Channel`] that connects to a specific address.
+    /// Build an [`Channel`] that connects to a specific address.
     pub fn connect(mut self, addr: &str) -> Channel {
         let args = self.prepare_connect_args();
         let addr = CString::new(addr).unwrap();
         let addr_ptr = addr.as_ptr();
+        let mut creds = self
+            .credentials
+            .unwrap_or_else(ChannelCredentials::insecure);
         let channel =
-            unsafe { grpc_sys::grpc_insecure_channel_create(addr_ptr, args.args, ptr::null_mut()) };
+            unsafe { grpcio_sys::grpc_channel_create(addr_ptr, creds.as_mut_ptr(), args.args) };
 
         unsafe { Channel::new(self.env.pick_cq(), self.env, channel) }
     }
 
-    /// Build an insecure [`Channel`] taking over an established connection from
+    /// Build an [`Channel`] taking over an established connection from
     /// a file descriptor. The target string given is purely informative to
     /// describe the endpoint of the connection. Takes ownership of the given
     /// file descriptor and will close it when the connection is closed.
@@ -509,7 +514,12 @@ impl ChannelBuilder {
         let args = self.prepare_connect_args();
         let target = CString::new(target).unwrap();
         let target_ptr = target.as_ptr();
-        let channel = grpc_sys::grpc_insecure_channel_create_from_fd(target_ptr, fd, args.args);
+        // Actually only insecure credentials are supported currently.
+        let mut creds = self
+            .credentials
+            .unwrap_or_else(ChannelCredentials::insecure);
+        let channel =
+            grpcio_sys::grpc_channel_create_from_fd(target_ptr, fd, creds.as_mut_ptr(), args.args);
 
         Channel::new(self.env.pick_cq(), self.env, channel)
     }
@@ -519,13 +529,10 @@ impl ChannelBuilder {
 mod secure_channel {
     use std::borrow::Cow;
     use std::ffi::CString;
-    use std::ptr;
-
-    use crate::grpc_sys;
 
     use crate::ChannelCredentials;
 
-    use super::{Channel, ChannelBuilder, Options};
+    use super::{ChannelBuilder, Options};
 
     const OPT_SSL_TARGET_NAME_OVERRIDE: &[u8] = b"grpc.ssl_target_name_override\0";
 
@@ -544,21 +551,10 @@ mod secure_channel {
             self
         }
 
-        /// Build a secure [`Channel`] that connects to a specific address.
-        pub fn secure_connect(mut self, addr: &str, mut creds: ChannelCredentials) -> Channel {
-            let args = self.prepare_connect_args();
-            let addr = CString::new(addr).unwrap();
-            let addr_ptr = addr.as_ptr();
-            let channel = unsafe {
-                grpc_sys::grpc_secure_channel_create(
-                    creds.as_mut_ptr(),
-                    addr_ptr,
-                    args.args,
-                    ptr::null_mut(),
-                )
-            };
-
-            unsafe { Channel::new(self.env.pick_cq(), self.env, channel) }
+        /// Set the credentials used to build the connection.
+        pub fn set_credentials(mut self, creds: ChannelCredentials) -> ChannelBuilder {
+            self.credentials = Some(creds);
+            self
         }
     }
 }

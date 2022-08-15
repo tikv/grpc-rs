@@ -23,20 +23,15 @@ macro_rules! mk_test {
             let mut server = builder.build().unwrap();
             server.start();
 
-            let builder =
+            let mut builder =
                 ChannelBuilder::new(env.clone()).override_ssl_target("foo.test.google.fr");
-            let channel = {
-                let (host, port) = server.bind_addrs().next().unwrap();
-                if $use_tls {
-                    let creds = util::create_test_channel_credentials();
-                    builder.secure_connect(&format!("{}:{}", host, port), creds)
-                } else {
-                    builder.connect(&format!("{}:{}", host, port))
-                }
-            };
-
+            let (host, port) = server.bind_addrs().next().unwrap();
+            if $use_tls {
+                let creds = util::create_test_channel_credentials();
+                builder = builder.set_credentials(creds);
+            }
+            let channel = builder.connect(&format!("{}:{}", host, port));
             let client = Client::new(channel);
-
             block_on(client.$func()).unwrap();
         }
     };

@@ -21,8 +21,8 @@ use crate::cq::CompletionQueue;
 use crate::env::Environment;
 use crate::error::{Error, Result};
 use crate::task::{CallTag, CqFuture};
-use crate::RpcContext;
 use crate::RpcStatus;
+use crate::{RpcContext, ServerCredentials};
 
 const DEFAULT_REQUEST_SLOTS_PER_CQ: usize = 1024;
 
@@ -77,87 +77,54 @@ fn join_host_port(host: &str, port: u16) -> String {
     }
 }
 
-#[cfg(feature = "_secure")]
-mod imp {
-    use super::join_host_port;
-    use crate::grpc_sys::{self, grpc_server};
-    use crate::security::ServerCredentialsFetcher;
-    use crate::ServerCredentials;
+struct Binder {
+    pub host: String,
+    pub port: u16,
+    creds: ServerCredentials,
+    // Double allocation to get around C call.
+    #[cfg(feature = "_secure")]
+    _fetcher: Option<Box<Box<dyn crate::ServerCredentialsFetcher + Send + Sync>>>,
+}
 
-    pub struct Binder {
-        pub host: String,
-        pub port: u16,
-        cred: Option<ServerCredentials>,
-        // Double allocation to get around C call.
-        #[allow(clippy::redundant_allocation)]
-        _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
+impl Binder {
+    fn new(host: String, port: u16) -> Binder {
+        Binder {
+            host,
+            port,
+            creds: ServerCredentials::insecure(),
+            #[cfg(feature = "_secure")]
+            _fetcher: None,
+        }
     }
 
-    impl Binder {
-        pub fn new(host: String, port: u16) -> Binder {
-            let cred = None;
-            Binder {
-                host,
-                port,
-                cred,
-                _fetcher: None,
-            }
-        }
+    unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
+        let addr = join_host_port(&self.host, self.port);
+        grpcio_sys::grpc_server_add_http2_port(server, addr.as_ptr() as _, self.creds.as_mut_ptr())
+            as u16
+    }
+}
 
-        #[allow(clippy::redundant_allocation)]
+#[cfg(feature = "_secure")]
+mod imp {
+    use super::Binder;
+    use crate::{ServerCredentials, ServerCredentialsFetcher};
+
+    impl Binder {
         pub fn with_cred(
             host: String,
             port: u16,
-            cred: ServerCredentials,
+            creds: ServerCredentials,
             _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
         ) -> Binder {
-            let cred = Some(cred);
             Binder {
                 host,
                 port,
-                cred,
+                creds,
                 _fetcher,
             }
         }
-
-        pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
-            let addr = join_host_port(&self.host, self.port);
-            let port = match self.cred.take() {
-                None => grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _),
-                Some(mut cert) => grpc_sys::grpc_server_add_secure_http2_port(
-                    server,
-                    addr.as_ptr() as _,
-                    cert.as_mut_ptr(),
-                ),
-            };
-            port as u16
-        }
     }
 }
-
-#[cfg(not(feature = "_secure"))]
-mod imp {
-    use super::join_host_port;
-    use crate::grpc_sys::{self, grpc_server};
-
-    pub struct Binder {
-        pub host: String,
-        pub port: u16,
-    }
-
-    impl Binder {
-        pub fn new(host: String, port: u16) -> Binder {
-            Binder { host, port }
-        }
-
-        pub unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
-            let addr = join_host_port(&self.host, self.port);
-            grpc_sys::grpc_server_add_insecure_http2_port(server, addr.as_ptr() as _) as u16
-        }
-    }
-}
-
-use self::imp::Binder;
 
 impl Debug for Binder {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -621,8 +588,9 @@ impl Server {
     /// this call, the socket must not be accessed (read / written / closed)
     /// by other code.
     #[cfg(unix)]
-    pub unsafe fn add_insecure_channel_from_fd(&self, fd: ::std::os::raw::c_int) {
-        grpc_sys::grpc_server_add_insecure_channel_from_fd(self.core.server, ptr::null_mut(), fd)
+    pub unsafe fn add_channel_from_fd(&self, fd: ::std::os::raw::c_int) {
+        let mut creds = ServerCredentials::insecure();
+        grpcio_sys::grpc_server_add_channel_from_fd(self.core.server, fd, creds.as_mut_ptr())
     }
 }
 

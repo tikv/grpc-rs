@@ -72,7 +72,8 @@ fn test_auth_context() {
         .build();
     let ch = ChannelBuilder::new(env)
         .override_ssl_target("rust.test.google.fr")
-        .secure_connect(&format!("127.0.0.1:{}", port), client_credentials);
+        .set_credentials(client_credentials)
+        .connect(&format!("127.0.0.1:{}", port));
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
@@ -102,7 +103,7 @@ fn test_auth_context() {
 fn test_no_crash_on_insecure() {
     let env = Arc::new(EnvBuilder::new().build());
     let (tx, rx) = mpsc::channel();
-    let service = create_greeter(GreeterService { tx: tx });
+    let service = create_greeter(GreeterService { tx });
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
         .bind("127.0.0.1", 0)
@@ -121,7 +122,7 @@ fn test_no_crash_on_insecure() {
     assert_eq!(resp.get_message(), "hello world");
 
     // Test auth_context keys
-    let _empty_keys: mpsc::RecvTimeoutError = rx
-        .recv_timeout(Duration::from_secs(1))
-        .expect_err("Received auth context even though not authenticated");
+    let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+    assert_eq!(ctx_map.get("transport_security_type").unwrap(), "insecure");
+    assert_eq!(ctx_map.get("security_level").unwrap(), "TSI_SECURITY_NONE");
 }
