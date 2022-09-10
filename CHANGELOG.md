@@ -1,3 +1,7 @@
+# 0.11.0 - 2022-09-10
+
+- Update prost to 0.10
+
 # 0.10.3 - 2022-06-27
 
 - Add support for GRPC_ARG_ENABLE_HTTP_PROXY parameter (#575)
