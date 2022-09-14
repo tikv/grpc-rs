@@ -19,6 +19,7 @@ $ git clone https://github.com/pingcap/grpc.git
 
 ```
 $ cd grpc-rs
+$ git submodule update --init --recursive
 $ cargo build -p benchmark --release
 ```
 
@@ -26,6 +27,7 @@ $ cargo build -p benchmark --release
 
 ```
 $ cd ../grpc
+$ git submodule update --init --recursive
 $ python3 tools/run_tests/run_performance_tests.py -l rust
 ```
 
