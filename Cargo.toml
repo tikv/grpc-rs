@@ -1,6 +1,6 @@
 [package]
 name = "grpcio"
-version = "0.10.3"
+version = "0.11.0"
 edition = "2018"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
@@ -55,4 +55,4 @@ no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
 travis-ci = { repository = "tikv/grpc-rs" }
 
 [patch.crates-io]
-grpcio-compiler = { path = "compiler", version = "0.10.0", default-features = false }
+grpcio-compiler = { path = "compiler", version = "0.11.0", default-features = false }
