@@ -449,6 +449,7 @@ fn config_binding_path() {
     let target = env::var("TARGET").unwrap();
     let file_path: PathBuf = match target.as_str() {
         "x86_64-unknown-linux-gnu"
+        | "x86_64-unknown-linux-musl"
         | "aarch64-unknown-linux-gnu"
         | "x86_64-apple-darwin"
         | "aarch64-apple-darwin" => {
