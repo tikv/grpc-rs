@@ -48,11 +48,12 @@ fn setup() -> (Server, HealthService, HealthClient) {
     let health_service = create_health(service.clone());
     let mut server = ServerBuilder::new(env.clone())
         .register_service(health_service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let (_, port) = server.bind_addrs().next().unwrap();
 
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
     let client = HealthClient::new(ch);

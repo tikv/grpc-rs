@@ -24,7 +24,7 @@ pub enum Error {
     /// Failed to shutdown.
     ShutdownFailed,
     /// Failed to bind.
-    BindFail(String, u16),
+    BindFail,
     /// gRPC completion queue is shutdown.
     QueueShutdown,
     /// Failed to create Google default credentials.

@@ -11,9 +11,6 @@ pub use self::credentials::{
     ServerCredentialsFetcher,
 };
 
-#[cfg(feature = "_secure")]
-pub(crate) use self::credentials::server_cert_fetcher_wrapper;
-
 /// Client-side SSL credentials.
 ///
 /// Use [`ChannelCredentialsBuilder`] or [`ChannelCredentials::google_default_credentials`] to
@@ -47,6 +44,9 @@ impl Drop for ChannelCredentials {
 /// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
 pub struct ServerCredentials {
     creds: *mut grpc_server_credentials,
+    // Double allocation to get around C call.
+    #[cfg(feature = "_secure")]
+    _fetcher: Option<Box<Box<dyn crate::ServerCredentialsFetcher + Send + Sync>>>,
 }
 
 unsafe impl Send for ServerCredentials {}
@@ -56,11 +56,15 @@ impl ServerCredentials {
     pub fn insecure() -> ServerCredentials {
         unsafe {
             let creds = grpcio_sys::grpc_insecure_server_credentials_create();
-            ServerCredentials { creds }
+            ServerCredentials::from_raw(creds)
         }
     }
-    pub(crate) unsafe fn frow_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
-        ServerCredentials { creds }
+    pub(crate) unsafe fn from_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
+        ServerCredentials {
+            creds,
+            #[cfg(feature = "_secure")]
+            _fetcher: None,
+        }
     }
 
     pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {

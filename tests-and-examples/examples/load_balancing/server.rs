@@ -14,7 +14,8 @@ use futures_channel::oneshot;
 use futures_executor::block_on;
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::{
-    ChannelBuilder, Environment, ResourceQuota, RpcContext, Server, ServerBuilder, UnarySink,
+    ChannelBuilder, Environment, ResourceQuota, RpcContext, Server, ServerBuilder,
+    ServerCredentials, UnarySink,
 };
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
@@ -38,7 +39,7 @@ impl Greeter for GreeterService {
     }
 }
 
-fn build_server(env: Arc<Environment>, port: u16) -> Server {
+fn build_server(env: Arc<Environment>, mut port: u16) -> Server {
     let service = create_greeter(GreeterService {
         name: format!("{}", port),
     });
@@ -47,14 +48,14 @@ fn build_server(env: Arc<Environment>, port: u16) -> Server {
 
     let mut server = ServerBuilder::new(env)
         .register_service(service)
-        .bind("127.0.0.1", port)
         .channel_args(ch_builder.build_args())
         .build()
         .unwrap();
+    port = server
+        .add_listening_port(&format!("127.0.0.1:{port}"), ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    for (host, port) in server.bind_addrs() {
-        info!("listening on {}:{}", host, port);
-    }
+    info!("listening on 127.0.0.1:{port}");
     server
 }
 

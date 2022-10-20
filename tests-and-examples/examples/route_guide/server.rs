@@ -134,6 +134,7 @@ impl RouteGuide for RouteGuideService {
 }
 
 fn main() {
+    let addr = "127.0.0.1:50051";
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(2));
     let instance = RouteGuideService {
@@ -143,13 +144,13 @@ fn main() {
     let service = create_route_guide(instance);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
-        .bind("127.0.0.1", 50_051)
         .build()
         .unwrap();
+    server
+        .add_listening_port(addr, ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    for (host, port) in server.bind_addrs() {
-        info!("listening on {}:{}", host, port);
-    }
+    info!("listening on {addr}");
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
         info!("Press ENTER to exit...");

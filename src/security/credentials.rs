@@ -185,15 +185,14 @@ impl ServerCredentialsBuilder {
 
     /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
     pub fn build(self) -> ServerCredentials {
-        let credentials = unsafe {
+        unsafe {
             let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config(
                 self.cer_request_type.to_native(),
                 self.build_config(),
             );
-            grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt)
-        };
-
-        ServerCredentials { creds: credentials }
+            let credentials = grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt);
+            ServerCredentials::from_raw(credentials)
+        }
     }
 }
 
@@ -205,6 +204,32 @@ impl Drop for ServerCredentialsBuilder {
                 let s = CString::from_raw(pair.private_key as *mut _);
                 clear_key_securely(&mut s.into_bytes_with_nul());
             }
+        }
+    }
+}
+
+impl ServerCredentials {
+    /// Creates the credentials using a certificate config fetcher. Use this
+    /// method to reload the certificates and keys of the SSL server without
+    /// interrupting the operation of the server. Initial certificate config will be
+    /// fetched during server initialization.
+    pub fn with_fetcher(
+        fetcher: Box<dyn ServerCredentialsFetcher + Send + Sync>,
+        cer_request_type: CertificateRequestType,
+    ) -> Self {
+        let fetcher_wrap = Box::new(fetcher);
+        let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
+        unsafe {
+            let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
+                cer_request_type.to_native(),
+                Some(server_cert_fetcher_wrapper),
+                fetcher_wrap_ptr as _,
+            );
+            let mut creds = ServerCredentials::from_raw(
+                grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt),
+            );
+            creds._fetcher = Some(Box::from_raw(fetcher_wrap_ptr));
+            creds
         }
     }
 }

@@ -2,13 +2,13 @@
 
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
-use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use crate::grpc_sys::{self, grpc_call_error, grpc_server};
@@ -62,73 +62,6 @@ where
     #[inline]
     fn method_type(&self) -> MethodType {
         self.method_type
-    }
-}
-
-/// Given a host and port, creates a string of the form "host:port" or
-/// "[host]:port", depending on whether the host is an IPv6 literal.
-fn join_host_port(host: &str, port: u16) -> String {
-    if host.starts_with("unix:") | host.starts_with("unix-abstract:") {
-        format!("{}\0", host)
-    } else if let Ok(ip) = host.parse::<IpAddr>() {
-        format!("{}\0", SocketAddr::new(ip, port))
-    } else {
-        format!("{}:{}\0", host, port)
-    }
-}
-
-struct Binder {
-    pub host: String,
-    pub port: u16,
-    creds: ServerCredentials,
-    // Double allocation to get around C call.
-    #[cfg(feature = "_secure")]
-    _fetcher: Option<Box<Box<dyn crate::ServerCredentialsFetcher + Send + Sync>>>,
-}
-
-impl Binder {
-    fn new(host: String, port: u16) -> Binder {
-        Binder {
-            host,
-            port,
-            creds: ServerCredentials::insecure(),
-            #[cfg(feature = "_secure")]
-            _fetcher: None,
-        }
-    }
-
-    unsafe fn bind(&mut self, server: *mut grpc_server) -> u16 {
-        let addr = join_host_port(&self.host, self.port);
-        grpcio_sys::grpc_server_add_http2_port(server, addr.as_ptr() as _, self.creds.as_mut_ptr())
-            as u16
-    }
-}
-
-#[cfg(feature = "_secure")]
-mod imp {
-    use super::Binder;
-    use crate::{ServerCredentials, ServerCredentialsFetcher};
-
-    impl Binder {
-        pub fn with_cred(
-            host: String,
-            port: u16,
-            creds: ServerCredentials,
-            _fetcher: Option<Box<Box<dyn ServerCredentialsFetcher + Send + Sync>>>,
-        ) -> Binder {
-            Binder {
-                host,
-                port,
-                creds,
-                _fetcher,
-            }
-        }
-    }
-}
-
-impl Debug for Binder {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Binder {{ host: {}, port: {} }}", self.host, self.port)
     }
 }
 
@@ -266,7 +199,6 @@ pub struct Service {
 /// [`Server`] factory in order to configure the properties.
 pub struct ServerBuilder {
     env: Arc<Environment>,
-    binders: Vec<Binder>,
     args: Option<ChannelArgs>,
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
@@ -278,20 +210,11 @@ impl ServerBuilder {
     pub fn new(env: Arc<Environment>) -> ServerBuilder {
         ServerBuilder {
             env,
-            binders: Vec::new(),
             args: None,
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
             checkers: Vec::new(),
         }
-    }
-
-    /// Bind to an address.
-    ///
-    /// This function can be called multiple times to bind to multiple ports.
-    pub fn bind<S: Into<String>>(mut self, host: S, port: u16) -> ServerBuilder {
-        self.binders.push(Binder::new(host.into(), port));
-        self
     }
 
     /// Add additional configuration for each incoming channel.
@@ -323,22 +246,13 @@ impl ServerBuilder {
     }
 
     /// Finalize the [`ServerBuilder`] and build the [`Server`].
-    pub fn build(mut self) -> Result<Server> {
+    pub fn build(self) -> Result<Server> {
         let args = self
             .args
             .as_ref()
             .map_or_else(ptr::null, ChannelArgs::as_ptr);
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            for binder in self.binders.iter_mut() {
-                let bind_port = binder.bind(server);
-                if bind_port == 0 {
-                    grpc_sys::grpc_server_destroy(server);
-                    return Err(Error::BindFail(binder.host.clone(), binder.port));
-                }
-                binder.port = bind_port;
-            }
-
             for cq in self.env.completion_queues() {
                 let cq_ref = cq.borrow()?;
                 grpc_sys::grpc_server_register_completion_queue(
@@ -352,8 +266,8 @@ impl ServerBuilder {
                 env: self.env,
                 core: Arc::new(ServerCore {
                     server,
+                    creds: Mutex::new(Vec::new()),
                     shutdown: AtomicBool::new(false),
-                    binders: self.binders,
                     slots_per_cq: self.slots_per_cq,
                 }),
                 handlers: self.handlers,
@@ -363,66 +277,9 @@ impl ServerBuilder {
     }
 }
 
-#[cfg(feature = "_secure")]
-mod secure_server {
-    use super::{Binder, ServerBuilder};
-    use crate::grpc_sys;
-    use crate::security::{
-        server_cert_fetcher_wrapper, CertificateRequestType, ServerCredentials,
-        ServerCredentialsFetcher,
-    };
-
-    impl ServerBuilder {
-        /// Bind to an address with credentials for secure connection.
-        ///
-        /// This function can be called multiple times to bind to multiple ports.
-        pub fn bind_with_cred<S: Into<String>>(
-            mut self,
-            host: S,
-            port: u16,
-            c: ServerCredentials,
-        ) -> ServerBuilder {
-            self.binders
-                .push(Binder::with_cred(host.into(), port, c, None));
-            self
-        }
-
-        /// Bind to an address for secure connection.
-        ///
-        /// The required credentials will be fetched using provided `fetcher`. This
-        /// function can be called multiple times to bind to multiple ports.
-        pub fn bind_with_fetcher<S: Into<String>>(
-            mut self,
-            host: S,
-            port: u16,
-            fetcher: Box<dyn ServerCredentialsFetcher + Send + Sync>,
-            cer_request_type: CertificateRequestType,
-        ) -> ServerBuilder {
-            let fetcher_wrap = Box::new(fetcher);
-            let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
-            let (sc, fb) = unsafe {
-                let opt = grpc_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
-                    cer_request_type.to_native(),
-                    Some(server_cert_fetcher_wrapper),
-                    fetcher_wrap_ptr as _,
-                );
-                (
-                    ServerCredentials::frow_raw(
-                        grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt),
-                    ),
-                    Box::from_raw(fetcher_wrap_ptr),
-                )
-            };
-            self.binders
-                .push(Binder::with_cred(host.into(), port, sc, Some(fb)));
-            self
-        }
-    }
-}
-
 struct ServerCore {
     server: *mut grpc_server,
-    binders: Vec<Binder>,
+    creds: Mutex<Vec<ServerCredentials>>,
     slots_per_cq: usize,
     shutdown: AtomicBool,
 }
@@ -573,9 +430,36 @@ impl Server {
         }
     }
 
-    /// Get binded addresses pairs.
-    pub fn bind_addrs(&self) -> impl ExactSizeIterator<Item = (&String, u16)> {
-        self.core.binders.iter().map(|b| (&b.host, b.port))
+    /// Try binding the server to the given `addr` endpoint (eg, localhost:1234,
+    /// 192.168.1.1:31416, [::1]:27182, etc.).
+    ///
+    /// It can be invoked multiple times. Should be used before starting the server.
+    ///
+    /// # Return
+    ///
+    /// The bound port is returned on success.
+    pub fn add_listening_port(
+        &mut self,
+        addr: impl Into<String>,
+        mut creds: ServerCredentials,
+    ) -> Result<u16> {
+        let port = unsafe {
+            let addr: CString = match CString::new(addr.into()) {
+                Ok(addr) => addr,
+                Err(_) => return Err(Error::BindFail),
+            };
+            grpcio_sys::grpc_server_add_http2_port(
+                self.core.server,
+                addr.as_ptr() as _,
+                creds.as_mut_ptr(),
+            ) as u16
+        };
+        if port != 0 {
+            self.core.creds.lock().unwrap().push(creds);
+            Ok(port)
+        } else {
+            Err(Error::BindFail)
+        }
     }
 
     /// Add an rpc channel for an established connection represented as a file
@@ -588,7 +472,7 @@ impl Server {
     /// this call, the socket must not be accessed (read / written / closed)
     /// by other code.
     #[cfg(unix)]
-    pub unsafe fn add_channel_from_fd(&self, fd: ::std::os::raw::c_int) {
+    pub unsafe fn add_channel_from_fd(&mut self, fd: ::std::os::raw::c_int) {
         let mut creds = ServerCredentials::insecure();
         grpcio_sys::grpc_server_add_channel_from_fd(self.core.server, fd, creds.as_mut_ptr())
     }
@@ -610,29 +494,11 @@ impl Drop for Server {
 
 impl Debug for Server {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Server {:?}", self.core.binders)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::join_host_port;
-
-    #[test]
-    fn test_join_host_port() {
-        let tbl = vec![
-            ("localhost", 0u16, "localhost:0\0"),
-            ("127.0.0.1", 100u16, "127.0.0.1:100\0"),
-            ("::1", 0u16, "[::1]:0\0"),
-            (
-                "fe80::7376:45d5:fb08:61e3",
-                10028u16,
-                "[fe80::7376:45d5:fb08:61e3]:10028\0",
-            ),
-        ];
-
-        for (h, p, e) in &tbl {
-            assert_eq!(join_host_port(h, *p), e.to_owned());
-        }
+        write!(
+            f,
+            "Server {{ handlers: {}, checkers: {} }}",
+            self.handlers.len(),
+            self.checkers.len()
+        )
     }
 }

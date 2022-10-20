@@ -59,11 +59,12 @@ fn test_auth_context() {
         .build();
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind_with_cred("127.0.0.1", 0, server_credentials)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", server_credentials)
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
 
     let (client_crt, client_key) = read_cert_pair("client1").unwrap();
     let client_credentials = ChannelCredentialsBuilder::new()
@@ -73,7 +74,7 @@ fn test_auth_context() {
     let ch = ChannelBuilder::new(env)
         .override_ssl_target("rust.test.google.fr")
         .set_credentials(client_credentials)
-        .connect(&format!("127.0.0.1:{}", port));
+        .connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
@@ -106,13 +107,14 @@ fn test_no_crash_on_insecure() {
     let service = create_greeter(GreeterService { tx });
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
 
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
