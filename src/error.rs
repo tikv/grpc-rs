@@ -1,5 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::ffi::CString;
 use std::{error, fmt, result};
 
 use crate::call::RpcStatus;
@@ -24,7 +25,7 @@ pub enum Error {
     /// Failed to shutdown.
     ShutdownFailed,
     /// Failed to bind.
-    BindFail,
+    BindFail(CString),
     /// gRPC completion queue is shutdown.
     QueueShutdown,
     /// Failed to create Google default credentials.

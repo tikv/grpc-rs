@@ -443,11 +443,9 @@ impl Server {
         addr: impl Into<String>,
         mut creds: ServerCredentials,
     ) -> Result<u16> {
+        // There is no Null in UTF-8 string.
+        let addr = CString::new(addr.into()).unwrap();
         let port = unsafe {
-            let addr: CString = match CString::new(addr.into()) {
-                Ok(addr) => addr,
-                Err(_) => return Err(Error::BindFail),
-            };
             grpcio_sys::grpc_server_add_http2_port(
                 self.core.server,
                 addr.as_ptr() as _,
@@ -458,7 +456,7 @@ impl Server {
             self.core.creds.lock().unwrap().push(creds);
             Ok(port)
         } else {
-            Err(Error::BindFail)
+            Err(Error::BindFail(addr))
         }
     }
 

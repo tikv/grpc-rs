@@ -1,4 +1,3 @@
-pub const GRPC_ERROR_IS_ABSEIL_STATUS: u32 = 1;
 pub const GRPC_ARES: u32 = 1;
 pub const GRPC_IF_NAMETOINDEX: u32 = 1;
 pub const GRPC_ALLOW_EXCEPTIONS: u32 = 1;
@@ -102,6 +101,8 @@ pub const GRPC_ARG_TEST_ONLY_DO_NOT_USE_IN_PROD_XDS_BOOTSTRAP_CONFIG: &[u8; 55us
     b"grpc.TEST_ONLY_DO_NOT_USE_IN_PROD.xds_bootstrap_config\0";
 pub const GRPC_ARG_GRPCLB_FALLBACK_TIMEOUT_MS: &[u8; 32usize] =
     b"grpc.grpclb_fallback_timeout_ms\0";
+pub const GRPC_ARG_EXPERIMENTAL_GRPCLB_CHANNEL_ARGS: &[u8; 38usize] =
+    b"grpc.experimental.grpclb_channel_args\0";
 pub const GRPC_ARG_PRIORITY_FAILOVER_TIMEOUT_MS: &[u8; 34usize] =
     b"grpc.priority_failover_timeout_ms\0";
 pub const GRPC_ARG_WORKAROUND_CRONET_COMPRESSION: &[u8; 35usize] =
@@ -135,8 +136,7 @@ pub const GRPC_WRITE_THROUGH: u32 = 4;
 pub const GRPC_WRITE_USED_MASK: u32 = 7;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 32;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY_EXPLICITLY_SET: u32 = 128;
-pub const GRPC_INITIAL_METADATA_CORKED: u32 = 256;
-pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 420;
+pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 164;
 pub const GRPC_CQ_CURRENT_VERSION: u32 = 2;
 pub const GRPC_CQ_VERSION_MINIMUM_FOR_CALLBACKABLE: u32 = 2;
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: u32 = 6;
@@ -1055,15 +1055,13 @@ pub struct grpc_call_details {
     pub method: grpc_slice,
     pub host: grpc_slice,
     pub deadline: gpr_timespec,
-    pub flags: u32,
-    pub reserved: *mut ::std::os::raw::c_void,
 }
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
             f,
-            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, reserved: {:?} }}",
-            self.method, self.host, self.deadline, self.reserved
+            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?} }}",
+            self.method, self.host, self.deadline
         )
     }
 }
