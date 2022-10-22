@@ -101,8 +101,6 @@ pub const GRPC_ARG_TEST_ONLY_DO_NOT_USE_IN_PROD_XDS_BOOTSTRAP_CONFIG: &[u8; 55us
     b"grpc.TEST_ONLY_DO_NOT_USE_IN_PROD.xds_bootstrap_config\0";
 pub const GRPC_ARG_GRPCLB_FALLBACK_TIMEOUT_MS: &[u8; 32usize] =
     b"grpc.grpclb_fallback_timeout_ms\0";
-pub const GRPC_ARG_EXPERIMENTAL_GRPCLB_CHANNEL_ARGS: &[u8; 38usize] =
-    b"grpc.experimental.grpclb_channel_args\0";
 pub const GRPC_ARG_PRIORITY_FAILOVER_TIMEOUT_MS: &[u8; 34usize] =
     b"grpc.priority_failover_timeout_ms\0";
 pub const GRPC_ARG_WORKAROUND_CRONET_COMPRESSION: &[u8; 35usize] =
@@ -136,7 +134,8 @@ pub const GRPC_WRITE_THROUGH: u32 = 4;
 pub const GRPC_WRITE_USED_MASK: u32 = 7;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 32;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY_EXPLICITLY_SET: u32 = 128;
-pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 164;
+pub const GRPC_INITIAL_METADATA_CORKED: u32 = 256;
+pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 420;
 pub const GRPC_CQ_CURRENT_VERSION: u32 = 2;
 pub const GRPC_CQ_VERSION_MINIMUM_FOR_CALLBACKABLE: u32 = 2;
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: u32 = 6;
@@ -159,13 +158,6 @@ pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &[u8; 33usize] =
     b"GRPC_DEFAULT_SSL_ROOTS_FILE_PATH\0";
 pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &[u8; 31usize] = b"GOOGLE_APPLICATION_CREDENTIALS\0";
 pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
-extern "C" {
-    pub fn gpr_unreachable_code(
-        reason: *const ::std::os::raw::c_char,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-    );
-}
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC (not sorted by"]
 #[doc = " compression level)"]
@@ -1055,13 +1047,15 @@ pub struct grpc_call_details {
     pub method: grpc_slice,
     pub host: grpc_slice,
     pub deadline: gpr_timespec,
+    pub flags: u32,
+    pub reserved: *mut ::std::os::raw::c_void,
 }
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
             f,
-            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?} }}",
-            self.method, self.host, self.deadline
+            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, reserved: {:?} }}",
+            self.method, self.host, self.deadline, self.reserved
         )
     }
 }
@@ -3495,16 +3489,6 @@ extern "C" {
     pub fn grpc_tls_certificate_verifier_external_create(
         external_verifier: *mut grpc_tls_certificate_verifier_external,
     ) -> *mut grpc_tls_certificate_verifier;
-}
-extern "C" {
-    #[doc = " EXPERIMENTAL API - Subject to change"]
-    #[doc = ""]
-    #[doc = " Factory function for an internal verifier that won't perform any"]
-    #[doc = " post-handshake verification. Note: using this solely without any other"]
-    #[doc = " authentication mechanisms on the peer identity will leave your applications"]
-    #[doc = " to the MITM(Man-In-The-Middle) attacks. Users should avoid doing so in"]
-    #[doc = " production environments."]
-    pub fn grpc_tls_certificate_verifier_no_op_create() -> *mut grpc_tls_certificate_verifier;
 }
 extern "C" {
     #[doc = " EXPERIMENTAL API - Subject to change"]
