@@ -344,7 +344,7 @@ where
     let code = f(batch_ptr, tag_ptr);
     if code != grpc_call_error::GRPC_CALL_OK {
         unsafe {
-            drop(Box::from_raw(tag_ptr));
+            Box::from_raw(tag_ptr);
         }
         panic!("create call fail: {:?}", code);
     }
@@ -509,7 +509,7 @@ impl Call {
         };
         if code != grpc_call_error::GRPC_CALL_OK {
             unsafe {
-                drop(Box::from_raw(tag_ptr));
+                Box::from_raw(tag_ptr);
             }
             panic!("create call fail: {:?}", code);
         }
