@@ -370,6 +370,8 @@ impl Client {
                         builder = builder.raw_cfg_int(key, arg.get_int_value() as i32);
                     }
                 }
+                // Check https://github.com/grpc/grpc/issues/31465.
+                builder = builder.enable_retry(false);
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
                     if !params.get_server_host_override().is_empty() {
