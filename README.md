@@ -89,7 +89,7 @@ To include this project as a dependency:
 
 ```
 [dependencies]
-grpcio = "0.6"
+grpcio = "0.12"
 ```
 
 ### Feature `boringssl`
@@ -99,7 +99,7 @@ mechanism. When you do not need it, for example when working in intranet,
 you can disable it by using the following configuration:
 ```
 [dependencies]
-grpcio = { version = "0.6", default-features = false, features = ["protobuf-codec"] }
+grpcio = { version = "0.12", default-features = false, features = ["protobuf-codec"] }
 ```
 
 ### Feature `prost-codec` and `protobuf-codec`
@@ -119,7 +119,7 @@ your `Cargo.toml`'s features list for `gprcio`, which requires openssl (>=1.0.2)
 
 ```toml
 [dependencies]
-grpcio = { version = "0.6", features = ["openssl"] }
+grpcio = { version = "0.12", features = ["openssl"] }
 ```
 
 Feature `openssl-vendored` is the same as feature `openssl` except it will build openssl from
