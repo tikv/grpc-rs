@@ -11,7 +11,7 @@ use futures_util::{
 };
 use grpcio::{
     ChannelBuilder, ClientStreamingSink, DuplexSink, EnvBuilder, RequestStream, RpcContext,
-    ServerBuilder, ServerStreamingSink, UnarySink, WriteFlags,
+    ServerBuilder, ServerCredentials, ServerStreamingSink, UnarySink, WriteFlags,
 };
 use grpcio_proto::example::route_guide::*;
 
@@ -84,12 +84,13 @@ fn test_client_send_all() {
     let service = create_route_guide(RouteGuideService {});
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = RouteGuideClient::new(ch);
 
     let exec_test_f = async move {

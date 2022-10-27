@@ -11,32 +11,26 @@ macro_rules! mk_test {
             let env = Arc::new(Environment::new(2));
 
             let service = create_test_service(InteropTestService);
-            let mut builder = ServerBuilder::new(env.clone()).register_service(service);
-
-            builder = if $use_tls {
-                let creds = util::create_test_server_credentials();
-                builder.bind_with_cred("127.0.0.1", 0, creds)
+            let mut server = ServerBuilder::new(env.clone())
+                .register_service(service)
+                .build()
+                .unwrap();
+            let creds = if $use_tls {
+                util::create_test_server_credentials()
             } else {
-                builder.bind("127.0.0.1", 0)
+                grpcio::ServerCredentials::insecure()
             };
-
-            let mut server = builder.build().unwrap();
+            let port = server.add_listening_port("127.0.0.1:0", creds).unwrap();
             server.start();
 
-            let builder =
+            let mut builder =
                 ChannelBuilder::new(env.clone()).override_ssl_target("foo.test.google.fr");
-            let channel = {
-                let (host, port) = server.bind_addrs().next().unwrap();
-                if $use_tls {
-                    let creds = util::create_test_channel_credentials();
-                    builder.secure_connect(&format!("{}:{}", host, port), creds)
-                } else {
-                    builder.connect(&format!("{}:{}", host, port))
-                }
-            };
-
+            if $use_tls {
+                let creds = util::create_test_channel_credentials();
+                builder = builder.set_credentials(creds);
+            }
+            let channel = builder.connect(&format!("127.0.0.1:{port}"));
             let client = Client::new(channel);
-
             block_on(client.$func()).unwrap();
         }
     };

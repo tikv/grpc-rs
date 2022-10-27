@@ -4,6 +4,7 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use grpc::ServerCredentials;
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
 use grpc_proto::testing::services_grpc::create_benchmark_service;
 use grpc_proto::testing::stats::ServerStats;
@@ -17,6 +18,7 @@ use crate::util::{self, CpuRecorder};
 
 pub struct Server {
     server: GrpcServer,
+    port: u16,
     recorder: CpuRecorder,
     keep_running: Arc<AtomicBool>,
 }
@@ -60,20 +62,19 @@ impl Server {
             }
             builder = builder.channel_args(ch_builder.build_args());
         }
-        builder = if cfg.has_security_params() {
-            builder.bind_with_cred(
-                "[::]",
-                cfg.get_port() as u16,
-                proto_util::create_test_server_credentials(),
-            )
-        } else {
-            builder.bind("[::]", cfg.get_port() as u16)
-        };
-
         let mut s = builder.build().unwrap();
+        let creds = if cfg.has_security_params() {
+            proto_util::create_test_server_credentials()
+        } else {
+            ServerCredentials::insecure()
+        };
+        let port = s
+            .add_listening_port(&format!("[::]:{}", cfg.get_port()), creds)
+            .unwrap();
         s.start();
         Ok(Server {
             server: s,
+            port,
             recorder: CpuRecorder::new(),
             keep_running: keep_running1,
         })
@@ -98,7 +99,7 @@ impl Server {
 
     pub fn get_status(&self) -> ServerStatus {
         let mut status = ServerStatus::default();
-        status.set_port(i32::from(self.server.bind_addrs().next().unwrap().1));
+        status.set_port(self.port as i32);
         status.set_cores(util::cpu_num_cores() as i32);
         status
     }

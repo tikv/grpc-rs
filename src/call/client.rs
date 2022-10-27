@@ -42,32 +42,12 @@ pub struct CallOption {
 }
 
 impl CallOption {
-    /// Signal that the call is idempotent.
-    pub fn idempotent(mut self, is_idempotent: bool) -> CallOption {
-        change_flag(
-            &mut self.call_flags,
-            grpc_sys::GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST,
-            is_idempotent,
-        );
-        self
-    }
-
     /// Signal that the call should not return UNAVAILABLE before it has started.
     pub fn wait_for_ready(mut self, wait_for_ready: bool) -> CallOption {
         change_flag(
             &mut self.call_flags,
             grpc_sys::GRPC_INITIAL_METADATA_WAIT_FOR_READY,
             wait_for_ready,
-        );
-        self
-    }
-
-    /// Signal that the call is cacheable. gRPC is free to use GET verb.
-    pub fn cacheable(mut self, cacheable: bool) -> CallOption {
-        change_flag(
-            &mut self.call_flags,
-            grpc_sys::GRPC_INITIAL_METADATA_CACHEABLE_REQUEST,
-            cacheable,
         );
         self
     }

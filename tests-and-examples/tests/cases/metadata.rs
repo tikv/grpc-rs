@@ -73,12 +73,13 @@ fn test_metadata() {
     let service = create_route_guide(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = RouteGuideClient::new(ch);
 
     let mut builder = MetadataBuilder::with_capacity(3);
@@ -119,12 +120,13 @@ fn test_rich_error() {
     let service = create_greeter(GreeterService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();

@@ -370,16 +370,18 @@ impl Client {
                         builder = builder.raw_cfg_int(key, arg.get_int_value() as i32);
                     }
                 }
+                // Check https://github.com/grpc/grpc/issues/31465.
+                builder = builder.enable_retry(false);
                 if cfg.has_security_params() {
                     let params = cfg.get_security_params();
                     if !params.get_server_host_override().is_empty() {
                         builder = builder
                             .override_ssl_target(params.get_server_host_override().to_owned());
                     }
-                    builder.secure_connect(addr, proto_util::create_test_channel_credentials())
-                } else {
-                    builder.connect(addr)
+                    builder =
+                        builder.set_credentials(proto_util::create_test_channel_credentials());
                 }
+                builder.connect(addr)
             });
 
         let client_type = cfg.get_client_type();

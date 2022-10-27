@@ -60,12 +60,13 @@ fn test_peer() {
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
 
     let req = HelloRequest::default();
@@ -127,14 +128,15 @@ fn test_soundness() {
     };
     let mut server = ServerBuilder::new(env.clone())
         .register_service(create_greeter(service))
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
 
     let spawn_reqs = |env| -> JoinHandle<()> {
-        let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+        let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
         let client = GreeterClient::new(ch);
         let mut resps = Vec::with_capacity(3000);
         thread::spawn(move || {
@@ -173,8 +175,10 @@ mod unix_domain_socket {
 
         let mut server = ServerBuilder::new(env.clone())
             .register_service(service)
-            .bind(path, 0)
             .build()
+            .unwrap();
+        server
+            .add_listening_port(path, ServerCredentials::insecure())
             .unwrap();
         server.start();
         let ch = ChannelBuilder::new(env).connect(path);
@@ -213,12 +217,13 @@ fn test_shutdown_when_exists_grpc_call() {
     let service = create_greeter(SleepService(true));
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
 
     let req = HelloRequest::default();
@@ -241,12 +246,13 @@ fn test_custom_checker_server_side() {
     let mut server = ServerBuilder::new(env.clone())
         .add_checker(checker)
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
     let req = HelloRequest::default();
 
@@ -289,12 +295,13 @@ fn test_connectivity() {
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
-    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{port}"));
     assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
     assert_eq!(
         ch.check_connectivity_state(false),
@@ -350,8 +357,10 @@ fn test_connectivity() {
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("localhost", port)
         .build()
+        .unwrap();
+    server
+        .add_listening_port(&format!("localhost:{port}"), ServerCredentials::insecure())
         .unwrap();
     server.start();
     assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
@@ -375,11 +384,12 @@ fn test_channelz() {
     let service = create_greeter(PeerService);
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind("127.0.0.1", 0)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
     let mut res = None;
     channelz::get_servers(0, |s| {
         res = Some(s.to_string());
@@ -398,7 +408,7 @@ fn test_channelz() {
     assert_eq!(res, Some(String::new()));
 
     res = None;
-    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{port}"));
     assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
     channelz::get_top_channels(0, |s| {
         res = Some(s.to_string());

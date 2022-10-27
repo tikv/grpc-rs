@@ -70,17 +70,16 @@ fn main() {
         .unwrap();
 
     let env = Arc::new(Environment::new(1));
-    let builder = ChannelBuilder::new(env).override_ssl_target(host_override.to_owned());
-    let channel = if use_tls {
+    let mut builder = ChannelBuilder::new(env).override_ssl_target(host_override.to_owned());
+    if use_tls {
         let creds = if use_test_ca {
             util::create_test_channel_credentials()
         } else {
             ChannelCredentialsBuilder::new().build()
         };
-        builder.secure_connect(&format!("{}:{}", host, port), creds)
-    } else {
-        builder.connect(&format!("{}:{}", host, port))
-    };
+        builder = builder.set_credentials(creds);
+    }
+    let channel = builder.connect(&format!("{}:{}", host, port));
 
     let client = Client::new(channel);
     futures_executor::block_on(run_test(client, case)).unwrap();

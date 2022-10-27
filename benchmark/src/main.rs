@@ -11,7 +11,7 @@ use std::sync::Arc;
 use benchmark::{init_log, Worker};
 use clap::{App, Arg};
 use futures_channel::oneshot;
-use grpc::{Environment, ServerBuilder};
+use grpc::{Environment, ServerBuilder, ServerCredentials};
 use grpc_proto::testing::services_grpc::create_worker_service;
 use rand::Rng;
 
@@ -40,13 +40,13 @@ fn main() {
     let service = create_worker_service(worker);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
-        .bind("[::]", port)
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port(&format!("[::]:{port}"), ServerCredentials::insecure())
+        .unwrap();
 
-    for (host, port) in server.bind_addrs() {
-        info!("listening on {}:{}", host, port);
-    }
+    info!("listening on [::]:{}", port);
 
     server.start();
 

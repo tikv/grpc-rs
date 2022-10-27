@@ -4,7 +4,8 @@ use futures_util::future::{FutureExt as _, TryFutureExt as _};
 
 use grpcio::{
     CertificateRequestType, ChannelBuilder, ChannelCredentialsBuilder, EnvBuilder, RpcContext,
-    ServerBuilder, ServerCredentialsBuilder, ServerCredentialsFetcher, UnarySink,
+    ServerBuilder, ServerCredentials, ServerCredentialsBuilder, ServerCredentialsFetcher,
+    UnarySink,
 };
 use grpcio_proto::example::helloworld::*;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -79,28 +80,29 @@ fn test_reload_new() {
     let env = Arc::new(EnvBuilder::new().build());
     let service = create_greeter(GreeterService);
     let switch = Arc::new(AtomicBool::new(false));
+    let server_creds = ServerCredentials::with_fetcher(
+        Box::new(DataReload {
+            switch: switch.clone(),
+        }),
+        CertificateRequestType::DontRequestClientCertificate,
+    );
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind_with_fetcher(
-            "127.0.0.1",
-            0,
-            Box::new(DataReload {
-                switch: switch.clone(),
-            }),
-            CertificateRequestType::DontRequestClientCertificate,
-        )
         .build()
         .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", server_creds)
+        .unwrap();
     server.start();
-    let port = server.bind_addrs().next().unwrap().1;
 
     // To connect the server whose CN is "*.test.google.com.au".
-    let cred = ChannelCredentialsBuilder::new()
+    let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
         .override_ssl_target("rust.test.google.com.au")
-        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
+        .set_credentials(creds)
+        .connect(&format!("127.0.0.1:{port}"));
     let client1 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
@@ -109,12 +111,13 @@ fn test_reload_new() {
 
     // To connect the server whose CN is "*.test.google.fr".
     switch.store(true, Ordering::Relaxed);
-    let cred = ChannelCredentialsBuilder::new()
+    let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env.clone())
         .override_ssl_target("rust.test.google.fr")
-        .secure_connect(&format!("127.0.0.1:{}", port.clone()), cred);
+        .set_credentials(creds)
+        .connect(&format!("127.0.0.1:{}", port.clone()));
     let client2 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
     req.set_name("world".to_owned());
@@ -132,27 +135,28 @@ fn test_reload_new() {
 fn test_reload_fail() {
     let env = Arc::new(EnvBuilder::new().build());
     let service = create_greeter(GreeterService);
+    let server_creds = ServerCredentials::with_fetcher(
+        Box::new(DataReloadFail {
+            initial: AtomicBool::new(false),
+        }),
+        CertificateRequestType::DontRequestClientCertificate,
+    );
     let mut server = ServerBuilder::new(env.clone())
         .register_service(service)
-        .bind_with_fetcher(
-            "127.0.0.1",
-            0,
-            Box::new(DataReloadFail {
-                initial: AtomicBool::new(false),
-            }),
-            CertificateRequestType::DontRequestClientCertificate,
-        )
         .build()
+        .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", server_creds)
         .unwrap();
     server.start();
 
-    let port = server.bind_addrs().next().unwrap().1;
-    let cred = ChannelCredentialsBuilder::new()
+    let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
     let ch = ChannelBuilder::new(env)
         .override_ssl_target("rust.test.google.fr")
-        .secure_connect(&format!("127.0.0.1:{}", port), cred);
+        .set_credentials(creds)
+        .connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
 
     for _ in 0..10 {

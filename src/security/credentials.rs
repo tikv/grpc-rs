@@ -8,9 +8,9 @@ use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_ssl_certificate_config_reload_status::{self, *};
 use crate::grpc_sys::grpc_ssl_client_certificate_request_type::*;
 use crate::grpc_sys::{
-    self, grpc_channel_credentials, grpc_server_credentials,
-    grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
+    self, grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
 };
+use crate::{ChannelCredentials, ServerCredentials};
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -102,7 +102,7 @@ pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
         panic!("fetcher user_data must be set up!");
     }
     let f: &mut dyn ServerCredentialsFetcher =
-        (&mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
+        (*(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
     let result = f.fetch();
     match result {
         Ok(Some(builder)) => {
@@ -185,15 +185,14 @@ impl ServerCredentialsBuilder {
 
     /// Finalize the [`ServerCredentialsBuilder`] and build the [`ServerCredentials`].
     pub fn build(self) -> ServerCredentials {
-        let credentials = unsafe {
+        unsafe {
             let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config(
                 self.cer_request_type.to_native(),
                 self.build_config(),
             );
-            grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt)
-        };
-
-        ServerCredentials { creds: credentials }
+            let credentials = grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt);
+            ServerCredentials::from_raw(credentials)
+        }
     }
 }
 
@@ -209,29 +208,28 @@ impl Drop for ServerCredentialsBuilder {
     }
 }
 
-/// Server-side SSL credentials.
-///
-/// Use [`ServerCredentialsBuilder`] to build a [`ServerCredentials`].
-pub struct ServerCredentials {
-    creds: *mut grpc_server_credentials,
-}
-
-unsafe impl Send for ServerCredentials {}
-
 impl ServerCredentials {
-    pub(crate) unsafe fn frow_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
-        ServerCredentials { creds }
-    }
-
-    pub fn as_mut_ptr(&mut self) -> *mut grpc_server_credentials {
-        self.creds
-    }
-}
-
-impl Drop for ServerCredentials {
-    fn drop(&mut self) {
+    /// Creates the credentials using a certificate config fetcher. Use this
+    /// method to reload the certificates and keys of the SSL server without
+    /// interrupting the operation of the server. Initial certificate config will be
+    /// fetched during server initialization.
+    pub fn with_fetcher(
+        fetcher: Box<dyn ServerCredentialsFetcher + Send + Sync>,
+        cer_request_type: CertificateRequestType,
+    ) -> Self {
+        let fetcher_wrap = Box::new(fetcher);
+        let fetcher_wrap_ptr = Box::into_raw(fetcher_wrap);
         unsafe {
-            grpc_sys::grpc_server_credentials_release(self.creds);
+            let opt = grpcio_sys::grpc_ssl_server_credentials_create_options_using_config_fetcher(
+                cer_request_type.to_native(),
+                Some(server_cert_fetcher_wrapper),
+                fetcher_wrap_ptr as _,
+            );
+            let mut creds = ServerCredentials::from_raw(
+                grpcio_sys::grpc_ssl_server_credentials_create_with_options(opt),
+            );
+            creds._fetcher = Some(Box::from_raw(fetcher_wrap_ptr));
+            creds
         }
     }
 }
@@ -331,19 +329,7 @@ impl Drop for ChannelCredentialsBuilder {
     }
 }
 
-/// Client-side SSL credentials.
-///
-/// Use [`ChannelCredentialsBuilder`] or [`ChannelCredentials::google_default_credentials`] to
-/// build a [`ChannelCredentials`].
-pub struct ChannelCredentials {
-    creds: *mut grpc_channel_credentials,
-}
-
 impl ChannelCredentials {
-    pub fn as_mut_ptr(&mut self) -> *mut grpc_channel_credentials {
-        self.creds
-    }
-
     /// Try to build a [`ChannelCredentials`] to authenticate with Google OAuth credentials.
     pub fn google_default_credentials() -> Result<ChannelCredentials> {
         // Initialize the runtime here. Because this is an associated method
@@ -358,11 +344,5 @@ impl ChannelCredentials {
         } else {
             Ok(ChannelCredentials { creds })
         }
-    }
-}
-
-impl Drop for ChannelCredentials {
-    fn drop(&mut self) {
-        unsafe { grpc_sys::grpc_channel_credentials_release(self.creds) }
     }
 }

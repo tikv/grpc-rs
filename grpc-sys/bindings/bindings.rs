@@ -132,12 +132,10 @@ pub const GRPC_WRITE_BUFFER_HINT: u32 = 1;
 pub const GRPC_WRITE_NO_COMPRESS: u32 = 2;
 pub const GRPC_WRITE_THROUGH: u32 = 4;
 pub const GRPC_WRITE_USED_MASK: u32 = 7;
-pub const GRPC_INITIAL_METADATA_IDEMPOTENT_REQUEST: u32 = 16;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 32;
-pub const GRPC_INITIAL_METADATA_CACHEABLE_REQUEST: u32 = 64;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY_EXPLICITLY_SET: u32 = 128;
 pub const GRPC_INITIAL_METADATA_CORKED: u32 = 256;
-pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 500;
+pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 420;
 pub const GRPC_CQ_CURRENT_VERSION: u32 = 2;
 pub const GRPC_CQ_VERSION_MINIMUM_FOR_CALLBACKABLE: u32 = 2;
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: u32 = 6;
@@ -226,6 +224,9 @@ pub struct grpc_slice_refcount {
 #[doc = ""]
 #[doc = "If the slice does not have a refcount, it represents an inlined small piece"]
 #[doc = "of data that is copied by value."]
+#[doc = ""]
+#[doc = "As a special case, a slice can be given refcount == uintptr_t(1), meaning"]
+#[doc = "that the slice represents external data that is not refcounted."]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct grpc_slice {
@@ -475,13 +476,6 @@ extern "C" {
     pub fn grpc_slice_malloc_large(length: usize) -> grpc_slice;
 }
 extern "C" {
-    #[doc = " Intern a slice:"]
-    #[doc = ""]
-    #[doc = "The return value for two invocations of this function with  the same sequence"]
-    #[doc = "of bytes is a slice which points to the same memory."]
-    pub fn grpc_slice_intern(slice: grpc_slice) -> grpc_slice;
-}
-extern "C" {
     #[doc = " Create a slice by copying a string."]
     #[doc = "Does not preserve null terminators."]
     #[doc = "Equivalent to:"]
@@ -556,12 +550,6 @@ extern "C" {
     pub fn grpc_empty_slice() -> grpc_slice;
 }
 extern "C" {
-    pub fn grpc_slice_default_hash_impl(s: grpc_slice) -> u32;
-}
-extern "C" {
-    pub fn grpc_slice_default_eq_impl(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
     pub fn grpc_slice_eq(a: grpc_slice, b: grpc_slice) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -595,9 +583,6 @@ extern "C" {
     #[doc = " return the index of the first occurrence of \\a needle in \\a haystack, or -1"]
     #[doc = "if it's not found"]
     pub fn grpc_slice_slice(haystack: grpc_slice, needle: grpc_slice) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn grpc_slice_hash(s: grpc_slice) -> u32;
 }
 extern "C" {
     #[doc = " Do two slices point at the same memory, with the same length"]
@@ -1934,18 +1919,38 @@ extern "C" {
     #[doc = "to non-experimental or remove it."]
     pub fn grpc_channel_reset_connect_backoff(channel: *mut grpc_channel);
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_channel_credentials {
+    _unused: [u8; 0],
+}
 extern "C" {
-    #[doc = " Create a client channel to 'target'. Additional channel level configuration"]
-    #[doc = "MAY be provided by grpc_channel_args, though the expectation is that most"]
-    #[doc = "clients will want to simply pass NULL. The user data in 'args' need only"]
-    #[doc = "live through the invocation of this function. However, if any args of the"]
-    #[doc = "'pointer' type are passed, then the referenced vtable must be maintained"]
-    #[doc = "by the caller until grpc_channel_destroy terminates. See grpc_channel_args"]
-    #[doc = "definition for more on this."]
-    pub fn grpc_insecure_channel_create(
+    #[doc = " Releases a channel credentials object."]
+    #[doc = "The creator of the credentials object is responsible for its release."]
+    pub fn grpc_channel_credentials_release(creds: *mut grpc_channel_credentials);
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct grpc_server_credentials {
+    _unused: [u8; 0],
+}
+extern "C" {
+    #[doc = " Releases a server_credentials object."]
+    #[doc = "The creator of the server_credentials object is responsible for its release."]
+    pub fn grpc_server_credentials_release(creds: *mut grpc_server_credentials);
+}
+extern "C" {
+    #[doc = " Creates a secure channel using the passed-in credentials. Additional"]
+    #[doc = "channel level configuration MAY be provided by grpc_channel_args, though"]
+    #[doc = "the expectation is that most clients will want to simply pass NULL. The"]
+    #[doc = "user data in 'args' need only live through the invocation of this function."]
+    #[doc = "However, if any args of the 'pointer' type are passed, then the referenced"]
+    #[doc = "vtable must be maintained by the caller until grpc_channel_destroy"]
+    #[doc = "terminates. See grpc_channel_args definition for more on this."]
+    pub fn grpc_channel_create(
         target: *const ::std::os::raw::c_char,
+        creds: *mut grpc_channel_credentials,
         args: *const grpc_channel_args,
-        reserved: *mut ::std::os::raw::c_void,
     ) -> *mut grpc_channel;
 }
 extern "C" {
@@ -2128,12 +2133,13 @@ extern "C" {
     );
 }
 extern "C" {
-    #[doc = " Add a HTTP2 over plaintext over tcp listener."]
+    #[doc = " Add a HTTP2 over an encrypted link over tcp listener."]
     #[doc = "Returns bound port number on success, 0 on failure."]
     #[doc = "REQUIRES: server not started"]
-    pub fn grpc_server_add_insecure_http2_port(
+    pub fn grpc_server_add_http2_port(
         server: *mut grpc_server,
         addr: *const ::std::os::raw::c_char,
+        creds: *mut grpc_server_credentials,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -2283,30 +2289,31 @@ extern "C" {
     ) -> *mut grpc_channel;
 }
 extern "C" {
-    #[doc = " Create a client channel to 'target' using file descriptor 'fd'. The 'target'"]
-    #[doc = "argument will be used to indicate the name for this channel. See the comment"]
-    #[doc = "for grpc_insecure_channel_create for description of 'args' argument."]
-    pub fn grpc_insecure_channel_create_from_fd(
+    #[doc = " Create a secure channel to 'target' using file descriptor 'fd' and passed-in"]
+    #[doc = "credentials. The 'target' argument will be used to indicate the name for"]
+    #[doc = "this channel. Note that this API currently only supports insecure channel"]
+    #[doc = "credentials. Using other types of credentials will result in a failure."]
+    pub fn grpc_channel_create_from_fd(
         target: *const ::std::os::raw::c_char,
         fd: ::std::os::raw::c_int,
+        creds: *mut grpc_channel_credentials,
         args: *const grpc_channel_args,
     ) -> *mut grpc_channel;
 }
 extern "C" {
-    #[doc = " Add the connected communication channel based on file descriptor 'fd' to the"]
-    #[doc = "'server'. The 'fd' must be an open file descriptor corresponding to a"]
-    #[doc = "connected socket. Events from the file descriptor may come on any of the"]
-    #[doc = "server completion queues (i.e completion queues registered via the"]
-    #[doc = "grpc_server_register_completion_queue API)."]
-    #[doc = ""]
-    #[doc = "The 'reserved' pointer MUST be NULL."]
-    #[doc = ""]
+    #[doc = " Add the connected secure communication channel based on file descriptor 'fd'"]
+    #[doc = "to the 'server' and server credentials 'creds'. The 'fd' must be an open file"]
+    #[doc = "descriptor corresponding to a connected socket. Events from the file"]
+    #[doc = "descriptor may come on any of the server completion queues (i.e completion"]
+    #[doc = "queues registered via the grpc_server_register_completion_queue API)."]
+    #[doc = "Note that this API currently only supports inseure server credentials"]
+    #[doc = "Using other types of credentials will result in a failure."]
     #[doc = "TODO(hork): add channel_args to this API to allow endpoints and transports"]
     #[doc = "created in this function to participate in the resource quota feature."]
-    pub fn grpc_server_add_insecure_channel_from_fd(
+    pub fn grpc_server_add_channel_from_fd(
         server: *mut grpc_server,
-        reserved: *mut ::std::os::raw::c_void,
         fd: ::std::os::raw::c_int,
+        creds: *mut grpc_server_credentials,
     );
 }
 #[repr(u32)]
@@ -2528,16 +2535,6 @@ extern "C" {
     #[doc = " Releases a call credentials object."]
     #[doc = "The creator of the credentials object is responsible for its release."]
     pub fn grpc_call_credentials_release(creds: *mut grpc_call_credentials);
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_channel_credentials {
-    _unused: [u8; 0],
-}
-extern "C" {
-    #[doc = " Releases a channel credentials object."]
-    #[doc = "The creator of the credentials object is responsible for its release."]
-    pub fn grpc_channel_credentials_release(creds: *mut grpc_channel_credentials);
 }
 extern "C" {
     #[doc = " Creates default credentials to connect to a google gRPC service."]
@@ -2905,31 +2902,6 @@ extern "C" {
         reserved: *mut ::std::os::raw::c_void,
     ) -> *mut grpc_call_credentials;
 }
-extern "C" {
-    #[doc = " Creates a secure channel using the passed-in credentials. Additional"]
-    #[doc = "channel level configuration MAY be provided by grpc_channel_args, though"]
-    #[doc = "the expectation is that most clients will want to simply pass NULL. The"]
-    #[doc = "user data in 'args' need only live through the invocation of this function."]
-    #[doc = "However, if any args of the 'pointer' type are passed, then the referenced"]
-    #[doc = "vtable must be maintained by the caller until grpc_channel_destroy"]
-    #[doc = "terminates. See grpc_channel_args definition for more on this."]
-    pub fn grpc_secure_channel_create(
-        creds: *mut grpc_channel_credentials,
-        target: *const ::std::os::raw::c_char,
-        args: *const grpc_channel_args,
-        reserved: *mut ::std::os::raw::c_void,
-    ) -> *mut grpc_channel;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_server_credentials {
-    _unused: [u8; 0],
-}
-extern "C" {
-    #[doc = " Releases a server_credentials object."]
-    #[doc = "The creator of the server_credentials object is responsible for its release."]
-    pub fn grpc_server_credentials_release(creds: *mut grpc_server_credentials);
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct grpc_ssl_server_certificate_config {
@@ -3045,16 +3017,6 @@ extern "C" {
     pub fn grpc_ssl_server_credentials_create_with_options(
         options: *mut grpc_ssl_server_credentials_options,
     ) -> *mut grpc_server_credentials;
-}
-extern "C" {
-    #[doc = " Add a HTTP2 over an encrypted link over tcp listener."]
-    #[doc = "Returns bound port number on success, 0 on failure."]
-    #[doc = "REQUIRES: server not started"]
-    pub fn grpc_server_add_secure_http2_port(
-        server: *mut grpc_server,
-        addr: *const ::std::os::raw::c_char,
-        creds: *mut grpc_server_credentials,
-    ) -> ::std::os::raw::c_int;
 }
 extern "C" {
     #[doc = " Sets a credentials to a call. Can only be called on the client side before"]
@@ -3668,9 +3630,9 @@ pub struct grpc_authorization_policy_provider {
 }
 extern "C" {
     #[doc = " EXPERIMENTAL - Subject to change."]
-    #[doc = " Creates a grpc_authorization_policy_provider using SDK authorization policy"]
+    #[doc = " Creates a grpc_authorization_policy_provider using gRPC authorization policy"]
     #[doc = " from static string."]
-    #[doc = " - authz_policy is the input SDK authorization policy."]
+    #[doc = " - authz_policy is the input gRPC authorization policy."]
     #[doc = " - code is the error status code on failure. On success, it equals"]
     #[doc = "   GRPC_STATUS_OK."]
     #[doc = " - error_details contains details about the error if any. If the"]
@@ -3684,9 +3646,9 @@ extern "C" {
 }
 extern "C" {
     #[doc = " EXPERIMENTAL - Subject to change."]
-    #[doc = " Creates a grpc_authorization_policy_provider by watching for SDK"]
+    #[doc = " Creates a grpc_authorization_policy_provider by watching for gRPC"]
     #[doc = " authorization policy changes in filesystem."]
-    #[doc = " - authz_policy is the file path of SDK authorization policy."]
+    #[doc = " - authz_policy is the file path of gRPC authorization policy."]
     #[doc = " - refresh_interval_sec is the amount of time the internal thread would wait"]
     #[doc = "   before checking for file updates."]
     #[doc = " - code is the error status code on failure. On success, it equals"]
@@ -3707,6 +3669,19 @@ extern "C" {
     #[doc = " grpc_authorization_policy_provider is responsible for its release."]
     pub fn grpc_authorization_policy_provider_release(
         provider: *mut grpc_authorization_policy_provider,
+    );
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change."]
+    #[doc = " Configures a grpc_tls_credentials_options object with tls session key"]
+    #[doc = " logging capability. TLS channels using these credentials have tls session"]
+    #[doc = " key logging enabled."]
+    #[doc = " - options is the grpc_tls_credentials_options object"]
+    #[doc = " - path is a string pointing to the location where TLS session keys would be"]
+    #[doc = "   stored."]
+    pub fn grpc_tls_credentials_options_set_tls_session_key_log_file_path(
+        options: *mut grpc_tls_credentials_options,
+        path: *const ::std::os::raw::c_char,
     );
 }
 #[repr(u32)]
