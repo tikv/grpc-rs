@@ -13,15 +13,17 @@ use crate::testing::{Payload, ResponseParameters};
 
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
-    let mut payload = Payload::default();
-    payload.set_body(vec![0; size]);
-    payload
+    Payload {
+        body: vec![0; size],
+        ..Default::default()
+    }
 }
 
 pub fn new_parameters(size: i32) -> ResponseParameters {
-    let mut parameter = ResponseParameters::default();
-    parameter.set_size(size);
-    parameter
+    ResponseParameters {
+        size,
+        ..Default::default()
+    }
 }
 
 pub fn create_test_server_credentials() -> ServerCredentials {

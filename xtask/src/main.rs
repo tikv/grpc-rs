@@ -108,11 +108,12 @@ fn clang_lint() {
     exec(cmd("clang-format").args(&["-i", "grpc-sys/grpc_wrap.cc"]));
 }
 
-const PROTOS: &[(&str, &[&str], &str)] = &[(
-    "grpc-sys/grpc/src/proto",
-    &["grpc/health/v1"],
-    "health/src/proto",
-)];
+const PROTOS: &[(&str, &[&str], &str, &str)] = &[
+    ("grpc-sys/grpc/src/proto", &["grpc/health/v1"], "health/src/proto", ""),
+    ("proto/proto", &["grpc/testing"], "proto/src/proto", "testing"),
+    ("proto/proto", &["grpc/example"], "proto/src/proto", "example"),
+    ("proto/proto", &["google/rpc"], "proto/src/proto", "google/rpc"),
+];
 
 const NAMING_PATCH: &[(&str, &[(&str, &str)])] = &[(
     "health/src/proto/protobuf/health.rs",
@@ -126,6 +127,17 @@ const NAMING_PATCH: &[(&str, &[(&str, &str)])] = &[(
         ("rustfmt_skip", "rustfmt::skip"),
     ],
 )];
+
+fn modify(path: impl AsRef<Path>, f: impl FnOnce(&mut String)) {
+    let path = path.as_ref();
+    let mut content = String::new();
+    File::open(path)
+        .unwrap()
+        .read_to_string(&mut content)
+        .unwrap();
+    f(&mut content);
+    File::create(path).unwrap().write_all(content.as_bytes()).unwrap();
+}
 
 fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
     if Path::new(out_dir).exists() {
@@ -153,19 +165,27 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str
     exec(&mut c);
 
     for (path, name_fixes) in NAMING_PATCH {
-        let mut content = String::new();
-        File::open(path)
-            .unwrap()
-            .read_to_string(&mut content)
-            .unwrap();
-        for (src, target) in *name_fixes {
-            content = content.replace(src, target);
+        modify(path, |content| {
+            for (old, new) in *name_fixes {
+                *content = content.replace(old, new);
+            }
+        });
+    }
+
+    for f in fs::read_dir(out_dir).unwrap() {
+        let p = f.unwrap();
+        if p.path().extension().unwrap() == "rs" {
+            let file_name = p.path().file_name().unwrap().to_str().unwrap().to_string();
+            if file_name.ends_with("_grpc.rs") {
+                let pb_path = p.path().with_file_name(format!("{}.rs", &file_name[..file_name.len() - 8]));
+                modify(pb_path, |content| {
+                    content.push_str(&format!("\npub use super::{}::*;\n", &file_name[..file_name.len() - 3]));
+                });
+            }
+            modify(p.path(), |content| {
+                *content = remove_match(&content, |l| l.contains("::protobuf::VERSION"));
+            });
         }
-        content = remove_match(&content, |l| l.contains("::protobuf::VERSION"));
-        File::create(path)
-            .unwrap()
-            .write_all(content.as_bytes())
-            .unwrap();
     }
 }
 
@@ -196,17 +216,8 @@ fn generate_prost(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
 }
 
 fn codegen() {
-    let protoc = if cmd("protoc").arg("--version").output().is_ok() {
-        // Prefer M1 version of protoc.
-        "protoc".to_string()
-    } else {
-        prost_build::protoc()
-            .into_os_string()
-            .to_str()
-            .unwrap()
-            .to_string()
-    };
-    for (include, protos, out_dir) in PROTOS {
+    let protoc = "protoc";
+    for (include, protos, out_dir, package) in PROTOS {
         let inputs: Vec<_> = protos
             .iter()
             .flat_map(|p| {
@@ -226,9 +237,9 @@ fn codegen() {
             &protoc,
             include,
             &inputs_ref,
-            &format!("{}/protobuf", out_dir),
+            &format!("{}/protobuf/{}", out_dir, package),
         );
-        generate_prost(&protoc, include, &inputs_ref, &format!("{}/prost", out_dir));
+        generate_prost(&protoc, include, &inputs_ref, &format!("{}/prost/{}", out_dir, package));
     }
     exec(cargo().args(&["fmt", "--all"]))
 }

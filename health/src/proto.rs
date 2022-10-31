@@ -16,7 +16,6 @@ mod protobuf {
 #[cfg(feature = "protobuf-codec")]
 mod reexports {
     pub use super::protobuf::health::*;
-    pub use super::protobuf::health_grpc::*;
 }
 
 pub use self::reexports::*;

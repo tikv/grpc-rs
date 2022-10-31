@@ -22,10 +22,10 @@ libc = "0.2"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 protobuf = { version = "2.0", optional = true }
-prost = { version = "0.10", optional = true }
+prost = { version = "0.11", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
-parking_lot = "0.11"
+parking_lot = "0.12"
 
 [workspace]
 members = [
