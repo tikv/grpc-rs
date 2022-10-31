@@ -25,7 +25,7 @@ where
     std::fs::create_dir_all(tmp.path())?;
     let descriptor_set = tmp.path().join("prost-descriptor-set");
 
-    let mut cmd = Command::new("protoc");
+    let mut cmd = Command::new(prost_build::protoc_from_env());
     cmd.arg("--include_imports")
         .arg("--include_source_info")
         .arg("-o")
@@ -33,6 +33,12 @@ where
 
     for include in includes {
         cmd.arg("-I").arg(include.as_ref());
+    }
+
+    // Set the protoc include after the user includes in case the user wants to
+    // override one of the built-in .protos.
+    if let Some(inc) = prost_build::protoc_include_from_env() {
+        cmd.arg("-I").arg(inc);
     }
 
     for proto in protos {

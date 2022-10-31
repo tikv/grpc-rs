@@ -1,6 +1,7 @@
 use std::process::{self, Command};
 use std::{
     env,
+    ffi::OsStr,
     io::{Read, Write},
     str,
 };
@@ -64,11 +65,11 @@ fn bindgen() {
     );
 }
 
-fn cmd(c: &str) -> Command {
+fn cmd(c: impl AsRef<OsStr>) -> Command {
     Command::new(c)
 }
 
-fn cmd_in(c: &str, dir: &str) -> Command {
+fn cmd_in(c: impl AsRef<OsStr>, dir: &str) -> Command {
     let mut cmd = cmd(c);
     cmd.current_dir(dir);
     cmd
@@ -139,7 +140,7 @@ fn modify(path: impl AsRef<Path>, f: impl FnOnce(&mut String)) {
     File::create(path).unwrap().write_all(content.as_bytes()).unwrap();
 }
 
-fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
+fn generate_protobuf(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
     if Path::new(out_dir).exists() {
         fs::remove_dir_all(out_dir).unwrap();
     }
@@ -155,7 +156,7 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str
     .unwrap();
 
     exec(cargo().args(&["build", "-p", "grpcio-compiler"]));
-    let mut c = cmd(&protoc);
+    let mut c = cmd(protoc);
     c.arg(format!("-I{}", include))
         .arg(format!("--grpc_out={}", out_dir))
         .arg("--plugin=protoc-gen-grpc=./target/debug/grpc_rust_plugin");
@@ -189,7 +190,7 @@ fn generate_protobuf(protoc: &str, include: &str, inputs: &[&str], out_dir: &str
     }
 }
 
-fn generate_prost(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
+fn generate_prost(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
     env::set_var("PROTOC", protoc);
     if Path::new(out_dir).exists() {
         fs::remove_dir_all(out_dir).unwrap();
@@ -216,7 +217,7 @@ fn generate_prost(protoc: &str, include: &str, inputs: &[&str], out_dir: &str) {
 }
 
 fn codegen() {
-    let protoc = "protoc";
+    let protoc = prost_build::protoc_from_env();
     for (include, protos, out_dir, package) in PROTOS {
         let inputs: Vec<_> = protos
             .iter()
@@ -232,7 +233,9 @@ fn codegen() {
                     })
             })
             .collect();
-        let inputs_ref: Vec<_> = inputs.iter().map(|s| s.as_str()).collect();
+        let mut inputs_ref: Vec<_> = inputs.iter().map(|s| s.as_str()).collect();
+        // Make generated code deterministic.
+        inputs_ref.sort_unstable();
         generate_protobuf(
             &protoc,
             include,

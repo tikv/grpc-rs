@@ -107,182 +107,6 @@ pub struct ClientStats {
     #[prost(uint64, tag = "6")]
     pub cq_poll_count: u64,
 }
-/// TODO(dgq): Go back to using well-known types once
-/// <https://github.com/grpc/grpc/issues/6980> has been fixed.
-/// import "google/protobuf/wrappers.proto";
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BoolValue {
-    /// The bool value.
-    #[prost(bool, tag = "1")]
-    pub value: bool,
-}
-/// A block of data, to simply increase gRPC message size.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Payload {
-    /// DEPRECATED, don't use. To be removed shortly.
-    /// The type of data in body.
-    #[prost(enumeration = "PayloadType", tag = "1")]
-    pub r#type: i32,
-    /// Primary contents of payload.
-    #[prost(bytes = "vec", tag = "2")]
-    pub body: ::prost::alloc::vec::Vec<u8>,
-}
-/// A protobuf representation for grpc status. This is used by test
-/// clients to specify a status that the server should attempt to return.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EchoStatus {
-    #[prost(int32, tag = "1")]
-    pub code: i32,
-    #[prost(string, tag = "2")]
-    pub message: ::prost::alloc::string::String,
-}
-/// Unary request.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SimpleRequest {
-    /// DEPRECATED, don't use. To be removed shortly.
-    /// Desired payload type in the response from the server.
-    /// If response_type is RANDOM, server randomly chooses one from other formats.
-    #[prost(enumeration = "PayloadType", tag = "1")]
-    pub response_type: i32,
-    /// Desired payload size in the response from the server.
-    #[prost(int32, tag = "2")]
-    pub response_size: i32,
-    /// Optional input payload sent along with the request.
-    #[prost(message, optional, tag = "3")]
-    pub payload: ::core::option::Option<Payload>,
-    /// Whether SimpleResponse should include username.
-    #[prost(bool, tag = "4")]
-    pub fill_username: bool,
-    /// Whether SimpleResponse should include OAuth scope.
-    #[prost(bool, tag = "5")]
-    pub fill_oauth_scope: bool,
-    /// Whether to request the server to compress the response. This field is
-    /// "nullable" in order to interoperate seamlessly with clients not able to
-    /// implement the full compression tests by introspecting the call to verify
-    /// the response's compression status.
-    #[prost(message, optional, tag = "6")]
-    pub response_compressed: ::core::option::Option<BoolValue>,
-    /// Whether server should return a given status
-    #[prost(message, optional, tag = "7")]
-    pub response_status: ::core::option::Option<EchoStatus>,
-    /// Whether the server should expect this request to be compressed.
-    #[prost(message, optional, tag = "8")]
-    pub expect_compressed: ::core::option::Option<BoolValue>,
-}
-/// Unary response, as configured by the request.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SimpleResponse {
-    /// Payload to increase message size.
-    #[prost(message, optional, tag = "1")]
-    pub payload: ::core::option::Option<Payload>,
-    /// The user the request came from, for verifying authentication was
-    /// successful when the client expected it.
-    #[prost(string, tag = "2")]
-    pub username: ::prost::alloc::string::String,
-    /// OAuth scope.
-    #[prost(string, tag = "3")]
-    pub oauth_scope: ::prost::alloc::string::String,
-}
-/// Client-streaming request.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StreamingInputCallRequest {
-    /// Optional input payload sent along with the request.
-    #[prost(message, optional, tag = "1")]
-    pub payload: ::core::option::Option<Payload>,
-    /// Whether the server should expect this request to be compressed. This field
-    /// is "nullable" in order to interoperate seamlessly with servers not able to
-    /// implement the full compression tests by introspecting the call to verify
-    /// the request's compression status.
-    #[prost(message, optional, tag = "2")]
-    pub expect_compressed: ::core::option::Option<BoolValue>,
-}
-/// Client-streaming response.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StreamingInputCallResponse {
-    /// Aggregated size of payloads received from the client.
-    #[prost(int32, tag = "1")]
-    pub aggregated_payload_size: i32,
-}
-/// Configuration for a particular response.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ResponseParameters {
-    /// Desired payload sizes in responses from the server.
-    #[prost(int32, tag = "1")]
-    pub size: i32,
-    /// Desired interval between consecutive responses in the response stream in
-    /// microseconds.
-    #[prost(int32, tag = "2")]
-    pub interval_us: i32,
-    /// Whether to request the server to compress the response. This field is
-    /// "nullable" in order to interoperate seamlessly with clients not able to
-    /// implement the full compression tests by introspecting the call to verify
-    /// the response's compression status.
-    #[prost(message, optional, tag = "3")]
-    pub compressed: ::core::option::Option<BoolValue>,
-}
-/// Server-streaming request.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StreamingOutputCallRequest {
-    /// DEPRECATED, don't use. To be removed shortly.
-    /// Desired payload type in the response from the server.
-    /// If response_type is RANDOM, the payload from each response in the stream
-    /// might be of different types. This is to simulate a mixed type of payload
-    /// stream.
-    #[prost(enumeration = "PayloadType", tag = "1")]
-    pub response_type: i32,
-    /// Configuration for each expected response message.
-    #[prost(message, repeated, tag = "2")]
-    pub response_parameters: ::prost::alloc::vec::Vec<ResponseParameters>,
-    /// Optional input payload sent along with the request.
-    #[prost(message, optional, tag = "3")]
-    pub payload: ::core::option::Option<Payload>,
-    /// Whether server should return a given status
-    #[prost(message, optional, tag = "7")]
-    pub response_status: ::core::option::Option<EchoStatus>,
-}
-/// Server-streaming response, as configured by the request and parameters.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StreamingOutputCallResponse {
-    /// Payload to increase response size.
-    #[prost(message, optional, tag = "1")]
-    pub payload: ::core::option::Option<Payload>,
-}
-/// For reconnect interop test only.
-/// Client tells server what reconnection parameters it used.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ReconnectParams {
-    #[prost(int32, tag = "1")]
-    pub max_reconnect_backoff_ms: i32,
-}
-/// For reconnect interop test only.
-/// Server tells client whether its reconnects are following the spec and the
-/// reconnect backoffs it saw.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ReconnectInfo {
-    #[prost(bool, tag = "1")]
-    pub passed: bool,
-    #[prost(int32, repeated, tag = "2")]
-    pub backoff_ms: ::prost::alloc::vec::Vec<i32>,
-}
-/// DEPRECATED, don't use. To be removed shortly.
-/// The type of payload that should be returned.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum PayloadType {
-    /// Compressable text format.
-    Compressable = 0,
-}
-impl PayloadType {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            PayloadType::Compressable => "COMPRESSABLE",
-        }
-    }
-}
 /// Parameters of poisson process distribution, which is a good representation
 /// of activity coming in from independent identical stationary sources.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -666,6 +490,192 @@ impl RpcType {
             RpcType::StreamingFromClient => "STREAMING_FROM_CLIENT",
             RpcType::StreamingFromServer => "STREAMING_FROM_SERVER",
             RpcType::StreamingBothWays => "STREAMING_BOTH_WAYS",
+        }
+    }
+}
+/// An empty message that you can re-use to avoid defining duplicated empty
+/// messages in your project. A typical example is to use it as argument or the
+/// return value of a service API. For instance:
+///
+///    service Foo {
+///      rpc Bar (grpc.testing.Empty) returns (grpc.testing.Empty) { };
+///    };
+///
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Empty {}
+/// TODO(dgq): Go back to using well-known types once
+/// <https://github.com/grpc/grpc/issues/6980> has been fixed.
+/// import "google/protobuf/wrappers.proto";
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BoolValue {
+    /// The bool value.
+    #[prost(bool, tag = "1")]
+    pub value: bool,
+}
+/// A block of data, to simply increase gRPC message size.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Payload {
+    /// DEPRECATED, don't use. To be removed shortly.
+    /// The type of data in body.
+    #[prost(enumeration = "PayloadType", tag = "1")]
+    pub r#type: i32,
+    /// Primary contents of payload.
+    #[prost(bytes = "vec", tag = "2")]
+    pub body: ::prost::alloc::vec::Vec<u8>,
+}
+/// A protobuf representation for grpc status. This is used by test
+/// clients to specify a status that the server should attempt to return.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EchoStatus {
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Unary request.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SimpleRequest {
+    /// DEPRECATED, don't use. To be removed shortly.
+    /// Desired payload type in the response from the server.
+    /// If response_type is RANDOM, server randomly chooses one from other formats.
+    #[prost(enumeration = "PayloadType", tag = "1")]
+    pub response_type: i32,
+    /// Desired payload size in the response from the server.
+    #[prost(int32, tag = "2")]
+    pub response_size: i32,
+    /// Optional input payload sent along with the request.
+    #[prost(message, optional, tag = "3")]
+    pub payload: ::core::option::Option<Payload>,
+    /// Whether SimpleResponse should include username.
+    #[prost(bool, tag = "4")]
+    pub fill_username: bool,
+    /// Whether SimpleResponse should include OAuth scope.
+    #[prost(bool, tag = "5")]
+    pub fill_oauth_scope: bool,
+    /// Whether to request the server to compress the response. This field is
+    /// "nullable" in order to interoperate seamlessly with clients not able to
+    /// implement the full compression tests by introspecting the call to verify
+    /// the response's compression status.
+    #[prost(message, optional, tag = "6")]
+    pub response_compressed: ::core::option::Option<BoolValue>,
+    /// Whether server should return a given status
+    #[prost(message, optional, tag = "7")]
+    pub response_status: ::core::option::Option<EchoStatus>,
+    /// Whether the server should expect this request to be compressed.
+    #[prost(message, optional, tag = "8")]
+    pub expect_compressed: ::core::option::Option<BoolValue>,
+}
+/// Unary response, as configured by the request.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SimpleResponse {
+    /// Payload to increase message size.
+    #[prost(message, optional, tag = "1")]
+    pub payload: ::core::option::Option<Payload>,
+    /// The user the request came from, for verifying authentication was
+    /// successful when the client expected it.
+    #[prost(string, tag = "2")]
+    pub username: ::prost::alloc::string::String,
+    /// OAuth scope.
+    #[prost(string, tag = "3")]
+    pub oauth_scope: ::prost::alloc::string::String,
+}
+/// Client-streaming request.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StreamingInputCallRequest {
+    /// Optional input payload sent along with the request.
+    #[prost(message, optional, tag = "1")]
+    pub payload: ::core::option::Option<Payload>,
+    /// Whether the server should expect this request to be compressed. This field
+    /// is "nullable" in order to interoperate seamlessly with servers not able to
+    /// implement the full compression tests by introspecting the call to verify
+    /// the request's compression status.
+    #[prost(message, optional, tag = "2")]
+    pub expect_compressed: ::core::option::Option<BoolValue>,
+}
+/// Client-streaming response.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StreamingInputCallResponse {
+    /// Aggregated size of payloads received from the client.
+    #[prost(int32, tag = "1")]
+    pub aggregated_payload_size: i32,
+}
+/// Configuration for a particular response.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ResponseParameters {
+    /// Desired payload sizes in responses from the server.
+    #[prost(int32, tag = "1")]
+    pub size: i32,
+    /// Desired interval between consecutive responses in the response stream in
+    /// microseconds.
+    #[prost(int32, tag = "2")]
+    pub interval_us: i32,
+    /// Whether to request the server to compress the response. This field is
+    /// "nullable" in order to interoperate seamlessly with clients not able to
+    /// implement the full compression tests by introspecting the call to verify
+    /// the response's compression status.
+    #[prost(message, optional, tag = "3")]
+    pub compressed: ::core::option::Option<BoolValue>,
+}
+/// Server-streaming request.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StreamingOutputCallRequest {
+    /// DEPRECATED, don't use. To be removed shortly.
+    /// Desired payload type in the response from the server.
+    /// If response_type is RANDOM, the payload from each response in the stream
+    /// might be of different types. This is to simulate a mixed type of payload
+    /// stream.
+    #[prost(enumeration = "PayloadType", tag = "1")]
+    pub response_type: i32,
+    /// Configuration for each expected response message.
+    #[prost(message, repeated, tag = "2")]
+    pub response_parameters: ::prost::alloc::vec::Vec<ResponseParameters>,
+    /// Optional input payload sent along with the request.
+    #[prost(message, optional, tag = "3")]
+    pub payload: ::core::option::Option<Payload>,
+    /// Whether server should return a given status
+    #[prost(message, optional, tag = "7")]
+    pub response_status: ::core::option::Option<EchoStatus>,
+}
+/// Server-streaming response, as configured by the request and parameters.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StreamingOutputCallResponse {
+    /// Payload to increase response size.
+    #[prost(message, optional, tag = "1")]
+    pub payload: ::core::option::Option<Payload>,
+}
+/// For reconnect interop test only.
+/// Client tells server what reconnection parameters it used.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReconnectParams {
+    #[prost(int32, tag = "1")]
+    pub max_reconnect_backoff_ms: i32,
+}
+/// For reconnect interop test only.
+/// Server tells client whether its reconnects are following the spec and the
+/// reconnect backoffs it saw.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReconnectInfo {
+    #[prost(bool, tag = "1")]
+    pub passed: bool,
+    #[prost(int32, repeated, tag = "2")]
+    pub backoff_ms: ::prost::alloc::vec::Vec<i32>,
+}
+/// DEPRECATED, don't use. To be removed shortly.
+/// The type of payload that should be returned.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum PayloadType {
+    /// Compressable text format.
+    Compressable = 0,
+}
+impl PayloadType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            PayloadType::Compressable => "COMPRESSABLE",
         }
     }
 }
@@ -1213,16 +1223,6 @@ pub fn create_report_qps_scenario_service<S: ReportQpsScenarioService + Send + C
     );
     builder.build()
 }
-/// An empty message that you can re-use to avoid defining duplicated empty
-/// messages in your project. A typical example is to use it as argument or the
-/// return value of a service API. For instance:
-///
-///    service Foo {
-///      rpc Bar (grpc.testing.Empty) returns (grpc.testing.Empty) { };
-///    };
-///
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Empty {}
 const METHOD_TEST_SERVICE_EMPTY_CALL: ::grpcio::Method<Empty, Empty> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/grpc.testing.TestService/EmptyCall",
