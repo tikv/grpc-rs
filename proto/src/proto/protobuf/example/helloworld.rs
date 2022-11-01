@@ -5,7 +5,7 @@
 #![allow(unknown_lints)]
 #![allow(clippy::all)]
 
-#![cfg_attr(rustfmt, rustfmt::skip)]
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 #![allow(box_pointers)]
 #![allow(dead_code)]
@@ -17,7 +17,7 @@
 #![allow(unsafe_code)]
 #![allow(unused_imports)]
 #![allow(unused_results)]
-//! Generated file from `grpc/health/v1/health.proto`
+//! Generated file from `grpc/example/helloworld.proto`
 
 use protobuf::Message as Message_imported_for_functions;
 use protobuf::ProtobufEnum as ProtobufEnum_imported_for_functions;
@@ -26,53 +26,53 @@ use protobuf::ProtobufEnum as ProtobufEnum_imported_for_functions;
 /// of protobuf runtime.
 
 #[derive(PartialEq,Clone,Default)]
-pub struct HealthCheckRequest {
+pub struct HelloRequest {
     // message fields
-    pub service: ::std::string::String,
+    pub name: ::std::string::String,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a HealthCheckRequest {
-    fn default() -> &'a HealthCheckRequest {
-        <HealthCheckRequest as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a HelloRequest {
+    fn default() -> &'a HelloRequest {
+        <HelloRequest as ::protobuf::Message>::default_instance()
     }
 }
 
-impl HealthCheckRequest {
-    pub fn new() -> HealthCheckRequest {
+impl HelloRequest {
+    pub fn new() -> HelloRequest {
         ::std::default::Default::default()
     }
 
-    // string service = 1;
+    // string name = 1;
 
 
-    pub fn get_service(&self) -> &str {
-        &self.service
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
-    pub fn clear_service(&mut self) {
-        self.service.clear();
+    pub fn clear_name(&mut self) {
+        self.name.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_service(&mut self, v: ::std::string::String) {
-        self.service = v;
+    pub fn set_name(&mut self, v: ::std::string::String) {
+        self.name = v;
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_service(&mut self) -> &mut ::std::string::String {
-        &mut self.service
+    pub fn mut_name(&mut self) -> &mut ::std::string::String {
+        &mut self.name
     }
 
     // Take field
-    pub fn take_service(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.service, ::std::string::String::new())
+    pub fn take_name(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.name, ::std::string::String::new())
     }
 }
 
-impl ::protobuf::Message for HealthCheckRequest {
+impl ::protobuf::Message for HelloRequest {
     fn is_initialized(&self) -> bool {
         true
     }
@@ -82,7 +82,7 @@ impl ::protobuf::Message for HealthCheckRequest {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.service)?;
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.name)?;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -96,8 +96,8 @@ impl ::protobuf::Message for HealthCheckRequest {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if !self.service.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.service);
+        if !self.name.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.name);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -105,8 +105,8 @@ impl ::protobuf::Message for HealthCheckRequest {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if !self.service.is_empty() {
-            os.write_string(1, &self.service)?;
+        if !self.name.is_empty() {
+            os.write_string(1, &self.name)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -138,8 +138,8 @@ impl ::protobuf::Message for HealthCheckRequest {
         Self::descriptor_static()
     }
 
-    fn new() -> HealthCheckRequest {
-        HealthCheckRequest::new()
+    fn new() -> HelloRequest {
+        HelloRequest::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -151,12 +151,12 @@ impl ::protobuf::Message for HealthCheckRequest {
             descriptor.get(|| {
                 let mut fields = ::std::vec::Vec::new();
                 fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                    "service",
-                    |m: &HealthCheckRequest| { &m.service },
-                    |m: &mut HealthCheckRequest| { &mut m.service },
+                    "name",
+                    |m: &HelloRequest| { &m.name },
+                    |m: &mut HelloRequest| { &mut m.name },
                 ));
-                ::protobuf::reflect::MessageDescriptor::new::<HealthCheckRequest>(
-                    "HealthCheckRequest",
+                ::protobuf::reflect::MessageDescriptor::new::<HelloRequest>(
+                    "HelloRequest",
                     fields,
                     file_descriptor_proto()
                 )
@@ -164,73 +164,84 @@ impl ::protobuf::Message for HealthCheckRequest {
         }
     }
 
-    fn default_instance() -> &'static HealthCheckRequest {
-        static mut instance: ::protobuf::lazy::Lazy<HealthCheckRequest> = ::protobuf::lazy::Lazy {
+    fn default_instance() -> &'static HelloRequest {
+        static mut instance: ::protobuf::lazy::Lazy<HelloRequest> = ::protobuf::lazy::Lazy {
             lock: ::protobuf::lazy::ONCE_INIT,
-            ptr: 0 as *const HealthCheckRequest,
+            ptr: 0 as *const HelloRequest,
         };
         unsafe {
-            instance.get(HealthCheckRequest::new)
+            instance.get(HelloRequest::new)
         }
     }
 }
 
-impl ::protobuf::Clear for HealthCheckRequest {
+impl ::protobuf::Clear for HelloRequest {
     fn clear(&mut self) {
-        self.service.clear();
+        self.name.clear();
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for HealthCheckRequest {
+impl ::std::fmt::Debug for HelloRequest {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for HealthCheckRequest {
+impl ::protobuf::reflect::ProtobufValue for HelloRequest {
     fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct HealthCheckResponse {
+pub struct HelloReply {
     // message fields
-    pub status: ServingStatus,
+    pub message: ::std::string::String,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a HealthCheckResponse {
-    fn default() -> &'a HealthCheckResponse {
-        <HealthCheckResponse as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a HelloReply {
+    fn default() -> &'a HelloReply {
+        <HelloReply as ::protobuf::Message>::default_instance()
     }
 }
 
-impl HealthCheckResponse {
-    pub fn new() -> HealthCheckResponse {
+impl HelloReply {
+    pub fn new() -> HelloReply {
         ::std::default::Default::default()
     }
 
-    // .grpc.health.v1.HealthCheckResponse.ServingStatus status = 1;
+    // string message = 1;
 
 
-    pub fn get_status(&self) -> ServingStatus {
-        self.status
+    pub fn get_message(&self) -> &str {
+        &self.message
     }
-    pub fn clear_status(&mut self) {
-        self.status = ServingStatus::Unknown;
+    pub fn clear_message(&mut self) {
+        self.message.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_status(&mut self, v: ServingStatus) {
-        self.status = v;
+    pub fn set_message(&mut self, v: ::std::string::String) {
+        self.message = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_message(&mut self) -> &mut ::std::string::String {
+        &mut self.message
+    }
+
+    // Take field
+    pub fn take_message(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.message, ::std::string::String::new())
     }
 }
 
-impl ::protobuf::Message for HealthCheckResponse {
+impl ::protobuf::Message for HelloReply {
     fn is_initialized(&self) -> bool {
         true
     }
@@ -240,7 +251,7 @@ impl ::protobuf::Message for HealthCheckResponse {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.status, 1, &mut self.unknown_fields)?
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.message)?;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -254,8 +265,8 @@ impl ::protobuf::Message for HealthCheckResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.status != ServingStatus::Unknown {
-            my_size += ::protobuf::rt::enum_size(1, self.status);
+        if !self.message.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.message);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -263,8 +274,8 @@ impl ::protobuf::Message for HealthCheckResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.status != ServingStatus::Unknown {
-            os.write_enum(1, self.status.value())?;
+        if !self.message.is_empty() {
+            os.write_string(1, &self.message)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -296,8 +307,8 @@ impl ::protobuf::Message for HealthCheckResponse {
         Self::descriptor_static()
     }
 
-    fn new() -> HealthCheckResponse {
-        HealthCheckResponse::new()
+    fn new() -> HelloReply {
+        HelloReply::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -308,13 +319,13 @@ impl ::protobuf::Message for HealthCheckResponse {
         unsafe {
             descriptor.get(|| {
                 let mut fields = ::std::vec::Vec::new();
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<ServingStatus>>(
-                    "status",
-                    |m: &HealthCheckResponse| { &m.status },
-                    |m: &mut HealthCheckResponse| { &mut m.status },
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                    "message",
+                    |m: &HelloReply| { &m.message },
+                    |m: &mut HelloReply| { &mut m.message },
                 ));
-                ::protobuf::reflect::MessageDescriptor::new::<HealthCheckResponse>(
-                    "HealthCheckResponse",
+                ::protobuf::reflect::MessageDescriptor::new::<HelloReply>(
+                    "HelloReply",
                     fields,
                     file_descriptor_proto()
                 )
@@ -322,109 +333,43 @@ impl ::protobuf::Message for HealthCheckResponse {
         }
     }
 
-    fn default_instance() -> &'static HealthCheckResponse {
-        static mut instance: ::protobuf::lazy::Lazy<HealthCheckResponse> = ::protobuf::lazy::Lazy {
+    fn default_instance() -> &'static HelloReply {
+        static mut instance: ::protobuf::lazy::Lazy<HelloReply> = ::protobuf::lazy::Lazy {
             lock: ::protobuf::lazy::ONCE_INIT,
-            ptr: 0 as *const HealthCheckResponse,
+            ptr: 0 as *const HelloReply,
         };
         unsafe {
-            instance.get(HealthCheckResponse::new)
+            instance.get(HelloReply::new)
         }
     }
 }
 
-impl ::protobuf::Clear for HealthCheckResponse {
+impl ::protobuf::Clear for HelloReply {
     fn clear(&mut self) {
-        self.status = ServingStatus::Unknown;
+        self.message.clear();
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for HealthCheckResponse {
+impl ::std::fmt::Debug for HelloReply {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for HealthCheckResponse {
+impl ::protobuf::reflect::ProtobufValue for HelloReply {
     fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
 
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum ServingStatus {
-    Unknown = 0,
-    Serving = 1,
-    NotServing = 2,
-    ServiceUnknown = 3,
-}
-
-impl ::protobuf::ProtobufEnum for ServingStatus {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<ServingStatus> {
-        match value {
-            0 => ::std::option::Option::Some(ServingStatus::Unknown),
-            1 => ::std::option::Option::Some(ServingStatus::Serving),
-            2 => ::std::option::Option::Some(ServingStatus::NotServing),
-            3 => ::std::option::Option::Some(ServingStatus::ServiceUnknown),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [ServingStatus] = &[
-            ServingStatus::Unknown,
-            ServingStatus::Serving,
-            ServingStatus::NotServing,
-            ServingStatus::ServiceUnknown,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static mut descriptor: ::protobuf::lazy::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::lazy::Lazy {
-            lock: ::protobuf::lazy::ONCE_INIT,
-            ptr: 0 as *const ::protobuf::reflect::EnumDescriptor,
-        };
-        unsafe {
-            descriptor.get(|| {
-                ::protobuf::reflect::EnumDescriptor::new("ServingStatus", file_descriptor_proto())
-            })
-        }
-    }
-}
-
-impl ::std::marker::Copy for ServingStatus {
-}
-
-impl ::std::default::Default for ServingStatus {
-    fn default() -> Self {
-        ServingStatus::Unknown
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for ServingStatus {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
-        ::protobuf::reflect::ProtobufValueRef::Enum(self.descriptor())
-    }
-}
-
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x1bgrpc/health/v1/health.proto\x12\x0egrpc.health.v1\".\n\x12HealthCh\
-    eckRequest\x12\x18\n\x07service\x18\x01\x20\x01(\tR\x07service\"\xb1\x01\
-    \n\x13HealthCheckResponse\x12I\n\x06status\x18\x01\x20\x01(\x0e21.grpc.h\
-    ealth.v1.HealthCheckResponse.ServingStatusR\x06status\"O\n\rServingStatu\
-    s\x12\x0b\n\x07Unknown\x10\0\x12\x0b\n\x07Serving\x10\x01\x12\x0f\n\x0bN\
-    OT_Serving\x10\x02\x12\x13\n\x0fServiceUnknown\x10\x032\xae\x01\n\x06He\
-    alth\x12P\n\x05Check\x12\".grpc.health.v1.HealthCheckRequest\x1a#.grpc.h\
-    ealth.v1.HealthCheckResponse\x12R\n\x05Watch\x12\".grpc.health.v1.Health\
-    CheckRequest\x1a#.grpc.health.v1.HealthCheckResponse0\x01Ba\n\x11io.grpc\
-    .health.v1B\x0bHealthProtoP\x01Z,google.golang.org/grpc/health/grpc_heal\
-    th_v1\xaa\x02\x0eGrpc.Health.V1b\x06proto3\
+    \n\x1dgrpc/example/helloworld.proto\x12\nhelloworld\"\"\n\x0cHelloReques\
+    t\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\"&\n\nHelloReply\x12\x18\
+    \n\x07message\x18\x01\x20\x01(\tR\x07message2I\n\x07Greeter\x12>\n\x08Sa\
+    yHello\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\0\
+    B6\n\x1bio.grpc.examples.helloworldB\x0fHelloWorldProtoP\x01\xa2\x02\x03\
+    HLWb\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {
@@ -444,4 +389,4 @@ pub fn file_descriptor_proto() -> &'static ::protobuf::descriptor::FileDescripto
     }
 }
 
-pub use super::health_grpc::*;
+pub use super::helloworld_grpc::*;

@@ -19,6 +19,20 @@ pub mod health_check_response {
         /// Used only by the Watch method.
         ServiceUnknown = 3,
     }
+    impl ServingStatus {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                ServingStatus::Unknown => "UNKNOWN",
+                ServingStatus::Serving => "SERVING",
+                ServingStatus::NotServing => "NOT_SERVING",
+                ServingStatus::ServiceUnknown => "SERVICE_UNKNOWN",
+            }
+        }
+    }
 }
 const METHOD_HEALTH_CHECK: ::grpcio::Method<HealthCheckRequest, HealthCheckResponse> = ::grpcio::Method{ty: ::grpcio::MethodType::Unary, name: "/grpc.health.v1.Health/Check", req_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, };
 const METHOD_HEALTH_WATCH: ::grpcio::Method<HealthCheckRequest, HealthCheckResponse> = ::grpcio::Method{ty: ::grpcio::MethodType::ServerStreaming, name: "/grpc.health.v1.Health/Watch", req_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, };

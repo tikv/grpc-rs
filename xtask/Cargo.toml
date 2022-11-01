@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-prost-build = "0.8"
+prost-build = "0.11"
 # Use an old enough version to make sure generated code with TiKV's fork.
 # TODO: use latest one when TiKV's fork is updated
 protoc-rust = "=2.8"

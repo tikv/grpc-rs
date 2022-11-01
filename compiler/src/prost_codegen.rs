@@ -6,7 +6,7 @@ use std::{env, fs, io, process::Command, str};
 
 use derive_new::new;
 use prost::Message;
-use prost_build::{protoc, protoc_include, Config, Method, Service, ServiceGenerator};
+use prost_build::{Config, Method, Service, ServiceGenerator};
 use prost_types::FileDescriptorSet;
 
 use crate::util::{fq_grpc, to_snake_case, MethodType};
@@ -22,9 +22,10 @@ where
 
     // Create a file descriptor set for the protocol files.
     let tmp = tempfile::Builder::new().prefix("prost-build").tempdir()?;
+    std::fs::create_dir_all(tmp.path())?;
     let descriptor_set = tmp.path().join("prost-descriptor-set");
 
-    let mut cmd = Command::new(protoc());
+    let mut cmd = Command::new(prost_build::protoc_from_env());
     cmd.arg("--include_imports")
         .arg("--include_source_info")
         .arg("-o")
@@ -36,7 +37,9 @@ where
 
     // Set the protoc include after the user includes in case the user wants to
     // override one of the built-in .protos.
-    cmd.arg("-I").arg(protoc_include());
+    if let Some(inc) = prost_build::protoc_include_from_env() {
+        cmd.arg("-I").arg(inc);
+    }
 
     for proto in protos {
         cmd.arg(proto.as_ref());
