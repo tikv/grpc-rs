@@ -1,3 +1,13 @@
+# 0.12.0 - 2022-11-04
+
+- Update prost to 0.11 (#595)
+- Update grpc to 1.36.5 (#593)
+- Update the security API of channel to match the C++ version (#593)
+
+Note, 1.36.5 removes the support of epollex engine (which is the default engine before),
+and enables transparent retry by default. So you may experience potential performance regression.
+And 1.36.5 is also the last version that supports C++11. Next version will requires C++14.
+
 # 0.11.0 - 2022-09-10
 
 - Update prost to 0.10 (#582)
