@@ -1,6 +1,6 @@
-# 0.12.0 - 2022-10-28
+# 0.12.0 - 2022-11-04
 
-- Update prost to 0.11 (#594)
+- Update prost to 0.11 (#595)
 - Update grpc to 1.36.5 (#593)
 - Update the security API of channel to match the C++ version (#593)
 
