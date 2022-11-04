@@ -19,6 +19,7 @@ $ git clone https://github.com/pingcap/grpc.git
 
 ```
 $ cd grpc-rs
+$ cargo xtask submodule
 $ cargo build -p benchmark --release
 ```
 
