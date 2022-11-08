@@ -98,4 +98,10 @@ impl Client {
         let kicker = self.kicker.clone();
         Executor::new(self.channel.cq()).spawn(f, kicker)
     }
+
+    /// Get the underlying channel.
+    #[inline]
+    pub fn channel(&self) -> &Channel {
+        &self.channel
+    }
 }
