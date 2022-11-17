@@ -652,7 +652,7 @@ impl Channel {
             let target = CString::new(target).unwrap();
             let ch = grpc_sys::grpc_lame_client_channel_create(
                 target.as_ptr(),
-                RpcStatusCode::INTERNAL.into(),
+                RpcStatusCode::UNAVAILABLE.into(),
                 b"call on lame client\0".as_ptr() as _,
             );
             Self::new(env.pick_cq(), env, ch)
