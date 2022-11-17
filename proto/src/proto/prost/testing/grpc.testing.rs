@@ -264,7 +264,6 @@ pub struct ServerConfig {
     /// Number of threads that share each completion queue
     #[prost(int32, tag = "12")]
     pub threads_per_cq: i32,
-    // c++-only options (for now) --------------------------------
     /// Buffer pool size (no buffer pool specified if unset)
     #[prost(int32, tag = "1001")]
     pub resource_quota_size: i32,
@@ -752,7 +751,7 @@ const METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS: ::grpcio::Method<
 };
 #[derive(Clone)]
 pub struct BenchmarkServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl BenchmarkServiceClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {
@@ -986,7 +985,7 @@ const METHOD_WORKER_SERVICE_QUIT_WORKER: ::grpcio::Method<Void, Void> = ::grpcio
 };
 #[derive(Clone)]
 pub struct WorkerServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl WorkerServiceClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {
@@ -1156,7 +1155,7 @@ const METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO: ::grpcio::Method<Scena
     };
 #[derive(Clone)]
 pub struct ReportQpsScenarioServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl ReportQpsScenarioServiceClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {
@@ -1335,7 +1334,7 @@ const METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<Empty, Empty> = :
 };
 #[derive(Clone)]
 pub struct TestServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl TestServiceClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {
@@ -1641,7 +1640,7 @@ const METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<Empty, E
     };
 #[derive(Clone)]
 pub struct UnimplementedServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl UnimplementedServiceClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {
@@ -1728,7 +1727,7 @@ const METHOD_RECONNECT_SERVICE_STOP: ::grpcio::Method<Empty, ReconnectInfo> = ::
 };
 #[derive(Clone)]
 pub struct ReconnectServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl ReconnectServiceClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {

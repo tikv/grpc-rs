@@ -49,7 +49,7 @@ const METHOD_HEALTH_WATCH: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct HealthClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl HealthClient {

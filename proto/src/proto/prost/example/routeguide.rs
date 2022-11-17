@@ -112,7 +112,7 @@ const METHOD_ROUTE_GUIDE_ROUTE_CHAT: ::grpcio::Method<RouteNote, RouteNote> = ::
 };
 #[derive(Clone)]
 pub struct RouteGuideClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl RouteGuideClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {
