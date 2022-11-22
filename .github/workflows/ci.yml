@@ -5,6 +5,7 @@ on:
   push:
     branches: 
     - master
+    - v0.*
   schedule:
   - cron: '0 22 * * *'
 
