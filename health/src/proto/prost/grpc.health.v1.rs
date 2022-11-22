@@ -23,7 +23,7 @@ pub mod health_check_response {
 const METHOD_HEALTH_CHECK: ::grpcio::Method<HealthCheckRequest, HealthCheckResponse> = ::grpcio::Method{ty: ::grpcio::MethodType::Unary, name: "/grpc.health.v1.Health/Check", req_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, };
 const METHOD_HEALTH_WATCH: ::grpcio::Method<HealthCheckRequest, HealthCheckResponse> = ::grpcio::Method{ty: ::grpcio::MethodType::ServerStreaming, name: "/grpc.health.v1.Health/Watch", req_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pr_ser, de: ::grpcio::pr_de }, };
 #[derive(Clone)]
-pub struct HealthClient { client: ::grpcio::Client }
+pub struct HealthClient { pub client: ::grpcio::Client }
 impl HealthClient {
 pub fn new(channel: ::grpcio::Channel) -> Self { HealthClient { client: ::grpcio::Client::new(channel) }}
 pub fn check_opt(&self, req: &HealthCheckRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<HealthCheckResponse,> { self.client.unary_call(&METHOD_HEALTH_CHECK, req, opt) }

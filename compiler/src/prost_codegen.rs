@@ -164,7 +164,7 @@ fn generate_client(service: &Service, buf: &mut String) {
     buf.push_str("#[derive(Clone)]\n");
     buf.push_str("pub struct ");
     buf.push_str(&client_name);
-    buf.push_str(" { client: ::grpcio::Client }\n");
+    buf.push_str(" { pub client: ::grpcio::Client }\n");
 
     buf.push_str("impl ");
     buf.push_str(&client_name);
