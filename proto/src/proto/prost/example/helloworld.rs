@@ -24,7 +24,7 @@ const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<HelloRequest, HelloReply> = ::g
 };
 #[derive(Clone)]
 pub struct GreeterClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 impl GreeterClient {
     pub fn new(channel: ::grpcio::Channel) -> Self {

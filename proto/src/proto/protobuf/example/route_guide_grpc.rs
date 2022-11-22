@@ -81,7 +81,7 @@ const METHOD_ROUTE_GUIDE_ROUTE_CHAT: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct RouteGuideClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl RouteGuideClient {

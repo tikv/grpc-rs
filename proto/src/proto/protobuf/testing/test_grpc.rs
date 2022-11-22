@@ -143,7 +143,7 @@ const METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct TestServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl TestServiceClient {
@@ -493,7 +493,7 @@ const METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct UnimplementedServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl UnimplementedServiceClient {
@@ -599,7 +599,7 @@ const METHOD_RECONNECT_SERVICE_STOP: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct ReconnectServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl ReconnectServiceClient {

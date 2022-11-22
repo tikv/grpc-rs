@@ -21,8 +21,8 @@ use crate::env::Environment;
 use crate::error::Result;
 use crate::task::CallTag;
 use crate::task::Kicker;
-use crate::ResourceQuota;
 use crate::{CallOption, ChannelCredentials};
+use crate::{ResourceQuota, RpcStatusCode};
 
 pub use crate::grpc_sys::{
     grpc_compression_algorithm as CompressionAlgorithms,
@@ -643,6 +643,19 @@ impl Channel {
         Channel {
             inner: Arc::new(ChannelInner { _env: env, channel }),
             cq,
+        }
+    }
+
+    /// Create a lame channel that will fail all its operations.
+    pub fn lame(env: Arc<Environment>, target: &str) -> Channel {
+        unsafe {
+            let target = CString::new(target).unwrap();
+            let ch = grpc_sys::grpc_lame_client_channel_create(
+                target.as_ptr(),
+                RpcStatusCode::UNAVAILABLE.into(),
+                b"call on lame client\0".as_ptr() as _,
+            );
+            Self::new(env.pick_cq(), env, ch)
         }
     }
 

@@ -97,7 +97,7 @@ const METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct BenchmarkServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl BenchmarkServiceClient {
@@ -363,7 +363,7 @@ const METHOD_WORKER_SERVICE_QUIT_WORKER: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct WorkerServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl WorkerServiceClient {
@@ -562,7 +562,7 @@ const METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO: ::grpcio::Method<
 
 #[derive(Clone)]
 pub struct ReportQpsScenarioServiceClient {
-    client: ::grpcio::Client,
+    pub client: ::grpcio::Client,
 }
 
 impl ReportQpsScenarioServiceClient {
