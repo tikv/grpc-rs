@@ -1,3 +1,7 @@
+# 0.10.4 - 2022-06-27
+
+- Allow access client and channel (#597)
+
 # 0.10.3 - 2022-06-27
 
 - Add support for GRPC_ARG_ENABLE_HTTP_PROXY parameter (#575)
