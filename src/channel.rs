@@ -182,7 +182,7 @@ impl ChannelBuilder {
 
     /// Set whether to allow the use of `SO_REUSEPORT` if available. Defaults to `true`.
     pub fn reuse_port(mut self, reuse: bool) -> ChannelBuilder {
-        let opt = if reuse { 1 } else { 0 };
+        let opt = reuse as i32;
         self.options.insert(
             Cow::Borrowed(grpcio_sys::GRPC_ARG_ALLOW_REUSEPORT),
             Options::Integer(opt),
@@ -588,7 +588,7 @@ impl ChannelInner {
     // If try_to_connect is true, the channel will try to establish a connection, potentially
     // changing the state.
     fn check_connectivity_state(&self, try_to_connect: bool) -> ConnectivityState {
-        let should_try = if try_to_connect { 1 } else { 0 };
+        let should_try = try_to_connect as i32;
         unsafe { grpc_sys::grpc_channel_check_connectivity_state(self.channel, should_try) }
     }
 }

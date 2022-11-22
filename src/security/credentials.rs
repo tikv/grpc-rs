@@ -102,7 +102,7 @@ pub(crate) unsafe extern "C" fn server_cert_fetcher_wrapper(
         panic!("fetcher user_data must be set up!");
     }
     let f: &mut dyn ServerCredentialsFetcher =
-        (&mut *(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
+        (*(user_data as *mut Box<dyn ServerCredentialsFetcher>)).as_mut();
     let result = f.fetch();
     match result {
         Ok(Some(builder)) => {

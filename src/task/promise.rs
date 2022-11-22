@@ -9,7 +9,7 @@ use crate::error::Error;
 use crate::metadata::UnownedMetadata;
 
 /// Batch job type.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum BatchType {
     /// Finish without reading any message.
     Finish,
