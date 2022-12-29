@@ -3,6 +3,7 @@
 pub mod client;
 pub mod server;
 
+use std::ffi::CStr;
 use std::fmt::{self, Debug, Display};
 use std::future::Future;
 use std::pin::Pin;
@@ -166,6 +167,9 @@ pub struct RpcStatus {
     ///
     /// See also https://grpc.io/docs/guides/error/#richer-error-model.
     details: Vec<u8>,
+
+    /// Debug error string
+    debug_error_string: String,
 }
 
 impl Display for RpcStatus {
@@ -188,17 +192,32 @@ impl RpcStatus {
     /// Create a new [`RpcStats`] with code, message and details.
     ///
     /// If using rich error model, `details` should be binary message that sets `code` and
-    /// `message` to the same value. Or you can use `into` method to do automatical
+    /// `message` to the same value. Or you can use `into` method to do automatic
     /// transformation if using `grpcio_proto::google::rpc::Status`.
     pub fn with_details<T: Into<RpcStatusCode>>(
         code: T,
         message: String,
         details: Vec<u8>,
     ) -> RpcStatus {
+        RpcStatus::with_details_and_error_string(code, message, details, String::new())
+    }
+
+    /// Create a new [`RpcStats`] with code, message, details and debug error string.
+    ///
+    /// If using rich error model, `details` should be binary message that sets `code` and
+    /// `message` to the same value. Or you can use `into` method to do automatic
+    /// transformation if using `grpcio_proto::google::rpc::Status`.
+    pub fn with_details_and_error_string<T: Into<RpcStatusCode>>(
+        code: T,
+        message: String,
+        details: Vec<u8>,
+        debug_error_string: String,
+    ) -> RpcStatus {
         RpcStatus {
             code: code.into(),
             message,
             details,
+            debug_error_string,
         }
     }
 
@@ -224,6 +243,15 @@ impl RpcStatus {
     /// Usually it contains a serialized `google.rpc.Status` proto.
     pub fn details(&self) -> &[u8] {
         &self.details
+    }
+
+    /// Return the debug error string.
+    ///
+    /// This will return a detailed string of the gRPC Core error that led to the failure.
+    /// It shouldn't be relied upon for anything other than gaining more debug data in
+    /// failure cases.
+    pub fn debug_error_string(&self) -> &str {
+        &self.debug_error_string
     }
 }
 
@@ -277,7 +305,18 @@ impl BatchContext {
                     );
                 let metadata = &*(m_ptr as *const Metadata);
                 let details = metadata.search_binary_error_details().to_vec();
-                RpcStatus::with_details(status, message, details)
+
+                let error_string_ptr =
+                    grpc_sys::grpcwrap_batch_context_recv_status_on_client_error_string(self.ctx);
+                let error_string = if error_string_ptr.is_null() {
+                    String::new()
+                } else {
+                    CStr::from_ptr(error_string_ptr)
+                        .to_string_lossy()
+                        .into_owned()
+                };
+
+                RpcStatus::with_details_and_error_string(status, message, details, error_string)
             }
         }
     }
