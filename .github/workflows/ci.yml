@@ -22,8 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: sudo apt-get install -y clang-tidy-9
-    - run: sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 100
     - run: which cargo && cargo version && clang --version && openssl version && which cmake && cmake --version
     - run: cargo xtask submodule
     - run: cargo fmt --all -- --check
