@@ -1,8 +1,10 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HealthCheckRequest {
     #[prost(string, tag = "1")]
     pub service: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HealthCheckResponse {
     #[prost(enumeration = "health_check_response::ServingStatus", tag = "1")]
@@ -40,6 +42,16 @@ pub mod health_check_response {
                 ServingStatus::Serving => "SERVING",
                 ServingStatus::NotServing => "NOT_SERVING",
                 ServingStatus::ServiceUnknown => "SERVICE_UNKNOWN",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "UNKNOWN" => Some(Self::Unknown),
+                "SERVING" => Some(Self::Serving),
+                "NOT_SERVING" => Some(Self::NotServing),
+                "SERVICE_UNKNOWN" => Some(Self::ServiceUnknown),
+                _ => None,
             }
         }
     }

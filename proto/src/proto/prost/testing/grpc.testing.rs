@@ -1,3 +1,4 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ByteBufferParams {
     #[prost(int32, tag = "1")]
@@ -5,6 +6,7 @@ pub struct ByteBufferParams {
     #[prost(int32, tag = "2")]
     pub resp_size: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SimpleProtoParams {
     #[prost(int32, tag = "1")]
@@ -14,8 +16,10 @@ pub struct SimpleProtoParams {
 }
 /// TODO (vpai): Fill this in once the details of complex, representative
 ///               protos are decided
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ComplexProtoParams {}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PayloadConfig {
     #[prost(oneof = "payload_config::Payload", tags = "1, 2, 3")]
@@ -23,6 +27,7 @@ pub struct PayloadConfig {
 }
 /// Nested message and enum types in `PayloadConfig`.
 pub mod payload_config {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
@@ -33,6 +38,7 @@ pub mod payload_config {
         ComplexParams(super::ComplexProtoParams),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerStats {
     /// wall clock time change in seconds since last reset
@@ -56,6 +62,7 @@ pub struct ServerStats {
     pub cq_poll_count: u64,
 }
 /// Histogram params based on grpc/support/histogram.c
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HistogramParams {
     /// first bucket is [0, 1 + resolution)
@@ -66,6 +73,7 @@ pub struct HistogramParams {
     pub max_possible: f64,
 }
 /// Histogram data based on grpc/support/histogram.c
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HistogramData {
     #[prost(uint32, repeated, tag = "1")]
@@ -81,6 +89,7 @@ pub struct HistogramData {
     #[prost(double, tag = "6")]
     pub count: f64,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RequestResultCount {
     #[prost(int32, tag = "1")]
@@ -88,6 +97,7 @@ pub struct RequestResultCount {
     #[prost(int64, tag = "2")]
     pub count: i64,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientStats {
     /// Latency histogram. Data points are in nanoseconds.
@@ -109,6 +119,7 @@ pub struct ClientStats {
 }
 /// Parameters of poisson process distribution, which is a good representation
 /// of activity coming in from independent identical stationary sources.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PoissonParams {
     /// The rate of arrivals (a.k.a. lambda parameter of the exp distribution).
@@ -117,8 +128,10 @@ pub struct PoissonParams {
 }
 /// Once an RPC finishes, immediately start a new one.
 /// No configuration parameters needed.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClosedLoopParams {}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LoadParams {
     #[prost(oneof = "load_params::Load", tags = "1, 2")]
@@ -126,6 +139,7 @@ pub struct LoadParams {
 }
 /// Nested message and enum types in `LoadParams`.
 pub mod load_params {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Load {
         #[prost(message, tag = "1")]
@@ -135,6 +149,7 @@ pub mod load_params {
     }
 }
 /// presence of SecurityParams implies use of TLS
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SecurityParams {
     #[prost(bool, tag = "1")]
@@ -144,6 +159,7 @@ pub struct SecurityParams {
     #[prost(string, tag = "3")]
     pub cred_type: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ChannelArg {
     #[prost(string, tag = "1")]
@@ -153,6 +169,7 @@ pub struct ChannelArg {
 }
 /// Nested message and enum types in `ChannelArg`.
 pub mod channel_arg {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(string, tag = "2")]
@@ -161,6 +178,7 @@ pub mod channel_arg {
         IntValue(i32),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientConfig {
     /// List of targets to connect to. At least one target needs to be specified.
@@ -207,18 +225,21 @@ pub struct ClientConfig {
     #[prost(int32, tag = "18")]
     pub messages_per_stream: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientStatus {
     #[prost(message, optional, tag = "1")]
     pub stats: ::core::option::Option<ClientStats>,
 }
 /// Request current stats
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Mark {
     /// if true, the stats will be reset after taking their snapshot.
     #[prost(bool, tag = "1")]
     pub reset: bool,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientArgs {
     #[prost(oneof = "client_args::Argtype", tags = "1, 2")]
@@ -226,6 +247,7 @@ pub struct ClientArgs {
 }
 /// Nested message and enum types in `ClientArgs`.
 pub mod client_args {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Argtype {
         #[prost(message, tag = "1")]
@@ -234,6 +256,7 @@ pub mod client_args {
         Mark(super::Mark),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerConfig {
     #[prost(enumeration = "ServerType", tag = "1")]
@@ -270,6 +293,7 @@ pub struct ServerConfig {
     #[prost(message, repeated, tag = "1002")]
     pub channel_args: ::prost::alloc::vec::Vec<ChannelArg>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerArgs {
     #[prost(oneof = "server_args::Argtype", tags = "1, 2")]
@@ -277,6 +301,7 @@ pub struct ServerArgs {
 }
 /// Nested message and enum types in `ServerArgs`.
 pub mod server_args {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Argtype {
         #[prost(message, tag = "1")]
@@ -285,6 +310,7 @@ pub mod server_args {
         Mark(super::Mark),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerStatus {
     #[prost(message, optional, tag = "1")]
@@ -296,17 +322,21 @@ pub struct ServerStatus {
     #[prost(int32, tag = "3")]
     pub cores: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CoreRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CoreResponse {
     /// Number of cores available on the server
     #[prost(int32, tag = "1")]
     pub cores: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Void {}
 /// A single performance scenario: input to qps_json_driver
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Scenario {
     /// Human readable name for this scenario
@@ -335,6 +365,7 @@ pub struct Scenario {
     pub spawn_local_worker_count: i32,
 }
 /// A set of scenarios to be run with qps_json_driver
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Scenarios {
     #[prost(message, repeated, tag = "1")]
@@ -342,6 +373,7 @@ pub struct Scenarios {
 }
 /// Basic summary that can be computed from ClientStats and ServerStats
 /// once the scenario has finished.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScenarioResultSummary {
     /// Total number of operations per second over all clients.
@@ -393,6 +425,7 @@ pub struct ScenarioResultSummary {
     pub client_queries_per_cpu_sec: f64,
 }
 /// Results of a single benchmark scenario.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScenarioResult {
     /// Inputs used to run the scenario.
@@ -444,6 +477,15 @@ impl ClientType {
             ClientType::OtherClient => "OTHER_CLIENT",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SYNC_CLIENT" => Some(Self::SyncClient),
+            "ASYNC_CLIENT" => Some(Self::AsyncClient),
+            "OTHER_CLIENT" => Some(Self::OtherClient),
+            _ => None,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -465,6 +507,16 @@ impl ServerType {
             ServerType::AsyncServer => "ASYNC_SERVER",
             ServerType::AsyncGenericServer => "ASYNC_GENERIC_SERVER",
             ServerType::OtherServer => "OTHER_SERVER",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SYNC_SERVER" => Some(Self::SyncServer),
+            "ASYNC_SERVER" => Some(Self::AsyncServer),
+            "ASYNC_GENERIC_SERVER" => Some(Self::AsyncGenericServer),
+            "OTHER_SERVER" => Some(Self::OtherServer),
+            _ => None,
         }
     }
 }
@@ -491,6 +543,17 @@ impl RpcType {
             RpcType::StreamingBothWays => "STREAMING_BOTH_WAYS",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "UNARY" => Some(Self::Unary),
+            "STREAMING" => Some(Self::Streaming),
+            "STREAMING_FROM_CLIENT" => Some(Self::StreamingFromClient),
+            "STREAMING_FROM_SERVER" => Some(Self::StreamingFromServer),
+            "STREAMING_BOTH_WAYS" => Some(Self::StreamingBothWays),
+            _ => None,
+        }
+    }
 }
 /// An empty message that you can re-use to avoid defining duplicated empty
 /// messages in your project. A typical example is to use it as argument or the
@@ -500,11 +563,13 @@ impl RpcType {
 ///      rpc Bar (grpc.testing.Empty) returns (grpc.testing.Empty) { };
 ///    };
 ///
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
 /// TODO(dgq): Go back to using well-known types once
 /// <https://github.com/grpc/grpc/issues/6980> has been fixed.
 /// import "google/protobuf/wrappers.proto";
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BoolValue {
     /// The bool value.
@@ -512,6 +577,7 @@ pub struct BoolValue {
     pub value: bool,
 }
 /// A block of data, to simply increase gRPC message size.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Payload {
     /// DEPRECATED, don't use. To be removed shortly.
@@ -524,6 +590,7 @@ pub struct Payload {
 }
 /// A protobuf representation for grpc status. This is used by test
 /// clients to specify a status that the server should attempt to return.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EchoStatus {
     #[prost(int32, tag = "1")]
@@ -532,6 +599,7 @@ pub struct EchoStatus {
     pub message: ::prost::alloc::string::String,
 }
 /// Unary request.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SimpleRequest {
     /// DEPRECATED, don't use. To be removed shortly.
@@ -565,6 +633,7 @@ pub struct SimpleRequest {
     pub expect_compressed: ::core::option::Option<BoolValue>,
 }
 /// Unary response, as configured by the request.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SimpleResponse {
     /// Payload to increase message size.
@@ -579,6 +648,7 @@ pub struct SimpleResponse {
     pub oauth_scope: ::prost::alloc::string::String,
 }
 /// Client-streaming request.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StreamingInputCallRequest {
     /// Optional input payload sent along with the request.
@@ -592,6 +662,7 @@ pub struct StreamingInputCallRequest {
     pub expect_compressed: ::core::option::Option<BoolValue>,
 }
 /// Client-streaming response.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StreamingInputCallResponse {
     /// Aggregated size of payloads received from the client.
@@ -599,6 +670,7 @@ pub struct StreamingInputCallResponse {
     pub aggregated_payload_size: i32,
 }
 /// Configuration for a particular response.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResponseParameters {
     /// Desired payload sizes in responses from the server.
@@ -616,6 +688,7 @@ pub struct ResponseParameters {
     pub compressed: ::core::option::Option<BoolValue>,
 }
 /// Server-streaming request.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StreamingOutputCallRequest {
     /// DEPRECATED, don't use. To be removed shortly.
@@ -636,6 +709,7 @@ pub struct StreamingOutputCallRequest {
     pub response_status: ::core::option::Option<EchoStatus>,
 }
 /// Server-streaming response, as configured by the request and parameters.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StreamingOutputCallResponse {
     /// Payload to increase response size.
@@ -644,6 +718,7 @@ pub struct StreamingOutputCallResponse {
 }
 /// For reconnect interop test only.
 /// Client tells server what reconnection parameters it used.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReconnectParams {
     #[prost(int32, tag = "1")]
@@ -652,6 +727,7 @@ pub struct ReconnectParams {
 /// For reconnect interop test only.
 /// Server tells client whether its reconnects are following the spec and the
 /// reconnect backoffs it saw.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReconnectInfo {
     #[prost(bool, tag = "1")]
@@ -675,6 +751,13 @@ impl PayloadType {
     pub fn as_str_name(&self) -> &'static str {
         match self {
             PayloadType::Compressable => "COMPRESSABLE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "COMPRESSABLE" => Some(Self::Compressable),
+            _ => None,
         }
     }
 }
