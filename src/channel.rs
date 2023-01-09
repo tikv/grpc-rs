@@ -596,7 +596,9 @@ impl ChannelInner {
     // If try_to_connect is true, the channel will try to establish a connection, potentially
     // changing the state.
     fn check_connectivity_state(&self, try_to_connect: bool) -> ConnectivityState {
-        unsafe { grpc_sys::grpc_channel_check_connectivity_state(self.channel, try_to_connect as _) }
+        unsafe {
+            grpc_sys::grpc_channel_check_connectivity_state(self.channel, try_to_connect as _)
+        }
     }
 }
 
