@@ -99,7 +99,6 @@ fn list_packages(dst: &Path) {
         .cargo_metadata(false)
         .atleast_version(GRPC_VERSION);
     let grpc = cfg.probe("grpc").unwrap();
-    eprintln!("{:?}", grpc.ld_args);
     let mut grpc_libs: HashSet<_> = grpc.libs.iter().cloned().collect();
     let grpc_unsecure = cfg.probe("grpc_unsecure").unwrap();
     let mut grpc_unsecure_libs: HashSet<_> = grpc_unsecure.libs.iter().cloned().collect();
