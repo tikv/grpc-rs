@@ -75,6 +75,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: rustup default nightly
+    - run: sudo ln -s /usr/bin/llvm-symbolizer-14 /usr/bin/llvm-symbolizer
     - run: which cargo && cargo version && clang --version && openssl version
     - run: cargo xtask submodule
     - run: cargo build --no-default-features
