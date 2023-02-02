@@ -61,7 +61,7 @@ impl RouteGuide for GreeterService {
         sink.set_headers(headers);
         ctx.spawn(async move {
             let f = Feature {
-                name: "hello".to_owned(),
+                name: "hello world".to_owned(),
                 ..Default::default()
             };
             sink.send((f, WriteFlags::default())).await.unwrap();
