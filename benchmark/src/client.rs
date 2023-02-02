@@ -367,7 +367,7 @@ impl Client {
                         builder =
                             builder.raw_cfg_string(key, CString::new(arg.get_str_value()).unwrap());
                     } else if arg.has_int_value() {
-                        builder = builder.raw_cfg_int(key, arg.get_int_value() as i32);
+                        builder = builder.raw_cfg_int(key, arg.get_int_value());
                     }
                 }
                 // Check https://github.com/grpc/grpc/issues/31465.

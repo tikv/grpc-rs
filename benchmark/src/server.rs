@@ -57,7 +57,7 @@ impl Server {
                     ch_builder =
                         ch_builder.raw_cfg_string(key, CString::new(arg.get_str_value()).unwrap());
                 } else if arg.has_int_value() {
-                    ch_builder = ch_builder.raw_cfg_int(key, arg.get_int_value() as i32);
+                    ch_builder = ch_builder.raw_cfg_int(key, arg.get_int_value());
                 }
             }
             builder = builder.channel_args(ch_builder.build_args());
