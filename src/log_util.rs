@@ -28,7 +28,7 @@ extern "C" fn delegate(c_args: *mut gpr_log_func_args) {
     let msg = unsafe { CStr::from_ptr(args.message).to_string_lossy() };
     log::logger().log(
         &Record::builder()
-            .args(format_args!("{}", msg))
+            .args(format_args!("{msg}"))
             .level(level)
             .file(file_str.into())
             .line(line.into())

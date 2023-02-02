@@ -64,7 +64,7 @@ fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
 fn clean_up_stale_cache(cxx_compiler: String) {
     // We don't know the cmake output path before it's configured.
     let build_dir = format!("{}/build", env::var("OUT_DIR").unwrap());
-    let path = format!("{}/CMakeCache.txt", build_dir);
+    let path = format!("{build_dir}/CMakeCache.txt");
     let f = match std::fs::File::open(path) {
         Ok(f) => BufReader::new(f),
         // It may be an empty directory.
@@ -140,9 +140,9 @@ fn list_packages(dst: &Path) {
     )
     .unwrap();
     for (name, libs) in outputs {
-        writeln!(f, "const {}: &[&str] = &[", name).unwrap();
+        writeln!(f, "const {name}: &[&str] = &[").unwrap();
         for lib in libs {
-            writeln!(f, "\"{}\",", lib).unwrap();
+            writeln!(f, "\"{lib}\",").unwrap();
         }
         writeln!(f, "];").unwrap();
     }
@@ -276,7 +276,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         GRPC_DEPS
     };
     for l in COMMON_DEPS.iter().chain(libs) {
-        println!("cargo:rustc-link-lib=static={}", l);
+        println!("cargo:rustc-link-lib=static={l}");
     }
 
     if cfg!(feature = "_secure") {
@@ -292,7 +292,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
 }
 
 fn figure_ssl_path(build_dir: &str) {
-    let path = format!("{}/CMakeCache.txt", build_dir);
+    let path = format!("{build_dir}/CMakeCache.txt");
     let f = BufReader::new(std::fs::File::open(&path).unwrap());
     let mut cnt = 0;
     for l in f.lines() {
@@ -339,23 +339,23 @@ fn setup_libz(config: &mut CmakeConfig) {
     // under ${DEP_Z_ROOT}/build. Append the path to CMAKE_PREFIX_PATH to get around it.
     let zlib_root = env::var("DEP_Z_ROOT").unwrap();
     let prefix_path = if let Ok(prefix_path) = env::var("CMAKE_PREFIX_PATH") {
-        format!("{};{}/build", prefix_path, zlib_root)
+        format!("{prefix_path};{zlib_root}/build")
     } else {
-        format!("{}/build", zlib_root)
+        format!("{zlib_root}/build")
     };
     // To avoid linking system library, set lib path explicitly.
-    println!("cargo:rustc-link-search=native={}/build", zlib_root);
-    println!("cargo:rustc-link-search=native={}/lib", zlib_root);
+    println!("cargo:rustc-link-search=native={zlib_root}/build");
+    println!("cargo:rustc-link-search=native={zlib_root}/lib");
     env::set_var("CMAKE_PREFIX_PATH", prefix_path);
 }
 
 fn get_env(name: &str) -> Option<String> {
-    println!("cargo:rerun-if-env-changed={}", name);
+    println!("cargo:rerun-if-env-changed={name}");
     match env::var(name) {
         Ok(s) => Some(s),
         Err(VarError::NotPresent) => None,
         Err(VarError::NotUnicode(s)) => {
-            panic!("unrecognize env var of {}: {:?}", name, s.to_string_lossy());
+            panic!("unrecognize env var of {name}: {:?}", s.to_string_lossy());
         }
     }
 }

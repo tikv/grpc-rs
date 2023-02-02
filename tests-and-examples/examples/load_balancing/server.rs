@@ -41,7 +41,7 @@ impl Greeter for GreeterService {
 
 fn build_server(env: Arc<Environment>, mut port: u16) -> Server {
     let service = create_greeter(GreeterService {
-        name: format!("{}", port),
+        name: format!("{port}"),
     });
     let quota = ResourceQuota::new(Some("HelloServerQuota")).resize_memory(1024 * 1024);
     let ch_builder = ChannelBuilder::new(env.clone()).set_resource_quota(quota);
@@ -63,7 +63,7 @@ fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
     let mut server1 = build_server(env.clone(), 50_051);
-    let mut server2 = build_server(env.clone(), 50_052);
+    let mut server2 = build_server(env, 50_052);
     let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
         info!("Press ENTER to exit...");

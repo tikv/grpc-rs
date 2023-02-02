@@ -31,7 +31,7 @@ impl Greeter for GreeterService {
             *tx_lock.lock().unwrap() = Some(tx);
             let greet = rx.await?;
             let mut resp = HelloReply::default();
-            resp.set_message(format!("{} {}", greet, name));
+            resp.set_message(format!("{greet} {name}"));
             sink.success(resp).await?;
             Ok(())
         }
@@ -124,7 +124,7 @@ impl Greeter for DeadLockService {
         let reporter = self.reporter.clone();
         ctx.spawn(rx.then(|greet| async move {
             let mut resp = HelloReply::default();
-            resp.set_message(format!("{} {}", greet, name));
+            resp.set_message(format!("{greet} {name}"));
             if let Err(e) = sink.success(resp).await {
                 panic!("failed to reply {:?}", e);
             }
@@ -144,23 +144,21 @@ struct NaiveSender<T> {
 }
 
 impl<T> NaiveSender<T> {
-    fn send(self, t: T) -> impl Future<Output = ()> {
-        async move {
-            let timer = Instant::now();
-            while timer.elapsed() < Duration::from_secs(3) {
-                let mut chan = match self.chan.try_lock() {
-                    Ok(c) => c,
-                    Err(_) => continue,
-                };
+    async fn send(self, t: T) {
+        let timer = Instant::now();
+        while timer.elapsed() < Duration::from_secs(3) {
+            let mut chan = match self.chan.try_lock() {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
 
-                chan.data = Some(t);
-                if let Some(t) = chan.waker.take() {
-                    t.wake();
-                }
-                return;
+            chan.data = Some(t);
+            if let Some(t) = chan.waker.take() {
+                t.wake();
             }
-            panic!("failed to acquire lock for sender after 3 seconds.");
+            return;
         }
+        panic!("failed to acquire lock for sender after 3 seconds.");
     }
 }
 
@@ -217,7 +215,7 @@ fn test_deadlock() {
     if let Err(e) = rx.recv_timeout(Duration::from_secs(5)) {
         // Panic will still calling drop method of server, which will wait for
         // deadlock forever.
-        eprintln!("failed to wait for the case to finish: {:?}", e);
+        eprintln!("failed to wait for the case to finish: {e:?}");
         std::process::exit(1);
     }
     let reply = block_on(f).expect("rpc");

@@ -95,7 +95,7 @@ impl EnvBuilder {
             let tx_i = tx.clone();
             let mut builder = ThreadBuilder::new();
             if let Some(ref prefix) = self.name_prefix {
-                builder = builder.name(format!("{}-{}", prefix, i));
+                builder = builder.name(format!("{prefix}-{i}"));
             }
             let after_start = self.after_start.clone();
             let before_stop = self.before_stop.clone();

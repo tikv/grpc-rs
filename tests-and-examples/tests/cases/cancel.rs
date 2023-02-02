@@ -117,7 +117,7 @@ where
         Err(Error::RpcFailure(s)) | Err(Error::RpcFinished(Some(s))) => {
             assert_eq!(s.code(), RpcStatusCode::CANCELLED)
         }
-        Err(Error::RemoteStopped) if sink => return,
+        Err(Error::RemoteStopped) if sink => (),
         Err(e) => panic!("expected cancel, but got: {:?}", e),
         Ok(_) => panic!("expected error, but got: Ok(_)"),
     }
