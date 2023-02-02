@@ -65,7 +65,7 @@ fn clean_up_stale_cache(cxx_compiler: String) {
     // We don't know the cmake output path before it's configured.
     let build_dir = format!("{}/build", env::var("OUT_DIR").unwrap());
     let path = format!("{}/CMakeCache.txt", build_dir);
-    let f = match std::fs::File::open(&path) {
+    let f = match std::fs::File::open(path) {
         Ok(f) => BufReader::new(f),
         // It may be an empty directory.
         Err(_) => return,
@@ -157,6 +157,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
 
         if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
+            println!("cargo:rustc-link-lib=resolv");
         }
 
         // Ensure CoreFoundation be found in macos or ios
