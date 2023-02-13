@@ -326,11 +326,11 @@ impl Drop for BatchContext {
 }
 
 #[inline]
-fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut c_void) {
+fn box_batch_tag(tag: CallTag) -> (*mut grpcwrap_batch_context, *mut CallTag) {
     let tag_box = Box::new(tag);
     (
         tag_box.batch_ctx().unwrap().as_ptr(),
-        Box::into_raw(tag_box) as _,
+        Box::into_raw(tag_box),
     )
 }
 
@@ -341,7 +341,7 @@ where
 {
     let (cq_f, tag) = CallTag::batch_pair(bt);
     let (batch_ptr, tag_ptr) = box_batch_tag(tag);
-    let code = f(batch_ptr, tag_ptr);
+    let code = f(batch_ptr, tag_ptr as *mut c_void);
     if code != grpc_call_error::GRPC_CALL_OK {
         unsafe {
             drop(Box::from_raw(tag_ptr));

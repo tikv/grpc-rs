@@ -50,7 +50,7 @@ pub mod pb_codec {
             }
         } else {
             Err(Error::Codec(
-                format!("message is too large: {} > {}", cap, MAX_MESSAGE_SIZE).into(),
+                format!("message is too large: {cap} > {MAX_MESSAGE_SIZE}").into(),
             ))
         }
     }
@@ -85,7 +85,7 @@ pub mod pr_codec {
             Ok(())
         } else {
             Err(Error::Codec(
-                format!("message is too large: {} > {}", size, MAX_MESSAGE_SIZE).into(),
+                format!("message is too large: {size} > {MAX_MESSAGE_SIZE}").into(),
             ))
         }
     }

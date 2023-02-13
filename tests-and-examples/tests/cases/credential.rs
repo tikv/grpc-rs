@@ -114,7 +114,7 @@ fn test_reload_new() {
     let creds = ChannelCredentialsBuilder::new()
         .root_cert(read_single_crt("ca").unwrap().into())
         .build();
-    let ch = ChannelBuilder::new(env.clone())
+    let ch = ChannelBuilder::new(env)
         .override_ssl_target("rust.test.google.fr")
         .set_credentials(creds)
         .connect(&format!("127.0.0.1:{}", port.clone()));

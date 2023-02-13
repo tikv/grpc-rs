@@ -12,26 +12,32 @@ const TEST_SERVICE: &str = "grpc.test.TestService";
 
 #[track_caller]
 fn assert_status(status: ServingStatus, client: &HealthClient, name: &str) {
-    let mut req = HealthCheckRequest::default();
-    req.service = name.to_string();
+    let req = HealthCheckRequest {
+        service: name.to_string(),
+        ..Default::default()
+    };
     let resp = client.check(&req).unwrap();
-    assert_eq!(resp.status, status.into())
+    assert_eq!(resp.status, status)
 }
 
 #[track_caller]
 fn watch(client: &HealthClient, name: &str) -> ClientSStreamReceiver<HealthCheckResponse> {
-    let mut req = HealthCheckRequest::default();
-    req.service = name.to_string();
+    let req = HealthCheckRequest {
+        service: name.to_string(),
+        ..Default::default()
+    };
     let opt = CallOption::default().timeout(Duration::from_millis(500));
     client.watch_opt(&req, opt).unwrap()
 }
 
 #[track_caller]
 fn assert_code(code: RpcStatusCode, client: &HealthClient, name: &str) {
-    let mut req = HealthCheckRequest::default();
-    req.service = name.to_string();
+    let req = HealthCheckRequest {
+        service: name.to_string(),
+        ..Default::default()
+    };
     match client.check(&req) {
-        Err(Error::RpcFailure(s)) if s.code() == code => return,
+        Err(Error::RpcFailure(s)) if s.code() == code => (),
         r => panic!("{} != {:?}", code, r),
     }
 }
@@ -39,7 +45,7 @@ fn assert_code(code: RpcStatusCode, client: &HealthClient, name: &str) {
 #[track_caller]
 fn assert_next(status: ServingStatus, ss: &mut ClientSStreamReceiver<HealthCheckResponse>) {
     let resp = block_on(ss.next()).unwrap().unwrap();
-    assert_eq!(resp.status, status.into());
+    assert_eq!(resp.status, status);
 }
 
 fn setup() -> (Server, HealthService, HealthClient) {
@@ -55,7 +61,7 @@ fn setup() -> (Server, HealthService, HealthClient) {
         .unwrap();
     server.start();
 
-    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{}", port));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = HealthClient::new(ch);
     (server, service, client)
 }
@@ -119,7 +125,7 @@ fn test_health_watch() {
     let mut seen = 0;
     loop {
         let resp = block_on(statuses.next()).unwrap().unwrap();
-        if resp.status != ServingStatus::Unknown.into() {
+        if resp.status != ServingStatus::Unknown {
             seen += 1;
             continue;
         }

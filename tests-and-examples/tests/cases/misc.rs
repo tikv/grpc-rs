@@ -187,7 +187,7 @@ mod unix_domain_socket {
         let req = HelloRequest::default();
         let resp = client.say_hello(&req).unwrap();
 
-        assert_eq!(resp.get_message(), path, "{:?}", resp);
+        assert_eq!(resp.get_message(), path, "{resp:?}");
     }
 
     #[test]
@@ -355,7 +355,7 @@ fn test_connectivity() {
     // After server is restarted, client should be able to reconnect successfully.
     // A shutdown server should not be restarted again, using a different instance.
     let service = create_greeter(PeerService);
-    let mut server = ServerBuilder::new(env.clone())
+    let mut server = ServerBuilder::new(env)
         .register_service(service)
         .build()
         .unwrap();
@@ -408,7 +408,7 @@ fn test_channelz() {
     assert_eq!(res, Some(String::new()));
 
     res = None;
-    let ch = ChannelBuilder::new(env.clone()).connect(&format!("127.0.0.1:{port}"));
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     assert!(block_on(ch.wait_for_connected(Duration::from_secs(3))));
     channelz::get_top_channels(0, |s| {
         res = Some(s.to_string());

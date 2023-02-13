@@ -2,7 +2,7 @@
 
 #[macro_use]
 extern crate log;
-use rand;
+
 #[macro_use]
 extern crate serde_derive;
 

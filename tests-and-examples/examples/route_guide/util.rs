@@ -3,11 +3,9 @@
 #![allow(unknown_lints)]
 // client and server share different parts of utils.
 #![allow(dead_code)]
-#![allow(cast_lossless)]
+#![allow(clippy::cast_lossless)]
 
 use std::f64::consts::PI;
-
-use serde_json;
 
 use grpcio_proto::example::route_guide::*;
 
