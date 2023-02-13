@@ -6,8 +6,8 @@ use std::io::{self, Read};
 const CERT_DIR: &str = "../grpc-sys/grpc/src/core/tsi/test_creds";
 
 fn cert_path(name: &str, ext: &str) -> String {
-    let p = format!("{}/{}.{}", CERT_DIR, name, ext);
-    println!("reading {}", p);
+    let p = format!("{CERT_DIR}/{name}.{ext}");
+    println!("reading {p}");
     p
 }
 

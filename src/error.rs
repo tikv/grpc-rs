@@ -44,7 +44,7 @@ impl fmt::Display for Error {
                     write!(fmt, "RpcFailure: {} {}", s.code(), s.message())
                 }
             }
-            other_error => write!(fmt, "{:?}", other_error),
+            other_error => write!(fmt, "{other_error:?}"),
         }
     }
 }

@@ -82,7 +82,7 @@ pub fn to_camel_case(name: &str) -> String {
 }
 
 pub fn fq_grpc(item: &str) -> String {
-    format!("::grpcio::{}", item)
+    format!("::grpcio::{item}")
 }
 
 pub enum MethodType {
@@ -125,7 +125,7 @@ mod test {
         ];
 
         for (origin, exp) in cases {
-            let res = super::to_snake_case(&origin);
+            let res = super::to_snake_case(origin);
             assert_eq!(res, exp);
         }
     }
@@ -148,7 +148,7 @@ mod test {
         ];
 
         for (origin, exp) in cases {
-            let res = super::to_camel_case(&origin);
+            let res = super::to_camel_case(origin);
             assert_eq!(res, exp);
         }
     }

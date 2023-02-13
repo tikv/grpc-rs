@@ -30,7 +30,7 @@ fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
         {
             continue;
         }
-        return Err(Error::InvalidMetadata(format!("key {:?} is invalid", key)));
+        return Err(Error::InvalidMetadata(format!("key {key:?} is invalid")));
     }
     let key = if is_upper_case {
         Cow::Owned(key.to_ascii_lowercase())
@@ -372,14 +372,14 @@ mod tests {
         let mut builder = MetadataBuilder::new();
         let mut meta_kvs = vec![];
         for i in 0..5 {
-            let key = format!("K{}", i);
-            let val = format!("v{}", i);
+            let key = format!("K{i}");
+            let val = format!("v{i}");
             builder.add_str(&key, &val).unwrap();
             meta_kvs.push((key.to_ascii_lowercase(), val.into_bytes()));
         }
         for i in 5..10 {
-            let key = format!("k{}-Bin", i);
-            let val = format!("v{}", i);
+            let key = format!("k{i}-Bin");
+            let val = format!("v{i}");
             builder.add_bytes(&key, val.as_bytes()).unwrap();
             meta_kvs.push((key.to_ascii_lowercase(), val.into_bytes()));
         }

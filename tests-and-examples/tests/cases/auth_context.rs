@@ -48,7 +48,7 @@ impl Greeter for GreeterService {
 fn test_auth_context() {
     let env = Arc::new(EnvBuilder::new().build());
     let (tx, rx) = mpsc::channel();
-    let service = create_greeter(GreeterService { tx: tx });
+    let service = create_greeter(GreeterService { tx });
     let (server_crt, server_key) = read_cert_pair("server1").unwrap();
     let server_credentials = grpcio::ServerCredentialsBuilder::new()
         .root_cert(

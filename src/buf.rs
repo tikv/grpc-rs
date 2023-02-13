@@ -512,30 +512,18 @@ mod tests {
                 let mut dest = [0; 7];
                 let amt = reader.read(&mut dest).unwrap();
 
-                assert_eq!(
-                    dest[..amt],
-                    expect[..amt],
-                    "len: {}, nslice: {}",
-                    len,
-                    n_slice
-                );
+                assert_eq!(dest[..amt], expect[..amt], "len: {len}, nslice: {n_slice}");
 
                 // Read after move.
                 let mut box_reader = Box::new(reader);
                 let amt = box_reader.read(&mut dest).unwrap();
-                assert_eq!(
-                    dest[..amt],
-                    expect[..amt],
-                    "len: {}, nslice: {}",
-                    len,
-                    n_slice
-                );
+                assert_eq!(dest[..amt], expect[..amt], "len: {len}, nslice: {n_slice}");
 
                 // Test read_to_end.
                 let mut reader = new_message_reader(source.clone(), n_slice);
                 let mut dest = vec![];
                 reader.read_to_end(&mut dest).unwrap();
-                assert_eq!(dest, expect, "len: {}, nslice: {}", len, n_slice);
+                assert_eq!(dest, expect, "len: {len}, nslice: {n_slice}");
 
                 assert_eq!(0, reader.len());
                 assert_eq!(0, reader.read(&mut [1]).unwrap());
@@ -545,19 +533,11 @@ mod tests {
                 reader.consume(source.len() * (n_slice - 1));
                 let mut dest = vec![];
                 reader.read_to_end(&mut dest).unwrap();
-                assert_eq!(
-                    dest.len(),
-                    source.len(),
-                    "len: {}, nslice: {}",
-                    len,
-                    n_slice
-                );
+                assert_eq!(dest.len(), source.len(), "len: {len}, nslice: {n_slice}");
                 assert_eq!(
                     *dest,
                     expect[expect.len() - source.len()..],
-                    "len: {}, nslice: {}",
-                    len,
-                    n_slice
+                    "len: {len}, nslice: {n_slice}"
                 );
                 assert_eq!(0, reader.len());
                 assert_eq!(0, reader.read(&mut [1]).unwrap());

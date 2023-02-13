@@ -34,9 +34,9 @@ fn format_user_agent_string(agent: &str) -> CString {
     let version = env!("CARGO_PKG_VERSION");
     let trimed_agent = agent.trim();
     let val = if trimed_agent.is_empty() {
-        format!("grpc-rust/{}", version)
+        format!("grpc-rust/{version}")
     } else {
-        format!("{} grpc-rust/{}", trimed_agent, version)
+        format!("{trimed_agent} grpc-rust/{version}")
     };
     CString::new(val).unwrap()
 }

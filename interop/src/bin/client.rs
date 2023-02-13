@@ -79,7 +79,7 @@ fn main() {
         };
         builder = builder.set_credentials(creds);
     }
-    let channel = builder.connect(&format!("{}:{}", host, port));
+    let channel = builder.connect(&format!("{host}:{port}"));
 
     let client = Client::new(channel);
     futures_executor::block_on(run_test(client, case)).unwrap();

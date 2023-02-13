@@ -111,7 +111,7 @@ impl<'a> CodeWriter<'a> {
     where
         F: Fn(&mut CodeWriter),
     {
-        self.block(&format!("{} {{", prefix), "}", cb);
+        self.block(&format!("{prefix} {{"), "}", cb);
     }
 
     pub fn impl_self_block<S: AsRef<str>, F>(&mut self, name: S, cb: F)
@@ -132,22 +132,22 @@ impl<'a> CodeWriter<'a> {
     where
         F: Fn(&mut CodeWriter),
     {
-        self.expr_block(&format!("pub trait {}", name), cb);
+        self.expr_block(&format!("pub trait {name}"), cb);
     }
 
     pub fn field_entry(&mut self, name: &str, value: &str) {
-        self.write_line(&format!("{}: {},", name, value));
+        self.write_line(&format!("{name}: {value},"));
     }
 
     pub fn field_decl(&mut self, name: &str, field_type: &str) {
-        self.write_line(&format!("{}: {},", name, field_type));
+        self.write_line(&format!("{name}: {field_type},"));
     }
 
     pub fn comment(&mut self, comment: &str) {
         if comment.is_empty() {
             self.write_line("//");
         } else {
-            self.write_line(&format!("// {}", comment));
+            self.write_line(&format!("// {comment}"));
         }
     }
 
@@ -156,9 +156,9 @@ impl<'a> CodeWriter<'a> {
         F: Fn(&mut CodeWriter),
     {
         if public {
-            self.expr_block(&format!("pub fn {}", sig), cb);
+            self.expr_block(&format!("pub fn {sig}"), cb);
         } else {
-            self.expr_block(&format!("fn {}", sig), cb);
+            self.expr_block(&format!("fn {sig}"), cb);
         }
     }
 

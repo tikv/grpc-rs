@@ -735,7 +735,7 @@ pub fn execute_unary<P, Q, F>(
         Err(e) => {
             let status = RpcStatus::with_message(
                 RpcStatusCode::INTERNAL,
-                format!("Failed to deserialize response message: {:?}", e),
+                format!("Failed to deserialize response message: {e:?}"),
             );
             call.abort(&status);
             return;
@@ -781,7 +781,7 @@ pub fn execute_server_streaming<P, Q, F>(
         Err(e) => {
             let status = RpcStatus::with_message(
                 RpcStatusCode::INTERNAL,
-                format!("Failed to deserialize response message: {:?}", e),
+                format!("Failed to deserialize response message: {e:?}"),
             );
             call.abort(&status);
             return;

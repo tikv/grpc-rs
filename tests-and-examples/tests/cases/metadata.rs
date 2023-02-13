@@ -25,9 +25,11 @@ impl Greeter for GreeterService {
         sink.set_headers(headers);
 
         if req.name == "root" {
-            let mut status = Status::default();
-            status.code = RpcStatusCode::INVALID_ARGUMENT.into();
-            status.message = "name can't be root".to_owned();
+            let mut status = Status {
+                code: RpcStatusCode::INVALID_ARGUMENT.into(),
+                message: "name can't be root".to_owned(),
+                ..Default::default()
+            };
             let any = protobuf::well_known_types::Any::pack(&req).unwrap();
             status.details.push(any);
             ctx.spawn(
@@ -58,8 +60,10 @@ impl RouteGuide for GreeterService {
         let headers = ctx.request_headers().clone();
         sink.set_headers(headers);
         ctx.spawn(async move {
-            let mut f = Feature::default();
-            f.name = "hello world".to_owned();
+            let f = Feature {
+                name: "hello world".to_owned(),
+                ..Default::default()
+            };
             sink.send((f, WriteFlags::default())).await.unwrap();
             sink.close().await.unwrap();
         });
@@ -107,8 +111,7 @@ fn test_metadata() {
     assert_eq!(
         msg.as_ref().map(|f| f.name.as_str()),
         Some("hello world"),
-        "{:?}",
-        msg
+        "{msg:?}"
     );
     assert_eq!(block_on(resp.try_next()).unwrap(), None);
 }
