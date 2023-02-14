@@ -3865,10 +3865,11 @@ pub struct grpcwrap_batch_context__bindgen_ty_2 {
     pub trailing_metadata: grpc_metadata_array,
     pub status: grpc_status_code::Type,
     pub status_details: grpc_slice,
+    pub error_string: *const ::std::os::raw::c_char,
 }
 impl ::std::fmt::Debug for grpcwrap_batch_context__bindgen_ty_2 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        write ! (f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?} }}" , self . trailing_metadata , self . status , self . status_details)
+        write ! (f , "grpcwrap_batch_context__bindgen_ty_2 {{ trailing_metadata: {:?}, status: {:?}, status_details: {:?}, error_string: {:?} }}" , self . trailing_metadata , self . status , self . status_details , self . error_string)
     }
 }
 impl ::std::fmt::Debug for grpcwrap_batch_context {
@@ -4000,6 +4001,11 @@ extern "C" {
     pub fn grpcwrap_batch_context_recv_status_on_client_trailing_metadata(
         ctx: *const grpcwrap_batch_context,
     ) -> *const grpc_metadata_array;
+}
+extern "C" {
+    pub fn grpcwrap_batch_context_recv_status_on_client_error_string(
+        ctx: *const grpcwrap_batch_context,
+    ) -> *const ::std::os::raw::c_char;
 }
 extern "C" {
     pub fn grpcwrap_request_call_context_ref_call(
