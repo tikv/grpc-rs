@@ -1,3 +1,9 @@
+# 0.12.1 - 2023-02-14
+
+- Provide more debug info for RpcStatus (#603)
+- Compile on latest stable (#605)
+- Allow accessing grpcio client and channel (#597)
+
 # 0.12.0 - 2022-11-04
 
 - Update prost to 0.11 (#595)
