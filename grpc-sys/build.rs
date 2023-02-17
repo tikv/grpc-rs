@@ -526,7 +526,6 @@ fn main() {
         cc.flag("-std=c++11");
     }
     cc.file("grpc_wrap.cc");
-    cc.warnings_into_errors(true);
     cc.compile("libgrpc_wrap.a");
 
     config_binding_path();
