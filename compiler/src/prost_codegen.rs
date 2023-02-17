@@ -74,7 +74,26 @@ where
     Ok(packages)
 }
 
-struct Generator;
+/// [`ServiceGenerator`](prost_build::ServiceGenerator) for generating grpcio services.
+///
+/// Can be used for when there is a need to deviate from the common use case of
+/// [`compile_protos()`]. One can provide a `Generator` instance to
+/// [`prost_build::Config::service_generator()`].
+///
+/// ```rust
+/// use prost_build::Config;
+/// use grpcio_compiler::prost_codegen::Generator;
+///
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let mut config = Config::new();
+///     config.service_generator(Box::new(Generator));
+///     // Modify config as needed
+///     config.compile_protos(&["src/frontend.proto", "src/backend.proto"], &["src"])?;
+///     Ok(())
+/// }
+/// ```
+pub struct Generator;
 
 impl ServiceGenerator for Generator {
     fn generate(&mut self, service: Service, buf: &mut String) {
