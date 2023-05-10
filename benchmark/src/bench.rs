@@ -18,10 +18,19 @@ use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::util;
 use grpcio::GrpcSlice;
 
+#[cfg(feature = "protobuf-codec")]
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.get_response_size() as usize);
     let mut resp = SimpleResponse::default();
     resp.set_payload(payload);
+    resp
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
+    let payload = util::new_payload(req.response_size as usize);
+    let mut resp = SimpleResponse::default();
+    resp.payload = Some(payload).into();
     resp
 }
 

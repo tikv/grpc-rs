@@ -28,6 +28,9 @@ use protobuf::compiler_plugin;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
 
+#[cfg(feature = "protobufv3-codec")]
+use protobuf_codegen;
+
 struct CodeWriter<'a> {
     writer: &'a mut (dyn Write + 'a),
     indent: String,
@@ -238,8 +241,14 @@ impl<'a> MethodGen<'a> {
         to_snake_case(self.proto.get_name())
     }
 
+    #[cfg(feature = "protobuf-codec")]
     fn fq_name(&self) -> String {
         format!("\"{}/{}\"", self.service_path, &self.proto.get_name())
+    }
+
+    #[cfg(feature = "protobufv3-codec")]
+    fn fq_name(&self) -> String {
+        format!("\"{}/{}\"", self.service_path, &self.proto.name)
     }
 
     fn const_method_name(&self) -> String {
@@ -537,24 +546,48 @@ struct ServiceGen<'a> {
     methods: Vec<MethodGen<'a>>,
 }
 
+#[cfg(feature = "protobuf-codec")]
+fn proto_name(proto: &ServiceDescriptorProto) -> &str {
+    proto.get_name()
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn service_path(file: &FileDescriptorProto) -> &str {
+    proto.name
+}
+
+#[cfg(feature = "protobuf-codec")]
+fn service_path<'a>(proto: &'a ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
+    if file.get_package().is_empty() {
+        format!("/{}", proto.get_name())
+    } else {
+        format!("/{}.{}", file.get_package(), proto.get_name())
+    }
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn service_path(proto: &'a ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
+    if file.package.is_empty() {
+        format!("/{}", proto.name)
+    } else {
+        format!("/{}.{}", file.package, proto.name)
+    };
+}
+
 impl<'a> ServiceGen<'a> {
     fn new(
         proto: &'a ServiceDescriptorProto,
         file: &FileDescriptorProto,
         root_scope: &'a RootScope,
     ) -> ServiceGen<'a> {
-        let service_path = if file.get_package().is_empty() {
-            format!("/{}", proto.get_name())
-        } else {
-            format!("/{}.{}", file.get_package(), proto.get_name())
-        };
+        let service_path = service_path(proto, file);
         let methods = proto
             .get_method()
             .iter()
             .map(|m| {
                 MethodGen::new(
                     m,
-                    util::to_camel_case(proto.get_name()),
+                    util::to_camel_case(proto_name(proto)),
                     service_path.clone(),
                     root_scope,
                 )
@@ -564,8 +597,14 @@ impl<'a> ServiceGen<'a> {
         ServiceGen { proto, methods }
     }
 
+    #[cfg(feature = "protobuf-codec")]
     fn service_name(&self) -> String {
         util::to_camel_case(self.proto.get_name())
+    }
+
+    #[cfg(feature = "protobufv3-codec")]
+    fn service_name(&self) -> String {
+        util::to_camel_case(self.proto.name)
     }
 
     fn client_name(&self) -> String {
@@ -651,6 +690,7 @@ impl<'a> ServiceGen<'a> {
     }
 }
 
+#[cfg(feature = "protobuf-codec")]
 fn gen_file(
     file: &FileDescriptorProto,
     root_scope: &RootScope,
@@ -678,12 +718,76 @@ fn gen_file(
     })
 }
 
+#[cfg(feature = "protobufv3-codec")]
+fn gen_file(
+    file: &FileDescriptorProto,
+    root_scope: &RootScope,
+) -> Option<compiler_plugin::GenResult> {
+    if file.service.is_empty() {
+        return None;
+    }
+
+    let base = protobuf::descriptorx::proto_path_to_rust_mod(file.name);
+
+    let mut v = Vec::new();
+    {
+        let mut w = CodeWriter::new(&mut v);
+        w.write_generated();
+
+        for service in file.service {
+            w.write_line("");
+            ServiceGen::new(service, file, root_scope).write(&mut w);
+        }
+    }
+
+    Some(compiler_plugin::GenResult {
+        name: base + "_grpc.rs",
+        content: v,
+    })
+}
+
+#[cfg(feature = "protobuf-codec")]
 pub fn gen(
     file_descriptors: &[FileDescriptorProto],
     files_to_generate: &[String],
 ) -> Vec<compiler_plugin::GenResult> {
     let files_map: HashMap<&str, &FileDescriptorProto> =
         file_descriptors.iter().map(|f| (f.get_name(), f)).collect();
+
+    let root_scope = RootScope { file_descriptors };
+
+    let mut results = Vec::new();
+
+    for file_name in files_to_generate {
+        let file = files_map[&file_name[..]];
+
+        if file.get_service().is_empty() {
+            continue;
+        }
+
+        results.extend(gen_file(file, &root_scope).into_iter());
+    }
+
+    results
+}
+
+#[cfg(feature = "protobufv3-codec")]
+pub fn gen(
+    file_descriptors: &[FileDescriptorProto],
+    files_to_generate: &[String],
+) -> Vec<compiler_plugin::GenResult> {
+    let files_map: HashMap<&str, &FileDescriptorProto> =
+        file_descriptors.iter().map(|f| (f.get_name(), f)).collect();
+
+    let res = protobuf_codegen::Codegen::new()
+        .protoc()
+        // All inputs and imports from the inputs must reside in `includes` directories.
+        .includes(&["src/protos"])
+        // Inputs must reside in some of include paths.
+        .input(file_descriptors)
+        // Specify output directory relative to Cargo soutput directory.
+        .cargo_out_dir("protos")
+        .run();
 
     let root_scope = RootScope { file_descriptors };
 

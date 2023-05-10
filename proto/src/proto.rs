@@ -217,14 +217,44 @@ pub mod protobuf {
         }
     }
     pub mod testing {
-        pub mod control;
-        pub mod empty;
-        pub mod messages;
-        pub mod payloads;
-        pub mod services;
-        pub mod services_grpc;
-        pub mod stats;
-        pub mod test;
-        pub mod test_grpc;
+      pub mod control;
+      pub mod empty;
+      pub mod messages;
+      pub mod payloads;
+      pub mod services;
+      pub mod services_grpc;
+      pub mod stats;
+      pub mod test;
+      pub mod test_grpc;
+  }
+}
+
+#[cfg(feature = "protobufv3-codec")]
+#[allow(deprecated)]
+pub mod protobuf_v3 {
+    pub mod example {
+        pub mod helloworld;
+        pub mod helloworld_grpc;
+
+        pub mod route_guide;
+        pub mod route_guide_grpc;
     }
+    pub mod google {
+        pub mod rpc {
+            pub mod status;
+
+            pub use status::*;
+        }
+    }
+    pub mod testing {
+      pub mod control;
+      pub mod empty;
+      pub mod messages;
+      pub mod payloads;
+      pub mod services;
+      pub mod services_grpc;
+      pub mod stats;
+      pub mod test;
+      pub mod test_grpc;
+  }
 }

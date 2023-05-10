@@ -193,6 +193,7 @@ impl Histogram {
         (value.ln() * self.one_on_log_multiplier) as usize
     }
 
+    #[cfg(feature = "protobuf-codec")]
     pub fn report(&mut self, reset: bool) -> HistogramData {
         let mut data = HistogramData::default();
         data.set_count(f64::from(self.count));
@@ -201,11 +202,24 @@ impl Histogram {
         data.set_min_seen(self.min);
         data.set_max_seen(self.max);
         data.set_bucket(self.buckets.clone());
-
         if reset {
             self.clear();
         }
+        data
+    }
 
+    #[cfg(feature = "protobufv3-codec")]
+    pub fn report(&mut self, reset: bool) -> HistogramData {
+        let mut data = HistogramData::default();
+        data.count = f64::from(self.count);
+        data.sum = self.sum;
+        data.sum_of_squares = self.sum_of_squares;
+        data.min_seen = self.min;
+        data.max_seen = self.max;
+        data.bucket = self.buckets.clone();
+        if reset {
+            self.clear();
+        }
         data
     }
 

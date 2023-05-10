@@ -6,7 +6,10 @@ use grpcio::{
 };
 use std::convert::TryFrom;
 
-#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
+#[cfg(all(
+    any(feature = "protobuf-codec", feature = "protobufv3-codec"),
+    not(feature = "prost-codec")
+))]
 use crate::testing::messages::{Payload, ResponseParameters};
 #[cfg(feature = "prost-codec")]
 use crate::testing::{Payload, ResponseParameters};
@@ -47,7 +50,11 @@ impl TryFrom<grpcio::RpcStatus> for Status {
     fn try_from(value: grpcio::RpcStatus) -> grpcio::Result<Self> {
         let mut s = Status::default();
         #[cfg(feature = "protobuf-codec")]
-        protobuf::Message::merge_from_bytes(&mut s, value.details())?;
+        protobuf::Message::merge_from_bytes(&mut s, value.details())
+            .map_err(|_err| grpcio::Error::RemoteStopped)?;
+        #[cfg(feature = "protobufv3-codec")]
+        protobufv3::Message::merge_from_bytes(&mut s, value.details())
+            .map_err(|_err| grpcio::Error::RemoteStopped)?;
         #[cfg(feature = "prost-codec")]
         prost::Message::merge(&mut s, value.details())?;
         if s.code == value.code().into() {
@@ -76,7 +83,11 @@ impl TryFrom<Status> for grpcio::RpcStatus {
 
     fn try_from(value: Status) -> grpcio::Result<Self> {
         #[cfg(feature = "protobuf-codec")]
-        let details = protobuf::Message::write_to_bytes(&value)?;
+        let details = protobuf::Message::write_to_bytes(&value)
+            .map_err(|_err| grpcio::Error::RemoteStopped)?;
+        #[cfg(feature = "protobufv3-codec")]
+        let details = protobufv3::Message::write_to_bytes(&value)
+            .map_err(|_err| grpcio::Error::RemoteStopped)?;
         #[cfg(feature = "prost-codec")]
         let details = {
             let mut v = vec![];

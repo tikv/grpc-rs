@@ -1,6 +1,6 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
-use crate::proto::{Health, HealthCheckRequest, HealthCheckResponse, ServingStatus};
+use crate::proto::{Health, HealthCheckRequest, HealthCheckResponse};
 use futures_util::{FutureExt as _, SinkExt as _, Stream, StreamExt as _};
 use grpcio::{RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, UnarySink, WriteFlags};
 use log::info;
@@ -14,11 +14,37 @@ use std::task::{Context, Poll, Waker};
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufEnum;
 
+#[cfg(feature = "protobuf-codec")]
+use crate::proto::ServingStatus;
+
+#[cfg(feature = "protobufv3-codec")]
+use crate::proto::health_check_response::ServingStatus;
+
+#[cfg(feature = "protobuf-codec")]
+mod constants {
+    use crate::proto::ServingStatus;
+    pub const NOT_SERVING: ServingStatus = ServingStatus::NotServing;
+    pub const SERVICE_UNKNOWN: ServingStatus = ServingStatus::ServiceUnknown;
+}
+
+#[cfg(feature = "protobufv3-codec")]
+mod constants {
+    use crate::proto::health_check_response::ServingStatus;
+    pub const NOT_SERVING: ServingStatus = ServingStatus::NOT_SERVING;
+    pub const SERVICE_UNKNOWN: ServingStatus = ServingStatus::SERVICE_UNKNOWN;
+}
+
 const VERSION_STEP: usize = 8;
 const STATUS_MASK: usize = 7;
 
+#[cfg(feature = "protobuf-codec")]
 fn state_to_status(state: usize) -> ServingStatus {
     ServingStatus::from_i32((state & STATUS_MASK) as i32).unwrap()
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn state_to_status(state: usize) -> ServingStatus {
+    ::protobufv3::Enum::from_i32((state & STATUS_MASK) as i32).unwrap()
 }
 
 /// Struct that stores the state of a service and wake all subscribers when there
@@ -155,10 +181,10 @@ impl HealthService {
         let mut inner = self.inner.lock().unwrap();
         inner.shutdown = true;
         for val in inner.status.values_mut() {
-            *val = ServingStatus::NotServing;
+            *val = constants::NOT_SERVING;
         }
         for cast in inner.casts.values() {
-            cast.broadcast(ServingStatus::NotServing);
+            cast.broadcast(constants::NOT_SERVING);
         }
     }
 }
@@ -211,7 +237,7 @@ impl Health for HealthService {
             } else {
                 let status = match inner.status.get(&name) {
                     Some(s) => *s,
-                    None => ServingStatus::ServiceUnknown,
+                    None => constants::SERVICE_UNKNOWN,
                 };
                 let c = Arc::new(StatusCast::new(status));
                 inner.casts.insert(name.clone(), c.clone());

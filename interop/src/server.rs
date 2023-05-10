@@ -36,6 +36,7 @@ fn may_echo_metadata(ctx: &RpcContext) -> Metadata {
 #[derive(Clone)]
 pub struct InteropTestService;
 
+#[cfg(feature = "protobuf-codec")]
 impl TestService for InteropTestService {
     fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
         let res = Empty::default();
@@ -170,4 +171,142 @@ impl TestService for InteropTestService {
         .map(|_| ());
         ctx.spawn(f)
     }
+}
+
+
+#[cfg(feature = "protobufv3-codec")]
+impl TestService for InteropTestService {
+  fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
+      let res = Empty::default();
+      let f = resp
+          .success(res)
+          .map_err(|e| panic!("failed to send response: {:?}", e))
+          .map(|_| ());
+      ctx.spawn(f)
+  }
+
+  fn unary_call(
+      &mut self,
+      ctx: RpcContext,
+      req: SimpleRequest,
+      mut sink: UnarySink<SimpleResponse>,
+  ) {
+      let metadata = may_echo_metadata(&ctx);
+      if !metadata.is_empty() {
+          sink.set_headers(metadata);
+      }
+      if let Some(response_status) = &req.response_status.0 {
+          let code = response_status.code;
+          let msg = &response_status.message;
+          let status = RpcStatus::with_message(code, msg.to_string());
+          let f = sink
+              .fail(status)
+              .map_err(|e| panic!("failed to send response: {:?}", e))
+              .map(|_| ());
+          ctx.spawn(f);
+          return;
+      }
+      let resp_size = req.response_size;
+      let mut resp = SimpleResponse::default();
+      resp.payload = Some(util::new_payload(resp_size as usize)).into();
+      let f = sink
+          .success(resp)
+          .map_err(|e| panic!("failed to send response: {:?}", e))
+          .map(|_| ());
+      ctx.spawn(f)
+  }
+
+  fn streaming_output_call(
+      &mut self,
+      ctx: RpcContext,
+      req: StreamingOutputCallRequest,
+      mut sink: ServerStreamingSink<StreamingOutputCallResponse>,
+  ) {
+      let f = async move {
+          for param in req.response_parameters.into_iter() {
+              let mut resp = StreamingOutputCallResponse::default();
+              resp.payload = Some(util::new_payload(param.size as usize)).into();
+              sink.send((resp, WriteFlags::default())).await?;
+          }
+          sink.close().await?;
+          Ok(())
+      }
+      .map_err(|e: grpcio::Error| panic!("failed to send response: {:?}", e))
+      .map(|_| ());
+      ctx.spawn(f)
+  }
+
+  fn streaming_input_call(
+      &mut self,
+      ctx: RpcContext,
+      mut stream: RequestStream<StreamingInputCallRequest>,
+      sink: ClientStreamingSink<StreamingInputCallResponse>,
+  ) {
+      let f = async move {
+          let mut s = 0;
+          while let Some(req) = stream.try_next().await? {
+              s += req.payload.body.len();
+          }
+
+          let mut resp = StreamingInputCallResponse::default();
+          resp.aggregated_payload_size = s as i32;
+          sink.success(resp).await
+      }
+      .map_err(|e| match e {
+          grpc::Error::RemoteStopped => {}
+          e => error!("failed to send streaming input: {:?}", e),
+      })
+      .map(|_| ());
+      ctx.spawn(f)
+  }
+
+  fn full_duplex_call(
+      &mut self,
+      ctx: RpcContext,
+      mut stream: RequestStream<StreamingOutputCallRequest>,
+      mut sink: DuplexSink<StreamingOutputCallResponse>,
+  ) {
+      let metadata = may_echo_metadata(&ctx);
+      if !metadata.is_empty() {
+          sink.set_headers(metadata);
+      }
+      let f = async move {
+          while let Some(req) = stream.try_next().await? {
+              if let Some(response_status) = &req.response_status.clone().into_option() {
+                  let code = response_status.code;
+                  let msg = String::from(&response_status.message);
+                  let status = RpcStatus::with_message(code, msg);
+                  sink.fail(status).await?;
+                  return Ok(());
+              }
+
+              let mut resp = StreamingOutputCallResponse::default();
+              if let Some(param) = req.response_parameters.get(0) {
+                  resp.payload = Some(util::new_payload(param.size as usize)).into();
+              }
+              // A workaround for timeout_on_sleeping_server test.
+              // The request only has 27182 bytes of zeros in payload.
+              //
+              // Client timeout 1ms is too short for grpcio. The server
+              // can response in 1ms. To make the test stable, the server
+              // sleeps 1s explicitly.
+              if req.payload.body.len() == 27182
+                  && req.response_parameters.is_empty()
+                  && req.response_status.is_none()
+              {
+                  Delay::new(Duration::from_secs(1)).await;
+              }
+              sink.send((resp, WriteFlags::default())).await?;
+          }
+          sink.close().await?;
+          Ok(())
+      }
+      .map_err(|e: grpc::Error| {
+          if !matches!(e, grpc::Error::RemoteStopped) {
+              error!("failed to handle duplex call: {:?}", e);
+          }
+      })
+      .map(|_| ());
+      ctx.spawn(f)
+  }
 }

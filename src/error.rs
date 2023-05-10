@@ -9,6 +9,9 @@ use crate::grpc_sys::grpc_call_error;
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
 
+#[cfg(feature = "protobufv3-codec")]
+use protobufv3::Error as ProtobufError;
+
 /// Errors generated from this library.
 #[derive(Debug)]
 pub enum Error {
@@ -58,7 +61,7 @@ impl error::Error for Error {
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 impl From<ProtobufError> for Error {
     fn from(e: ProtobufError) -> Error {
         Error::Codec(Box::new(e))
@@ -84,18 +87,18 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[cfg(all(test, feature = "protobuf-codec"))]
 mod tests {
-    use std::error::Error as StdError;
+  use std::error::Error as StdError;
 
-    use protobuf::error::WireError;
-    use protobuf::ProtobufError;
+  use protobuf::error::WireError;
+  use protobuf::ProtobufError;
 
-    use super::Error;
+  use super::Error;
 
     #[test]
     fn test_convert() {
-        let error = ProtobufError::WireError(WireError::UnexpectedEof);
-        let e: Error = error.into();
-        assert_eq!(e.to_string(), "Codec(WireError(UnexpectedEof))");
-        assert!(e.source().is_some());
+      let error = ProtobufError::WireError(WireError::UnexpectedEof);
+      let e: Error = error.into();
+      assert_eq!(e.to_string(), "Codec(WireError(UnexpectedEof))");
+      assert!(e.source().is_some());
     }
 }
