@@ -6,11 +6,12 @@ publish = false
 
 [features]
 default = ["protobuf-codec"]
-protobuf-codec = ["grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
+protobuf-codec = ["grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "dep:protobuf"]
+protobufv3-codec = ["grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "dep:protobufv3"]
 prost-codec = ["grpcio/prost-codec", "grpcio-proto/prost-codec"]
 
 [dependencies]
-grpcio = { path = ".." }
+grpcio = { path = "..", default-features = false  }
 grpcio-proto = { path = "../proto", default-features = false }
 futures-channel = "0.3"
 futures-executor = "0.3"
@@ -28,6 +29,8 @@ slog-async = "2.1"
 slog-stdlog = "4.0"
 slog-scope = "4.0"
 slog-term = "2.2"
+protobuf = { version = "2", optional = true }
+protobufv3 = { package = "protobuf", version = "3.2", optional = true }
 
 [[bin]]
 name = "qps_worker"

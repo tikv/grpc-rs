@@ -4,11 +4,17 @@ version = "0.1.0"
 edition = "2018"
 publish = false
 
+[features]
+default = ["protobuf-codec"]
+protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
+protobufv3-codec = ["protobufv3", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec"]
+
 [dependencies]
-grpcio = { path = ".." }
-grpcio-sys = { path = "../grpc-sys" }
-grpcio-proto = { path = "../proto" }
-protobuf = "2"
+grpcio = { path = "..", default-features = false}
+grpcio-sys = { path = "../grpc-sys", default-features = false}
+grpcio-proto = { path = "../proto", default-features = false}
+protobuf = { version = "2", optional = true }
+protobufv3 = { package = "protobuf", version = "3.2", optional = true }
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 log = "0.4"

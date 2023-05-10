@@ -22,6 +22,7 @@ libc = "0.2"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 protobuf = { version = "2.0", optional = true }
+protobufv3 = { package = "protobuf", version = "3.2", optional = true }
 prost = { version = "0.11", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
@@ -44,6 +45,7 @@ exclude = ["xtask"]
 default = ["protobuf-codec", "boringssl"]
 _secure = []
 protobuf-codec = ["protobuf"]
+protobufv3-codec = ["protobufv3"]
 prost-codec = ["prost", "bytes"]
 nightly = []
 boringssl = ["grpcio-sys/boringssl", "_secure"]
