@@ -597,14 +597,12 @@ impl<'a> ServiceGen<'a> {
         ServiceGen { proto, methods }
     }
 
-    #[cfg(feature = "protobuf-codec")]
     fn service_name(&self) -> String {
-        util::to_camel_case(self.proto.get_name())
-    }
+      #[cfg(feature = "protobuf-codec")]
+      return  util::to_camel_case(self.proto.get_name());
 
-    #[cfg(feature = "protobufv3-codec")]
-    fn service_name(&self) -> String {
-        util::to_camel_case(self.proto.name)
+      #[cfg(feature = "protobufv3-codec")]
+      return  util::to_camel_case(self.proto.name);
     }
 
     fn client_name(&self) -> String {
