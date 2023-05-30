@@ -689,11 +689,20 @@ impl<'a> ServiceGen<'a> {
 }
 
 #[cfg(feature = "protobuf-codec")]
+fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto]{
+  file.get_service()
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto]{
+  file.service
+}
+
 fn gen_file(
     file: &FileDescriptorProto,
     root_scope: &RootScope,
 ) -> Option<compiler_plugin::GenResult> {
-    if file.get_service().is_empty() {
+    if get_service(file).is_empty() {
         return None;
     }
 
@@ -704,35 +713,7 @@ fn gen_file(
         let mut w = CodeWriter::new(&mut v);
         w.write_generated();
 
-        for service in file.get_service() {
-            w.write_line("");
-            ServiceGen::new(service, file, root_scope).write(&mut w);
-        }
-    }
-
-    Some(compiler_plugin::GenResult {
-        name: base + "_grpc.rs",
-        content: v,
-    })
-}
-
-#[cfg(feature = "protobufv3-codec")]
-fn gen_file(
-    file: &FileDescriptorProto,
-    root_scope: &RootScope,
-) -> Option<compiler_plugin::GenResult> {
-    if file.service.is_empty() {
-        return None;
-    }
-
-    let base = protobuf::descriptorx::proto_path_to_rust_mod(file.name);
-
-    let mut v = Vec::new();
-    {
-        let mut w = CodeWriter::new(&mut v);
-        w.write_generated();
-
-        for service in file.service {
+        for service in get_service(file) {
             w.write_line("");
             ServiceGen::new(service, file, root_scope).write(&mut w);
         }
