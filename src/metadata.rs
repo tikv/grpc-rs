@@ -19,11 +19,11 @@ fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
     let mut is_upper_case = false;
     for b in key.as_bytes() {
         let b = *b;
-        if (b'A'..=b'Z').contains(&b) {
+        if b.is_ascii_uppercase() {
             is_upper_case = true;
             continue;
-        } else if (b'a'..=b'z').contains(&b)
-            || (b'0'..=b'9').contains(&b)
+        } else if b.is_ascii_lowercase()
+            || b.is_ascii_digit()
             || b == b'_'
             || b == b'-'
             || b == b'.'
