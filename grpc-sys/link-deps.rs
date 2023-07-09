@@ -60,7 +60,11 @@ const COMMON_DEPS: &[&str] = &[
     "absl_throw_delegate",
     "absl_time",
     "absl_time_zone",
+    "address_sorting",
+    "cares",
     "gpr",
+    "upb",
+    "z",
 ];
 const GRPC_DEPS: &[&str] = &["grpc"];
-const GRPC_UNSECURE_DEPS: &[&str] = &["address_sorting", "cares", "grpc_unsecure", "upb", "z"];
+const GRPC_UNSECURE_DEPS: &[&str] = &["grpc_unsecure"];
