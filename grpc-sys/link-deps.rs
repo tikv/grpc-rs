@@ -63,6 +63,7 @@ const COMMON_DEPS: &[&str] = &[
     "address_sorting",
     "cares",
     "gpr",
+    "re2",
     "upb",
     "z",
 ];

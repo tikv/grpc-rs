@@ -104,7 +104,7 @@ fn list_packages(dst: &Path) {
     let mut grpc_unsecure_libs: HashSet<_> = grpc_unsecure.libs.iter().cloned().collect();
 
     // grpc_unsecure.pc is not accurate, see also grpc/grpc#24512. Should also include "address_sorting", "upb", "cares", "z".
-    const EXTRA_LIBS: [&str; 4] = ["address_sorting", "upb", "cares", "z"];
+    const EXTRA_LIBS: [&str; 5] = ["address_sorting", "upb", "cares", "r2", "z"];
     grpc_unsecure_libs.extend(EXTRA_LIBS.iter().map(ToString::to_string));
     grpc_libs.extend(EXTRA_LIBS.iter().map(ToString::to_string));
     // There is no "rt" on Windows and MacOS.
