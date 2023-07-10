@@ -26,25 +26,11 @@ pub struct Server {
 impl Server {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(cfg: &ServerConfig) -> Result<Server> {
-        #[cfg(feature = "protobuf-codec")]
-        let port = cfg.get_port();
-        #[cfg(feature = "protobuf-codec")]
-        let channel_args = cfg.get_channel_args();
-        #[cfg(feature = "protobuf-codec")]
-        let thd_cnt = cfg.get_async_server_threads() as usize;
-        #[cfg(feature = "protobuf-codec")]
-        let core_limit = cfg.get_core_limit();
-        #[cfg(feature = "protobuf-codec")]
-        let server_type = cfg.get_server_type();
-
-        #[cfg(feature = "protobufv3-codec")]
         let port = cfg.port;
-        #[cfg(feature = "protobufv3-codec")]
-        let channel_args = &cfg.channel_args;
-        #[cfg(feature = "protobufv3-codec")]
         let thd_cnt = cfg.async_server_threads as usize;
-        #[cfg(feature = "protobufv3-codec")]
-        let core_limit = cfg.core_limit;
+
+        #[cfg(feature = "protobuf-codec")]
+        let server_type = cfg.server_type;
         #[cfg(feature = "protobufv3-codec")]
         let server_type = cfg.server_type.enum_value().unwrap();
 
@@ -54,7 +40,7 @@ impl Server {
         }
         let env = Arc::new(builder.build());
 
-        if core_limit > 0 {
+        if cfg.core_limit > 0 {
             warn!("server config core limit is set but ignored");
         }
         let keep_running = Arc::new(AtomicBool::new(true));
@@ -71,12 +57,9 @@ impl Server {
             _ => unimplemented!(),
         };
         let mut builder = ServerBuilder::new(env.clone()).register_service(service);
-        if !channel_args.is_empty() {
+        if !cfg.channel_args.is_empty() {
             let mut ch_builder = ChannelBuilder::new(env);
-            for arg in channel_args {
-                #[cfg(feature = "protobuf-codec")]
-                let key = CString::new(arg.get_name()).unwrap();
-                #[cfg(feature = "protobufv3-codec")]
+            for arg in &cfg.channel_args {
                 let key = CString::new(arg.name.clone()).unwrap();
                 if arg.has_str_value() {
                     #[cfg(feature = "protobuf-codec")]
@@ -117,20 +100,6 @@ impl Server {
         })
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub fn get_stats(&mut self, reset: bool) -> ServerStats {
-        let sample = self.recorder.cpu_time(reset);
-
-        let mut stats = ServerStats::default();
-        stats.set_time_elapsed(sample.real_time);
-        stats.set_time_user(sample.user_time);
-        stats.set_time_system(sample.sys_time);
-        stats.set_total_cpu_time(sample.total_cpu);
-        stats.set_idle_cpu_time(sample.idle_cpu);
-        stats
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
         let sample = self.recorder.cpu_time(reset);
 
@@ -148,15 +117,6 @@ impl Server {
         self.server.shutdown()
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub fn get_status(&self) -> ServerStatus {
-        let mut status = ServerStatus::default();
-        status.set_port(self.port as i32);
-        status.set_cores(util::cpu_num_cores() as i32);
-        status
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub fn get_status(&self) -> ServerStatus {
         let mut status = ServerStatus::default();
         status.port = self.port as i32;

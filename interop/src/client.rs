@@ -44,48 +44,20 @@ impl Client {
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub async fn large_unary(&self) -> grpcio::Result<()> {
-        print!("testing large unary ... ");
-        let mut req = SimpleRequest::default();
-        req.set_response_size(314_159);
-        req.set_payload(util::new_payload(271_828));
-        let resp = self.client.unary_call_async(&req)?.await?;
-        assert_eq!(314_159, resp.get_payload().get_body().len());
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub async fn large_unary(&self) -> grpcio::Result<()> {
         print!("testing large unary ... ");
         let mut req = SimpleRequest::default();
         req.response_size = 314_159;
         req.payload = Some(util::new_payload(271_828)).into();
         let resp = self.client.unary_call_async(&req)?.await?;
+        #[cfg(feature = "protobuf-codec")]
+        assert_eq!(314_159, resp.get_payload().get_body().len());
+        #[cfg(feature = "protobufv3-codec")]
         assert_eq!(314_159, resp.payload.body.len());
         println!("pass");
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub async fn client_streaming(&self) -> grpcio::Result<()> {
-        print!("testing client streaming ... ");
-        let payload_size = vec![27182usize, 8, 1828, 45904];
-        let (mut sender, receiver) = self.client.streaming_input_call()?;
-        for size in payload_size {
-            let mut req = StreamingInputCallRequest::default();
-            req.set_payload(util::new_payload(size));
-            sender.send((req, WriteFlags::default())).await?;
-        }
-        sender.close().await?;
-        let resp = receiver.await?;
-        assert_eq!(74922, resp.get_aggregated_payload_size());
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub async fn client_streaming(&self) -> grpcio::Result<()> {
         print!("testing client streaming ... ");
         let payload_size = vec![27182usize, 8, 1828, 45904];
@@ -102,27 +74,6 @@ impl Client {
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub async fn server_streaming(&self) -> grpcio::Result<()> {
-        print!("testing server streaming ... ");
-        let mut req = StreamingOutputCallRequest::default();
-        let sizes = vec![31415, 9, 2653, 58979];
-        for size in &sizes {
-            req.mut_response_parameters()
-                .push(util::new_parameters(*size));
-        }
-        let mut resp = self.client.streaming_output_call(&req)?;
-        let mut i = 0;
-        while let Some(r) = resp.try_next().await? {
-            assert_eq!(r.get_payload().get_body().len(), sizes[i] as usize);
-            i += 1;
-        }
-        assert_eq!(sizes.len(), i);
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub async fn server_streaming(&self) -> grpcio::Result<()> {
         print!("testing server streaming ... ");
         let mut req = StreamingOutputCallRequest::default();
@@ -133,6 +84,9 @@ impl Client {
         let mut resp = self.client.streaming_output_call(&req)?;
         let mut i = 0;
         while let Some(r) = resp.try_next().await? {
+            #[cfg(feature = "protobuf-codec")]
+            assert_eq!(r.get_payload().get_body().len(), sizes[i] as usize);
+            #[cfg(feature = "protobufv3-codec")]
             assert_eq!(r.payload.body.len(), sizes[i] as usize);
             i += 1;
         }
@@ -141,27 +95,6 @@ impl Client {
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub async fn ping_pong(&self) -> grpcio::Result<()> {
-        print!("testing ping pong ... ");
-        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-        let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
-        for (resp_size, payload_size) in cases {
-            let mut req = StreamingOutputCallRequest::default();
-            req.mut_response_parameters()
-                .push(util::new_parameters(resp_size));
-            req.set_payload(util::new_payload(payload_size));
-            sender.send((req, WriteFlags::default())).await?;
-            let resp = receiver.try_next().await?.unwrap();
-            assert_eq!(resp.get_payload().get_body().len(), resp_size as usize);
-        }
-        sender.close().await?;
-        assert_eq!(receiver.try_next().await?, None);
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub async fn ping_pong(&self) -> grpcio::Result<()> {
         print!("testing ping pong ... ");
         let (mut sender, mut receiver) = self.client.full_duplex_call()?;
@@ -173,6 +106,9 @@ impl Client {
             req.payload = Some(util::new_payload(payload_size)).into();
             sender.send((req, WriteFlags::default())).await?;
             let resp = receiver.try_next().await?.unwrap();
+            #[cfg(feature = "protobuf-codec")]
+            assert_eq!(resp.get_payload().get_body().len(), resp_size as usize);
+            #[cfg(feature = "protobufv3-codec")]
             assert_eq!(resp.payload.body.len(), resp_size as usize);
         }
         sender.close().await?;
@@ -181,50 +117,6 @@ impl Client {
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub async fn custom_metadata(&self) -> grpcio::Result<()> {
-        print!("testing custom metadata ... ");
-
-        // Step 1: test unary call
-        let mut req = SimpleRequest::default();
-        req.set_response_size(314159);
-        req.set_payload(util::new_payload(271828));
-        let mut resp_call = self
-            .client
-            .unary_call_async_opt(&req, CallOption::default().headers(create_test_metadata()))?;
-        let headers = resp_call.headers().await?;
-        let v = headers
-            .iter()
-            .find(|(k, _)| *k == "x-grpc-test-echo-initial")
-            .unwrap()
-            .1;
-        assert_eq!(v, b"test_initial_metadata_value");
-
-        // Step 2: test full duplex call
-        let mut req = StreamingOutputCallRequest::default();
-        req.mut_response_parameters()
-            .push(util::new_parameters(314159));
-        req.set_payload(util::new_payload(271828));
-        let (mut tx, mut rx) = self
-            .client
-            .full_duplex_call_opt(CallOption::default().headers(create_test_metadata()))?;
-        tx.send((req, WriteFlags::default().buffer_hint(true)))
-            .await?;
-        tx.close().await?;
-        rx.try_next().await?;
-        let headers = rx.headers().await?;
-        let v = headers
-            .iter()
-            .find(|(k, _)| *k == "x-grpc-test-echo-initial")
-            .unwrap()
-            .1;
-        assert_eq!(v, b"test_initial_metadata_value");
-
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub async fn custom_metadata(&self) -> grpcio::Result<()> {
         print!("testing custom metadata ... ");
 
@@ -289,28 +181,6 @@ impl Client {
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
-    pub async fn cancel_after_first_response(&self) -> grpcio::Result<()> {
-        print!("testing cancel_after_first_response ... ");
-        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-        let mut req = StreamingOutputCallRequest::default();
-        req.mut_response_parameters()
-            .push(util::new_parameters(31415));
-        req.set_payload(util::new_payload(27182));
-        sender.send((req, WriteFlags::default())).await?;
-        let resp = receiver.try_next().await?.unwrap();
-        assert_eq!(resp.get_payload().get_body().len(), 31415);
-        sender.cancel();
-        match receiver.try_next().await {
-            Err(grpc::Error::RpcFailure(s)) => assert_eq!(s.code(), RpcStatusCode::CANCELLED),
-            Err(e) => panic!("expected cancel, but got: {:?}", e),
-            Ok(r) => panic!("expected error, but got: {:?}", r),
-        }
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
     pub async fn cancel_after_first_response(&self) -> grpcio::Result<()> {
         print!("testing cancel_after_first_response ... ");
         let (mut sender, mut receiver) = self.client.full_duplex_call()?;
@@ -319,6 +189,10 @@ impl Client {
         req.payload = Some(util::new_payload(27182)).into();
         sender.send((req, WriteFlags::default())).await?;
         let resp = receiver.try_next().await?.unwrap();
+
+        #[cfg(feature = "protobuf-codec")]
+        assert_eq!(resp.get_payload().get_body().len(), 31415);
+        #[cfg(feature = "protobufv3-codec")]
         assert_eq!(resp.payload.body.len(), 31415);
         sender.cancel();
         match receiver.try_next().await {
@@ -330,106 +204,53 @@ impl Client {
         Ok(())
     }
 
-    #[cfg(feature = "protobuf-codec")]
     pub async fn timeout_on_sleeping_server(&self) -> grpcio::Result<()> {
-        print!("testing timeout_of_sleeping_server ... ");
-        let opt = CallOption::default().timeout(Duration::from_millis(1));
-        let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
-        let mut req = StreamingOutputCallRequest::default();
-        req.set_payload(util::new_payload(27182));
-        let _ = sender.send((req, WriteFlags::default())).await;
-        match receiver.try_next().await {
-            Err(grpc::Error::RpcFailure(s)) => {
-                assert_eq!(s.code(), RpcStatusCode::DEADLINE_EXCEEDED)
-            }
-            Err(e) => panic!("expected timeout, but got: {:?}", e),
-            Ok(r) => panic!("expected error: {:?}", r),
-        }
-        println!("pass");
-        Ok(())
+      print!("testing timeout_of_sleeping_server ... ");
+      let opt = CallOption::default().timeout(Duration::from_millis(1));
+      let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
+      let mut req = StreamingOutputCallRequest::default();
+      req.payload = Some(util::new_payload(27182)).into();
+      let _ = sender.send((req, WriteFlags::default())).await;
+      match receiver.try_next().await {
+          Err(grpc::Error::RpcFailure(s)) => {
+              assert_eq!(s.code(), RpcStatusCode::DEADLINE_EXCEEDED)
+          }
+          Err(e) => panic!("expected timeout, but got: {:?}", e),
+          Ok(r) => panic!("expected error: {:?}", r),
+      }
+      println!("pass");
+      Ok(())
     }
 
-    #[cfg(feature = "protobufv3-codec")]
-    pub async fn timeout_on_sleeping_server(&self) -> grpcio::Result<()> {
-        print!("testing timeout_of_sleeping_server ... ");
-        let opt = CallOption::default().timeout(Duration::from_millis(1));
-        let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
-        let mut req = StreamingOutputCallRequest::default();
-        req.payload = Some(util::new_payload(27182)).into();
-        let _ = sender.send((req, WriteFlags::default())).await;
-        match receiver.try_next().await {
-            Err(grpc::Error::RpcFailure(s)) => {
-                assert_eq!(s.code(), RpcStatusCode::DEADLINE_EXCEEDED)
-            }
-            Err(e) => panic!("expected timeout, but got: {:?}", e),
-            Ok(r) => panic!("expected error: {:?}", r),
-        }
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobuf-codec")]
     pub async fn status_code_and_message(&self) -> grpcio::Result<()> {
-        print!("testing status_code_and_message ... ");
-        let error_msg = "test status message";
-        let mut status = EchoStatus::default();
-        status.set_code(2);
-        status.set_message(error_msg.to_owned());
-        let mut req = SimpleRequest::default();
-        req.set_response_status(status.clone());
-        match self.client.unary_call_async(&req)?.await.unwrap_err() {
-            grpc::Error::RpcFailure(s) => {
-                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
-                assert_eq!(s.message(), error_msg);
-            }
-            e => panic!("expected rpc failure: {:?}", e),
-        }
-        let mut req = StreamingOutputCallRequest::default();
-        req.set_response_status(status);
-        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-        let _ = sender.send((req, WriteFlags::default())).await;
-        match receiver.try_next().await {
-            Err(grpc::Error::RpcFailure(s)) => {
-                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
-                assert_eq!(s.message(), error_msg);
-            }
-            Err(e) => panic!("expected rpc failure: {:?}", e),
-            Ok(r) => panic!("error expected, but got: {:?}", r),
-        }
-        println!("pass");
-        Ok(())
-    }
-
-    #[cfg(feature = "protobufv3-codec")]
-    pub async fn status_code_and_message(&self) -> grpcio::Result<()> {
-        print!("testing status_code_and_message ... ");
-        let error_msg = "test status message";
-        let mut status = EchoStatus::default();
-        status.code = 2;
-        status.message = error_msg.to_owned();
-        let mut req = SimpleRequest::default();
-        req.response_status = Some(status.clone()).into();
-        match self.client.unary_call_async(&req)?.await.unwrap_err() {
-            grpc::Error::RpcFailure(s) => {
-                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
-                assert_eq!(s.message(), error_msg);
-            }
-            e => panic!("expected rpc failure: {:?}", e),
-        }
-        let mut req = StreamingOutputCallRequest::default();
-        req.response_status = Some(status).into();
-        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-        let _ = sender.send((req, WriteFlags::default())).await;
-        match receiver.try_next().await {
-            Err(grpc::Error::RpcFailure(s)) => {
-                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
-                assert_eq!(s.message(), error_msg);
-            }
-            Err(e) => panic!("expected rpc failure: {:?}", e),
-            Ok(r) => panic!("error expected, but got: {:?}", r),
-        }
-        println!("pass");
-        Ok(())
+      print!("testing status_code_and_message ... ");
+      let error_msg = "test status message";
+      let mut status = EchoStatus::default();
+      status.code = 2;
+      status.message = error_msg.to_owned();
+      let mut req = SimpleRequest::default();
+      req.response_status = Some(status.clone()).into();
+      match self.client.unary_call_async(&req)?.await.unwrap_err() {
+          grpc::Error::RpcFailure(s) => {
+              assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
+              assert_eq!(s.message(), error_msg);
+          }
+          e => panic!("expected rpc failure: {:?}", e),
+      }
+      let mut req = StreamingOutputCallRequest::default();
+      req.response_status = Some(status).into();
+      let (mut sender, mut receiver) = self.client.full_duplex_call()?;
+      let _ = sender.send((req, WriteFlags::default())).await;
+      match receiver.try_next().await {
+          Err(grpc::Error::RpcFailure(s)) => {
+              assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
+              assert_eq!(s.message(), error_msg);
+          }
+          Err(e) => panic!("expected rpc failure: {:?}", e),
+          Ok(r) => panic!("error expected, but got: {:?}", r),
+      }
+      println!("pass");
+      Ok(())
     }
 
     pub async fn unimplemented_method(&self) -> grpcio::Result<()> {

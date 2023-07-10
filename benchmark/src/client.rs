@@ -32,10 +32,10 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::default();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
-    req.set_payload(proto_util::new_payload(
-        simple_params.get_req_size() as usize
-    ));
-    req.set_response_size(simple_params.get_resp_size());
+    req.payload = Some(proto_util::new_payload(
+        simple_params.req_size as usize
+    )).into();
+    req.response_size = simple_params.resp_size;
     req
 }
 
@@ -409,7 +409,7 @@ impl Client {
             builder = builder.cq_count(thd_cnt);
         }
         let env = Arc::new(builder.build());
-        if cfg.get_core_limit() > 0 {
+        if cfg.core_limit > 0 {
             error!("client config core limit is set but ignored");
         }
 

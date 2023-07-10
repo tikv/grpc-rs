@@ -547,16 +547,6 @@ struct ServiceGen<'a> {
 }
 
 #[cfg(feature = "protobuf-codec")]
-fn proto_name(proto: &ServiceDescriptorProto) -> &str {
-    proto.get_name()
-}
-
-#[cfg(feature = "protobufv3-codec")]
-fn service_path(file: &FileDescriptorProto) -> &str {
-    proto.name
-}
-
-#[cfg(feature = "protobuf-codec")]
 fn service_path<'a>(proto: &'a ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
     if file.get_package().is_empty() {
         format!("/{}", proto.get_name())
@@ -587,7 +577,7 @@ impl<'a> ServiceGen<'a> {
             .map(|m| {
                 MethodGen::new(
                     m,
-                    util::to_camel_case(proto_name(proto)),
+                    util::to_camel_case(proto.get_name()),
                     service_path.clone(),
                     root_scope,
                 )
