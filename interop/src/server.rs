@@ -171,19 +171,15 @@ impl TestService for InteropTestService {
                 // can response in 1ms. To make the test stable, the server
                 // sleeps 1s explicitly.
 
-                #[cfg(feature = "protobuf-codec")]
-                if req.get_payload().get_body().len() == 27182
-                    && req.response_parameters.is_empty()
-                    && req.response_status.is_none()
-                {
-                    Delay::new(Duration::from_secs(1)).await;
-                }
-                #[cfg(feature = "protobufv3-codec")]
-                if req.payload.body.len() == 27182
-                    && req.response_parameters.is_empty()
-                    && req.response_status.is_none()
-                {
-                    Delay::new(Duration::from_secs(1)).await;
+                if req.response_parameters.is_empty() && req.response_status.is_none() {
+                    #[cfg(feature = "protobuf-codec")]
+                    if req.get_payload().get_body().len() == 27182 {
+                        Delay::new(Duration::from_secs(1)).await;
+                    }
+                    #[cfg(feature = "protobufv3-codec")]
+                    if req.payload.body.len() == 27182 {
+                        Delay::new(Duration::from_secs(1)).await;
+                    }
                 }
                 sink.send((resp, WriteFlags::default())).await?;
             }

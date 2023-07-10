@@ -1,6 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use crate::google::rpc::Status;
+use crate::proto::protobuf::google::rpc::Status;
 use grpcio::{
     ChannelCredentials, ChannelCredentialsBuilder, ServerCredentials, ServerCredentialsBuilder,
 };
@@ -10,7 +10,7 @@ use std::convert::TryFrom;
     any(feature = "protobuf-codec", feature = "protobufv3-codec"),
     not(feature = "prost-codec")
 ))]
-use crate::testing::messages::{Payload, ResponseParameters};
+use crate::proto::protobuf::testing::messages::{Payload, ResponseParameters};
 #[cfg(feature = "prost-codec")]
 use crate::testing::{Payload, ResponseParameters};
 
