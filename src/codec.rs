@@ -69,13 +69,13 @@ pub mod pb_codec {
 }
 
 #[cfg(feature = "protobuf-codec")]
-fn from_buf_read(reader: & mut MessageReader) -> protobuf::CodedInputStream {
-    return protobuf::CodedInputStream::from_buffered_reader(reader);
+fn from_buf_read(reader: &mut MessageReader) -> protobuf::CodedInputStream {
+    protobuf::CodedInputStream::from_buffered_reader(reader)
 }
 
 #[cfg(feature = "protobufv3-codec")]
-fn from_buf_read(reader: & mut MessageReader) -> protobufv3::CodedInputStream {
-    return protobufv3::CodedInputStream::from_buf_read(reader);
+fn from_buf_read(reader: &mut MessageReader) -> protobufv3::CodedInputStream {
+    protobufv3::CodedInputStream::from_buf_read(reader)
 }
 
 #[cfg(feature = "prost-codec")]

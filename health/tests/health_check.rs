@@ -30,12 +30,12 @@ mod constants {
 
 #[cfg(feature = "protobuf-codec")]
 fn response_status_equals(resp: HealthCheckResponse, status: ServingStatus) -> bool {
-    return resp.status == status;
+    resp.status == status
 }
 
 #[cfg(feature = "protobufv3-codec")]
 fn response_status_equals(resp: HealthCheckResponse, status: ServingStatus) -> bool {
-    return resp.status.enum_value().unwrap() == status;
+    resp.status.enum_value().unwrap() == status
 }
 
 #[track_caller]
