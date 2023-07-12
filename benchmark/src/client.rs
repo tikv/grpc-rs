@@ -385,11 +385,7 @@ fn get_security_params(cfg: &ClientConfig) -> Option<&SecurityParams> {
 }
 #[cfg(feature = "protobufv3-codec")]
 fn get_security_params(cfg: &ClientConfig) -> Option<&SecurityParams> {
-    if let Some(security_params) = &cfg.security_params.0 {
-        Some(security_params)
-    } else {
-        None
-    }
+    cfg.security_params.0.as_deref()
 }
 
 impl Client {
