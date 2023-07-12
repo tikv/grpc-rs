@@ -130,7 +130,7 @@ jobs:
     - run: cargo build --no-default-features
     - run: cargo build --no-default-features --features "protobuf-codec"
     - run: cargo build --no-default-features --features "prost-codec"
-    - run: cargo test --all
+    - run: cargo test --all --no-default-features
     - run: cargo test --features "nightly"
   
   Pre-Release:
