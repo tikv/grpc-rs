@@ -127,10 +127,8 @@ jobs:
       shell: cmd
     - run: go version ; cargo version ; cmake --version 
     - run: cargo xtask submodule
-    - run: cargo build --no-default-features
-    - run: cargo build --no-default-features --features "protobuf-codec"
-    - run: cargo build --no-default-features --features "prost-codec"
-    - run: cargo test --all --no-default-features
+    - run: cargo test --no-default-features
+    - run: cargo test --all
     - run: cargo test --features "nightly"
   
   Pre-Release:
