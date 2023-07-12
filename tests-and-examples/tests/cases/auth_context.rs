@@ -18,12 +18,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: HelloRequest,
-        sink: UnarySink<HelloReply>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         if let Some(auth_context) = ctx.auth_context() {
             let mut ctx_map = HashMap::new();
             for (key, value) in auth_context

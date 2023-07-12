@@ -32,9 +32,7 @@ fn gen_req(cfg: &ClientConfig) -> SimpleRequest {
     let mut req = SimpleRequest::default();
     let payload_config = cfg.get_payload_config();
     let simple_params = payload_config.get_simple_params();
-    req.payload = Some(proto_util::new_payload(
-        simple_params.req_size as usize
-    )).into();
+    req.payload = Some(proto_util::new_payload(simple_params.req_size as usize)).into();
     req.response_size = simple_params.resp_size;
     req
 }
@@ -354,42 +352,42 @@ fn execute<B: Backoff + Send + 'static>(
 
 #[cfg(feature = "protobufv3-codec")]
 fn execute<B: Backoff + Send + 'static>(
-  ctx: ExecutorContext<B>,
-  ch: Channel,
-  client_type: ClientType,
-  cfg: &ClientConfig,
+    ctx: ExecutorContext<B>,
+    ch: Channel,
+    client_type: ClientType,
+    cfg: &ClientConfig,
 ) {
-  match client_type {
-      ClientType::SYNC_CLIENT => {
-          if cfg.payload_config.has_bytebuf_params() {
-              panic!("only async_client is supported for generic service.");
-          }
-          RequestExecutor::new(ctx, ch, cfg).execute_unary()
-      }
-      ClientType::ASYNC_CLIENT => match cfg.rpc_type.enum_value().unwrap() {
-          RpcType::UNARY => {
-              if cfg.payload_config.has_bytebuf_params() {
-                  panic!("only ping pong streaming is supported for generic service.");
-              }
-              RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
-          }
-          RpcType::STREAMING => {
-              if cfg.payload_config.has_bytebuf_params() {
-                  GenericExecutor::new(ctx, ch, cfg).execute_stream()
-              } else {
-                  RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
-              }
-          }
-          RpcType::STREAMING_FROM_CLIENT => {
-              if cfg.payload_config.has_bytebuf_params() {
-                  panic!("only ping pong streaming is supported for generic service.");
-              }
-              RequestExecutor::new(ctx, ch, cfg).execute_stream_from_client()
-          }
-          _ => unimplemented!(),
-      },
-      _ => unimplemented!(),
-  }
+    match client_type {
+        ClientType::SYNC_CLIENT => {
+            if cfg.payload_config.has_bytebuf_params() {
+                panic!("only async_client is supported for generic service.");
+            }
+            RequestExecutor::new(ctx, ch, cfg).execute_unary()
+        }
+        ClientType::ASYNC_CLIENT => match cfg.rpc_type.enum_value().unwrap() {
+            RpcType::UNARY => {
+                if cfg.payload_config.has_bytebuf_params() {
+                    panic!("only ping pong streaming is supported for generic service.");
+                }
+                RequestExecutor::new(ctx, ch, cfg).execute_unary_async()
+            }
+            RpcType::STREAMING => {
+                if cfg.payload_config.has_bytebuf_params() {
+                    GenericExecutor::new(ctx, ch, cfg).execute_stream()
+                } else {
+                    RequestExecutor::new(ctx, ch, cfg).execute_stream_ping_pong()
+                }
+            }
+            RpcType::STREAMING_FROM_CLIENT => {
+                if cfg.payload_config.has_bytebuf_params() {
+                    panic!("only ping pong streaming is supported for generic service.");
+                }
+                RequestExecutor::new(ctx, ch, cfg).execute_stream_from_client()
+            }
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    }
 }
 
 pub struct Client {
@@ -510,107 +508,107 @@ impl Client {
 
 #[cfg(feature = "protobufv3-codec")]
 impl Client {
-  pub fn new(cfg: &ClientConfig) -> Client {
-      let mut builder = EnvBuilder::new();
-      let thd_cnt = cfg.async_client_threads as usize;
-      if thd_cnt != 0 {
-          builder = builder.cq_count(thd_cnt);
-      }
-      let env = Arc::new(builder.build());
-      if cfg.core_limit > 0 {
-          error!("client config core limit is set but ignored");
-      }
+    pub fn new(cfg: &ClientConfig) -> Client {
+        let mut builder = EnvBuilder::new();
+        let thd_cnt = cfg.async_client_threads as usize;
+        if thd_cnt != 0 {
+            builder = builder.cq_count(thd_cnt);
+        }
+        let env = Arc::new(builder.build());
+        if cfg.core_limit > 0 {
+            error!("client config core limit is set but ignored");
+        }
 
-      let ch_env = env.clone();
-      let channels = (0..cfg.client_channels)
-          .zip(cfg.server_targets.iter().cycle())
-          .map(|(_, addr)| {
-              let mut builder = ChannelBuilder::new(ch_env.clone());
-              for arg in &cfg.channel_args {
-                  let key = CString::new(arg.name.clone()).unwrap();
-                  if arg.has_str_value() {
-                      builder =
-                          builder.raw_cfg_string(key, CString::new(arg.str_value()).unwrap());
-                  } else if arg.has_int_value() {
-                      builder = builder.raw_cfg_int(key, arg.int_value());
-                  }
-              }
-              // Check https://github.com/grpc/grpc/issues/31465.
-              builder = builder.enable_retry(false);
-              if let Some(params) = &cfg.security_params.0 {
-                  if !params.server_host_override.is_empty() {
-                      builder = builder
-                          .override_ssl_target(params.server_host_override.to_owned());
-                  }
-                  builder =
-                      builder.set_credentials(proto_util::create_test_channel_credentials());
-              }
-              builder.connect(addr)
-          });
+        let ch_env = env.clone();
+        let channels = (0..cfg.client_channels)
+            .zip(cfg.server_targets.iter().cycle())
+            .map(|(_, addr)| {
+                let mut builder = ChannelBuilder::new(ch_env.clone());
+                for arg in &cfg.channel_args {
+                    let key = CString::new(arg.name.clone()).unwrap();
+                    if arg.has_str_value() {
+                        builder =
+                            builder.raw_cfg_string(key, CString::new(arg.str_value()).unwrap());
+                    } else if arg.has_int_value() {
+                        builder = builder.raw_cfg_int(key, arg.int_value());
+                    }
+                }
+                // Check https://github.com/grpc/grpc/issues/31465.
+                builder = builder.enable_retry(false);
+                if let Some(params) = &cfg.security_params.0 {
+                    if !params.server_host_override.is_empty() {
+                        builder =
+                            builder.override_ssl_target(params.server_host_override.to_owned());
+                    }
+                    builder =
+                        builder.set_credentials(proto_util::create_test_channel_credentials());
+                }
+                builder.connect(addr)
+            });
 
-      let client_type = cfg.client_type;
-      let load_params = &cfg.load_params;
-      let client_channels = cfg.client_channels as usize;
-      let outstanding_rpcs_per_channel = cfg.outstanding_rpcs_per_channel as usize;
+        let client_type = cfg.client_type;
+        let load_params = &cfg.load_params;
+        let client_channels = cfg.client_channels as usize;
+        let outstanding_rpcs_per_channel = cfg.outstanding_rpcs_per_channel as usize;
 
-      let recorder = CpuRecorder::new();
-      let his_param = &cfg.histogram_params;
-      let his = Arc::new(Mutex::new(Histogram::new(
-          his_param.resolution,
-          his_param.max_possible,
-      )));
-      let keep_running = Arc::new(AtomicBool::new(true));
-      let mut running_reqs = Vec::with_capacity(client_channels * outstanding_rpcs_per_channel);
+        let recorder = CpuRecorder::new();
+        let his_param = &cfg.histogram_params;
+        let his = Arc::new(Mutex::new(Histogram::new(
+            his_param.resolution,
+            his_param.max_possible,
+        )));
+        let keep_running = Arc::new(AtomicBool::new(true));
+        let mut running_reqs = Vec::with_capacity(client_channels * outstanding_rpcs_per_channel);
 
-      for ch in channels {
-          for _ in 0..cfg.outstanding_rpcs_per_channel {
-              let his = his.clone();
-              let ch = ch.clone();
-              let rx = if load_params.has_poisson() {
-                  let lambda = load_params.poisson().offered_load
-                      / client_channels as f64
-                      / outstanding_rpcs_per_channel as f64;
-                  let poisson = Poisson::new(lambda);
-                  let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson);
-                  execute(ctx, ch, client_type.enum_value().unwrap(), cfg);
-                  rx
-              } else {
-                  let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), ClosedLoop);
-                  execute(ctx, ch, client_type.enum_value().unwrap(), cfg);
-                  rx
-              };
-              running_reqs.push(rx);
-          }
-      }
+        for ch in channels {
+            for _ in 0..cfg.outstanding_rpcs_per_channel {
+                let his = his.clone();
+                let ch = ch.clone();
+                let rx = if load_params.has_poisson() {
+                    let lambda = load_params.poisson().offered_load
+                        / client_channels as f64
+                        / outstanding_rpcs_per_channel as f64;
+                    let poisson = Poisson::new(lambda);
+                    let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), poisson);
+                    execute(ctx, ch, client_type.enum_value().unwrap(), cfg);
+                    rx
+                } else {
+                    let (ctx, rx) = ExecutorContext::new(his, keep_running.clone(), ClosedLoop);
+                    execute(ctx, ch, client_type.enum_value().unwrap(), cfg);
+                    rx
+                };
+                running_reqs.push(rx);
+            }
+        }
 
-      Client {
-          keep_running,
-          recorder,
-          histogram: his,
-          _env: env,
-          running_reqs: Some(running_reqs),
-      }
-  }
+        Client {
+            keep_running,
+            recorder,
+            histogram: his,
+            _env: env,
+            running_reqs: Some(running_reqs),
+        }
+    }
 
-  pub fn get_stats(&mut self, reset: bool) -> ClientStats {
-      let mut stats = ClientStats::default();
+    pub fn get_stats(&mut self, reset: bool) -> ClientStats {
+        let mut stats = ClientStats::default();
 
-      let sample = self.recorder.cpu_time(reset);
-      stats.time_elapsed = sample.real_time;
-      stats.time_user = sample.user_time;
-      stats.time_system = sample.sys_time;
+        let sample = self.recorder.cpu_time(reset);
+        stats.time_elapsed = sample.real_time;
+        stats.time_user = sample.user_time;
+        stats.time_system = sample.sys_time;
 
-      {
-          let mut his = self.histogram.lock().unwrap();
-          stats.latencies = Some(his.report(reset)).into();
-      }
+        {
+            let mut his = self.histogram.lock().unwrap();
+            stats.latencies = Some(his.report(reset)).into();
+        }
 
-      stats
-  }
+        stats
+    }
 
-  pub fn shutdown(&mut self) -> impl Future<Output = ()> + Send {
-      self.keep_running.store(false, Ordering::Relaxed);
-      let tasks = self.running_reqs.take().unwrap();
-      futures_util::future::join_all(tasks).map(|_| ())
-  }
+    pub fn shutdown(&mut self) -> impl Future<Output = ()> + Send {
+        self.keep_running.store(false, Ordering::Relaxed);
+        let tasks = self.running_reqs.take().unwrap();
+        futures_util::future::join_all(tasks).map(|_| ())
+    }
 }

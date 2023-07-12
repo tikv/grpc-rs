@@ -38,11 +38,7 @@ impl RouteGuide for RouteGuideService {
             let mut summary = RouteSummary::default();
             let mut current_num = 0;
             while let Some(point) = points.try_next().await? {
-                assert_eq!(
-                    point.longitude,
-                    current_num,
-                    "messages sequence is wrong"
-                );
+                assert_eq!(point.longitude, current_num, "messages sequence is wrong");
                 current_num += 1;
                 summary.point_count += 1;
                 // Send a reply message after receiving a limited number of messages, which

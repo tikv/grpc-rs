@@ -87,18 +87,18 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[cfg(all(test, feature = "protobuf-codec"))]
 mod tests {
-  use std::error::Error as StdError;
+    use std::error::Error as StdError;
 
-  use protobuf::error::WireError;
-  use protobuf::ProtobufError;
+    use protobuf::error::WireError;
+    use protobuf::ProtobufError;
 
-  use super::Error;
+    use super::Error;
 
     #[test]
     fn test_convert() {
-      let error = ProtobufError::WireError(WireError::UnexpectedEof);
-      let e: Error = error.into();
-      assert_eq!(e.to_string(), "Codec(WireError(UnexpectedEof))");
-      assert!(e.source().is_some());
+        let error = ProtobufError::WireError(WireError::UnexpectedEof);
+        let e: Error = error.into();
+        assert_eq!(e.to_string(), "Codec(WireError(UnexpectedEof))");
+        assert!(e.source().is_some());
     }
 }

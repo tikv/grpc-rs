@@ -21,13 +21,13 @@ mod protobuf_v3 {
 }
 #[cfg(feature = "protobuf-codec")]
 mod reexports {
-  pub use super::protobuf::health::*;
-  pub use super::protobuf::health_grpc::*;
+    pub use super::protobuf::health::*;
+    pub use super::protobuf::health_grpc::*;
 }
 #[cfg(feature = "protobufv3-codec")]
 mod reexports {
-  pub use super::protobuf_v3::health::*;
-  pub use super::protobuf_v3::health_grpc::*;
+    pub use super::protobuf_v3::health::*;
+    pub use super::protobuf_v3::health_grpc::*;
 }
 
 pub use self::reexports::*;

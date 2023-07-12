@@ -96,7 +96,8 @@ async fn record_route(client: &RouteGuideClient) -> Result<()> {
         #[cfg(feature = "protobuf-codec")]
         sink.send((point.to_owned(), WriteFlags::default())).await?;
         #[cfg(feature = "protobufv3-codec")]
-        sink.send((point.as_ref().clone(), WriteFlags::default())).await?;
+        sink.send((point.as_ref().clone(), WriteFlags::default()))
+            .await?;
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
     }
     // flush
@@ -141,9 +142,7 @@ async fn route_chat(client: &RouteGuideClient) -> Result<()> {
             #[cfg(feature = "protobufv3-codec")]
             info!(
                 "Got message {} at {}, {}",
-                note.message,
-                note.location.latitude,
-                note.location.longitude
+                note.message, note.location.latitude, note.location.longitude
             );
         }
         Ok(()) as Result<_>

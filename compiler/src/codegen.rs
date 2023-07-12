@@ -589,12 +589,12 @@ impl<'a> ServiceGen<'a> {
 
     #[cfg(feature = "protobuf-codec")]
     fn service_name(&self) -> String {
-      util::to_camel_case(self.proto.get_name())
+        util::to_camel_case(self.proto.get_name())
     }
 
     #[cfg(feature = "protobufv3-codec")]
     fn service_name(&self) -> String {
-      util::to_camel_case(self.proto.name)
+        util::to_camel_case(self.proto.name)
     }
 
     fn client_name(&self) -> String {
@@ -681,13 +681,13 @@ impl<'a> ServiceGen<'a> {
 }
 
 #[cfg(feature = "protobuf-codec")]
-fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto]{
-  file.get_service()
+fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto] {
+    file.get_service()
 }
 
 #[cfg(feature = "protobufv3-codec")]
-fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto]{
-  file.service
+fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto] {
+    file.service
 }
 
 fn gen_file(

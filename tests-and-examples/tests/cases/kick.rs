@@ -19,12 +19,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: HelloRequest,
-        sink: UnarySink<HelloReply>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
         let name = req.name;
@@ -107,12 +102,7 @@ pub struct DeadLockService {
 }
 
 impl Greeter for DeadLockService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: HelloRequest,
-        sink: UnarySink<HelloReply>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let chan = Arc::new(Mutex::new(NaiveChannel {
             data: None,
             waker: None,

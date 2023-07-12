@@ -205,52 +205,52 @@ impl Client {
     }
 
     pub async fn timeout_on_sleeping_server(&self) -> grpcio::Result<()> {
-      print!("testing timeout_of_sleeping_server ... ");
-      let opt = CallOption::default().timeout(Duration::from_millis(1));
-      let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
-      let mut req = StreamingOutputCallRequest::default();
-      req.payload = Some(util::new_payload(27182)).into();
-      let _ = sender.send((req, WriteFlags::default())).await;
-      match receiver.try_next().await {
-          Err(grpc::Error::RpcFailure(s)) => {
-              assert_eq!(s.code(), RpcStatusCode::DEADLINE_EXCEEDED)
-          }
-          Err(e) => panic!("expected timeout, but got: {:?}", e),
-          Ok(r) => panic!("expected error: {:?}", r),
-      }
-      println!("pass");
-      Ok(())
+        print!("testing timeout_of_sleeping_server ... ");
+        let opt = CallOption::default().timeout(Duration::from_millis(1));
+        let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
+        let mut req = StreamingOutputCallRequest::default();
+        req.payload = Some(util::new_payload(27182)).into();
+        let _ = sender.send((req, WriteFlags::default())).await;
+        match receiver.try_next().await {
+            Err(grpc::Error::RpcFailure(s)) => {
+                assert_eq!(s.code(), RpcStatusCode::DEADLINE_EXCEEDED)
+            }
+            Err(e) => panic!("expected timeout, but got: {:?}", e),
+            Ok(r) => panic!("expected error: {:?}", r),
+        }
+        println!("pass");
+        Ok(())
     }
 
     pub async fn status_code_and_message(&self) -> grpcio::Result<()> {
-      print!("testing status_code_and_message ... ");
-      let error_msg = "test status message";
-      let mut status = EchoStatus::default();
-      status.code = 2;
-      status.message = error_msg.to_owned();
-      let mut req = SimpleRequest::default();
-      req.response_status = Some(status.clone()).into();
-      match self.client.unary_call_async(&req)?.await.unwrap_err() {
-          grpc::Error::RpcFailure(s) => {
-              assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
-              assert_eq!(s.message(), error_msg);
-          }
-          e => panic!("expected rpc failure: {:?}", e),
-      }
-      let mut req = StreamingOutputCallRequest::default();
-      req.response_status = Some(status).into();
-      let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-      let _ = sender.send((req, WriteFlags::default())).await;
-      match receiver.try_next().await {
-          Err(grpc::Error::RpcFailure(s)) => {
-              assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
-              assert_eq!(s.message(), error_msg);
-          }
-          Err(e) => panic!("expected rpc failure: {:?}", e),
-          Ok(r) => panic!("error expected, but got: {:?}", r),
-      }
-      println!("pass");
-      Ok(())
+        print!("testing status_code_and_message ... ");
+        let error_msg = "test status message";
+        let mut status = EchoStatus::default();
+        status.code = 2;
+        status.message = error_msg.to_owned();
+        let mut req = SimpleRequest::default();
+        req.response_status = Some(status.clone()).into();
+        match self.client.unary_call_async(&req)?.await.unwrap_err() {
+            grpc::Error::RpcFailure(s) => {
+                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
+                assert_eq!(s.message(), error_msg);
+            }
+            e => panic!("expected rpc failure: {:?}", e),
+        }
+        let mut req = StreamingOutputCallRequest::default();
+        req.response_status = Some(status).into();
+        let (mut sender, mut receiver) = self.client.full_duplex_call()?;
+        let _ = sender.send((req, WriteFlags::default())).await;
+        match receiver.try_next().await {
+            Err(grpc::Error::RpcFailure(s)) => {
+                assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
+                assert_eq!(s.message(), error_msg);
+            }
+            Err(e) => panic!("expected rpc failure: {:?}", e),
+            Ok(r) => panic!("error expected, but got: {:?}", r),
+        }
+        println!("pass");
+        Ok(())
     }
 
     pub async fn unimplemented_method(&self) -> grpcio::Result<()> {
