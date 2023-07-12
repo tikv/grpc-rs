@@ -24,7 +24,7 @@ use crate::grpc_sys::{
 /// identity (e.g. for client certificate authentication this property will be
 /// `x509_common_name` or `x509_subject_alternative_name`).
 pub struct AuthContext {
-    ctx: std::ptr::NonNull<grpc_auth_context>,
+    ctx: NonNull<grpc_auth_context>,
 }
 
 /// Binding to gRPC Core AuthContext

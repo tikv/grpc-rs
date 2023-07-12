@@ -194,13 +194,13 @@ impl RequestContext {
 
     /// If the server binds in non-secure mode, this will return None
     fn auth_context(&self) -> Option<AuthContext> {
-        #[cfg(feature = "_secure")]
+        // #[cfg(feature = "_secure")]
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
             AuthContext::from_call_ptr(call)
         }
-        #[cfg(not(feature = "_secure"))]
-        None
+        // #[cfg(not(feature = "_secure"))]
+        // None
     }
 }
 
