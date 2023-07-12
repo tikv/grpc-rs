@@ -127,7 +127,7 @@ jobs:
       shell: cmd
     - run: go version ; cargo version ; cmake --version 
     - run: cargo xtask submodule
-    - run: cargo test --no-default-features
+    - run: cargo build
     - run: cargo test --all
     - run: cargo test --features "nightly"
   
