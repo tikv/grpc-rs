@@ -89,15 +89,11 @@ async fn record_route(client: &RouteGuideClient) -> Result<()> {
     for _ in 0..10usize {
         let f = features.choose(&mut rng).unwrap();
         #[cfg(feature = "protobuf-codec")]
-        let point = f.get_location();
+        let point = f.get_location().to_owned();
         #[cfg(feature = "protobufv3-codec")]
-        let point = f.location.0.clone().unwrap();
+        let point = f.location.0.clone().unwrap().as_ref().clone();
         info!("Visiting {}", util::format_point(&point));
-        #[cfg(feature = "protobuf-codec")]
-        sink.send((point.to_owned(), WriteFlags::default())).await?;
-        #[cfg(feature = "protobufv3-codec")]
-        sink.send((point.as_ref().clone(), WriteFlags::default()))
-            .await?;
+        sink.send((point, WriteFlags::default())).await?;
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
     }
     // flush

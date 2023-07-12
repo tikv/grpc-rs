@@ -6,7 +6,7 @@ autoexamples = false
 publish = false
 
 [features]
-default = ["protobufv3-codec"]
+default = ["protobuf-codec"]
 protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "grpcio-health/protobuf-codec"]
 protobufv3-codec = ["protobufv3", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "grpcio-health/protobufv3-codec"]
 prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
