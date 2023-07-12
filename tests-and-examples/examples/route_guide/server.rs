@@ -21,6 +21,7 @@ use grpcio::*;
 
 use crate::util::*;
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::example::route_guide_grpc::*;
 
 #[derive(Clone)]
 struct RouteGuideService {
@@ -28,12 +29,21 @@ struct RouteGuideService {
     received_notes: Arc<Mutex<Vec<RouteNote>>>,
 }
 
+#[cfg(feature = "protobuf-codec")]
+fn get_point<'a>(f: &'a Feature) -> &'a grpcio_proto::example::route_guide::Point {
+    f.get_location()
+}
+#[cfg(feature = "protobufv3-codec")]
+fn get_point<'a>(f: &'a Feature) -> &'a grpcio_proto::example::route_guide::Point {
+    f.location.0.as_ref().unwrap()
+}
+
 impl RouteGuide for RouteGuideService {
     fn get_feature(&mut self, ctx: RpcContext<'_>, point: Point, sink: UnarySink<Feature>) {
         let data = self.data.clone();
         let resp = data
             .iter()
-            .find(|f| same_point(f.get_location(), &point))
+            .find(|f| same_point(get_point(f), &point))
             .map_or_else(Feature::default, ToOwned::to_owned);
         let f = sink
             .success(resp)
@@ -52,7 +62,7 @@ impl RouteGuide for RouteGuideService {
         let features: Vec<_> = data
             .iter()
             .filter_map(move |f| {
-                if fit_in(f.get_location(), &rect) {
+                if fit_in(get_point(f), &rect) {
                     Some((f.to_owned(), WriteFlags::default()))
                 } else {
                     None
@@ -87,7 +97,7 @@ impl RouteGuide for RouteGuideService {
                 summary.point_count += 1;
                 let valid_point = data
                     .iter()
-                    .any(|f| !f.get_name().is_empty() && same_point(f.get_location(), &point));
+                    .any(|f| !f.name.is_empty() && same_point(get_point(f), &point));
                 if valid_point {
                     summary.feature_count += 1;
                 }
@@ -118,7 +128,15 @@ impl RouteGuide for RouteGuideService {
             while let Some(n) = notes.try_next().await? {
                 let buffer = received_notes.lock().unwrap().clone();
                 for note in buffer.iter() {
+                    #[cfg(feature = "protobuf-codec")]
                     if same_point(n.get_location(), note.get_location()) {
+                        resp.send((note.clone(), WriteFlags::default())).await?;
+                    }
+                    #[cfg(feature = "protobufv3-codec")]
+                    if same_point(
+                        n.location.0.as_ref().unwrap(),
+                        note.location.0.as_ref().unwrap(),
+                    ) {
                         resp.send((note.clone(), WriteFlags::default())).await?;
                     }
                 }

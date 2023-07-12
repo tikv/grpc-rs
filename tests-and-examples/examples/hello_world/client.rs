@@ -19,7 +19,7 @@ fn main() {
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let reply = client.say_hello(&req).expect("rpc");
-    info!("Greeter received: {}", reply.get_message());
+    info!("Greeter received: {}", reply.message);
 }

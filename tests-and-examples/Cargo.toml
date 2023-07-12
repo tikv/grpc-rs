@@ -41,59 +41,29 @@ slog-term = "2.2"
 [[example]]
 name = "route_guide_client"
 path = "examples/route_guide/client.rs"
-required-features = ["protobuf-codec"]
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "route_guide_server"
 path = "examples/route_guide/server.rs"
-required-features = ["protobuf-codec"]
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "greeter_client"
 path = "examples/hello_world/client.rs"
-required-features = ["protobuf-codec"]
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "greeter_server"
 path = "examples/hello_world/server.rs"
-required-features = ["protobuf-codec"]
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "lb_greeter_client"
 path = "examples/load_balancing/client.rs"
-required-features = ["protobuf-codec"]
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "lb_greeter_server"
 path = "examples/load_balancing/server.rs"
-required-features = ["protobuf-codec"]
-
-[[example]]
-name = "route_guide_client_protobufv3"
-path = "examples_protobufv3/route_guide/client.rs"
-required-features = ["protobufv3-codec"]
-
-[[example]]
-name = "route_guide_server_protobufv3"
-path = "examples_protobufv3/route_guide/server.rs"
-required-features = ["protobufv3-codec"]
-
-[[example]]
-name = "greeter_client_protobufv3"
-path = "examples_protobufv3/hello_world/client.rs"
-required-features = ["protobufv3-codec"]
-
-[[example]]
-name = "greeter_server_protobufv3"
-path = "examples_protobufv3/hello_world/server.rs"
-required-features = ["protobufv3-codec"]
-
-[[example]]
-name = "lb_greeter_client_protobufv3"
-path = "examples_protobufv3/load_balancing/client.rs"
-required-features = ["protobufv3-codec"]
-
-[[example]]
-name = "lb_greeter_server_protobufv3"
-path = "examples_protobufv3/load_balancing/server.rs"
-required-features = ["protobufv3-codec"]
+#required-features = "protobuf-codec" or "protobufv3-codec"
