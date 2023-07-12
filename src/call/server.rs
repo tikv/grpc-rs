@@ -16,7 +16,6 @@ use futures_util::{Sink, Stream};
 use parking_lot::Mutex;
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use crate::auth_context::AuthContext;
 use crate::buf::GrpcSlice;
 use crate::call::{
     BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
@@ -28,6 +27,7 @@ use crate::metadata::Metadata;
 use crate::server::ServerChecker;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
+use crate::AuthContext;
 use crate::CheckResult;
 
 /// A time point that an rpc or operation should finished before it.
@@ -194,10 +194,13 @@ impl RequestContext {
 
     /// If the server binds in non-secure mode, this will return None
     fn auth_context(&self) -> Option<AuthContext> {
+        #[cfg(feature = "_secure")]
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
             AuthContext::from_call_ptr(call)
         }
+        #[cfg(not(feature = "_secure"))]
+        None
     }
 }
 

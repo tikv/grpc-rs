@@ -28,6 +28,7 @@ pub struct AuthContext {
 }
 
 /// Binding to gRPC Core AuthContext
+#[cfg(feature = "_secure")]
 impl AuthContext {
     pub(crate) unsafe fn from_call_ptr(call: *mut grpc_call) -> Option<Self> {
         NonNull::new(grpc_sys::grpc_call_auth_context(call)).map(|ctx| AuthContext { ctx })
@@ -68,6 +69,7 @@ impl AuthContext {
     }
 }
 
+#[cfg(feature = "_secure")]
 impl<'a> IntoIterator for &'a AuthContext {
     type Item = AuthProperty<'a>;
     type IntoIter = AuthPropertyIter<'a>;
@@ -85,17 +87,20 @@ impl<'a> IntoIterator for &'a AuthContext {
     }
 }
 
+#[cfg(feature = "_secure")]
 impl Drop for AuthContext {
     fn drop(&mut self) {
         unsafe { grpc_sys::grpc_auth_context_release(self.ctx.as_ptr()) }
     }
 }
 
+#[cfg(feature = "_secure")]
 pub struct AuthPropertyIter<'a> {
     iter: grpc_auth_property_iterator,
     _lifetime: PhantomData<&'a grpc_auth_property_iterator>,
 }
 
+#[cfg(feature = "_secure")]
 impl<'a> Iterator for AuthPropertyIter<'a> {
     type Item = AuthProperty<'a>;
 
@@ -115,11 +120,13 @@ impl<'a> Iterator for AuthPropertyIter<'a> {
 
 /// Auth properties are elements of the AuthContext. They have a name
 /// (a key of type string) and a value which can be a string or binary data.
+#[cfg(feature = "_secure")]
 pub struct AuthProperty<'a> {
     prop: *const grpc_auth_property,
     _lifetime: PhantomData<&'a grpc_auth_property>,
 }
 
+#[cfg(feature = "_secure")]
 impl<'a> AuthProperty<'a> {
     pub fn name(&self) -> &'a str {
         unsafe { CStr::from_ptr((*self.prop).name) }
