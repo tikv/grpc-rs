@@ -14,6 +14,9 @@ use crate::proto::protobuf::testing::messages::{Payload, ResponseParameters};
 #[cfg(feature = "prost-codec")]
 use crate::testing::{Payload, ResponseParameters};
 
+#[cfg(feature = "protobufv3-codec")]
+use protobufv3 as protobuf;
+
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
     Payload {
@@ -49,11 +52,8 @@ impl TryFrom<grpcio::RpcStatus> for Status {
 
     fn try_from(value: grpcio::RpcStatus) -> grpcio::Result<Self> {
         let mut s = Status::default();
-        #[cfg(feature = "protobuf-codec")]
+        #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
         protobuf::Message::merge_from_bytes(&mut s, value.details())
-            .map_err(|_err| grpcio::Error::RemoteStopped)?;
-        #[cfg(feature = "protobufv3-codec")]
-        protobufv3::Message::merge_from_bytes(&mut s, value.details())
             .map_err(|_err| grpcio::Error::RemoteStopped)?;
         #[cfg(feature = "prost-codec")]
         prost::Message::merge(&mut s, value.details())?;
@@ -82,11 +82,8 @@ impl TryFrom<Status> for grpcio::RpcStatus {
     type Error = grpcio::Error;
 
     fn try_from(value: Status) -> grpcio::Result<Self> {
-        #[cfg(feature = "protobuf-codec")]
+        #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
         let details = protobuf::Message::write_to_bytes(&value)
-            .map_err(|_err| grpcio::Error::RemoteStopped)?;
-        #[cfg(feature = "protobufv3-codec")]
-        let details = protobufv3::Message::write_to_bytes(&value)
             .map_err(|_err| grpcio::Error::RemoteStopped)?;
         #[cfg(feature = "prost-codec")]
         let details = {
