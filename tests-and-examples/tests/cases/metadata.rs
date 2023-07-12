@@ -31,6 +31,10 @@ impl Greeter for GreeterService {
                 message: "name can't be root".to_owned(),
                 ..Default::default()
             };
+            #[cfg(feature = "protobuf-codec")]
+            let any = protobuf::well_known_types::Any::pack(&req).unwrap();
+
+            #[cfg(feature = "protobufv3-codec")]
             let any = protobufv3::well_known_types::any::Any::pack(&req).unwrap();
             status.details.push(any);
             ctx.spawn(
