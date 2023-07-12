@@ -1,12 +1,16 @@
 // Copyright 2020 TiKV Project Authors. Licensed under Apache-2.0.
 
+#[cfg(feature = "_secure")]
 mod auth_context;
 #[cfg(feature = "_secure")]
 mod credentials;
 
 use grpcio_sys::{grpc_channel_credentials, grpc_server_credentials};
 
+#[cfg(feature = "_secure")]
 pub use self::auth_context::*;
+#[cfg(not(feature = "_secure"))]
+pub struct AuthContext;
 
 #[cfg(feature = "_secure")]
 pub use self::credentials::{
