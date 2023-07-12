@@ -83,8 +83,10 @@ impl TestService for InteropTestService {
             return;
         }
         let resp_size = req.response_size;
-        let mut resp = SimpleResponse::default();
-        resp.payload = Some(util::new_payload(resp_size as usize)).into();
+        let resp = SimpleResponse {
+            payload: Some(util::new_payload(resp_size as usize)).into(),
+            ..SimpleResponse::default()
+        };
         let f = sink
             .success(resp)
             .map_err(|e| panic!("failed to send response: {:?}", e))
@@ -100,8 +102,10 @@ impl TestService for InteropTestService {
     ) {
         let f = async move {
             for param in req.response_parameters.into_iter() {
-                let mut resp = StreamingOutputCallResponse::default();
-                resp.payload = Some(util::new_payload(param.size as usize)).into();
+                let resp = StreamingOutputCallResponse {
+                    payload: Some(util::new_payload(param.size as usize)).into(),
+                    ..StreamingOutputCallResponse::default()
+                };
                 sink.send((resp, WriteFlags::default())).await?;
             }
             sink.close().await?;
@@ -128,8 +132,10 @@ impl TestService for InteropTestService {
                 s += req.payload.body.len();
             }
 
-            let mut resp = StreamingInputCallResponse::default();
-            resp.aggregated_payload_size = s as i32;
+            let resp = StreamingInputCallResponse {
+                aggregated_payload_size: s as i32,
+                ..StreamingInputCallResponse::default()
+            };
             sink.success(resp).await
         }
         .map_err(|e| match e {

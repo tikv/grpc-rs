@@ -95,8 +95,10 @@ impl WorkerService for Worker {
 
                 info!("receive client mark: {:?}", mark);
                 let stats = client.get_stats(mark.reset);
-                let mut status = ClientStatus::default();
-                status.stats = Some(stats).into();
+                let status = ClientStatus {
+                    stats: Some(stats).into(),
+                    ..ClientStatus::default()
+                };
                 sink.send((status, WriteFlags::default())).await?;
             }
             client.shutdown().await;
@@ -110,8 +112,10 @@ impl WorkerService for Worker {
 
     fn core_count(&mut self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
-        let mut resp = CoreResponse::default();
-        resp.cores = cpu_count as i32;
+        let resp = CoreResponse {
+            cores: cpu_count as i32,
+            ..CoreResponse::default()
+        };
         ctx.spawn(
             sink.success(resp)
                 .map_err(|e| error!("failed to report cpu count: {:?}", e))

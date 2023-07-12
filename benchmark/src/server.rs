@@ -102,14 +102,14 @@ impl Server {
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
         let sample = self.recorder.cpu_time(reset);
-
-        let mut stats = ServerStats::default();
-        stats.time_elapsed = sample.real_time;
-        stats.time_user = sample.user_time;
-        stats.time_system = sample.sys_time;
-        stats.total_cpu_time = sample.total_cpu;
-        stats.idle_cpu_time = sample.idle_cpu;
-        stats
+        ServerStats {
+            time_elapsed: sample.real_time,
+            time_user: sample.user_time,
+            time_system: sample.sys_time,
+            total_cpu_time: sample.total_cpu,
+            idle_cpu_time: sample.idle_cpu,
+            ..ServerStats::default()
+        }
     }
 
     pub fn shutdown(&mut self) -> ShutdownFuture {
@@ -118,9 +118,10 @@ impl Server {
     }
 
     pub fn get_status(&self) -> ServerStatus {
-        let mut status = ServerStatus::default();
-        status.port = self.port as i32;
-        status.cores = util::cpu_num_cores() as i32;
-        status
+        ServerStatus {
+            port: self.port as i32,
+            cores: util::cpu_num_cores() as i32,
+            ..ServerStatus::default()
+        }
     }
 }

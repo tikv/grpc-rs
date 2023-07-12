@@ -20,9 +20,10 @@ use grpcio::GrpcSlice;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
     let payload = util::new_payload(req.response_size as usize);
-    let mut resp = SimpleResponse::default();
-    resp.payload = Some(payload).into();
-    resp
+    SimpleResponse {
+        payload: Some(payload).into(),
+        ..SimpleResponse::default()
+    }
 }
 
 #[derive(Clone)]

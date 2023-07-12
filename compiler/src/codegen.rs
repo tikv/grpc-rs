@@ -547,7 +547,7 @@ struct ServiceGen<'a> {
 }
 
 #[cfg(feature = "protobuf-codec")]
-fn service_path<'a>(proto: &'a ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
+fn service_path(proto: &ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
     if file.get_package().is_empty() {
         format!("/{}", proto.get_name())
     } else {

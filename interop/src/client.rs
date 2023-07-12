@@ -46,9 +46,11 @@ impl Client {
 
     pub async fn large_unary(&self) -> grpcio::Result<()> {
         print!("testing large unary ... ");
-        let mut req = SimpleRequest::default();
-        req.response_size = 314_159;
-        req.payload = Some(util::new_payload(271_828)).into();
+        let req = SimpleRequest {
+            response_size: 314_159,
+            payload: Some(util::new_payload(271_828)).into(),
+            ..SimpleRequest::default()
+        };
         let resp = self.client.unary_call_async(&req)?.await?;
         #[cfg(feature = "protobuf-codec")]
         assert_eq!(314_159, resp.get_payload().get_body().len());
@@ -63,8 +65,10 @@ impl Client {
         let payload_size = vec![27182usize, 8, 1828, 45904];
         let (mut sender, receiver) = self.client.streaming_input_call()?;
         for size in payload_size {
-            let mut req = StreamingInputCallRequest::default();
-            req.payload = Some(util::new_payload(size)).into();
+            let req = StreamingInputCallRequest {
+                payload: Some(util::new_payload(size)).into(),
+                ..StreamingInputCallRequest::default()
+            };
             sender.send((req, WriteFlags::default())).await?;
         }
         sender.close().await?;
@@ -76,11 +80,14 @@ impl Client {
 
     pub async fn server_streaming(&self) -> grpcio::Result<()> {
         print!("testing server streaming ... ");
-        let mut req = StreamingOutputCallRequest::default();
         let sizes = vec![31415, 9, 2653, 58979];
-        for size in &sizes {
-            req.response_parameters.push(util::new_parameters(*size));
-        }
+        let req = StreamingOutputCallRequest {
+            response_parameters: sizes
+                .iter()
+                .map(|size| util::new_parameters(*size))
+                .collect(),
+            ..StreamingOutputCallRequest::default()
+        };
         let mut resp = self.client.streaming_output_call(&req)?;
         let mut i = 0;
         while let Some(r) = resp.try_next().await? {
@@ -100,10 +107,11 @@ impl Client {
         let (mut sender, mut receiver) = self.client.full_duplex_call()?;
         let cases = vec![(31415, 27182), (9, 8), (2653, 1828), (58979, 45904)];
         for (resp_size, payload_size) in cases {
-            let mut req = StreamingOutputCallRequest::default();
-            req.response_parameters
-                .push(util::new_parameters(resp_size));
-            req.payload = Some(util::new_payload(payload_size)).into();
+            let req = StreamingOutputCallRequest {
+                response_parameters: vec![util::new_parameters(resp_size)].into(),
+                payload: Some(util::new_payload(payload_size)).into(),
+                ..StreamingOutputCallRequest::default()
+            };
             sender.send((req, WriteFlags::default())).await?;
             let resp = receiver.try_next().await?.unwrap();
             #[cfg(feature = "protobuf-codec")]
@@ -121,9 +129,11 @@ impl Client {
         print!("testing custom metadata ... ");
 
         // Step 1: test unary call
-        let mut req = SimpleRequest::default();
-        req.response_size = 314159;
-        req.payload = Some(util::new_payload(271828)).into();
+        let req = SimpleRequest {
+            response_size: 314159,
+            payload: Some(util::new_payload(271828)).into(),
+            ..SimpleRequest::default()
+        };
         let mut resp_call = self
             .client
             .unary_call_async_opt(&req, CallOption::default().headers(create_test_metadata()))?;
@@ -136,9 +146,11 @@ impl Client {
         assert_eq!(v, b"test_initial_metadata_value");
 
         // Step 2: test full duplex call
-        let mut req = StreamingOutputCallRequest::default();
-        req.response_parameters.push(util::new_parameters(314159));
-        req.payload = Some(util::new_payload(271828)).into();
+        let req = StreamingOutputCallRequest {
+            response_parameters: vec![util::new_parameters(314159)].into(),
+            payload: Some(util::new_payload(271828)).into(),
+            ..StreamingOutputCallRequest::default()
+        };
         let (mut tx, mut rx) = self
             .client
             .full_duplex_call_opt(CallOption::default().headers(create_test_metadata()))?;
@@ -184,9 +196,11 @@ impl Client {
     pub async fn cancel_after_first_response(&self) -> grpcio::Result<()> {
         print!("testing cancel_after_first_response ... ");
         let (mut sender, mut receiver) = self.client.full_duplex_call()?;
-        let mut req = StreamingOutputCallRequest::default();
-        req.response_parameters.push(util::new_parameters(31415));
-        req.payload = Some(util::new_payload(27182)).into();
+        let req = StreamingOutputCallRequest {
+            response_parameters: vec![util::new_parameters(31415)].into(),
+            payload: Some(util::new_payload(27182)).into(),
+            ..StreamingOutputCallRequest::default()
+        };
         sender.send((req, WriteFlags::default())).await?;
         let resp = receiver.try_next().await?.unwrap();
 
@@ -208,8 +222,10 @@ impl Client {
         print!("testing timeout_of_sleeping_server ... ");
         let opt = CallOption::default().timeout(Duration::from_millis(1));
         let (mut sender, mut receiver) = self.client.full_duplex_call_opt(opt)?;
-        let mut req = StreamingOutputCallRequest::default();
-        req.payload = Some(util::new_payload(27182)).into();
+        let req = StreamingOutputCallRequest {
+            payload: Some(util::new_payload(27182)).into(),
+            ..StreamingOutputCallRequest::default()
+        };
         let _ = sender.send((req, WriteFlags::default())).await;
         match receiver.try_next().await {
             Err(grpc::Error::RpcFailure(s)) => {
@@ -225,11 +241,16 @@ impl Client {
     pub async fn status_code_and_message(&self) -> grpcio::Result<()> {
         print!("testing status_code_and_message ... ");
         let error_msg = "test status message";
-        let mut status = EchoStatus::default();
-        status.code = 2;
-        status.message = error_msg.to_owned();
-        let mut req = SimpleRequest::default();
-        req.response_status = Some(status.clone()).into();
+        let status = EchoStatus {
+            code: 2,
+            message: error_msg.to_owned(),
+            ..EchoStatus::default()
+        };
+
+        let req = SimpleRequest {
+            response_status: Some(status.clone()).into(),
+            ..SimpleRequest::default()
+        };
         match self.client.unary_call_async(&req)?.await.unwrap_err() {
             grpc::Error::RpcFailure(s) => {
                 assert_eq!(s.code(), RpcStatusCode::UNKNOWN);
@@ -237,8 +258,10 @@ impl Client {
             }
             e => panic!("expected rpc failure: {:?}", e),
         }
-        let mut req = StreamingOutputCallRequest::default();
-        req.response_status = Some(status).into();
+        let req = StreamingOutputCallRequest {
+            response_status: Some(status).into(),
+            ..StreamingOutputCallRequest::default()
+        };
         let (mut sender, mut receiver) = self.client.full_duplex_call()?;
         let _ = sender.send((req, WriteFlags::default())).await;
         match receiver.try_next().await {
