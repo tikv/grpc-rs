@@ -124,6 +124,7 @@ jobs:
     - uses: actions/checkout@v2
     - run: choco install -y llvm
     - run: refreshenv
+      shell: cmd
     - run: go version ; cargo version ; cmake --version 
     - run: cargo xtask submodule
     - run: cargo build
