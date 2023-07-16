@@ -14,7 +14,6 @@ use grpcio::{
     ServerBuilder, ServerCredentials, ServerStreamingSink, UnarySink, WriteFlags,
 };
 use grpcio_proto::example::route_guide::*;
-use grpcio_proto::example::route_guide_grpc::*;
 
 const MESSAGE_NUM: i32 = 2000;
 

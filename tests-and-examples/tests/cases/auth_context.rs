@@ -3,7 +3,6 @@
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::example::helloworld_grpc::*;
 
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Sender};

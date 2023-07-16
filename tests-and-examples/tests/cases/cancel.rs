@@ -14,7 +14,6 @@ use futures_util::{future, stream, Stream};
 use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _, TryStreamExt as _};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
-use grpcio_proto::example::route_guide_grpc::*;
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
 type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;

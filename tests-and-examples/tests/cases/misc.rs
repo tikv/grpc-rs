@@ -5,7 +5,7 @@ use futures_timer::Delay;
 use futures_util::future::{self, FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::example::helloworld_grpc::*;
+
 use std::sync::atomic::*;
 use std::sync::*;
 use std::thread::{self, JoinHandle};

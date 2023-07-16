@@ -14,16 +14,16 @@ use std::task::{Context, Poll, Waker};
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufEnum;
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
 use crate::proto::ServingStatus;
 
 #[cfg(feature = "protobufv3-codec")]
 use crate::proto::health_check_response::ServingStatus;
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
 use crate::proto::ServingStatus::NotServing as NOT_SERVING;
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
 use crate::proto::ServingStatus::ServiceUnknown as SERVICE_UNKNOWN;
 
 #[cfg(feature = "protobufv3-codec")]
@@ -32,7 +32,7 @@ pub use crate::proto::health_check_response::ServingStatus::*;
 const VERSION_STEP: usize = 8;
 const STATUS_MASK: usize = 7;
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
 fn state_to_status(state: usize) -> ServingStatus {
     ServingStatus::from_i32((state & STATUS_MASK) as i32).unwrap()
 }
