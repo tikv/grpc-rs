@@ -152,12 +152,17 @@ fn test_health_watch() {
     service.set_serving_status(TEST_SERVICE, constants::UNKNOWN);
     let mut seen = 0;
     loop {
-        let resp = block_on(statuses.next()).unwrap().unwrap();
-        if response_status_equals(resp, constants::UNKNOWN) {
-            seen += 1;
-            continue;
+        match block_on(statuses.next()).unwrap() {
+            Err(Error::RpcFailure(r)) if r.code() == RpcStatusCode::DEADLINE_EXCEEDED => break,
+            Err(e) => panic!("unexpected error {:?}", e),
+            Ok(r) => {
+                if response_status_equals(r, constants::UNKNOWN) {
+                    seen += 1;
+                    continue;
+                }
+                break;
+            }
         }
-        break;
     }
     assert!(seen <= 1);
 }
