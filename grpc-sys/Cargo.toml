@@ -1,6 +1,6 @@
 [package]
 name = "grpcio-sys"
-version = "0.12.1+1.46.5-patched"
+version = "0.12.1+1.56.2-patched"
 authors = ["The TiKV Project Developers"]
 license = "Apache-2.0"
 keywords = ["grpc", "bindings"]
@@ -45,6 +45,10 @@ exclude = [
     "!grpc/test/core/security/*.cc",
     "!grpc/test/core/util/cmdline.cc",
     "grpc/test/cpp",
+    "!grpc/test/core/**/*.proto",
+    # fool cmake to not update submodules.
+    "!grpc/third_party/envoy-api/README.md",
+    "!grpc/third_party/googleapis/README.md",
 ]
 
 [dependencies]
