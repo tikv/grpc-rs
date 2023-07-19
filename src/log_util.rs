@@ -30,9 +30,9 @@ extern "C" fn delegate(c_args: *mut gpr_log_func_args) {
         &Record::builder()
             .args(format_args!("{msg}"))
             .level(level)
-            .file(file_str.into())
+            .file_static(file_str.into())
             .line(line.into())
-            .module_path(module_path!().into())
+            .module_path_static(module_path!().into())
             .build(),
     );
 }
