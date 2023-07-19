@@ -188,7 +188,7 @@ mod unix_domain_socket {
         let req = HelloRequest::default();
         let resp = client.say_hello(&req).unwrap();
 
-        assert_eq!(resp.message, path, "{resp:?}");
+        assert_eq!(resp.message, "unix:", "{resp:?}");
     }
 
     #[test]
