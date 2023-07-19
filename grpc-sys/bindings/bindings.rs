@@ -9,10 +9,11 @@ pub const GRPC_COMPRESSION_CHANNEL_DEFAULT_LEVEL: &[u8; 31usize] =
     b"grpc.default_compression_level\0";
 pub const GRPC_COMPRESSION_CHANNEL_ENABLED_ALGORITHMS_BITSET: &[u8; 43usize] =
     b"grpc.compression_enabled_algorithms_bitset\0";
-pub const GRPC_ALLOW_GPR_SLICE_FUNCTIONS: u32 = 1;
 pub const GRPC_SLICE_BUFFER_INLINE_ELEMENTS: u32 = 8;
 pub const GRPC_ARG_ENABLE_CENSUS: &[u8; 12usize] = b"grpc.census\0";
 pub const GRPC_ARG_ENABLE_LOAD_REPORTING: &[u8; 19usize] = b"grpc.loadreporting\0";
+pub const GRPC_ARG_SERVER_CALL_METRIC_RECORDING: &[u8; 34usize] =
+    b"grpc.server_call_metric_recording\0";
 pub const GRPC_ARG_MINIMAL_STACK: &[u8; 19usize] = b"grpc.minimal_stack\0";
 pub const GRPC_ARG_MAX_CONCURRENT_STREAMS: &[u8; 28usize] = b"grpc.max_concurrent_streams\0";
 pub const GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH: &[u8; 32usize] =
@@ -48,6 +49,8 @@ pub const GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA: &[u8; 34usize] =
 pub const GRPC_ARG_HTTP2_MAX_PING_STRIKES: &[u8; 28usize] = b"grpc.http2.max_ping_strikes\0";
 pub const GRPC_ARG_HTTP2_WRITE_BUFFER_SIZE: &[u8; 29usize] = b"grpc.http2.write_buffer_size\0";
 pub const GRPC_ARG_HTTP2_ENABLE_TRUE_BINARY: &[u8; 23usize] = b"grpc.http2.true_binary\0";
+pub const GRPC_ARG_EXPERIMENTAL_HTTP2_PREFERRED_CRYPTO_FRAME_SIZE: &[u8; 52usize] =
+    b"grpc.experimental.http2.enable_preferred_frame_size\0";
 pub const GRPC_ARG_KEEPALIVE_TIME_MS: &[u8; 23usize] = b"grpc.keepalive_time_ms\0";
 pub const GRPC_ARG_KEEPALIVE_TIMEOUT_MS: &[u8; 26usize] = b"grpc.keepalive_timeout_ms\0";
 pub const GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS: &[u8; 36usize] =
@@ -67,6 +70,8 @@ pub const GRPC_SSL_TARGET_NAME_OVERRIDE_ARG: &[u8; 30usize] = b"grpc.ssl_target_
 pub const GRPC_SSL_SESSION_CACHE_ARG: &[u8; 23usize] = b"grpc.ssl_session_cache\0";
 pub const GRPC_ARG_TSI_MAX_FRAME_SIZE: &[u8; 24usize] = b"grpc.tsi.max_frame_size\0";
 pub const GRPC_ARG_MAX_METADATA_SIZE: &[u8; 23usize] = b"grpc.max_metadata_size\0";
+pub const GRPC_ARG_ABSOLUTE_MAX_METADATA_SIZE: &[u8; 32usize] =
+    b"grpc.absolute_max_metadata_size\0";
 pub const GRPC_ARG_ALLOW_REUSEPORT: &[u8; 18usize] = b"grpc.so_reuseport\0";
 pub const GRPC_ARG_RESOURCE_QUOTA: &[u8; 20usize] = b"grpc.resource_quota\0";
 pub const GRPC_ARG_EXPAND_WILDCARD_ADDRS: &[u8; 27usize] = b"grpc.expand_wildcard_addrs\0";
@@ -74,6 +79,8 @@ pub const GRPC_ARG_SERVICE_CONFIG: &[u8; 20usize] = b"grpc.service_config\0";
 pub const GRPC_ARG_SERVICE_CONFIG_DISABLE_RESOLUTION: &[u8; 39usize] =
     b"grpc.service_config_disable_resolution\0";
 pub const GRPC_ARG_LB_POLICY_NAME: &[u8; 20usize] = b"grpc.lb_policy_name\0";
+pub const GRPC_ARG_RING_HASH_LB_RING_SIZE_CAP: &[u8; 32usize] =
+    b"grpc.lb.ring_hash.ring_size_cap\0";
 pub const GRPC_ARG_SOCKET_MUTATOR: &[u8; 20usize] = b"grpc.socket_mutator\0";
 pub const GRPC_ARG_SOCKET_FACTORY: &[u8; 20usize] = b"grpc.socket_factory\0";
 pub const GRPC_ARG_GZIP_COMPRESSION_LEVEL: &[u8; 28usize] = b"grpc.gzip_compression_level\0";
@@ -96,11 +103,14 @@ pub const GRPC_ARG_TCP_TX_ZEROCOPY_SEND_BYTES_THRESHOLD: &[u8; 55usize] =
     b"grpc.experimental.tcp_tx_zerocopy_send_bytes_threshold\0";
 pub const GRPC_ARG_TCP_TX_ZEROCOPY_MAX_SIMULT_SENDS: &[u8; 57usize] =
     b"grpc.experimental.tcp_tx_zerocopy_max_simultaneous_sends\0";
+pub const GRPC_ARG_TCP_RECEIVE_BUFFER_SIZE: &[u8; 29usize] = b"grpc.tcp_receive_buffer_size\0";
 pub const GRPC_ARG_GRPCLB_CALL_TIMEOUT_MS: &[u8; 28usize] = b"grpc.grpclb_call_timeout_ms\0";
 pub const GRPC_ARG_TEST_ONLY_DO_NOT_USE_IN_PROD_XDS_BOOTSTRAP_CONFIG: &[u8; 55usize] =
     b"grpc.TEST_ONLY_DO_NOT_USE_IN_PROD.xds_bootstrap_config\0";
 pub const GRPC_ARG_GRPCLB_FALLBACK_TIMEOUT_MS: &[u8; 32usize] =
     b"grpc.grpclb_fallback_timeout_ms\0";
+pub const GRPC_ARG_EXPERIMENTAL_GRPCLB_CHANNEL_ARGS: &[u8; 38usize] =
+    b"grpc.experimental.grpclb_channel_args\0";
 pub const GRPC_ARG_PRIORITY_FAILOVER_TIMEOUT_MS: &[u8; 34usize] =
     b"grpc.priority_failover_timeout_ms\0";
 pub const GRPC_ARG_WORKAROUND_CRONET_COMPRESSION: &[u8; 35usize] =
@@ -134,8 +144,7 @@ pub const GRPC_WRITE_THROUGH: u32 = 4;
 pub const GRPC_WRITE_USED_MASK: u32 = 7;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY: u32 = 32;
 pub const GRPC_INITIAL_METADATA_WAIT_FOR_READY_EXPLICITLY_SET: u32 = 128;
-pub const GRPC_INITIAL_METADATA_CORKED: u32 = 256;
-pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 420;
+pub const GRPC_INITIAL_METADATA_USED_MASK: u32 = 164;
 pub const GRPC_CQ_CURRENT_VERSION: u32 = 2;
 pub const GRPC_CQ_VERSION_MINIMUM_FOR_CALLBACKABLE: u32 = 2;
 pub const GRPC_MAX_COMPLETION_QUEUE_PLUCKERS: u32 = 6;
@@ -158,6 +167,13 @@ pub const GRPC_DEFAULT_SSL_ROOTS_FILE_PATH_ENV_VAR: &[u8; 33usize] =
     b"GRPC_DEFAULT_SSL_ROOTS_FILE_PATH\0";
 pub const GRPC_GOOGLE_CREDENTIALS_ENV_VAR: &[u8; 31usize] = b"GOOGLE_APPLICATION_CREDENTIALS\0";
 pub const GRPC_METADATA_CREDENTIALS_PLUGIN_SYNC_MAX: u32 = 4;
+extern "C" {
+    pub fn gpr_unreachable_code(
+        reason: *const ::std::os::raw::c_char,
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+    );
+}
 #[repr(u32)]
 #[doc = " The various compression algorithms supported by gRPC (not sorted by"]
 #[doc = " compression level)"]
@@ -320,6 +336,87 @@ pub struct gpr_timespec {
     #[doc = " Against which clock was this time measured? (or GPR_TIMESPAN if"]
     #[doc = "this is a relative time measure)"]
     pub clock_type: gpr_clock_type,
+}
+extern "C" {
+    #[doc = " Time constants. */"]
+    pub fn gpr_time_0(type_: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " The far future"]
+    pub fn gpr_inf_future(type_: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " The far past."]
+    pub fn gpr_inf_past(type_: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " initialize time subsystem"]
+    pub fn gpr_time_init();
+}
+extern "C" {
+    #[doc = " Return the current time measured from the given clocks epoch."]
+    pub fn gpr_now(clock: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Convert a timespec from one clock to another"]
+    pub fn gpr_convert_clock_type(t: gpr_timespec, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Return -ve, 0, or +ve according to whether a < b, a == b, or a > b"]
+    #[doc = "respectively."]
+    pub fn gpr_time_cmp(a: gpr_timespec, b: gpr_timespec) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn gpr_time_max(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_min(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Add and subtract times.  Calculations saturate at infinities."]
+    pub fn gpr_time_add(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_sub(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
+}
+extern "C" {
+    #[doc = " Return a timespec representing a given number of time units. INT64_MIN is"]
+    #[doc = "interpreted as gpr_inf_past, and INT64_MAX as gpr_inf_future."]
+    pub fn gpr_time_from_micros(us: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_nanos(ns: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_millis(ms: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_seconds(s: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_minutes(m: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_from_hours(h: i64, clock_type: gpr_clock_type) -> gpr_timespec;
+}
+extern "C" {
+    pub fn gpr_time_to_millis(timespec: gpr_timespec) -> i32;
+}
+extern "C" {
+    #[doc = " Return 1 if two times are equal or within threshold of each other,"]
+    #[doc = "0 otherwise"]
+    pub fn gpr_time_similar(
+        a: gpr_timespec,
+        b: gpr_timespec,
+        threshold: gpr_timespec,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Sleep until at least 'until' - an absolute timeout"]
+    pub fn gpr_sleep_until(until: gpr_timespec);
+}
+extern "C" {
+    pub fn gpr_timespec_to_micros(t: gpr_timespec) -> f64;
 }
 pub type gpr_atm = isize;
 extern "C" {
@@ -598,67 +695,6 @@ extern "C" {
     #[doc = " Return a copy of slice as a C string. Offers no protection against embedded"]
     #[doc = "NULL's. Returned string must be freed with gpr_free."]
     pub fn grpc_slice_to_c_string(s: grpc_slice) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    #[doc = " Return if an algorithm is message compression algorithm."]
-    pub fn grpc_compression_algorithm_is_message(
-        algorithm: grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Return if an algorithm is stream compression algorithm."]
-    pub fn grpc_compression_algorithm_is_stream(
-        algorithm: grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Parses the \\a slice as a grpc_compression_algorithm instance and updating \\a"]
-    #[doc = " algorithm. Returns 1 upon success, 0 otherwise."]
-    pub fn grpc_compression_algorithm_parse(
-        name: grpc_slice,
-        algorithm: *mut grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Updates \\a name with the encoding name corresponding to a valid \\a"]
-    #[doc = " algorithm. Note that \\a name is statically allocated and must *not* be freed."]
-    #[doc = " Returns 1 upon success, 0 otherwise."]
-    pub fn grpc_compression_algorithm_name(
-        algorithm: grpc_compression_algorithm,
-        name: *mut *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Returns the compression algorithm corresponding to \\a level for the"]
-    #[doc = " compression algorithms encoded in the \\a accepted_encodings bitset."]
-    pub fn grpc_compression_algorithm_for_level(
-        level: grpc_compression_level,
-        accepted_encodings: u32,
-    ) -> grpc_compression_algorithm;
-}
-extern "C" {
-    pub fn grpc_compression_options_init(opts: *mut grpc_compression_options);
-}
-extern "C" {
-    #[doc = " Mark \\a algorithm as enabled in \\a opts."]
-    pub fn grpc_compression_options_enable_algorithm(
-        opts: *mut grpc_compression_options,
-        algorithm: grpc_compression_algorithm,
-    );
-}
-extern "C" {
-    #[doc = " Mark \\a algorithm as disabled in \\a opts."]
-    pub fn grpc_compression_options_disable_algorithm(
-        opts: *mut grpc_compression_options,
-        algorithm: grpc_compression_algorithm,
-    );
-}
-extern "C" {
-    #[doc = " Returns true if \\a algorithm is marked as enabled in \\a opts."]
-    pub fn grpc_compression_options_is_algorithm_enabled(
-        opts: *const grpc_compression_options,
-        algorithm: grpc_compression_algorithm,
-    ) -> ::std::os::raw::c_int;
 }
 pub mod grpc_status_code {
     pub type Type = ::std::os::raw::c_int;
@@ -1047,15 +1083,13 @@ pub struct grpc_call_details {
     pub method: grpc_slice,
     pub host: grpc_slice,
     pub deadline: gpr_timespec,
-    pub flags: u32,
-    pub reserved: *mut ::std::os::raw::c_void,
 }
 impl ::std::fmt::Debug for grpc_call_details {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(
             f,
-            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?}, reserved: {:?} }}",
-            self.method, self.host, self.deadline, self.reserved
+            "grpc_call_details {{ method: {:?}, host: {:?}, deadline: {:?} }}",
+            self.method, self.host, self.deadline
         )
     }
 }
@@ -1315,91 +1349,6 @@ pub struct grpc_completion_queue_factory {
     _unused: [u8; 0],
 }
 extern "C" {
-    #[doc = " Returns a RAW byte buffer instance over the given slices (up to \\a nslices)."]
-    #[doc = ""]
-    #[doc = " Increases the reference count for all \\a slices processed. The user is"]
-    #[doc = " responsible for invoking grpc_byte_buffer_destroy on the returned instance."]
-    pub fn grpc_raw_byte_buffer_create(
-        slices: *mut grpc_slice,
-        nslices: usize,
-    ) -> *mut grpc_byte_buffer;
-}
-extern "C" {
-    #[doc = " Returns a *compressed* RAW byte buffer instance over the given slices (up to"]
-    #[doc = " \\a nslices). The \\a compression argument defines the compression algorithm"]
-    #[doc = " used to generate the data in \\a slices."]
-    #[doc = ""]
-    #[doc = " Increases the reference count for all \\a slices processed. The user is"]
-    #[doc = " responsible for invoking grpc_byte_buffer_destroy on the returned instance."]
-    pub fn grpc_raw_compressed_byte_buffer_create(
-        slices: *mut grpc_slice,
-        nslices: usize,
-        compression: grpc_compression_algorithm,
-    ) -> *mut grpc_byte_buffer;
-}
-extern "C" {
-    #[doc = " Copies input byte buffer \\a bb."]
-    #[doc = ""]
-    #[doc = " Increases the reference count of all the source slices. The user is"]
-    #[doc = " responsible for calling grpc_byte_buffer_destroy over the returned copy."]
-    pub fn grpc_byte_buffer_copy(bb: *mut grpc_byte_buffer) -> *mut grpc_byte_buffer;
-}
-extern "C" {
-    #[doc = " Returns the size of the given byte buffer, in bytes."]
-    pub fn grpc_byte_buffer_length(bb: *mut grpc_byte_buffer) -> usize;
-}
-extern "C" {
-    #[doc = " Destroys \\a byte_buffer deallocating all its memory."]
-    pub fn grpc_byte_buffer_destroy(bb: *mut grpc_byte_buffer);
-}
-extern "C" {
-    #[doc = " Initialize \\a reader to read over \\a buffer."]
-    #[doc = " Returns 1 upon success, 0 otherwise."]
-    pub fn grpc_byte_buffer_reader_init(
-        reader: *mut grpc_byte_buffer_reader,
-        buffer: *mut grpc_byte_buffer,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Cleanup and destroy \\a reader"]
-    pub fn grpc_byte_buffer_reader_destroy(reader: *mut grpc_byte_buffer_reader);
-}
-extern "C" {
-    #[doc = " Updates \\a slice with the next piece of data from from \\a reader and returns"]
-    #[doc = " 1. Returns 0 at the end of the stream. Caller is responsible for calling"]
-    #[doc = " grpc_slice_unref on the result."]
-    pub fn grpc_byte_buffer_reader_next(
-        reader: *mut grpc_byte_buffer_reader,
-        slice: *mut grpc_slice,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " EXPERIMENTAL API - This function may be removed and changed, in the future."]
-    #[doc = ""]
-    #[doc = " Updates \\a slice with the next piece of data from from \\a reader and returns"]
-    #[doc = " 1. Returns 0 at the end of the stream. Caller is responsible for making sure"]
-    #[doc = " the slice pointer remains valid when accessed."]
-    #[doc = ""]
-    #[doc = " NOTE: Do not use this function unless the caller can guarantee that the"]
-    #[doc = "       underlying grpc_byte_buffer outlasts the use of the slice. This is only"]
-    #[doc = "       safe when the underlying grpc_byte_buffer remains immutable while slice"]
-    #[doc = "       is being accessed."]
-    pub fn grpc_byte_buffer_reader_peek(
-        reader: *mut grpc_byte_buffer_reader,
-        slice: *mut *mut grpc_slice,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Merge all data from \\a reader into single slice"]
-    pub fn grpc_byte_buffer_reader_readall(reader: *mut grpc_byte_buffer_reader) -> grpc_slice;
-}
-extern "C" {
-    #[doc = " Returns a RAW byte buffer instance from the output of \\a reader."]
-    pub fn grpc_raw_byte_buffer_from_reader(
-        reader: *mut grpc_byte_buffer_reader,
-    ) -> *mut grpc_byte_buffer;
-}
-extern "C" {
     #[doc = " initialize a slice buffer"]
     pub fn grpc_slice_buffer_init(sb: *mut grpc_slice_buffer);
 }
@@ -1487,6 +1436,152 @@ extern "C" {
     #[doc = " undo the above with (a possibly different) \\a slice"]
     pub fn grpc_slice_buffer_undo_take_first(sb: *mut grpc_slice_buffer, slice: grpc_slice);
 }
+extern "C" {
+    #[doc = " Returns a RAW byte buffer instance over the given slices (up to \\a nslices)."]
+    #[doc = ""]
+    #[doc = " Increases the reference count for all \\a slices processed. The user is"]
+    #[doc = " responsible for invoking grpc_byte_buffer_destroy on the returned instance."]
+    pub fn grpc_raw_byte_buffer_create(
+        slices: *mut grpc_slice,
+        nslices: usize,
+    ) -> *mut grpc_byte_buffer;
+}
+extern "C" {
+    #[doc = " Returns a *compressed* RAW byte buffer instance over the given slices (up to"]
+    #[doc = " \\a nslices). The \\a compression argument defines the compression algorithm"]
+    #[doc = " used to generate the data in \\a slices."]
+    #[doc = ""]
+    #[doc = " Increases the reference count for all \\a slices processed. The user is"]
+    #[doc = " responsible for invoking grpc_byte_buffer_destroy on the returned instance."]
+    pub fn grpc_raw_compressed_byte_buffer_create(
+        slices: *mut grpc_slice,
+        nslices: usize,
+        compression: grpc_compression_algorithm,
+    ) -> *mut grpc_byte_buffer;
+}
+extern "C" {
+    #[doc = " Copies input byte buffer \\a bb."]
+    #[doc = ""]
+    #[doc = " Increases the reference count of all the source slices. The user is"]
+    #[doc = " responsible for calling grpc_byte_buffer_destroy over the returned copy."]
+    pub fn grpc_byte_buffer_copy(bb: *mut grpc_byte_buffer) -> *mut grpc_byte_buffer;
+}
+extern "C" {
+    #[doc = " Returns the size of the given byte buffer, in bytes."]
+    pub fn grpc_byte_buffer_length(bb: *mut grpc_byte_buffer) -> usize;
+}
+extern "C" {
+    #[doc = " Destroys \\a byte_buffer deallocating all its memory."]
+    pub fn grpc_byte_buffer_destroy(bb: *mut grpc_byte_buffer);
+}
+extern "C" {
+    #[doc = " Initialize \\a reader to read over \\a buffer."]
+    #[doc = " Returns 1 upon success, 0 otherwise."]
+    pub fn grpc_byte_buffer_reader_init(
+        reader: *mut grpc_byte_buffer_reader,
+        buffer: *mut grpc_byte_buffer,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Cleanup and destroy \\a reader"]
+    pub fn grpc_byte_buffer_reader_destroy(reader: *mut grpc_byte_buffer_reader);
+}
+extern "C" {
+    #[doc = " Updates \\a slice with the next piece of data from from \\a reader and returns"]
+    #[doc = " 1. Returns 0 at the end of the stream. Caller is responsible for calling"]
+    #[doc = " grpc_slice_unref on the result."]
+    pub fn grpc_byte_buffer_reader_next(
+        reader: *mut grpc_byte_buffer_reader,
+        slice: *mut grpc_slice,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - This function may be removed and changed, in the future."]
+    #[doc = ""]
+    #[doc = " Updates \\a slice with the next piece of data from from \\a reader and returns"]
+    #[doc = " 1. Returns 0 at the end of the stream. Caller is responsible for making sure"]
+    #[doc = " the slice pointer remains valid when accessed."]
+    #[doc = ""]
+    #[doc = " NOTE: Do not use this function unless the caller can guarantee that the"]
+    #[doc = "       underlying grpc_byte_buffer outlasts the use of the slice. This is only"]
+    #[doc = "       safe when the underlying grpc_byte_buffer remains immutable while slice"]
+    #[doc = "       is being accessed."]
+    pub fn grpc_byte_buffer_reader_peek(
+        reader: *mut grpc_byte_buffer_reader,
+        slice: *mut *mut grpc_slice,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Merge all data from \\a reader into single slice"]
+    pub fn grpc_byte_buffer_reader_readall(reader: *mut grpc_byte_buffer_reader) -> grpc_slice;
+}
+extern "C" {
+    #[doc = " Returns a RAW byte buffer instance from the output of \\a reader."]
+    pub fn grpc_raw_byte_buffer_from_reader(
+        reader: *mut grpc_byte_buffer_reader,
+    ) -> *mut grpc_byte_buffer;
+}
+extern "C" {
+    #[doc = " Return if an algorithm is message compression algorithm."]
+    pub fn grpc_compression_algorithm_is_message(
+        algorithm: grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Return if an algorithm is stream compression algorithm."]
+    pub fn grpc_compression_algorithm_is_stream(
+        algorithm: grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Parses the \\a slice as a grpc_compression_algorithm instance and updating \\a"]
+    #[doc = " algorithm. Returns 1 upon success, 0 otherwise."]
+    pub fn grpc_compression_algorithm_parse(
+        name: grpc_slice,
+        algorithm: *mut grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Updates \\a name with the encoding name corresponding to a valid \\a"]
+    #[doc = " algorithm. Note that \\a name is statically allocated and must *not* be freed."]
+    #[doc = " Returns 1 upon success, 0 otherwise."]
+    pub fn grpc_compression_algorithm_name(
+        algorithm: grpc_compression_algorithm,
+        name: *mut *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    #[doc = " Returns the compression algorithm corresponding to \\a level for the"]
+    #[doc = " compression algorithms encoded in the \\a accepted_encodings bitset."]
+    pub fn grpc_compression_algorithm_for_level(
+        level: grpc_compression_level,
+        accepted_encodings: u32,
+    ) -> grpc_compression_algorithm;
+}
+extern "C" {
+    pub fn grpc_compression_options_init(opts: *mut grpc_compression_options);
+}
+extern "C" {
+    #[doc = " Mark \\a algorithm as enabled in \\a opts."]
+    pub fn grpc_compression_options_enable_algorithm(
+        opts: *mut grpc_compression_options,
+        algorithm: grpc_compression_algorithm,
+    );
+}
+extern "C" {
+    #[doc = " Mark \\a algorithm as disabled in \\a opts."]
+    pub fn grpc_compression_options_disable_algorithm(
+        opts: *mut grpc_compression_options,
+        algorithm: grpc_compression_algorithm,
+    );
+}
+extern "C" {
+    #[doc = " Returns true if \\a algorithm is marked as enabled in \\a opts."]
+    pub fn grpc_compression_options_is_algorithm_enabled(
+        opts: *const grpc_compression_options,
+        algorithm: grpc_compression_algorithm,
+    ) -> ::std::os::raw::c_int;
+}
 #[repr(u32)]
 #[doc = " Connectivity state of a channel."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -1501,87 +1596,6 @@ pub enum grpc_connectivity_state {
     GRPC_CHANNEL_TRANSIENT_FAILURE = 3,
     #[doc = " channel has seen a failure that it cannot recover from"]
     GRPC_CHANNEL_SHUTDOWN = 4,
-}
-extern "C" {
-    #[doc = " Time constants."]
-    pub fn gpr_time_0(type_: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " The zero time interval."]
-    pub fn gpr_inf_future(type_: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " The far future"]
-    pub fn gpr_inf_past(type_: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " initialize time subsystem"]
-    pub fn gpr_time_init();
-}
-extern "C" {
-    #[doc = " Return the current time measured from the given clocks epoch."]
-    pub fn gpr_now(clock: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Convert a timespec from one clock to another"]
-    pub fn gpr_convert_clock_type(t: gpr_timespec, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Return -ve, 0, or +ve according to whether a < b, a == b, or a > b"]
-    #[doc = "respectively."]
-    pub fn gpr_time_cmp(a: gpr_timespec, b: gpr_timespec) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn gpr_time_max(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_min(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Add and subtract times.  Calculations saturate at infinities."]
-    pub fn gpr_time_add(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_sub(a: gpr_timespec, b: gpr_timespec) -> gpr_timespec;
-}
-extern "C" {
-    #[doc = " Return a timespec representing a given number of time units. INT64_MIN is"]
-    #[doc = "interpreted as gpr_inf_past, and INT64_MAX as gpr_inf_future."]
-    pub fn gpr_time_from_micros(us: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_nanos(ns: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_millis(ms: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_seconds(s: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_minutes(m: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_from_hours(h: i64, clock_type: gpr_clock_type) -> gpr_timespec;
-}
-extern "C" {
-    pub fn gpr_time_to_millis(timespec: gpr_timespec) -> i32;
-}
-extern "C" {
-    #[doc = " Return 1 if two times are equal or within threshold of each other,"]
-    #[doc = "0 otherwise"]
-    pub fn gpr_time_similar(
-        a: gpr_timespec,
-        b: gpr_timespec,
-        threshold: gpr_timespec,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    #[doc = " Sleep until at least 'until' - an absolute timeout"]
-    pub fn gpr_sleep_until(until: gpr_timespec);
-}
-extern "C" {
-    pub fn gpr_timespec_to_micros(t: gpr_timespec) -> f64;
 }
 extern "C" {
     #[doc = " \\mainpage GRPC Core"]
@@ -1599,20 +1613,6 @@ extern "C" {
 }
 extern "C" {
     pub fn grpc_call_details_destroy(details: *mut grpc_call_details);
-}
-extern "C" {
-    #[doc = " Registers a plugin to be initialized and destroyed with the library."]
-    #[doc = ""]
-    #[doc = "The \\a init and \\a destroy functions will be invoked as part of"]
-    #[doc = "\\a grpc_init() and \\a grpc_shutdown(), respectively."]
-    #[doc = "Note that these functions can be invoked an arbitrary number of times"]
-    #[doc = "(and hence so will \\a init and \\a destroy)."]
-    #[doc = "It is safe to pass NULL to either argument. Plugins are destroyed in"]
-    #[doc = "the reverse order they were initialized."]
-    pub fn grpc_register_plugin(
-        init: ::std::option::Option<unsafe extern "C" fn()>,
-        destroy: ::std::option::Option<unsafe extern "C" fn()>,
-    );
 }
 extern "C" {
     #[doc = " Initialize the grpc library."]
@@ -3361,6 +3361,7 @@ pub struct grpc_tls_custom_verification_check_request_peer_info {
     pub san_names: grpc_tls_custom_verification_check_request_peer_info_san_names,
     pub peer_cert: *const ::std::os::raw::c_char,
     pub peer_cert_full_chain: *const ::std::os::raw::c_char,
+    pub verified_root_cert_subject: *const ::std::os::raw::c_char,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -3489,6 +3490,16 @@ extern "C" {
     pub fn grpc_tls_certificate_verifier_external_create(
         external_verifier: *mut grpc_tls_certificate_verifier_external,
     ) -> *mut grpc_tls_certificate_verifier;
+}
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Factory function for an internal verifier that won't perform any"]
+    #[doc = " post-handshake verification. Note: using this solely without any other"]
+    #[doc = " authentication mechanisms on the peer identity will leave your applications"]
+    #[doc = " to the MITM(Man-In-The-Middle) attacks. Users should avoid doing so in"]
+    #[doc = " production environments."]
+    pub fn grpc_tls_certificate_verifier_no_op_create() -> *mut grpc_tls_certificate_verifier;
 }
 extern "C" {
     #[doc = " EXPERIMENTAL API - Subject to change"]
@@ -3684,6 +3695,46 @@ extern "C" {
         path: *const ::std::os::raw::c_char,
     );
 }
+extern "C" {
+    #[doc = " malloc."]
+    #[doc = " If size==0, always returns NULL. Otherwise this function never returns NULL."]
+    #[doc = " The pointer returned is suitably aligned for any kind of variable it could"]
+    #[doc = " contain."]
+    pub fn gpr_malloc(size: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " like malloc, but zero all bytes before returning them"]
+    pub fn gpr_zalloc(size: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " free"]
+    pub fn gpr_free(ptr: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    #[doc = " realloc, never returns NULL"]
+    pub fn gpr_realloc(p: *mut ::std::os::raw::c_void, size: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " aligned malloc, never returns NULL, will align to alignment, which"]
+    #[doc = " must be a power of 2."]
+    pub fn gpr_malloc_aligned(size: usize, alignment: usize) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    #[doc = " free memory allocated by gpr_malloc_aligned"]
+    pub fn gpr_free_aligned(ptr: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    #[doc = " Return the number of CPU cores on the current system. Will return 0 if"]
+    #[doc = "the information is not available."]
+    pub fn gpr_cpu_num_cores() -> ::std::os::raw::c_uint;
+}
+extern "C" {
+    #[doc = " Return the CPU on which the current thread is executing; N.B. This should"]
+    #[doc = "be considered advisory only - it is possible that the thread is switched"]
+    #[doc = "to a different CPU at any time. Returns a value in range"]
+    #[doc = "[0, gpr_cpu_num_cores() - 1]"]
+    pub fn gpr_cpu_current_cpu() -> ::std::os::raw::c_uint;
+}
 #[repr(u32)]
 #[doc = " The severity of a log message - use the #defines below when calling into"]
 #[doc = "gpr_log to additionally supply file and line data"]
@@ -3741,44 +3792,11 @@ extern "C" {
     pub fn gpr_set_log_function(func: gpr_log_func);
 }
 extern "C" {
-    #[doc = " malloc."]
-    #[doc = " If size==0, always returns NULL. Otherwise this function never returns NULL."]
-    #[doc = " The pointer returned is suitably aligned for any kind of variable it could"]
-    #[doc = " contain."]
-    pub fn gpr_malloc(size: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " like malloc, but zero all bytes before returning them"]
-    pub fn gpr_zalloc(size: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " free"]
-    pub fn gpr_free(ptr: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    #[doc = " realloc, never returns NULL"]
-    pub fn gpr_realloc(p: *mut ::std::os::raw::c_void, size: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " aligned malloc, never returns NULL, will align to alignment, which"]
-    #[doc = " must be a power of 2."]
-    pub fn gpr_malloc_aligned(size: usize, alignment: usize) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    #[doc = " free memory allocated by gpr_malloc_aligned"]
-    pub fn gpr_free_aligned(ptr: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    #[doc = " Return the number of CPU cores on the current system. Will return 0 if"]
-    #[doc = "the information is not available."]
-    pub fn gpr_cpu_num_cores() -> ::std::os::raw::c_uint;
-}
-extern "C" {
-    #[doc = " Return the CPU on which the current thread is executing; N.B. This should"]
-    #[doc = "be considered advisory only - it is possible that the thread is switched"]
-    #[doc = "to a different CPU at any time. Returns a value in range"]
-    #[doc = "[0, gpr_cpu_num_cores() - 1]"]
-    pub fn gpr_cpu_current_cpu() -> ::std::os::raw::c_uint;
+    pub fn gpr_assertion_failed(
+        filename: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        message: *const ::std::os::raw::c_char,
+    );
 }
 extern "C" {
     #[doc = " Returns a string allocated with gpr_malloc that contains a UTF-8"]
