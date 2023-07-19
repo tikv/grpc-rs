@@ -123,7 +123,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: choco install -y llvm
-    - run: refreshenv
+    - run: Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
     - run: go version ; cargo version ; cmake --version 
     - run: cargo xtask submodule
     - run: cargo build
