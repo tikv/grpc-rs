@@ -104,11 +104,9 @@ fn list_packages(dst: &Path) {
     let mut grpc_unsecure_libs: HashSet<_> = grpc_unsecure.libs.iter().cloned().collect();
 
     // grpc_unsecure.pc is not accurate, see also grpc/grpc#24512. Should also include "address_sorting", "upb", "cares", "z".
-    grpc_unsecure_libs.extend(
-        ["address_sorting", "upb", "cares", "z"]
-            .iter()
-            .map(|s| s.to_string()),
-    );
+    const EXTRA_LIBS: [&str; 5] = ["address_sorting", "upb", "cares", "r2", "z"];
+    grpc_unsecure_libs.extend(EXTRA_LIBS.iter().map(ToString::to_string));
+    grpc_libs.extend(EXTRA_LIBS.iter().map(ToString::to_string));
     // There is no "rt" on Windows and MacOS.
     grpc_libs.remove("rt");
     grpc_unsecure_libs.remove("rt");
@@ -222,6 +220,8 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BUILD_CODEGEN", "false");
         // We don't need to build benchmarks.
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
+        // Check https://github.com/protocolbuffers/protobuf/issues/12185
+        config.define("ABSL_ENABLE_INSTALL", "ON");
 
         // `package` should only be set for secure feature, otherwise cmake will always search for
         // ssl library.
@@ -451,6 +451,7 @@ fn config_binding_path() {
     let file_path: PathBuf = match target.as_str() {
         "x86_64-unknown-linux-gnu"
         | "x86_64-unknown-linux-musl"
+        | "aarch64-unknown-linux-musl"
         | "aarch64-unknown-linux-gnu"
         | "x86_64-apple-darwin"
         | "aarch64-apple-darwin" => {

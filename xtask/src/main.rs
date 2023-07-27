@@ -77,7 +77,7 @@ fn cmd_in(c: impl AsRef<OsStr>, dir: &str) -> Command {
 
 fn submodule() {
     exec(cmd("git").args(&["submodule", "update", "--init", "grpc-sys/grpc"]));
-    for dir in &["cares/cares", "abseil-cpp", "re2"] {
+    for dir in &["cares/cares", "abseil-cpp", "envoy-api", "googleapis", "opencensus-proto", "re2", "xds"] {
         exec(cmd_in("git", "grpc-sys/grpc/third_party").args(&[
             "submodule",
             "update",
