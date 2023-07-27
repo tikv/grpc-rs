@@ -1,10 +1,14 @@
 // Copyright 2020 TiKV Project Authors. Licensed under Apache-2.0.
 
 #[cfg(feature = "_secure")]
+mod auth_context;
+#[cfg(feature = "_secure")]
 mod credentials;
 
 use grpcio_sys::{grpc_channel_credentials, grpc_server_credentials};
 
+#[cfg(feature = "_secure")]
+pub use self::auth_context::*;
 #[cfg(feature = "_secure")]
 pub use self::credentials::{
     CertificateRequestType, ChannelCredentialsBuilder, ServerCredentialsBuilder,
@@ -59,6 +63,7 @@ impl ServerCredentials {
             ServerCredentials::from_raw(creds)
         }
     }
+
     pub(crate) unsafe fn from_raw(creds: *mut grpc_server_credentials) -> ServerCredentials {
         ServerCredentials {
             creds,

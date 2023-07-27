@@ -55,4 +55,4 @@ no-omit-frame-pointer = ["grpcio-sys/no-omit-frame-pointer"]
 travis-ci = { repository = "tikv/grpc-rs" }
 
 [patch.crates-io]
-grpcio-compiler = { path = "compiler", version = "0.12.1", default-features = false }
+grpcio-compiler = { path = "compiler", version = "0.12.1" }
