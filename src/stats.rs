@@ -17,22 +17,26 @@ unsafe fn slice_to_string(slice: grpc_slice) -> String {
 
 macro_rules! stats_item {
     (
+        $(#[$item_attr:meta])*
         $item:ident($inner:ident);
         $name_func:ident;
         $doc_func:ident;
         $(
-            ($num:path, $konst:ident);
+            $(#[$konst_attr:meta])* ($num:path, $konst:ident);
         )+
     ) => {
-        #[derive(PartialEq, Eq, Clone, Copy)]
+        $(#[$item_attr])*
         pub struct $item($inner);
 
         impl $item {
         $(
+            $(#[$konst_attr])*
             pub const $konst: $item = $item($num);
         )+
+            /// All kinds of this stat.
             pub const ALL: &[$item] = &[ $( $item::$konst, )+ ];
 
+            // Returns name of this stat.
             pub fn name(&self) -> String {
                 unsafe {
                     let slice = $name_func(self.0);
@@ -40,6 +44,7 @@ macro_rules! stats_item {
                 }
             }
 
+            // Returns doc of this stat.
             pub fn doc(&self) -> String {
                 unsafe {
                     let slice = $doc_func(self.0);
@@ -64,40 +69,70 @@ macro_rules! stats_item {
 }
 
 stats_item! {
+    /// gRPC stats counter.
+    #[derive(PartialEq, Eq, Clone, Copy)]
     Counter(grpcwrap_stats_counter);
     grpcwrap_stats_counter_name;
     grpcwrap_stats_counter_doc;
+    /// Number of client side calls created by this process
     (grpcwrap_stats_counter::ClientCallsCreated, CLIENT_CALLS_CREATED);
+    /// Number of server side calls created by this process
     (grpcwrap_stats_counter::ServerCallsCreated, SERVER_CALLS_CREATED);
+    /// Number of client channels created
     (grpcwrap_stats_counter::ClientChannelsCreated, CLIENT_CHANNELS_CREATED);
+    /// Number of client subchannels created
     (grpcwrap_stats_counter::ClientSubchannelsCreated, CLIENT_SUBCHANNELS_CREATED);
+    /// Number of server channels created
     (grpcwrap_stats_counter::ServerChannelsCreated, SERVER_CHANNELS_CREATED);
+    /// Number of insecure connections created
     (grpcwrap_stats_counter::InsecureConnectionsCreated, INSECURE_CONNECTIONS_CREATED);
+    /// Number of write syscalls (or equivalent - eg sendmsg) made by this process
     (grpcwrap_stats_counter::SyscallWrite, SYSCALL_WRITE);
+    /// Number of read syscalls (or equivalent - eg recvmsg) made by this process
     (grpcwrap_stats_counter::SyscallRead, SYSCALL_READ);
+    /// Number of 8k allocations by the TCP subsystem for reading
     (grpcwrap_stats_counter::TcpReadAlloc8k, TCP_READ_ALLOC_8K);
+    /// Number of 64k allocations by the TCP subsystem for reading
     (grpcwrap_stats_counter::TcpReadAlloc64k, TCP_READ_ALLOC_64K);
+    /// Number of settings frames sent
     (grpcwrap_stats_counter::Http2SettingsWrites, HTTP2_SETTINGS_WRITES);
+    /// Number of HTTP2 pings sent by process
     (grpcwrap_stats_counter::Http2PingsSent, HTTP_2PINGS_SENT);
+    /// Number of HTTP2 writes initiated
     (grpcwrap_stats_counter::Http2WritesBegun, HTTP2_WRITES_BEGUN);
+    /// Number of times sending was completely stalled by the transport flow control window
     (grpcwrap_stats_counter::Http2TransportStalls, HTTP2_TRANSPORT_STALLS);
+    /// Number of times sending was completely stalled by the stream flow control window
     (grpcwrap_stats_counter::Http2StreamStalls, HTTP2_STREAM_STALLS);
+    /// Number of completion queues created for cq_pluck (indicates sync api usage)
     (grpcwrap_stats_counter::CqPluckCreates, CQ_PLUCK_CREATES);
+    /// Number of completion queues created for cq_next (indicates cq async api usage)
     (grpcwrap_stats_counter::CqNextCreates, CQ_NEXT_CREATES);
+    /// Number of completion queues created for cq_callback (indicates callback api usage)
     (grpcwrap_stats_counter::CqCallbackCreates, CQ_CALLBACK_CREATES);
 }
 
 stats_item! {
+    /// gRPC stats histogram.
+    #[derive(PartialEq, Eq, Clone, Copy)]
     Histogram(grpcwrap_stats_histogram);
     grpcwrap_stats_histogram_name;
     grpcwrap_stats_histogram_doc;
+    /// Initial size of the grpc_call arena created at call start
     (grpcwrap_stats_histogram::CallInitialSize, CALL_INITIAL_SIZE);
+    /// Number of bytes offered to each syscall_write
     (grpcwrap_stats_histogram::TcpWriteSize, TCP_WRITE_SIZE);
+    /// Number of byte segments offered to each syscall_write
     (grpcwrap_stats_histogram::TcpWriteIovSize, TCP_WRITE_IOV_SIZE);
+    /// Number of bytes received by each syscall_read
     (grpcwrap_stats_histogram::TcpReadSize, TCP_READ_SIZE);
+    /// Number of bytes offered to each syscall_read
     (grpcwrap_stats_histogram::TcpReadOffer, TCP_READ_OFFER);
+    /// Number of byte segments offered to each syscall_read
     (grpcwrap_stats_histogram::TcpReadOfferIovSize, TCP_READ_OFFER_IOV_SIZE);
+    /// Size of messages received by HTTP2 transport
     (grpcwrap_stats_histogram::Http2SendMessageSize, HTTP2_SEND_MESSAGE_SIZE);
+    /// Number of bytes consumed by metadata, according to HPACK accounting rules
     (grpcwrap_stats_histogram::Http2MetadataSize, HTTP2_METADATA_SIZE);
 }
 
