@@ -43,6 +43,8 @@ mod metadata;
 mod quota;
 mod security;
 mod server;
+#[cfg(feature = "stats")]
+pub mod stats;
 mod task;
 
 pub use crate::buf::GrpcSlice;

@@ -222,6 +222,9 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
         // Check https://github.com/protocolbuffers/protobuf/issues/12185
         config.define("ABSL_ENABLE_INSTALL", "ON");
+        if cfg!(feature = "stats") {
+            config.define("ABSL_PROPAGATE_CXX_STD", "ON");
+        }
 
         // `package` should only be set for secure feature, otherwise cmake will always search for
         // ssl library.
@@ -289,6 +292,10 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     }
 
     cc.include("grpc/include");
+    if cfg!(feature = "stats") {
+        cc.include("grpc");
+        cc.include("grpc/third_party/abseil-cpp");
+    }
 }
 
 fn figure_ssl_path(build_dir: &str) {
@@ -360,6 +367,34 @@ fn get_env(name: &str) -> Option<String> {
     }
 }
 
+enum Binding {
+    GrpcWrap {
+        #[allow(dead_code)]
+        src: &'static str,
+        dest: &'static str,
+        env: &'static str,
+    },
+    GrpcWrapStats {
+        #[allow(dead_code)]
+        src: &'static str,
+        dest: &'static str,
+        env: &'static str,
+    },
+}
+
+impl Binding {
+    fn env(&self) -> &str {
+        match self {
+            Self::GrpcWrap { env, .. } | Self::GrpcWrapStats { env, .. } => env,
+        }
+    }
+    fn dest(&self) -> &str {
+        match self {
+            Self::GrpcWrap { dest, .. } | Self::GrpcWrapStats { dest, .. } => dest,
+        }
+    }
+}
+
 // Generate the bindings to grpc C-core.
 // Try to disable the generation of platform-related bindings.
 #[cfg(any(
@@ -369,7 +404,7 @@ fn get_env(name: &str) -> Option<String> {
         any(target_arch = "x86_64", target_arch = "aarch64")
     ))
 ))]
-fn bindgen_grpc(file_path: &Path) {
+fn bindgen_grpc(binding: Binding, dest_path: &Path) {
     // create a config to generate binding file
     let mut config = bindgen::Builder::default();
     if cfg!(feature = "_secure") {
@@ -405,24 +440,16 @@ fn bindgen_grpc(file_path: &Path) {
     println!("cargo:rerun-if-env-changed=TEST_BIND");
     let gen_tests = env::var("TEST_BIND").map_or(false, |s| s == "1");
 
-    let cfg = config
-        .header("grpc_wrap.cc")
+    let mut cfg = config
         .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
-        .clang_arg("-std=c++11")
+        .clang_arg("-std=c++14")
         .rustfmt_bindings(true)
         .impl_debug(true)
         .size_t_is_usize(true)
         .disable_header_comment()
-        .allowlist_function(r"\bgrpc_.*")
-        .allowlist_function(r"\bgpr_.*")
         .allowlist_function(r"\bgrpcwrap_.*")
-        .allowlist_var(r"\bGRPC_.*")
-        .allowlist_type(r"\bgrpc_.*")
-        .allowlist_type(r"\bgpr_.*")
         .allowlist_type(r"\bgrpcwrap_.*")
-        .allowlist_type(r"\bcensus_context.*")
-        .allowlist_type(r"\bverify_peer_options.*")
         // Block all system headers.
         .blocklist_file(r"^/.*")
         .blocklist_function(r"\bgpr_mu_.*")
@@ -436,10 +463,33 @@ fn bindgen_grpc(file_path: &Path) {
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         });
+    match binding {
+        // Generate grpc_wrap.cc bindings.
+        Binding::GrpcWrap { src, .. } => {
+            cfg = cfg
+                .header(src)
+                .allowlist_function(r"\bgrpc_.*")
+                .allowlist_function(r"\bgpr_.*")
+                .allowlist_var(r"\bGRPC_.*")
+                .allowlist_type(r"\bgrpc_.*")
+                .allowlist_type(r"\bgpr_.*")
+                .allowlist_type(r"\bcensus_context.*")
+                .allowlist_type(r"\bverify_peer_options.*");
+        }
+        // Generate grpc_wrap_stats.cc bindings.
+        Binding::GrpcWrapStats { src, .. } => {
+            cfg = cfg
+                .header(src)
+                .clang_arg("-I./grpc")
+                .clang_arg("-I./grpc/third_party/abseil-cpp")
+                .blocklist_function(r"\bgrpc_.*")
+                .blocklist_type(r"\bgrpc_.*");
+        }
+    }
     println!("running {}", cfg.command_line_flags().join(" "));
     cfg.generate()
         .expect("Unable to generate grpc bindings")
-        .write_to_file(file_path)
+        .write_to_file(dest_path)
         .expect("Couldn't write bindings!");
 }
 
@@ -447,54 +497,74 @@ fn bindgen_grpc(file_path: &Path) {
 // need to be updated by default unless the _gen-bindings feature is specified.
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path() {
-    let target = env::var("TARGET").unwrap();
-    let file_path: PathBuf = match target.as_str() {
-        "x86_64-unknown-linux-gnu"
-        | "x86_64-unknown-linux-musl"
-        | "aarch64-unknown-linux-musl"
-        | "aarch64-unknown-linux-gnu"
-        | "x86_64-apple-darwin"
-        | "aarch64-apple-darwin" => {
-            // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
-            // directive when we expect the target-specific pre-generated binding file to be
-            // present.
-            println!("cargo:rerun-if-changed=bindings/bindings.rs");
+    let config_binding = |binding: Binding| {
+        let target = env::var("TARGET").unwrap();
+        let dest_path = match target.as_str() {
+            "x86_64-unknown-linux-gnu"
+            | "x86_64-unknown-linux-musl"
+            | "aarch64-unknown-linux-musl"
+            | "aarch64-unknown-linux-gnu"
+            | "x86_64-apple-darwin"
+            | "aarch64-apple-darwin" => {
+                // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
+                // directive when we expect the target-specific pre-generated binding file to be
+                // present.
+                println!("cargo:rerun-if-changed=bindings/{}", binding.dest());
 
-            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("bindings")
-                .join("bindings.rs")
+                PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                    .join("bindings")
+                    .join(binding.dest())
+            }
+            _ => {
+                PathBuf::from(env::var("OUT_DIR").unwrap()).join(format!("grpc-{}", binding.dest()))
+            }
+        };
+        println!(
+            "cargo:rustc-env={}={}",
+            binding.env(),
+            dest_path.to_str().unwrap()
+        );
+        #[cfg(any(
+            feature = "_gen-bindings",
+            not(all(
+                any(target_os = "linux", target_os = "macos"),
+                any(target_arch = "x86_64", target_arch = "aarch64")
+            ))
+        ))]
+        {
+            // On some system (like Windows), stack size of main thread may
+            // be too small.
+            let f = dest_path.clone();
+            std::thread::Builder::new()
+                .stack_size(8 * 1024 * 1024)
+                .name("bindgen_grpc".to_string())
+                .spawn(move || {
+                    bindgen_grpc(binding, &f);
+                })
+                .unwrap()
+                .join()
+                .unwrap();
         }
-        _ => PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs"),
+        let _ = binding;
     };
 
-    #[cfg(any(
-        feature = "_gen-bindings",
-        not(all(
-            any(target_os = "linux", target_os = "macos"),
-            any(target_arch = "x86_64", target_arch = "aarch64")
-        ))
-    ))]
-    {
-        // On some system (like Windows), stack size of main thread may
-        // be too small.
-        let f = file_path.clone();
-        std::thread::Builder::new()
-            .stack_size(8 * 1024 * 1024)
-            .name("bindgen_grpc".to_string())
-            .spawn(move || bindgen_grpc(&f))
-            .unwrap()
-            .join()
-            .unwrap();
+    config_binding(Binding::GrpcWrap {
+        src: "grpc_wrap.cc",
+        dest: "bindings.rs",
+        env: "BINDING_WRAP_PATH",
+    });
+    if cfg!(feature = "stats") {
+        config_binding(Binding::GrpcWrapStats {
+            src: "grpc_wrap_stats.cc",
+            dest: "bindings_stats.rs",
+            env: "BINDING_WRAP_STATS_PATH",
+        });
     }
-
-    println!(
-        "cargo:rustc-env=BINDING_PATH={}",
-        file_path.to_str().unwrap()
-    );
 }
 
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
+    println!("cargo:rerun-if-changed=grpc_wrap_stats.cc");
     println!("cargo:rerun-if-changed=grpc");
 
     // create a builder to compile grpc_wrap.cc
@@ -512,7 +582,8 @@ fn main() {
         cc.define("_WIN32_WINNT", Some("0x600"));
     }
 
-    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
+    if !cfg!(feature = "stats") && get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1")
+    {
         // Print cargo metadata.
         let lib_core = probe_library(library, true);
         for inc_path in lib_core.include_paths {
@@ -524,9 +595,12 @@ fn main() {
 
     cc.cpp(true);
     if !cfg!(target_env = "msvc") {
-        cc.flag("-std=c++11");
+        cc.flag("-std=c++14");
     }
     cc.file("grpc_wrap.cc");
+    if cfg!(feature = "stats") {
+        cc.file("grpc_wrap_stats.cc");
+    }
     cc.warnings_into_errors(true);
     cc.compile("libgrpc_wrap.a");
 
