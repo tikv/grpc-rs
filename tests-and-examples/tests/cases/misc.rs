@@ -420,3 +420,42 @@ fn test_channelz() {
         res
     );
 }
+
+#[test]
+fn test_stats() {
+    let env = Arc::new(Environment::new(2));
+    // Start a server and delay the process of grpc server.
+    let service = create_greeter(PeerService);
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .build()
+        .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
+    server.start();
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
+    let client = GreeterClient::new(ch);
+    let req = HelloRequest::default();
+    client.say_hello(&req).unwrap();
+    let stats = stats::Stats::collect();
+    assert_ne!(stats.counter(stats::Counter::CLIENT_CALLS_CREATED), 0);
+    assert_ne!(stats.counter(stats::Counter::CLIENT_CHANNELS_CREATED), 0);
+    assert_ne!(stats.counter(stats::Counter::SERVER_CHANNELS_CREATED), 0);
+    assert_ne!(
+        stats.histogram_count(stats::Histogram::CALL_INITIAL_SIZE),
+        0
+    );
+    assert_ne!(
+        stats.histogram_percentile(stats::Histogram::CALL_INITIAL_SIZE, 0.8),
+        0.0
+    );
+    assert_ne!(
+        stats.histogram_count(stats::Histogram::HTTP2_SEND_MESSAGE_SIZE),
+        0
+    );
+    assert_ne!(
+        stats.histogram_percentile(stats::Histogram::HTTP2_SEND_MESSAGE_SIZE, 0.8),
+        0.0
+    );
+}
