@@ -46,8 +46,8 @@ enum grpcwrap_stats_counter {
   COUNTER_COUNT
 };
 // Just make sure they have the same number of counters.
-static_assert((int)grpcwrap_stats_counter::COUNTER_COUNT ==
-              (int)grpc_core::GlobalStats::Counter::COUNT);
+static_assert(static_cast<int>(grpcwrap_stats_counter::COUNTER_COUNT) ==
+              static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
 
 enum grpcwrap_stats_histogram {
   CallInitialSize,
@@ -61,8 +61,8 @@ enum grpcwrap_stats_histogram {
   HISTOGRAM_COUNT
 };
 // Just make sure they have the same number of histograms.
-static_assert((int)grpcwrap_stats_histogram::HISTOGRAM_COUNT ==
-              (int)grpc_core::GlobalStats::Histogram::COUNT);
+static_assert(static_cast<int>(grpcwrap_stats_histogram::HISTOGRAM_COUNT) ==
+              static_cast<int>(grpc_core::GlobalStats::Histogram::COUNT));
 
 GPR_EXPORT grpcwrap_stats* GPR_CALLTYPE grpcwrap_stats_collect() {
   return (grpcwrap_stats*)grpc_core::global_stats().Collect().release();
