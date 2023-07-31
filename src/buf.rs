@@ -65,7 +65,7 @@ impl GrpcSlice {
     }
 
     /// Creates a slice from grpc_slice.
-    pub(crate) fn from_raw(slice: grpc_slice) -> GrpcSlice {
+    pub fn from_raw(slice: grpc_slice) -> GrpcSlice {
         GrpcSlice(slice)
     }
 
