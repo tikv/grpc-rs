@@ -2,21 +2,16 @@
 
 use std::{
     fmt::{self, Debug, Display},
-    slice,
     str::{self, FromStr},
 };
 
 use grpcio_sys::*;
 
+use crate::buf::GrpcSlice;
+
 unsafe fn slice_to_string(slice: grpc_slice) -> String {
-    let mut len = 0;
-    let ptr = grpcwrap_slice_raw_offset(&slice, 0, &mut len);
-    let string = String::from_str(str::from_utf8_unchecked(slice::from_raw_parts(
-        ptr as _, len,
-    )))
-    .unwrap();
-    grpc_slice_unref(slice);
-    string
+    let s = GrpcSlice::from_raw(slice);
+    String::from_str(str::from_utf8_unchecked(s.as_slice())).unwrap()
 }
 
 macro_rules! stats_item {
