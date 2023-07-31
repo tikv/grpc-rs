@@ -85,7 +85,7 @@ jobs:
     - run: cargo test --all
     # See https://github.com/grpc/grpc/pull/31167
     - run: RUSTFLAGS="-Z sanitizer=address" ASAN_OPTIONS=suppressions=`pwd`/.github/workflows/31167.supp cargo test --all --target x86_64-unknown-linux-gnu
-    - run: cargo test --features "nightly stats"
+    - run: cargo test --features "nightly"
 
   Mac:
     name: Mac
@@ -101,7 +101,7 @@ jobs:
     - run: cargo build --no-default-features --features "prost-codec"
     - run: cargo build
     - run: cargo test --all
-    - run: cargo test --features "nightly stats"
+    - run: cargo test --features "nightly"
 
   Mac-openssl:
     name: Mac-openssl
@@ -128,7 +128,7 @@ jobs:
     - run: cargo xtask submodule
     - run: cargo build
     - run: cargo test --all
-    - run: cargo test --features "nightly stats"
+    - run: cargo test --features "nightly"
 
   Pre-Release:
     name: Pre-Release

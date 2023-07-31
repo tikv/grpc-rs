@@ -5,6 +5,7 @@
 
 #include <src/core/lib/debug/stats.h>
 #include <src/core/lib/debug/stats_data.h>
+
 #include <grpc/support/log.h>
 
 #ifdef GPR_WINDOWS
@@ -47,7 +48,8 @@ enum grpcwrap_stats_counter {
 };
 // Just make sure they have the same number of counters.
 static_assert(static_cast<int>(grpcwrap_stats_counter::COUNTER_COUNT) ==
-              static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
+                  static_cast<int>(grpc_core::GlobalStats::Counter::COUNT),
+              "Counter count must be the same");
 
 enum grpcwrap_stats_histogram {
   CallInitialSize,
@@ -62,7 +64,8 @@ enum grpcwrap_stats_histogram {
 };
 // Just make sure they have the same number of histograms.
 static_assert(static_cast<int>(grpcwrap_stats_histogram::HISTOGRAM_COUNT) ==
-              static_cast<int>(grpc_core::GlobalStats::Histogram::COUNT));
+                  static_cast<int>(grpc_core::GlobalStats::Histogram::COUNT),
+              "Histogram count must be the same");
 
 GPR_EXPORT grpcwrap_stats* GPR_CALLTYPE grpcwrap_stats_collect() {
   return (grpcwrap_stats*)grpc_core::global_stats().Collect().release();
@@ -75,14 +78,12 @@ GPR_EXPORT void GPR_CALLTYPE grpcwrap_stats_free(grpcwrap_stats* stats) {
 
 GPR_EXPORT uint64_t GPR_CALLTYPE grpcwrap_stats_get_counter(
     const grpcwrap_stats* stats, grpcwrap_stats_counter which) {
-  GPR_ASSERT(which < static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
   auto s = (const grpc_core::GlobalStats*)stats;
   return s->counters[which];
 }
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_counter_name(grpcwrap_stats_counter which) {
-  GPR_ASSERT(which < static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
   auto name = grpc_core::GlobalStats::counter_name[which];
   auto slice = grpc_slice_from_static_buffer(name.data(), name.length());
   return slice;
@@ -90,7 +91,6 @@ grpcwrap_stats_counter_name(grpcwrap_stats_counter which) {
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_counter_doc(grpcwrap_stats_counter which) {
-  GPR_ASSERT(which < static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
   auto doc = grpc_core::GlobalStats::counter_doc[which];
   auto slice = grpc_slice_from_static_buffer(doc.data(), doc.length());
   return slice;
@@ -99,7 +99,6 @@ grpcwrap_stats_counter_doc(grpcwrap_stats_counter which) {
 GPR_EXPORT double GPR_CALLTYPE grpcwrap_stats_get_histogram_percentile(
     const grpcwrap_stats* stats, grpcwrap_stats_histogram which,
     double percentile) {
-  GPR_ASSERT(which < static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
   auto s = (const grpc_core::GlobalStats*)stats;
   return s->histogram(static_cast<grpc_core::GlobalStats::Histogram>(which))
       .Percentile(percentile);
@@ -107,7 +106,6 @@ GPR_EXPORT double GPR_CALLTYPE grpcwrap_stats_get_histogram_percentile(
 
 GPR_EXPORT uint64_t GPR_CALLTYPE grpcwrap_stats_get_histogram_count(
     const grpcwrap_stats* stats, grpcwrap_stats_histogram which) {
-  GPR_ASSERT(which < static_cast<int>(grpc_core::GlobalStats::Counter::COUNT));
   auto s = (const grpc_core::GlobalStats*)stats;
   return s->histogram(static_cast<grpc_core::GlobalStats::Histogram>(which))
       .Count();
@@ -115,8 +113,6 @@ GPR_EXPORT uint64_t GPR_CALLTYPE grpcwrap_stats_get_histogram_count(
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_histogram_name(grpcwrap_stats_histogram which) {
-  GPR_ASSERT(which <
-             static_cast<int>(grpc_core::GlobalStats::Histogram::COUNT));
   auto name = grpc_core::GlobalStats::histogram_name[which];
   auto slice = grpc_slice_from_static_buffer(name.data(), name.length());
   return slice;
@@ -124,8 +120,6 @@ grpcwrap_stats_histogram_name(grpcwrap_stats_histogram which) {
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_histogram_doc(grpcwrap_stats_histogram which) {
-  GPR_ASSERT(which <
-             static_cast<int>(grpc_core::GlobalStats::Histogram::COUNT));
   auto doc = grpc_core::GlobalStats::histogram_doc[which];
   auto slice = grpc_slice_from_static_buffer(doc.data(), doc.length());
   return slice;
