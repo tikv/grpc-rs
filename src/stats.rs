@@ -2,7 +2,8 @@
 
 use std::{
     fmt::{self, Debug, Display},
-    slice, str,
+    slice,
+    str::{self, FromStr},
 };
 
 use grpcio_sys::*;
@@ -10,7 +11,10 @@ use grpcio_sys::*;
 unsafe fn slice_to_string(slice: grpc_slice) -> String {
     let mut len = 0;
     let ptr = grpcwrap_slice_raw_offset(&slice, 0, &mut len);
-    let string = str::from_utf8_unchecked(slice::from_raw_parts(ptr as _, len)).to_owned();
+    let string = String::from_str(str::from_utf8_unchecked(slice::from_raw_parts(
+        ptr as _, len,
+    )))
+    .unwrap();
     grpc_slice_unref(slice);
     string
 }
@@ -162,7 +166,7 @@ impl Stats {
         unsafe { grpcwrap_stats_get_histogram_percentile(self.stats, which.0, percentile) }
     }
 
-    pub fn histogram_count(&self, which: Histogram) -> u64 {
+    pub fn histogram_count(&self, which: Histogram) -> f64 {
         unsafe { grpcwrap_stats_get_histogram_count(self.stats, which.0) }
     }
 }

@@ -444,7 +444,7 @@ fn test_stats() {
     assert_ne!(stats.counter(stats::Counter::SERVER_CHANNELS_CREATED), 0);
     assert_ne!(
         stats.histogram_count(stats::Histogram::CALL_INITIAL_SIZE),
-        0
+        0.0
     );
     assert_ne!(
         stats.histogram_percentile(stats::Histogram::CALL_INITIAL_SIZE, 0.8),
@@ -452,7 +452,7 @@ fn test_stats() {
     );
     assert_ne!(
         stats.histogram_count(stats::Histogram::HTTP2_SEND_MESSAGE_SIZE),
-        0
+        0.0
     );
     assert_ne!(
         stats.histogram_percentile(stats::Histogram::HTTP2_SEND_MESSAGE_SIZE, 0.8),

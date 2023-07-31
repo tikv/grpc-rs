@@ -104,7 +104,7 @@ GPR_EXPORT double GPR_CALLTYPE grpcwrap_stats_get_histogram_percentile(
       .Percentile(percentile);
 }
 
-GPR_EXPORT uint64_t GPR_CALLTYPE grpcwrap_stats_get_histogram_count(
+GPR_EXPORT double GPR_CALLTYPE grpcwrap_stats_get_histogram_count(
     const grpcwrap_stats* stats, grpcwrap_stats_histogram which) {
   auto s = (const grpc_core::GlobalStats*)stats;
   return s->histogram(static_cast<grpc_core::GlobalStats::Histogram>(which))

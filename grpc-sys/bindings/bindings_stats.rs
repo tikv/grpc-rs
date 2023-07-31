@@ -68,7 +68,7 @@ extern "C" {
     pub fn grpcwrap_stats_get_histogram_count(
         stats: *const grpcwrap_stats,
         which: grpcwrap_stats_histogram,
-    ) -> u64;
+    ) -> f64;
 }
 extern "C" {
     pub fn grpcwrap_stats_histogram_name(which: grpcwrap_stats_histogram) -> grpc_slice;
