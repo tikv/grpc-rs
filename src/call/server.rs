@@ -16,7 +16,6 @@ use futures_util::{Sink, Stream};
 use parking_lot::Mutex;
 
 use super::{RpcStatus, ShareCall, ShareCallHolder, WriteFlags};
-use crate::auth_context::AuthContext;
 use crate::buf::GrpcSlice;
 use crate::call::{
     BatchContext, Call, MessageReader, MethodType, RpcStatusCode, SinkBase, StreamingBase,
@@ -193,10 +192,11 @@ impl RequestContext {
     }
 
     /// If the server binds in non-secure mode, this will return None
-    fn auth_context(&self) -> Option<AuthContext> {
+    #[cfg(feature = "_secure")]
+    fn auth_context(&self) -> Option<crate::AuthContext> {
         unsafe {
             let call = grpc_sys::grpcwrap_request_call_context_get_call(self.ctx);
-            AuthContext::from_call_ptr(call)
+            crate::AuthContext::from_call_ptr(call)
         }
     }
 }
@@ -690,7 +690,8 @@ impl<'a> RpcContext<'a> {
     /// Wrapper around the gRPC Core AuthContext
     ///
     /// If the server binds in non-secure mode, this will return None
-    pub fn auth_context(&self) -> Option<AuthContext> {
+    #[cfg(feature = "_secure")]
+    pub fn auth_context(&self) -> Option<crate::AuthContext> {
         self.ctx.auth_context()
     }
 
