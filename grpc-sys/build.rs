@@ -12,13 +12,18 @@ use cmake::Config as CmakeConfig;
 use pkg_config::{Config as PkgConfig, Library};
 use walkdir::WalkDir;
 
-const GRPC_VERSION: &str = "1.44.0";
+fn grpc_version() -> &'static str {
+    let mut version = env!("CARGO_PKG_VERSION").split('+');
+    version.next().unwrap();
+    let label = version.next().unwrap();
+    label.split('-').next().unwrap()
+}
 
 include!("link-deps.rs");
 
 fn probe_library(library: &str, cargo_metadata: bool) -> Library {
     match PkgConfig::new()
-        .atleast_version(GRPC_VERSION)
+        .atleast_version(grpc_version())
         .cargo_metadata(cargo_metadata)
         .probe(library)
     {
@@ -97,7 +102,7 @@ fn list_packages(dst: &Path) {
         .print_system_libs(false)
         .env_metadata(false)
         .cargo_metadata(false)
-        .atleast_version(GRPC_VERSION);
+        .atleast_version(grpc_version());
     let grpc = cfg.probe("grpc").unwrap();
     let mut grpc_libs: HashSet<_> = grpc.libs.iter().cloned().collect();
     let grpc_unsecure = cfg.probe("grpc_unsecure").unwrap();

@@ -30,7 +30,7 @@ This project is still under development. The following features with the check m
 - binutils >= 2.22
 - LLVM and Clang >= 3.9 if you need to generate bindings at compile time.
 
-For Linux and MacOS, you also need to install gcc 4.9+ (or clang) too.
+For Linux and MacOS, you also need to install gcc 7.3+ (or clang 6+) too.
 
 Bindings are pre-generated for x86_64/arm64 Linux. For other platforms, bindings are generated at compile time.
 
