@@ -11,7 +11,7 @@ protobufv3-codec = ["grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", 
 prost-codec = ["grpcio/prost-codec", "grpcio-proto/prost-codec"]
 
 [dependencies]
-grpcio = { path = "..", default-features = false  }
+grpcio = { path = "..", default-features = false, features = ["boringssl"]}
 grpcio-proto = { path = "../proto", default-features = false }
 futures-channel = "0.3"
 futures-executor = "0.3"
