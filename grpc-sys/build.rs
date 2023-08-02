@@ -227,9 +227,6 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
         // Check https://github.com/protocolbuffers/protobuf/issues/12185
         config.define("ABSL_ENABLE_INSTALL", "ON");
-        if cfg!(feature = "internals") {
-            config.define("ABSL_PROPAGATE_CXX_STD", "ON");
-        }
 
         // `package` should only be set for secure feature, otherwise cmake will always search for
         // ssl library.
@@ -255,7 +252,12 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         if !cfg!(feature = "_list-package") {
             config.build_target(library);
         }
-        config.uses_cxx11().build()
+
+        config.define("CMAKE_CXX_STANDARD", "14");
+        config.define("CMAKE_CXX_STANDARD_REQUIRED", "ON");
+        // Use -std=c++yy rather than -std=gnu++yy.
+        config.define("CMAKE_CXX_EXTENSIONS", "OFF");
+        config.build()
     };
 
     let lib_suffix = if target.contains("msvc") {
@@ -550,7 +552,6 @@ fn config_binding_path() {
                 .join()
                 .unwrap();
         }
-        let _ = binding;
     };
 
     config_binding(Binding::GrpcWrap {
@@ -600,11 +601,21 @@ fn main() {
     }
 
     cc.cpp(true);
-    if !cfg!(target_env = "msvc") {
+    if cfg!(target_env = "msvc") {
+        cc.flag("-std:c++14");
+    } else {
         cc.flag("-std=c++14");
     }
     cc.file("grpc_wrap.cc");
     if cfg!(feature = "internals") {
+        if cfg!(target_env = "msvc") {
+            // grpc_wrap_internals.cc includes <ostream> implicitly which uses
+            // C++ exception handler. Specify -EHsc to use unwind semantics.
+            cc.flag("-EHsc");
+            // Disable warnings from included files on windows.
+            cc.flag("-external:W0");
+            cc.flag("-external:anglebrackets");
+        }
         cc.file("grpc_wrap_internals.cc");
     }
     cc.warnings_into_errors(true);

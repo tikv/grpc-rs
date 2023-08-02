@@ -1,8 +1,5 @@
 // Copyright 2023 TiKV Project Authors. Licensed under Apache-2.0.
 
-// #ifdef GRPC_SYS_METRICS
-// #endif
-
 #include <src/core/lib/debug/stats.h>
 #include <src/core/lib/debug/stats_data.h>
 
