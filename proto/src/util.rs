@@ -53,8 +53,7 @@ impl TryFrom<grpcio::RpcStatus> for Status {
     fn try_from(value: grpcio::RpcStatus) -> grpcio::Result<Self> {
         let mut s = Status::default();
         #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
-        protobuf::Message::merge_from_bytes(&mut s, value.details())
-            .map_err(|_err| grpcio::Error::RemoteStopped)?;
+        protobuf::Message::merge_from_bytes(&mut s, value.details())?;
         #[cfg(feature = "prost-codec")]
         prost::Message::merge(&mut s, value.details())?;
         if s.code == value.code().into() {
@@ -83,8 +82,7 @@ impl TryFrom<Status> for grpcio::RpcStatus {
 
     fn try_from(value: Status) -> grpcio::Result<Self> {
         #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
-        let details = protobuf::Message::write_to_bytes(&value)
-            .map_err(|_err| grpcio::Error::RemoteStopped)?;
+        let details = protobuf::Message::write_to_bytes(&value)?;
         #[cfg(feature = "prost-codec")]
         let details = {
             let mut v = vec![];
