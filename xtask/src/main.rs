@@ -112,7 +112,7 @@ fn clang_lint() {
         exec(cmd("clang-format").args(&["-i", file]));
     }
     lint("grpc-sys/grpc_wrap.cc");
-    lint("grpc-sys/grpc_wrap_stats.cc");
+    lint("grpc-sys/grpc_wrap_internals.cc");
 }
 
 const PROTOS: &[(&str, &[&str], &str, &str)] = &[

@@ -379,7 +379,7 @@ enum Binding {
         dest: &'static str,
         env: &'static str,
     },
-    GrpcWrapStats {
+    GrpcWrapInternals {
         #[allow(dead_code)]
         src: &'static str,
         dest: &'static str,
@@ -390,12 +390,12 @@ enum Binding {
 impl Binding {
     fn env(&self) -> &str {
         match self {
-            Self::GrpcWrap { env, .. } | Self::GrpcWrapStats { env, .. } => env,
+            Self::GrpcWrap { env, .. } | Self::GrpcWrapInternals { env, .. } => env,
         }
     }
     fn dest(&self) -> &str {
         match self {
-            Self::GrpcWrap { dest, .. } | Self::GrpcWrapStats { dest, .. } => dest,
+            Self::GrpcWrap { dest, .. } | Self::GrpcWrapInternals { dest, .. } => dest,
         }
     }
 }
@@ -481,8 +481,8 @@ fn bindgen_grpc(binding: Binding, dest_path: &Path) {
                 .allowlist_type(r"\bcensus_context.*")
                 .allowlist_type(r"\bverify_peer_options.*");
         }
-        // Generate grpc_wrap_stats.cc bindings.
-        Binding::GrpcWrapStats { src, .. } => {
+        // Generate grpc_wrap_internals.cc bindings.
+        Binding::GrpcWrapInternals { src, .. } => {
             cfg = cfg
                 .header(src)
                 .clang_arg("-I./grpc")
@@ -559,17 +559,17 @@ fn config_binding_path() {
         env: "BINDING_WRAP_PATH",
     });
     if cfg!(feature = "internals") {
-        config_binding(Binding::GrpcWrapStats {
-            src: "grpc_wrap_stats.cc",
-            dest: "bindings_stats.rs",
-            env: "BINDING_WRAP_STATS_PATH",
+        config_binding(Binding::GrpcWrapInternals {
+            src: "grpc_wrap_internals.cc",
+            dest: "binding_internals.rs",
+            env: "BINDING_WRAP_INTERNAL_PATH",
         });
     }
 }
 
 fn main() {
     println!("cargo:rerun-if-changed=grpc_wrap.cc");
-    println!("cargo:rerun-if-changed=grpc_wrap_stats.cc");
+    println!("cargo:rerun-if-changed=grpc_wrap_internals.cc");
     println!("cargo:rerun-if-changed=grpc");
 
     // create a builder to compile grpc_wrap.cc
@@ -605,7 +605,7 @@ fn main() {
     }
     cc.file("grpc_wrap.cc");
     if cfg!(feature = "internals") {
-        cc.file("grpc_wrap_stats.cc");
+        cc.file("grpc_wrap_internals.cc");
     }
     cc.warnings_into_errors(true);
     cc.compile("libgrpc_wrap.a");

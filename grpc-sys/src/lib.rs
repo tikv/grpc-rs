@@ -7,7 +7,7 @@
 mod bindings {
     include!(env!("BINDING_WRAP_PATH"));
     #[cfg(feature = "internals")]
-    include!(env!("BINDING_WRAP_STATS_PATH"));
+    include!(env!("BINDING_WRAP_INTERNAL_PATH"));
 }
 mod grpc_wrap;
 
