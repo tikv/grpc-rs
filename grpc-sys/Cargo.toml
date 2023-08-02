@@ -64,9 +64,9 @@ openssl = ["_secure"]
 openssl-vendored = ["openssl", "openssl-sys"]
 no-omit-frame-pointer = []
 # A hidden feature that is used to force regenerating bindings.
-_gen-bindings = ["bindgen", "stats"]
+_gen-bindings = ["bindgen", "internals"]
 _list-package = []
-stats = []
+internals = []
 
 [target.'cfg(not(all(any(target_os = "linux", target_os = "macos"), any(target_arch = "x86_64", target_arch = "aarch64"))))'.build-dependencies]
 bindgen = "0.59.0"

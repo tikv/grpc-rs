@@ -43,7 +43,7 @@ mod metadata;
 mod quota;
 mod security;
 mod server;
-#[cfg(feature = "stats")]
+#[cfg(feature = "internals")]
 pub mod stats;
 mod task;
 

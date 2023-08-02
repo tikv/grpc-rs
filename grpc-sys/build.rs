@@ -222,7 +222,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
         // Check https://github.com/protocolbuffers/protobuf/issues/12185
         config.define("ABSL_ENABLE_INSTALL", "ON");
-        if cfg!(feature = "stats") {
+        if cfg!(feature = "internals") {
             config.define("ABSL_PROPAGATE_CXX_STD", "ON");
         }
 
@@ -292,7 +292,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     }
 
     cc.include("grpc/include");
-    if cfg!(feature = "stats") {
+    if cfg!(feature = "internals") {
         cc.include("grpc");
         cc.include("grpc/third_party/abseil-cpp");
     }
@@ -553,7 +553,7 @@ fn config_binding_path() {
         dest: "bindings.rs",
         env: "BINDING_WRAP_PATH",
     });
-    if cfg!(feature = "stats") {
+    if cfg!(feature = "internals") {
         config_binding(Binding::GrpcWrapStats {
             src: "grpc_wrap_stats.cc",
             dest: "bindings_stats.rs",
@@ -582,7 +582,8 @@ fn main() {
         cc.define("_WIN32_WINNT", Some("0x600"));
     }
 
-    if !cfg!(feature = "stats") && get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1")
+    if !cfg!(feature = "internals")
+        && get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1")
     {
         // Print cargo metadata.
         let lib_core = probe_library(library, true);
@@ -598,7 +599,7 @@ fn main() {
         cc.flag("-std=c++14");
     }
     cc.file("grpc_wrap.cc");
-    if cfg!(feature = "stats") {
+    if cfg!(feature = "internals") {
         cc.file("grpc_wrap_stats.cc");
     }
     cc.warnings_into_errors(true);

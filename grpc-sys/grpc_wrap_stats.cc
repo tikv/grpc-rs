@@ -85,14 +85,14 @@ GPR_EXPORT uint64_t GPR_CALLTYPE grpcwrap_stats_get_counter(
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_counter_name(grpcwrap_stats_counter which) {
   auto name = grpc_core::GlobalStats::counter_name[which];
-  auto slice = grpc_slice_from_static_buffer(name.data(), name.length());
+  auto slice = grpc_slice_from_static_buffer(name.data(), name.size());
   return slice;
 }
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_counter_doc(grpcwrap_stats_counter which) {
   auto doc = grpc_core::GlobalStats::counter_doc[which];
-  auto slice = grpc_slice_from_static_buffer(doc.data(), doc.length());
+  auto slice = grpc_slice_from_static_buffer(doc.data(), doc.size());
   return slice;
 }
 
@@ -114,13 +114,13 @@ GPR_EXPORT double GPR_CALLTYPE grpcwrap_stats_get_histogram_count(
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_histogram_name(grpcwrap_stats_histogram which) {
   auto name = grpc_core::GlobalStats::histogram_name[which];
-  auto slice = grpc_slice_from_static_buffer(name.data(), name.length());
+  auto slice = grpc_slice_from_static_buffer(name.data(), name.size());
   return slice;
 }
 
 GPR_EXPORT grpc_slice GPR_CALLTYPE
 grpcwrap_stats_histogram_doc(grpcwrap_stats_histogram which) {
   auto doc = grpc_core::GlobalStats::histogram_doc[which];
-  auto slice = grpc_slice_from_static_buffer(doc.data(), doc.length());
+  auto slice = grpc_slice_from_static_buffer(doc.data(), doc.size());
   return slice;
 }

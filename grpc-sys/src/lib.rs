@@ -6,7 +6,7 @@
 #[allow(clippy::all)]
 mod bindings {
     include!(env!("BINDING_WRAP_PATH"));
-    #[cfg(feature = "stats")]
+    #[cfg(feature = "internals")]
     include!(env!("BINDING_WRAP_STATS_PATH"));
 }
 mod grpc_wrap;

@@ -69,7 +69,7 @@ macro_rules! stats_item {
 
 stats_item! {
     /// gRPC stats counter.
-    #[derive(PartialEq, Eq, Clone, Copy)]
+    #[derive(PartialEq, Eq, Clone, Copy, Hash)]
     Counter(grpcwrap_stats_counter);
     grpcwrap_stats_counter_name;
     grpcwrap_stats_counter_doc;
