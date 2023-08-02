@@ -1,10 +1,16 @@
 // Copyright 2023 TiKV Project Authors. Licensed under Apache-2.0.
 
-// #ifdef GRPC_SYS_METRICS
-// #endif
+#ifdef GPR_WINDOWS
+// Disable warnings in included files on windows.
+#pragma warning(push, 0)
+#endif
 
 #include <src/core/lib/debug/stats.h>
 #include <src/core/lib/debug/stats_data.h>
+
+#ifdef GPR_WINDOWS
+#pragma warning(pop)
+#endif
 
 #include <grpc/support/log.h>
 
