@@ -45,7 +45,7 @@ fn assert_status(status: ServingStatus, client: &HealthClient, name: &str) {
         ..Default::default()
     };
     let resp: HealthCheckResponse = client.check(&req).unwrap();
-    assert_eq!(response_status_equals(resp, status), true);
+    assert!(response_status_equals(resp, status));
 }
 
 #[track_caller]
