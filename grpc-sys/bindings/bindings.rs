@@ -3342,6 +3342,24 @@ extern "C" {
         verify_server_cert: ::std::os::raw::c_int,
     );
 }
+extern "C" {
+    #[doc = " EXPERIMENTAL API - Subject to change"]
+    #[doc = ""]
+    #[doc = " Sets whether or not a TLS server should send a list of CA names in the"]
+    #[doc = " ServerHello. This list of CA names is read from the server's trust bundle, so"]
+    #[doc = " that the client can use this list as a hint to know which certificate it"]
+    #[doc = " should send to the server."]
+    #[doc = ""]
+    #[doc = " WARNING: This API is extremely dangerous and should not be used. If the"]
+    #[doc = " server's trust bundle is too large, then the TLS server will be unable to"]
+    #[doc = " form a ServerHello, and hence will be unusable. The definition of \"too large\""]
+    #[doc = " depends on the underlying SSL library being used and on the size of the CN"]
+    #[doc = " fields of the certificates in the trust bundle."]
+    pub fn grpc_tls_credentials_options_set_send_client_ca_list(
+        options: *mut grpc_tls_credentials_options,
+        send_client_ca_list: bool,
+    );
+}
 #[doc = " EXPERIMENTAL API - Subject to change"]
 #[doc = ""]
 #[doc = " The read-only request information exposed in a verification call."]
