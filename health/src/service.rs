@@ -20,15 +20,6 @@ use crate::proto::ServingStatus;
 #[cfg(feature = "protobufv3-codec")]
 use crate::proto::health_check_response::ServingStatus;
 
-#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
-use crate::proto::ServingStatus::NotServing as NOT_SERVING;
-
-#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
-use crate::proto::ServingStatus::ServiceUnknown as SERVICE_UNKNOWN;
-
-#[cfg(feature = "protobufv3-codec")]
-pub use crate::proto::health_check_response::ServingStatus::*;
-
 const VERSION_STEP: usize = 8;
 const STATUS_MASK: usize = 7;
 
@@ -176,10 +167,10 @@ impl HealthService {
         let mut inner = self.inner.lock().unwrap();
         inner.shutdown = true;
         for val in inner.status.values_mut() {
-            *val = NOT_SERVING;
+            *val = ServingStatus::NotServing;
         }
         for cast in inner.casts.values() {
-            cast.broadcast(NOT_SERVING);
+            cast.broadcast(ServingStatus::NotServing);
         }
     }
 }
@@ -232,7 +223,7 @@ impl Health for HealthService {
             } else {
                 let status = match inner.status.get(&name) {
                     Some(s) => *s,
-                    None => SERVICE_UNKNOWN,
+                    None => ServingStatus::ServiceUnknown,
                 };
                 let c = Arc::new(StatusCast::new(status));
                 inner.casts.insert(name.clone(), c.clone());

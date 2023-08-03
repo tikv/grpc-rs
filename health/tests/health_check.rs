@@ -11,26 +11,24 @@ use std::time::Duration;
 const TEST_SERVICE: &str = "grpc.test.TestService";
 
 #[cfg(feature = "protobuf-codec")]
-mod constants {
-    use crate::proto::ServingStatus;
-    pub const SERVING: ServingStatus = ServingStatus::Serving;
-    pub const NOT_SERVING: ServingStatus = ServingStatus::NotServing;
-    pub const SERVICE_UNKNOWN: ServingStatus = ServingStatus::ServiceUnknown;
-    pub const UNKNOWN: ServingStatus = ServingStatus::Unknown;
-}
+use crate::proto::ServingStatus;
 
 #[cfg(feature = "protobufv3-codec")]
+use grpcio_health::ServingStatus;
+
+/*
+#[cfg(feature = "protobufv3-codec")]
 mod constants {
-    use grpcio_health::ServingStatus;
     pub const SERVING: ServingStatus = ServingStatus::SERVING;
     pub const NOT_SERVING: ServingStatus = ServingStatus::NOT_SERVING;
     pub const SERVICE_UNKNOWN: ServingStatus = ServingStatus::SERVICE_UNKNOWN;
     pub const UNKNOWN: ServingStatus = ServingStatus::UNKNOWN;
 }
+*/
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "protobuf-codec", feature = "prost-codec"))]
 fn response_status_equals(resp: HealthCheckResponse, status: ServingStatus) -> bool {
-    resp.status == status
+    resp.status == status.into()
 }
 
 #[cfg(feature = "protobufv3-codec")]
@@ -103,21 +101,21 @@ fn test_health_check() {
     assert_code(RpcStatusCode::NOT_FOUND, &client, TEST_SERVICE);
 
     // Service status can be updated
-    service.set_serving_status("", constants::SERVING);
-    assert_status(constants::SERVING, &client, "");
-    service.set_serving_status("", constants::NOT_SERVING);
-    assert_status(constants::NOT_SERVING, &client, "");
-    service.set_serving_status("", constants::UNKNOWN);
-    assert_status(constants::UNKNOWN, &client, "");
-    service.set_serving_status(TEST_SERVICE, constants::SERVING);
-    assert_status(constants::SERVING, &client, TEST_SERVICE);
-    assert_status(constants::UNKNOWN, &client, "");
+    service.set_serving_status("", ServingStatus::Serving);
+    assert_status(ServingStatus::Serving, &client, "");
+    service.set_serving_status("", ServingStatus::NotServing);
+    assert_status(ServingStatus::NotServing, &client, "");
+    service.set_serving_status("", ServingStatus::Unknown);
+    assert_status(ServingStatus::Unknown, &client, "");
+    service.set_serving_status(TEST_SERVICE, ServingStatus::Serving);
+    assert_status(ServingStatus::Serving, &client, TEST_SERVICE);
+    assert_status(ServingStatus::Unknown, &client, "");
 
     // After shutdown, further updates will be abandonded.
     service.shutdown();
-    service.set_serving_status(TEST_SERVICE, constants::SERVING);
-    assert_status(constants::NOT_SERVING, &client, TEST_SERVICE);
-    assert_status(constants::NOT_SERVING, &client, "");
+    service.set_serving_status(TEST_SERVICE, ServingStatus::Serving);
+    assert_status(ServingStatus::NotServing, &client, TEST_SERVICE);
+    assert_status(ServingStatus::NotServing, &client, "");
 }
 
 #[test]
@@ -126,16 +124,16 @@ fn test_health_watch() {
 
     // Not existed service should return ServiceUnknown.
     let mut statuses = watch(&client, "");
-    assert_next(constants::SERVICE_UNKNOWN, &mut statuses);
-    service.set_serving_status("", constants::SERVING);
-    assert_next(constants::SERVING, &mut statuses);
-    service.set_serving_status("", constants::NOT_SERVING);
-    assert_next(constants::NOT_SERVING, &mut statuses);
-    service.set_serving_status("", constants::UNKNOWN);
-    assert_next(constants::UNKNOWN, &mut statuses);
+    assert_next(ServingStatus::ServiceUnknown, &mut statuses);
+    service.set_serving_status("", ServingStatus::Serving);
+    assert_next(ServingStatus::Serving, &mut statuses);
+    service.set_serving_status("", ServingStatus::NotServing);
+    assert_next(ServingStatus::NotServing, &mut statuses);
+    service.set_serving_status("", ServingStatus::Unknown);
+    assert_next(ServingStatus::Unknown, &mut statuses);
 
     // Updating other service should not notify the stream.
-    service.set_serving_status(TEST_SERVICE, constants::NOT_SERVING);
+    service.set_serving_status(TEST_SERVICE, ServingStatus::NotServing);
     match block_on(statuses.next()).unwrap() {
         Err(Error::RpcFailure(r)) if r.code() == RpcStatusCode::DEADLINE_EXCEEDED => (),
         r => panic!("unexpected status {:?}", r),
@@ -143,20 +141,20 @@ fn test_health_watch() {
 
     // Watch should fetch init status immediately.
     statuses = watch(&client, TEST_SERVICE);
-    assert_next(constants::NOT_SERVING, &mut statuses);
+    assert_next(ServingStatus::NotServing, &mut statuses);
 
     // Only latest state can be watched.
-    service.set_serving_status(TEST_SERVICE, constants::SERVING);
-    service.set_serving_status(TEST_SERVICE, constants::NOT_SERVING);
-    service.set_serving_status(TEST_SERVICE, constants::SERVICE_UNKNOWN);
-    service.set_serving_status(TEST_SERVICE, constants::UNKNOWN);
+    service.set_serving_status(TEST_SERVICE, ServingStatus::Serving);
+    service.set_serving_status(TEST_SERVICE, ServingStatus::NotServing);
+    service.set_serving_status(TEST_SERVICE, ServingStatus::ServiceUnknown);
+    service.set_serving_status(TEST_SERVICE, ServingStatus::Unknown);
     let mut seen = 0;
     loop {
         match block_on(statuses.next()).unwrap() {
             Err(Error::RpcFailure(r)) if r.code() == RpcStatusCode::DEADLINE_EXCEEDED => break,
             Err(e) => panic!("unexpected error {:?}", e),
             Ok(r) => {
-                if response_status_equals(r, constants::UNKNOWN) {
+                if response_status_equals(r, ServingStatus::Unknown) {
                     seen += 1;
                     continue;
                 }
@@ -173,29 +171,29 @@ fn test_health_watch_multiple() {
 
     // Watch should fetch service status immediately.
     let mut statuses0 = vec![watch(&client, "")];
-    assert_next(constants::SERVICE_UNKNOWN, &mut statuses0[0]);
+    assert_next(ServingStatus::ServiceUnknown, &mut statuses0[0]);
 
-    service.set_serving_status("", constants::SERVING);
+    service.set_serving_status("", ServingStatus::Serving);
     statuses0.push(watch(&client, ""));
     for s in &mut statuses0 {
-        assert_next(constants::SERVING, s);
+        assert_next(ServingStatus::Serving, s);
     }
 
-    service.set_serving_status("", constants::NOT_SERVING);
+    service.set_serving_status("", ServingStatus::NotServing);
     statuses0.push(watch(&client, ""));
     for s in &mut statuses0 {
-        assert_next(constants::NOT_SERVING, s);
+        assert_next(ServingStatus::NotServing, s);
     }
 
     // Multiple watchers for multiple service should work correctly.
     let mut statuses1 = vec![watch(&client, TEST_SERVICE)];
-    assert_next(constants::SERVICE_UNKNOWN, &mut statuses1[0]);
-    service.set_serving_status(TEST_SERVICE, constants::NOT_SERVING);
-    service.set_serving_status("", constants::SERVING);
+    assert_next(ServingStatus::ServiceUnknown, &mut statuses1[0]);
+    service.set_serving_status(TEST_SERVICE, ServingStatus::NotServing);
+    service.set_serving_status("", ServingStatus::Serving);
     for s in &mut statuses0 {
-        assert_next(constants::SERVING, s);
+        assert_next(ServingStatus::Serving, s);
     }
     for s in &mut statuses1 {
-        assert_next(constants::NOT_SERVING, s);
+        assert_next(ServingStatus::NotServing, s);
     }
 }
