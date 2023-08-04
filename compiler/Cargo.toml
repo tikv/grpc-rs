@@ -12,7 +12,7 @@ description = "gRPC compiler for grpcio"
 categories = ["network-programming"]
 
 [features]
-default = ["protobufv3-codec"]
+default = ["protobuf-codec"]
 protobuf-codec = ["protobuf"]
 protobufv3-codec = ["protobufv3", "protobuf-codegen", "anyhow"]
 prost-codec = ["prost-build", "prost-types", "prost", "derive-new", "tempfile"]
