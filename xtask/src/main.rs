@@ -251,10 +251,15 @@ fn generate_protobufv3(protoc: &Path, include: &str, inputs: &[&str], out_dir: &
     apply_naming_patch();
 
     for f in fs::read_dir(out_dir).unwrap() {
-        let p = f.unwrap();
-        if p.path().extension().unwrap() == "rs" {
-            modify(p.path(), |content| {
+        let path = f.unwrap().path();
+        if path.extension().unwrap() == "rs" {
+            modify(&path, |content| {
                 *content = content.replace("::protobuf::", "::protobufv3::");
+            });
+
+            // remove ".proto file is parsed by protoc X.Y.Z" line
+            modify(&path, |content| {
+              *content = remove_match(&content, |l| l.contains(".proto file is parsed by protoc"));
             });
         }
     }
