@@ -293,7 +293,44 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         }
     }
 
+    // systemd is only added when platform is linux or posix(not linux, darwin, ios, android)
+    // in grpc CMakeLists.txt
+    if get_env("CARGO_CFG_TARGET_FAMILY").map_or(false, |s| s == "unix")
+        && get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| {
+            s == "linux" || !(s == "macos" || s == "ios" || s == "android")
+        })
+    {
+        figure_systemd_path(&build_dir);
+    }
+
     cc.include("grpc/include");
+}
+
+fn figure_systemd_path(build_dir: &str) {
+    let path = format!("{build_dir}/CMakeCache.txt");
+    let f = BufReader::new(std::fs::File::open(&path).unwrap());
+    let mut libdir: Option<String> = None;
+    let mut libname: Option<String> = None;
+    for l in f.lines() {
+        let l = l.unwrap();
+        if let Some(s) = trim_start(&l, "SYSTEMD_LIBDIR:INTERNAL=").filter(|s| !s.is_empty()) {
+            libdir = Some(s.to_owned());
+            if libname.is_some() {
+                break;
+            }
+        } else if let Some(s) =
+            trim_start(&l, "SYSTEMD_LIBRARIES:INTERNAL=").filter(|s| !s.is_empty())
+        {
+            libname = Some(s.to_owned());
+            if libdir.is_some() {
+                break;
+            }
+        }
+    }
+    if let (Some(libdir), Some(libname)) = (libdir, libname) {
+        println!("cargo:rustc-link-search=native={}", libdir);
+        println!("cargo:rustc-link-lib={}", libname);
+    }
 }
 
 fn figure_ssl_path(build_dir: &str) {
