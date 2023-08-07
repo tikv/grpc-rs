@@ -21,27 +21,17 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#[cfg(feature = "protobuf-codec")]
 use protobuf::compiler_plugin;
-#[cfg(feature = "protobuf-codec")]
 use protobuf::descriptor::*;
-#[cfg(feature = "protobuf-codec")]
 use protobuf::descriptorx::*;
-#[cfg(feature = "protobuf-codec")]
 use std::collections::HashMap;
-#[cfg(feature = "protobuf-codec")]
 use std::io::Write;
 
-#[cfg(feature = "protobufv3-codec")]
-use protobuf_codegen;
-
-#[cfg(feature = "protobuf-codec")]
 struct CodeWriter<'a> {
     writer: &'a mut (dyn Write + 'a),
     indent: String,
 }
 
-#[cfg(feature = "protobuf-codec")]
 impl<'a> CodeWriter<'a> {
     pub fn new(writer: &'a mut dyn Write) -> CodeWriter<'a> {
         CodeWriter {
@@ -179,10 +169,8 @@ impl<'a> CodeWriter<'a> {
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
 use super::util::{self, fq_grpc, to_snake_case, MethodType};
 
-#[cfg(feature = "protobuf-codec")]
 struct MethodGen<'a> {
     proto: &'a MethodDescriptorProto,
     service_name: String,
@@ -190,7 +178,6 @@ struct MethodGen<'a> {
     root_scope: &'a RootScope<'a>,
 }
 
-#[cfg(feature = "protobuf-codec")]
 impl<'a> MethodGen<'a> {
     fn new(
         proto: &'a MethodDescriptorProto,
@@ -544,13 +531,11 @@ impl<'a> MethodGen<'a> {
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
 struct ServiceGen<'a> {
     proto: &'a ServiceDescriptorProto,
     methods: Vec<MethodGen<'a>>,
 }
 
-#[cfg(feature = "protobuf-codec")]
 fn service_path(proto: &ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
     if file.get_package().is_empty() {
         format!("/{}", proto.get_name())
@@ -559,7 +544,6 @@ fn service_path(proto: &ServiceDescriptorProto, file: &FileDescriptorProto) -> S
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
 impl<'a> ServiceGen<'a> {
     fn new(
         proto: &'a ServiceDescriptorProto,
@@ -670,12 +654,10 @@ impl<'a> ServiceGen<'a> {
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
 fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto] {
     file.get_service()
 }
 
-#[cfg(feature = "protobuf-codec")]
 fn gen_file(
     file: &FileDescriptorProto,
     root_scope: &RootScope,
@@ -703,7 +685,6 @@ fn gen_file(
     })
 }
 
-#[cfg(feature = "protobuf-codec")]
 pub fn gen(
     file_descriptors: &[FileDescriptorProto],
     files_to_generate: &[String],
@@ -728,22 +709,6 @@ pub fn gen(
     results
 }
 
-#[cfg(feature = "protobufv3-codec")]
-pub fn gen(input_files: &[String]) -> anyhow::Result<()> {
-    let res = protobuf_codegen::Codegen::new()
-        .protoc()
-        // All inputs and imports from the inputs must reside in `includes` directories.
-        .includes(["src/protos"])
-        // Inputs must reside in some of include paths.
-        .inputs(input_files)
-        // Specify output directory relative to Cargo soutput directory.
-        .cargo_out_dir("protos")
-        .run();
-
-    res
-}
-
-#[cfg(feature = "protobuf-codec")]
 pub fn protoc_gen_grpc_rust_main() {
     compiler_plugin::plugin_main(gen);
 }
