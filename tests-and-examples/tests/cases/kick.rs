@@ -5,7 +5,6 @@ use futures_executor::block_on;
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::*;

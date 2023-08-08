@@ -26,20 +26,17 @@ pub struct Server {
 impl Server {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(cfg: &ServerConfig) -> Result<Server> {
-        let port = cfg.port;
-        let thd_cnt = cfg.async_server_threads as usize;
-
         #[cfg(feature = "protobuf-codec")]
         let server_type = cfg.server_type;
         #[cfg(feature = "protobufv3-codec")]
         let server_type = cfg.server_type.enum_value().unwrap();
 
         let mut builder = EnvBuilder::new();
+        let thd_cnt = cfg.async_server_threads as usize;
         if thd_cnt != 0 {
             builder = builder.cq_count(thd_cnt);
         }
         let env = Arc::new(builder.build());
-
         if cfg.core_limit > 0 {
             warn!("server config core limit is set but ignored");
         }
@@ -89,7 +86,7 @@ impl Server {
             ServerCredentials::insecure()
         };
         let port = s
-            .add_listening_port(&format!("[::]:{}", port), creds)
+            .add_listening_port(&format!("[::]:{}", cfg.port), creds)
             .unwrap();
         s.start();
         Ok(Server {
