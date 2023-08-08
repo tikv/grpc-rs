@@ -143,7 +143,7 @@ fn test_health_watch() {
         match block_on(statuses.next()).unwrap() {
             Err(e) => panic!("unexpected error {:?}", e),
             Ok(r) => {
-                if response_status_equals(r, ServingStatus::Unknown) {
+                if !response_status_equals(r, ServingStatus::Unknown) {
                     seen += 1;
                     continue;
                 }
