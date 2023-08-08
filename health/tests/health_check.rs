@@ -16,16 +16,6 @@ use crate::proto::ServingStatus;
 #[cfg(feature = "protobufv3-codec")]
 use grpcio_health::ServingStatus;
 
-/*
-#[cfg(feature = "protobufv3-codec")]
-mod constants {
-    pub const SERVING: ServingStatus = ServingStatus::SERVING;
-    pub const NOT_SERVING: ServingStatus = ServingStatus::NOT_SERVING;
-    pub const SERVICE_UNKNOWN: ServingStatus = ServingStatus::SERVICE_UNKNOWN;
-    pub const UNKNOWN: ServingStatus = ServingStatus::UNKNOWN;
-}
-*/
-
 #[cfg(any(feature = "protobuf-codec", feature = "prost-codec"))]
 fn response_status_equals(resp: HealthCheckResponse, status: ServingStatus) -> bool {
     resp.status == status.into()
