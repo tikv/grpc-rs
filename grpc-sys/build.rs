@@ -293,15 +293,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         }
     }
 
-    // systemd is only added when platform is linux or posix(not linux, darwin, ios, android)
-    // in grpc CMakeLists.txt
-    if get_env("CARGO_CFG_TARGET_FAMILY").map_or(false, |s| s == "unix")
-        && get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| {
-            s == "linux" || !(s == "macos" || s == "ios" || s == "android")
-        })
-    {
-        figure_systemd_path(&build_dir);
-    }
+    figure_systemd_path(&build_dir);
 
     cc.include("grpc/include");
 }
