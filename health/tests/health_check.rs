@@ -141,7 +141,6 @@ fn test_health_watch() {
     let mut seen = 0;
     loop {
         match block_on(statuses.next()).unwrap() {
-            Err(Error::RpcFailure(r)) if r.code() == RpcStatusCode::DEADLINE_EXCEEDED => break,
             Err(e) => panic!("unexpected error {:?}", e),
             Ok(r) => {
                 if response_status_equals(r, ServingStatus::Unknown) {
