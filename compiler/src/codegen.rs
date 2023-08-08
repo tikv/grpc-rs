@@ -21,11 +21,12 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+use std::collections::HashMap;
+use std::io::Write;
+
 use protobuf::compiler_plugin;
 use protobuf::descriptor::*;
 use protobuf::descriptorx::*;
-use std::collections::HashMap;
-use std::io::Write;
 
 struct CodeWriter<'a> {
     writer: &'a mut (dyn Write + 'a),
@@ -536,21 +537,17 @@ struct ServiceGen<'a> {
     methods: Vec<MethodGen<'a>>,
 }
 
-fn service_path(proto: &ServiceDescriptorProto, file: &FileDescriptorProto) -> String {
-    if file.get_package().is_empty() {
-        format!("/{}", proto.get_name())
-    } else {
-        format!("/{}.{}", file.get_package(), proto.get_name())
-    }
-}
-
 impl<'a> ServiceGen<'a> {
     fn new(
         proto: &'a ServiceDescriptorProto,
         file: &FileDescriptorProto,
         root_scope: &'a RootScope,
     ) -> ServiceGen<'a> {
-        let service_path = service_path(proto, file);
+        let service_path = if file.get_package().is_empty() {
+            format!("/{}", proto.get_name())
+        } else {
+            format!("/{}.{}", file.get_package(), proto.get_name())
+        };
         let methods = proto
             .get_method()
             .iter()
@@ -654,15 +651,11 @@ impl<'a> ServiceGen<'a> {
     }
 }
 
-fn get_service(file: &FileDescriptorProto) -> &[ServiceDescriptorProto] {
-    file.get_service()
-}
-
 fn gen_file(
     file: &FileDescriptorProto,
     root_scope: &RootScope,
 ) -> Option<compiler_plugin::GenResult> {
-    if get_service(file).is_empty() {
+    if file.get_service().is_empty() {
         return None;
     }
 
@@ -673,7 +666,7 @@ fn gen_file(
         let mut w = CodeWriter::new(&mut v);
         w.write_generated();
 
-        for service in get_service(file) {
+        for service in file.get_service() {
             w.write_line("");
             ServiceGen::new(service, file, root_scope).write(&mut w);
         }
