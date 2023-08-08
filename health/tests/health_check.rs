@@ -61,7 +61,7 @@ fn assert_code(code: RpcStatusCode, client: &HealthClient, name: &str) {
 #[track_caller]
 fn assert_next(status: ServingStatus, ss: &mut ClientSStreamReceiver<HealthCheckResponse>) {
     let resp = block_on(ss.next()).unwrap().unwrap();
-    assert_eq!(response_status_equals(resp, status), true);
+    assert!(response_status_equals(resp, status));
 }
 
 fn setup() -> (Server, HealthService, HealthClient) {
