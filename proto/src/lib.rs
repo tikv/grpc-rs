@@ -2,7 +2,7 @@
 
 mod proto;
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 pub use proto::protobuf::*;
 
 #[cfg(feature = "prost-codec")]

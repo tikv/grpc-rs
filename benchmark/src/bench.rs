@@ -19,10 +19,11 @@ use grpc_proto::util;
 use grpcio::GrpcSlice;
 
 fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
-    let payload = util::new_payload(req.get_response_size() as usize);
-    let mut resp = SimpleResponse::default();
-    resp.set_payload(payload);
-    resp
+    let payload = util::new_payload(req.response_size as usize);
+    SimpleResponse {
+        payload: Some(payload).into(),
+        ..SimpleResponse::default()
+    }
 }
 
 #[derive(Clone)]

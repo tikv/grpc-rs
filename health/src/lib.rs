@@ -34,5 +34,11 @@
 pub mod proto;
 mod service;
 
-pub use self::proto::{create_health, HealthClient, ServingStatus};
+pub use self::proto::{create_health, HealthClient};
 pub use self::service::HealthService;
+
+#[cfg(feature = "protobuf-codec")]
+pub use self::proto::ServingStatus;
+
+#[cfg(feature = "protobufv3-codec")]
+pub use self::proto::health_check_response::ServingStatus;

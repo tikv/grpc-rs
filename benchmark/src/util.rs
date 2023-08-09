@@ -194,18 +194,18 @@ impl Histogram {
     }
 
     pub fn report(&mut self, reset: bool) -> HistogramData {
-        let mut data = HistogramData::default();
-        data.set_count(f64::from(self.count));
-        data.set_sum(self.sum);
-        data.set_sum_of_squares(self.sum_of_squares);
-        data.set_min_seen(self.min);
-        data.set_max_seen(self.max);
-        data.set_bucket(self.buckets.clone());
-
+        let data = HistogramData {
+            count: f64::from(self.count),
+            sum: self.sum,
+            sum_of_squares: self.sum_of_squares,
+            min_seen: self.min,
+            max_seen: self.max,
+            bucket: self.buckets.clone(),
+            ..HistogramData::default()
+        };
         if reset {
             self.clear();
         }
-
         data
     }
 

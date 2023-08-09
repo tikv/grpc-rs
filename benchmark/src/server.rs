@@ -26,18 +26,23 @@ pub struct Server {
 impl Server {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(cfg: &ServerConfig) -> Result<Server> {
+        #[cfg(feature = "protobuf-codec")]
+        let server_type = cfg.server_type;
+        #[cfg(feature = "protobufv3-codec")]
+        let server_type = cfg.server_type.enum_value().unwrap();
+
         let mut builder = EnvBuilder::new();
-        let thd_cnt = cfg.get_async_server_threads() as usize;
+        let thd_cnt = cfg.async_server_threads as usize;
         if thd_cnt != 0 {
             builder = builder.cq_count(thd_cnt);
         }
         let env = Arc::new(builder.build());
-        if cfg.get_core_limit() > 0 {
+        if cfg.core_limit > 0 {
             warn!("server config core limit is set but ignored");
         }
         let keep_running = Arc::new(AtomicBool::new(true));
         let keep_running1 = keep_running.clone();
-        let service = match cfg.get_server_type() {
+        let service = match server_type {
             ServerType::ASYNC_SERVER => {
                 let b = Benchmark { keep_running };
                 create_benchmark_service(b)
@@ -49,27 +54,39 @@ impl Server {
             _ => unimplemented!(),
         };
         let mut builder = ServerBuilder::new(env.clone()).register_service(service);
-        if !cfg.get_channel_args().is_empty() {
+        if !cfg.channel_args.is_empty() {
             let mut ch_builder = ChannelBuilder::new(env);
-            for arg in cfg.get_channel_args() {
-                let key = CString::new(arg.get_name()).unwrap();
+            for arg in &cfg.channel_args {
+                let key = CString::new(arg.name.clone()).unwrap();
                 if arg.has_str_value() {
-                    ch_builder =
-                        ch_builder.raw_cfg_string(key, CString::new(arg.get_str_value()).unwrap());
+                    #[cfg(feature = "protobuf-codec")]
+                    let val = CString::new(arg.get_str_value()).unwrap();
+                    #[cfg(feature = "protobufv3-codec")]
+                    let val = CString::new(arg.str_value()).unwrap();
+                    ch_builder = ch_builder.raw_cfg_string(key, val);
                 } else if arg.has_int_value() {
-                    ch_builder = ch_builder.raw_cfg_int(key, arg.get_int_value());
+                    #[cfg(feature = "protobuf-codec")]
+                    let val = arg.get_int_value();
+                    #[cfg(feature = "protobufv3-codec")]
+                    let val = arg.int_value();
+                    ch_builder = ch_builder.raw_cfg_int(key, val);
                 }
             }
             builder = builder.channel_args(ch_builder.build_args());
         }
         let mut s = builder.build().unwrap();
-        let creds = if cfg.has_security_params() {
+
+        #[cfg(feature = "protobuf-codec")]
+        let has_security_param = cfg.has_security_params();
+        #[cfg(feature = "protobufv3-codec")]
+        let has_security_param = cfg.security_params.0.is_some();
+        let creds = if has_security_param {
             proto_util::create_test_server_credentials()
         } else {
             ServerCredentials::insecure()
         };
         let port = s
-            .add_listening_port(&format!("[::]:{}", cfg.get_port()), creds)
+            .add_listening_port(&format!("[::]:{}", cfg.port), creds)
             .unwrap();
         s.start();
         Ok(Server {
@@ -82,14 +99,14 @@ impl Server {
 
     pub fn get_stats(&mut self, reset: bool) -> ServerStats {
         let sample = self.recorder.cpu_time(reset);
-
-        let mut stats = ServerStats::default();
-        stats.set_time_elapsed(sample.real_time);
-        stats.set_time_user(sample.user_time);
-        stats.set_time_system(sample.sys_time);
-        stats.set_total_cpu_time(sample.total_cpu);
-        stats.set_idle_cpu_time(sample.idle_cpu);
-        stats
+        ServerStats {
+            time_elapsed: sample.real_time,
+            time_user: sample.user_time,
+            time_system: sample.sys_time,
+            total_cpu_time: sample.total_cpu,
+            idle_cpu_time: sample.idle_cpu,
+            ..ServerStats::default()
+        }
     }
 
     pub fn shutdown(&mut self) -> ShutdownFuture {
@@ -98,9 +115,10 @@ impl Server {
     }
 
     pub fn get_status(&self) -> ServerStatus {
-        let mut status = ServerStatus::default();
-        status.set_port(self.port as i32);
-        status.set_cores(util::cpu_num_cores() as i32);
-        status
+        ServerStatus {
+            port: self.port as i32,
+            cores: util::cpu_num_cores() as i32,
+            ..ServerStatus::default()
+        }
     }
 }

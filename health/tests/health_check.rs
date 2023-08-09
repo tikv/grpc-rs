@@ -10,14 +10,30 @@ use std::time::Duration;
 
 const TEST_SERVICE: &str = "grpc.test.TestService";
 
+#[cfg(feature = "protobuf-codec")]
+use crate::proto::ServingStatus;
+
+#[cfg(feature = "protobufv3-codec")]
+use grpcio_health::ServingStatus;
+
+#[cfg(any(feature = "protobuf-codec", feature = "prost-codec"))]
+fn response_status_equals(resp: HealthCheckResponse, status: ServingStatus) -> bool {
+    resp.status == status.into()
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn response_status_equals(resp: HealthCheckResponse, status: ServingStatus) -> bool {
+    resp.status.enum_value().unwrap() == status
+}
+
 #[track_caller]
 fn assert_status(status: ServingStatus, client: &HealthClient, name: &str) {
     let req = HealthCheckRequest {
         service: name.to_string(),
         ..Default::default()
     };
-    let resp = client.check(&req).unwrap();
-    assert_eq!(resp.status, status)
+    let resp: HealthCheckResponse = client.check(&req).unwrap();
+    assert!(response_status_equals(resp, status));
 }
 
 #[track_caller]
@@ -45,7 +61,7 @@ fn assert_code(code: RpcStatusCode, client: &HealthClient, name: &str) {
 #[track_caller]
 fn assert_next(status: ServingStatus, ss: &mut ClientSStreamReceiver<HealthCheckResponse>) {
     let resp = block_on(ss.next()).unwrap().unwrap();
-    assert_eq!(resp.status, status);
+    assert!(response_status_equals(resp, status));
 }
 
 fn setup() -> (Server, HealthService, HealthClient) {
@@ -124,12 +140,16 @@ fn test_health_watch() {
     service.set_serving_status(TEST_SERVICE, ServingStatus::Unknown);
     let mut seen = 0;
     loop {
-        let resp = block_on(statuses.next()).unwrap().unwrap();
-        if resp.status != ServingStatus::Unknown {
-            seen += 1;
-            continue;
+        match block_on(statuses.next()).unwrap() {
+            Err(e) => panic!("unexpected error {:?}", e),
+            Ok(r) => {
+                if !response_status_equals(r, ServingStatus::Unknown) {
+                    seen += 1;
+                    continue;
+                }
+                break;
+            }
         }
-        break;
     }
     assert!(seen <= 1);
 }

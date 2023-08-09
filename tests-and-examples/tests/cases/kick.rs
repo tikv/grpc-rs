@@ -18,20 +18,15 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        mut req: HelloRequest,
-        sink: UnarySink<HelloReply>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
-        let name = req.take_name();
+        let name = req.name;
         let f = async move {
             *tx_lock.lock().unwrap() = Some(tx);
             let greet = rx.await?;
             let mut resp = HelloReply::default();
-            resp.set_message(format!("{greet} {name}"));
+            resp.message = format!("{greet} {name}");
             sink.success(resp).await?;
             Ok(())
         }
@@ -57,7 +52,7 @@ fn test_kick() {
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let f = client.say_hello_async(&req).unwrap();
     loop {
         thread::sleep(Duration::from_millis(10));
@@ -69,7 +64,7 @@ fn test_kick() {
         break;
     }
     let reply = block_on(f).expect("rpc");
-    assert_eq!(reply.get_message(), "hello world");
+    assert_eq!(reply.message, "hello world");
 
     // Spawn a future in the client.
     let (tx1, rx2) = spawn_chianed_channel(&client);
@@ -106,12 +101,7 @@ pub struct DeadLockService {
 }
 
 impl Greeter for DeadLockService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        mut req: HelloRequest,
-        sink: UnarySink<HelloReply>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let chan = Arc::new(Mutex::new(NaiveChannel {
             data: None,
             waker: None,
@@ -120,11 +110,11 @@ impl Greeter for DeadLockService {
         let rx = NaiveReceiver {
             chan: tx.chan.clone(),
         };
-        let name = req.take_name();
+        let name = req.name;
         let reporter = self.reporter.clone();
         ctx.spawn(rx.then(|greet| async move {
             let mut resp = HelloReply::default();
-            resp.set_message(format!("{greet} {name}"));
+            resp.message = format!("{greet} {name}");
             if let Err(e) = sink.success(resp).await {
                 panic!("failed to reply {:?}", e);
             }
@@ -210,7 +200,7 @@ fn test_deadlock() {
     let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
     let client = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let f = client.say_hello_async(&req).unwrap();
     if let Err(e) = rx.recv_timeout(Duration::from_secs(5)) {
         // Panic will still calling drop method of server, which will wait for
@@ -219,5 +209,5 @@ fn test_deadlock() {
         std::process::exit(1);
     }
     let reply = block_on(f).expect("rpc");
-    assert_eq!(reply.get_message(), "hello world");
+    assert_eq!(reply.message, "hello world");
 }

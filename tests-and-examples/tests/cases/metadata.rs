@@ -5,6 +5,7 @@ use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use futures_util::{SinkExt, TryStreamExt};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+
 use grpcio_proto::example::route_guide::{Feature, Rectangle};
 use grpcio_proto::example::route_guide_grpc::{create_route_guide, RouteGuide, RouteGuideClient};
 use grpcio_proto::google::rpc::Status;
@@ -18,7 +19,7 @@ impl Greeter for GreeterService {
     fn say_hello(
         &mut self,
         ctx: RpcContext<'_>,
-        mut req: HelloRequest,
+        req: HelloRequest,
         mut sink: UnarySink<HelloReply>,
     ) {
         let headers = ctx.request_headers().clone();
@@ -30,7 +31,11 @@ impl Greeter for GreeterService {
                 message: "name can't be root".to_owned(),
                 ..Default::default()
             };
+            #[cfg(feature = "protobuf-codec")]
             let any = protobuf::well_known_types::Any::pack(&req).unwrap();
+
+            #[cfg(feature = "protobufv3-codec")]
+            let any = protobufv3::well_known_types::any::Any::pack(&req).unwrap();
             status.details.push(any);
             ctx.spawn(
                 sink.fail(status.try_into().unwrap())
@@ -41,7 +46,7 @@ impl Greeter for GreeterService {
         }
 
         let mut resp = HelloReply::default();
-        resp.set_message(format!("hello {}", req.take_name()));
+        resp.message = format!("hello {}", req.name);
         ctx.spawn(
             sink.success(resp)
                 .map_err(|e| panic!("failed to reply {:?}", e))
@@ -96,7 +101,7 @@ fn test_metadata() {
     let call_opt = CallOption::default().headers(metadata);
 
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let mut resp = client
         .list_features_opt(&Default::default(), call_opt)
         .unwrap();
@@ -133,7 +138,7 @@ fn test_rich_error() {
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
-    req.set_name("root".to_owned());
+    req.name = "root".to_owned();
     let s: Status = match client.say_hello(&req) {
         Err(grpcio::Error::RpcFailure(s)) => s.try_into().unwrap(),
         res => panic!("expected failure, got {:?}", res),

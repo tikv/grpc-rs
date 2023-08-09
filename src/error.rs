@@ -9,6 +9,9 @@ use crate::grpc_sys::grpc_call_error;
 #[cfg(feature = "protobuf-codec")]
 use protobuf::ProtobufError;
 
+#[cfg(feature = "protobufv3-codec")]
+use protobufv3::Error as ProtobufError;
+
 /// Errors generated from this library.
 #[derive(Debug)]
 pub enum Error {
@@ -58,7 +61,7 @@ impl error::Error for Error {
     }
 }
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 impl From<ProtobufError> for Error {
     fn from(e: ProtobufError) -> Error {
         Error::Codec(Box::new(e))

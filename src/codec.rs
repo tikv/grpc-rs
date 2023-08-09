@@ -29,11 +29,15 @@ pub struct Marshaller<T> {
     pub de: DeserializeFn<T>,
 }
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 pub mod pb_codec {
-    use protobuf::{CodedInputStream, CodedOutputStream, Message};
+    #[cfg(feature = "protobuf-codec")]
+    use protobuf::{CodedOutputStream, Message};
 
-    use super::{MessageReader, MAX_MESSAGE_SIZE};
+    #[cfg(feature = "protobufv3-codec")]
+    use protobufv3::{CodedOutputStream, Message};
+
+    use super::{from_buf_read, MessageReader, MAX_MESSAGE_SIZE};
     use crate::buf::GrpcSlice;
     use crate::error::{Error, Result};
 
@@ -57,11 +61,21 @@ pub mod pb_codec {
 
     #[inline]
     pub fn de<T: Message>(mut reader: MessageReader) -> Result<T> {
-        let mut s = CodedInputStream::from_buffered_reader(&mut reader);
+        let mut s = from_buf_read(&mut reader);
         let mut m = T::new();
         m.merge_from(&mut s)?;
         Ok(m)
     }
+}
+
+#[cfg(feature = "protobuf-codec")]
+fn from_buf_read(reader: &mut MessageReader) -> protobuf::CodedInputStream {
+    protobuf::CodedInputStream::from_buffered_reader(reader)
+}
+
+#[cfg(feature = "protobufv3-codec")]
+fn from_buf_read(reader: &mut MessageReader) -> protobufv3::CodedInputStream {
+    protobufv3::CodedInputStream::from_buf_read(reader)
 }
 
 #[cfg(feature = "prost-codec")]

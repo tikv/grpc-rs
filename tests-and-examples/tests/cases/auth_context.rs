@@ -17,12 +17,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        mut req: HelloRequest,
-        sink: UnarySink<HelloReply>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         if let Some(auth_context) = ctx.auth_context() {
             let mut ctx_map = HashMap::new();
             for (key, value) in auth_context
@@ -35,7 +30,7 @@ impl Greeter for GreeterService {
         }
 
         let mut resp = HelloReply::default();
-        resp.set_message(format!("hello {}", req.take_name()));
+        resp.message = format!("hello {}", req.name);
         ctx.spawn(
             sink.success(resp)
                 .map_err(|e| panic!("failed to reply {:?}", e))
@@ -78,10 +73,10 @@ fn test_auth_context() {
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let resp = client.say_hello(&req).unwrap();
 
-    assert_eq!(resp.get_message(), "hello world");
+    assert_eq!(resp.message, "hello world");
 
     // Test auth_context keys
     let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
@@ -118,10 +113,10 @@ fn test_no_crash_on_insecure() {
     let client = GreeterClient::new(ch);
 
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let resp = client.say_hello(&req).unwrap();
 
-    assert_eq!(resp.get_message(), "hello world");
+    assert_eq!(resp.message, "hello world");
 
     // Test auth_context keys
     let ctx_map = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
