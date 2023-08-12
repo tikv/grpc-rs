@@ -56,6 +56,8 @@ impl TestService for InteropTestService {
         if !metadata.is_empty() {
             sink.set_headers(metadata);
         }
+
+        #[cfg(feature = "protobuf-codec")]
         if req.has_response_status() {
             let code = req.get_response_status().get_code();
             let msg = req.take_response_status().take_message();
@@ -67,9 +69,24 @@ impl TestService for InteropTestService {
             ctx.spawn(f);
             return;
         }
-        let resp_size = req.get_response_size();
-        let mut resp = SimpleResponse::default();
-        resp.set_payload(util::new_payload(resp_size as usize));
+
+        #[cfg(feature = "protobufv3-codec")]
+        if let Some(response_status) = &req.response_status.0 {
+            let code = response_status.code;
+            let msg = &response_status.message;
+            let status = RpcStatus::with_message(code, msg.to_string());
+            let f = sink
+                .fail(status)
+                .map_err(|e| panic!("failed to send response: {:?}", e))
+                .map(|_| ());
+            ctx.spawn(f);
+            return;
+        }
+        let resp_size = req.response_size;
+        let resp = SimpleResponse {
+            payload: Some(util::new_payload(resp_size as usize)).into(),
+            ..SimpleResponse::default()
+        };
         let f = sink
             .success(resp)
             .map_err(|e| panic!("failed to send response: {:?}", e))
@@ -80,13 +97,15 @@ impl TestService for InteropTestService {
     fn streaming_output_call(
         &mut self,
         ctx: RpcContext,
-        mut req: StreamingOutputCallRequest,
+        req: StreamingOutputCallRequest,
         mut sink: ServerStreamingSink<StreamingOutputCallResponse>,
     ) {
         let f = async move {
-            for param in req.take_response_parameters().into_iter() {
-                let mut resp = StreamingOutputCallResponse::default();
-                resp.set_payload(util::new_payload(param.get_size() as usize));
+            for param in req.response_parameters.into_iter() {
+                let resp = StreamingOutputCallResponse {
+                    payload: Some(util::new_payload(param.size as usize)).into(),
+                    ..StreamingOutputCallResponse::default()
+                };
                 sink.send((resp, WriteFlags::default())).await?;
             }
             sink.close().await?;
@@ -96,7 +115,6 @@ impl TestService for InteropTestService {
         .map(|_| ());
         ctx.spawn(f)
     }
-
     fn streaming_input_call(
         &mut self,
         ctx: RpcContext,
@@ -105,12 +123,19 @@ impl TestService for InteropTestService {
     ) {
         let f = async move {
             let mut s = 0;
+            #[cfg(feature = "protobuf-codec")]
             while let Some(req) = stream.try_next().await? {
                 s += req.get_payload().get_body().len();
             }
+            #[cfg(feature = "protobufv3-codec")]
+            while let Some(req) = stream.try_next().await? {
+                s += req.payload.body.len();
+            }
 
-            let mut resp = StreamingInputCallResponse::default();
-            resp.set_aggregated_payload_size(s as i32);
+            let resp = StreamingInputCallResponse {
+                aggregated_payload_size: s as i32,
+                ..StreamingInputCallResponse::default()
+            };
             sink.success(resp).await
         }
         .map_err(|e| match e {
@@ -132,18 +157,18 @@ impl TestService for InteropTestService {
             sink.set_headers(metadata);
         }
         let f = async move {
-            while let Some(mut req) = stream.try_next().await? {
-                if req.has_response_status() {
-                    let code = req.get_response_status().get_code();
-                    let msg = req.take_response_status().take_message();
+            while let Some(req) = stream.try_next().await? {
+                if let Some(response_status) = &req.response_status.clone().into_option() {
+                    let code = response_status.code;
+                    let msg = String::from(&response_status.message);
                     let status = RpcStatus::with_message(code, msg);
                     sink.fail(status).await?;
                     return Ok(());
                 }
 
                 let mut resp = StreamingOutputCallResponse::default();
-                if let Some(param) = req.get_response_parameters().get(0) {
-                    resp.set_payload(util::new_payload(param.get_size() as usize));
+                if let Some(param) = req.response_parameters.get(0) {
+                    resp.payload = Some(util::new_payload(param.size as usize)).into();
                 }
                 // A workaround for timeout_on_sleeping_server test.
                 // The request only has 27182 bytes of zeros in payload.
@@ -151,11 +176,16 @@ impl TestService for InteropTestService {
                 // Client timeout 1ms is too short for grpcio. The server
                 // can response in 1ms. To make the test stable, the server
                 // sleeps 1s explicitly.
-                if req.get_payload().get_body().len() == 27182
-                    && req.get_response_parameters().is_empty()
-                    && !req.has_response_status()
-                {
-                    Delay::new(Duration::from_secs(1)).await;
+
+                if req.response_parameters.is_empty() && req.response_status.is_none() {
+                    #[cfg(feature = "protobuf-codec")]
+                    if req.get_payload().get_body().len() == 27182 {
+                        Delay::new(Duration::from_secs(1)).await;
+                    }
+                    #[cfg(feature = "protobufv3-codec")]
+                    if req.payload.body.len() == 27182 {
+                        Delay::new(Duration::from_secs(1)).await;
+                    }
                 }
                 sink.send((resp, WriteFlags::default())).await?;
             }

@@ -6,10 +6,16 @@ use grpcio::{
 };
 use std::convert::TryFrom;
 
-#[cfg(all(feature = "protobuf-codec", not(feature = "prost-codec")))]
-use crate::testing::messages::{Payload, ResponseParameters};
+#[cfg(all(
+    any(feature = "protobuf-codec", feature = "protobufv3-codec"),
+    not(feature = "prost-codec")
+))]
+use crate::proto::protobuf::testing::messages::{Payload, ResponseParameters};
 #[cfg(feature = "prost-codec")]
 use crate::testing::{Payload, ResponseParameters};
+
+#[cfg(feature = "protobufv3-codec")]
+use protobufv3 as protobuf;
 
 /// Create a payload with the specified size.
 pub fn new_payload(size: usize) -> Payload {
@@ -46,7 +52,7 @@ impl TryFrom<grpcio::RpcStatus> for Status {
 
     fn try_from(value: grpcio::RpcStatus) -> grpcio::Result<Self> {
         let mut s = Status::default();
-        #[cfg(feature = "protobuf-codec")]
+        #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
         protobuf::Message::merge_from_bytes(&mut s, value.details())?;
         #[cfg(feature = "prost-codec")]
         prost::Message::merge(&mut s, value.details())?;
@@ -75,7 +81,7 @@ impl TryFrom<Status> for grpcio::RpcStatus {
     type Error = grpcio::Error;
 
     fn try_from(value: Status) -> grpcio::Result<Self> {
-        #[cfg(feature = "protobuf-codec")]
+        #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
         let details = protobuf::Message::write_to_bytes(&value)?;
         #[cfg(feature = "prost-codec")]
         let details = {

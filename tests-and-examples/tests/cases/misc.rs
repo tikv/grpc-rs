@@ -5,6 +5,7 @@ use futures_timer::Delay;
 use futures_util::future::{self, FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+
 use std::sync::atomic::*;
 use std::sync::*;
 use std::thread::{self, JoinHandle};
@@ -17,7 +18,7 @@ impl Greeter for PeerService {
     fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
         let peer = ctx.peer();
         let mut resp = HelloReply::default();
-        resp.set_message(peer);
+        resp.message = peer;
         ctx.spawn(
             sink.success(resp)
                 .map_err(|e| panic!("failed to reply {:?}", e))
@@ -72,7 +73,7 @@ fn test_peer() {
     let req = HelloRequest::default();
     let resp = client.say_hello(&req).unwrap();
 
-    assert!(resp.get_message().contains("127.0.0.1"), "{:?}", resp);
+    assert!(resp.message.contains("127.0.0.1"), "{:?}", resp);
     assert_eq!(counter_collect.load(Ordering::Relaxed), 2);
 }
 
@@ -187,7 +188,7 @@ mod unix_domain_socket {
         let req = HelloRequest::default();
         let resp = client.say_hello(&req).unwrap();
 
-        assert_eq!(resp.get_message(), "unix:", "{resp:?}");
+        assert_eq!(resp.message, "unix:", "{resp:?}");
     }
 
     #[test]
@@ -371,7 +372,7 @@ fn test_connectivity() {
     let client = GreeterClient::new(ch.clone());
     let req = HelloRequest::default();
     let resp = client.say_hello(&req).unwrap();
-    assert!(!resp.get_message().is_empty());
+    assert!(!resp.message.is_empty());
     client.spawn(async move {
         ch.wait_for_connected(Duration::from_secs(3)).await;
     });

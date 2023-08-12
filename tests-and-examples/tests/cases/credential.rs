@@ -8,6 +8,7 @@ use grpcio::{
     UnarySink,
 };
 use grpcio_proto::example::helloworld::*;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tests_and_examples::util::{read_cert_pair, read_single_crt};
@@ -17,9 +18,9 @@ struct GreeterService;
 
 impl Greeter for GreeterService {
     fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
-        let msg = format!("Hello {}", req.get_name());
+        let msg = format!("Hello {}", req.name);
         let mut resp = HelloReply::default();
-        resp.set_message(msg);
+        resp.message = msg;
         let f = sink
             .success(resp)
             .map_err(move |e| panic!("failed to reply {:?}", e))
@@ -105,9 +106,9 @@ fn test_reload_new() {
         .connect(&format!("127.0.0.1:{port}"));
     let client1 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let reply = client1.say_hello(&req).expect("rpc");
-    assert_eq!(reply.get_message(), "Hello world");
+    assert_eq!(reply.message, "Hello world");
 
     // To connect the server whose CN is "*.test.google.fr".
     switch.store(true, Ordering::Relaxed);
@@ -120,15 +121,15 @@ fn test_reload_new() {
         .connect(&format!("127.0.0.1:{}", port.clone()));
     let client2 = GreeterClient::new(ch);
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let reply = client2.say_hello(&req).expect("rpc");
-    assert_eq!(reply.get_message(), "Hello world");
+    assert_eq!(reply.message, "Hello world");
 
     // Existing connection is still going to work.
     let mut req = HelloRequest::default();
-    req.set_name("world".to_owned());
+    req.name = "world".to_owned();
     let reply = client1.say_hello(&req).expect("rpc");
-    assert_eq!(reply.get_message(), "Hello world");
+    assert_eq!(reply.message, "Hello world");
 }
 
 #[test]
@@ -161,8 +162,8 @@ fn test_reload_fail() {
 
     for _ in 0..10 {
         let mut req = HelloRequest::default();
-        req.set_name("world".to_owned());
+        req.name = "world".to_owned();
         let reply = client.say_hello(&req).expect("rpc");
-        assert_eq!(reply.get_message(), "Hello world");
+        assert_eq!(reply.message, "Hello world");
     }
 }

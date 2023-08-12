@@ -199,7 +199,10 @@ pub mod prost {
         }
     }
 }
-#[cfg(feature = "protobuf-codec")]
+
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
+#[cfg_attr(feature = "protobuf-codec", path = "proto/protobuf")]
+#[cfg_attr(feature = "protobufv3-codec", path = "proto/protobuf_v3")]
 #[allow(deprecated)]
 pub mod protobuf {
     pub mod example {

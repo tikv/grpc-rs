@@ -39,17 +39,24 @@ impl WorkerService for Worker {
                 None => return sink.close().await.map_err(Error::from),
                 Some(arg) => arg,
             };
+            #[cfg(feature = "protobuf-codec")]
             let cfg = arg.get_setup();
+            #[cfg(feature = "protobufv3-codec")]
+            let cfg = arg.setup();
             info!("receive server setup: {:?}", cfg);
             let mut server = Server::new(cfg)?;
             let status = server.get_status();
             sink.send((status, WriteFlags::default())).await?;
             while let Some(arg) = stream.try_next().await? {
+                #[cfg(feature = "protobuf-codec")]
                 let mark = arg.get_mark();
+                #[cfg(feature = "protobufv3-codec")]
+                let mark = arg.mark();
+
                 info!("receive server mark: {:?}", mark);
-                let stats = server.get_stats(mark.get_reset());
+                let stats = server.get_stats(mark.reset);
                 let mut status = server.get_status();
-                status.set_stats(stats);
+                status.stats = Some(stats).into();
                 sink.send((status, WriteFlags::default())).await?;
             }
             server.shutdown().await?;
@@ -72,17 +79,26 @@ impl WorkerService for Worker {
                 None => return sink.close().await,
                 Some(arg) => arg,
             };
+            #[cfg(feature = "protobuf-codec")]
             let cfg = arg.get_setup();
+            #[cfg(feature = "protobufv3-codec")]
+            let cfg = arg.setup();
             info!("receive client setup: {:?}", cfg);
             let mut client = Client::new(cfg);
             sink.send((ClientStatus::default(), WriteFlags::default()))
                 .await?;
             while let Some(arg) = stream.try_next().await? {
+                #[cfg(feature = "protobuf-codec")]
                 let mark = arg.get_mark();
+                #[cfg(feature = "protobufv3-codec")]
+                let mark = arg.mark();
+
                 info!("receive client mark: {:?}", mark);
-                let stats = client.get_stats(mark.get_reset());
-                let mut status = ClientStatus::default();
-                status.set_stats(stats);
+                let stats = client.get_stats(mark.reset);
+                let status = ClientStatus {
+                    stats: Some(stats).into(),
+                    ..ClientStatus::default()
+                };
                 sink.send((status, WriteFlags::default())).await?;
             }
             client.shutdown().await;
@@ -96,8 +112,10 @@ impl WorkerService for Worker {
 
     fn core_count(&mut self, ctx: RpcContext, _: CoreRequest, sink: UnarySink<CoreResponse>) {
         let cpu_count = util::cpu_num_cores();
-        let mut resp = CoreResponse::default();
-        resp.set_cores(cpu_count as i32);
+        let resp = CoreResponse {
+            cores: cpu_count as i32,
+            ..CoreResponse::default()
+        };
         ctx.spawn(
             sink.success(resp)
                 .map_err(|e| error!("failed to report cpu count: {:?}", e))

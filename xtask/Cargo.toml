@@ -11,3 +11,4 @@ prost-build = "0.11"
 # Use an old enough version to make sure generated code with TiKV's fork.
 # TODO: use latest one when TiKV's fork is updated
 protoc-rust = "=2.8"
+protobuf-codegen = "3.2.0"

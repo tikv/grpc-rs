@@ -37,11 +37,7 @@ impl RouteGuide for RouteGuideService {
             let mut summary = RouteSummary::default();
             let mut current_num = 0;
             while let Some(point) = points.try_next().await? {
-                assert_eq!(
-                    point.get_longitude(),
-                    current_num,
-                    "messages sequence is wrong"
-                );
+                assert_eq!(point.longitude, current_num, "messages sequence is wrong");
                 current_num += 1;
                 summary.point_count += 1;
                 // Send a reply message after receiving a limited number of messages, which
@@ -99,7 +95,7 @@ fn test_client_send_all() {
         let mut send_data = vec![];
         for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
-            p.set_longitude(i);
+            p.longitude = i;
             send_data.push(p);
         }
         let send_stream = stream::iter(send_data);
@@ -108,14 +104,14 @@ fn test_client_send_all() {
                 .await
         );
         let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+        assert_eq!(summary.point_count, MESSAGE_NUM);
 
         // Test for send all enable batch
         let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
         for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
-            p.set_longitude(i);
+            p.longitude = i;
             send_data.push(p);
         }
         let send_stream = stream::iter(send_data);
@@ -125,14 +121,14 @@ fn test_client_send_all() {
                 .await
         );
         let summary = receiver.await.unwrap();
-        assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+        assert_eq!(summary.point_count, MESSAGE_NUM);
 
         // Test for send all and all buffer hints are true
         let (mut sink, receiver) = client.record_route().unwrap();
         let mut send_data = vec![];
         for i in 0..MESSAGE_NUM {
             let mut p = Point::default();
-            p.set_longitude(i);
+            p.longitude = i;
             send_data.push(p);
         }
         let send_stream = stream::iter(send_data);
@@ -155,7 +151,7 @@ fn test_client_send_all() {
         let recv_msg_task = async move {
             let summary = receiver.await.unwrap();
             tx.send(()).await.unwrap();
-            assert_eq!(summary.get_point_count(), MESSAGE_NUM);
+            assert_eq!(summary.point_count, MESSAGE_NUM);
         };
         join!(recv_msg_task, close_sink_task);
     };

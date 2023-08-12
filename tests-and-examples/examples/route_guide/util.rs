@@ -24,9 +24,11 @@ struct FeatureRef {
 impl From<FeatureRef> for Feature {
     fn from(r: FeatureRef) -> Feature {
         let mut f = Feature::default();
-        f.set_name(r.name);
-        f.mut_location().set_latitude(r.location.latitude);
-        f.mut_location().set_longitude(r.location.longitude);
+        f.name = r.name;
+        let mut point = Point::new();
+        point.longitude = r.location.longitude;
+        point.latitude = r.location.latitude;
+        f.location = Some(point).into();
         f
     }
 }
@@ -38,9 +40,10 @@ pub fn load_db() -> Vec<Feature> {
 }
 
 pub fn same_point(lhs: &Point, rhs: &Point) -> bool {
-    lhs.get_longitude() == rhs.get_longitude() && lhs.get_latitude() == rhs.get_latitude()
+    lhs.longitude == rhs.longitude && lhs.latitude == rhs.latitude
 }
 
+#[cfg(feature = "protobuf-codec")]
 pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
     let hi = rhs.get_hi();
     let lo = rhs.get_lo();
@@ -48,6 +51,14 @@ pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
         && lhs.get_longitude() >= lo.get_longitude()
         && lhs.get_latitude() <= hi.get_latitude()
         && lhs.get_latitude() >= lo.get_latitude()
+}
+
+#[cfg(feature = "protobufv3-codec")]
+pub fn fit_in(lhs: &Point, rhs: &Rectangle) -> bool {
+    lhs.longitude <= rhs.hi.longitude
+        && lhs.longitude >= rhs.lo.longitude
+        && lhs.latitude <= rhs.hi.latitude
+        && lhs.latitude >= rhs.lo.latitude
 }
 
 const COORD_FACTOR: f64 = 10000000.0;
@@ -59,16 +70,16 @@ pub fn convert_to_rad(num: f64) -> f64 {
 pub fn format_point(p: &Point) -> String {
     format!(
         "{}, {}",
-        p.get_latitude() as f64 / COORD_FACTOR,
-        p.get_longitude() as f64 / COORD_FACTOR
+        p.latitude as f64 / COORD_FACTOR,
+        p.longitude as f64 / COORD_FACTOR
     )
 }
 
 pub fn cal_distance(lhs: &Point, rhs: &Point) -> f64 {
-    let lat1 = lhs.get_latitude() as f64 / COORD_FACTOR;
-    let lon1 = lhs.get_longitude() as f64 / COORD_FACTOR;
-    let lat2 = rhs.get_latitude() as f64 / COORD_FACTOR;
-    let lon2 = rhs.get_longitude() as f64 / COORD_FACTOR;
+    let lat1 = lhs.latitude as f64 / COORD_FACTOR;
+    let lon1 = lhs.longitude as f64 / COORD_FACTOR;
+    let lat2 = rhs.latitude as f64 / COORD_FACTOR;
+    let lon2 = rhs.longitude as f64 / COORD_FACTOR;
     let lat_rad_1 = convert_to_rad(lat1);
     let lat_rad_2 = convert_to_rad(lat2);
     let delta_lat_rad = convert_to_rad(lat2 - lat1);

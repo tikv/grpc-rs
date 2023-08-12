@@ -62,7 +62,7 @@ pub use crate::channel::{
 };
 pub use crate::client::Client;
 
-#[cfg(feature = "protobuf-codec")]
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
 #[cfg(feature = "prost-codec")]
 pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};

@@ -8,6 +8,7 @@ publish = false
 [features]
 default = ["protobuf-codec"]
 protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "grpcio-health/protobuf-codec"]
+protobufv3-codec = ["protobufv3", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "grpcio-health/protobufv3-codec"]
 prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
 
 [dependencies]
@@ -17,7 +18,8 @@ futures-channel = { version = "0.3", features = ["sink"] }
 futures-executor = "0.3"
 futures-util = { version = "0.3", features = ["sink"] }
 futures-timer = "3.0"
-protobuf = { version = "2.22", optional = true }
+protobuf = { version = "2", optional = true }
+protobufv3 = { package = "protobuf", version = "3.2", optional = true }
 prost = { version = "0.11", optional = true }
 bytes = { version = "1.0", optional = true }
 log = "0.4"
@@ -39,23 +41,29 @@ slog-term = "2.2"
 [[example]]
 name = "route_guide_client"
 path = "examples/route_guide/client.rs"
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "route_guide_server"
 path = "examples/route_guide/server.rs"
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "greeter_client"
 path = "examples/hello_world/client.rs"
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "greeter_server"
 path = "examples/hello_world/server.rs"
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "lb_greeter_client"
 path = "examples/load_balancing/client.rs"
+#required-features = "protobuf-codec" or "protobufv3-codec"
 
 [[example]]
 name = "lb_greeter_server"
 path = "examples/load_balancing/server.rs"
+#required-features = "protobuf-codec" or "protobufv3-codec"

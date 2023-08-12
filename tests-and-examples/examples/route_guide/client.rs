@@ -22,39 +22,39 @@ use rand::{seq::SliceRandom, Rng};
 
 fn new_point(lat: i32, lon: i32) -> Point {
     let mut point = Point::default();
-    point.set_latitude(lat);
-    point.set_longitude(lon);
+    point.latitude = lat;
+    point.longitude = lon;
     point
 }
 
 fn new_rect(lat1: i32, lon1: i32, lat2: i32, lon2: i32) -> Rectangle {
     let mut rect = Rectangle::default();
-    rect.set_lo(new_point(lat1, lon1));
-    rect.set_hi(new_point(lat2, lon2));
+    rect.lo = Some(new_point(lat1, lon1)).into();
+    rect.hi = Some(new_point(lat2, lon2)).into();
     rect
 }
 
 fn new_note(lat: i32, lon: i32, msg: &str) -> RouteNote {
     let mut note = RouteNote::default();
-    note.set_location(new_point(lat, lon));
-    note.set_message(msg.to_owned());
+    note.location = Some(new_point(lat, lon)).into();
+    note.message = msg.to_owned();
     note
 }
 
 async fn get_feature(client: &RouteGuideClient, point: &Point) -> Result<()> {
     let get_feature = client.get_feature_async(point)?;
     let f = get_feature.await?;
-    if !f.has_location() {
+    if f.location.is_none() {
         warn!("Server returns incomplete feature.");
         return Ok(());
     }
-    if f.get_name().is_empty() {
+    if f.name.is_empty() {
         warn!("Found no feature at {}", util::format_point(point));
         return Ok(());
     }
     info!(
         "Found feature called {} at {}",
-        f.get_name(),
+        f.name,
         util::format_point(point)
     );
     Ok(())
@@ -65,11 +65,17 @@ async fn list_features(client: &RouteGuideClient) -> Result<()> {
     info!("Looking for features between 40, -75 and 42, -73");
     let mut list_features = client.list_features(&rect)?;
     while let Some(feature) = list_features.try_next().await? {
-        let loc = feature.get_location();
+        #[cfg(feature = "protobuf-codec")]
         info!(
             "Found feature {} at {}",
-            feature.get_name(),
-            util::format_point(loc)
+            feature.name,
+            util::format_point(feature.get_location())
+        );
+        #[cfg(feature = "protobufv3-codec")]
+        info!(
+            "Found feature {} at {}",
+            feature.name,
+            util::format_point(&feature.location.0.unwrap())
         );
     }
     info!("List feature rpc succeeded.");
@@ -82,18 +88,21 @@ async fn record_route(client: &RouteGuideClient) -> Result<()> {
     let (mut sink, receiver) = client.record_route()?;
     for _ in 0..10usize {
         let f = features.choose(&mut rng).unwrap();
-        let point = f.get_location();
-        info!("Visiting {}", util::format_point(point));
-        sink.send((point.to_owned(), WriteFlags::default())).await?;
+        #[cfg(feature = "protobuf-codec")]
+        let point = f.get_location().to_owned();
+        #[cfg(feature = "protobufv3-codec")]
+        let point = f.location.0.clone().unwrap().as_ref().clone();
+        info!("Visiting {}", util::format_point(&point));
+        sink.send((point, WriteFlags::default())).await?;
         thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
     }
     // flush
     sink.close().await?;
     let summary = receiver.await?;
-    info!("Finished trip with {} points", summary.get_point_count());
-    info!("Passed {} features", summary.get_feature_count());
-    info!("Travelled {} meters", summary.get_distance());
-    info!("It took {} seconds", summary.get_elapsed_time());
+    info!("Finished trip with {} points", summary.point_count);
+    info!("Passed {} features", summary.feature_count);
+    info!("Travelled {} meters", summary.distance);
+    info!("It took {} seconds", summary.elapsed_time);
     Ok(())
 }
 
@@ -119,12 +128,17 @@ async fn route_chat(client: &RouteGuideClient) -> Result<()> {
 
     let receive = async move {
         while let Some(note) = receiver.try_next().await? {
-            let location = note.get_location();
+            #[cfg(feature = "protobuf-codec")]
             info!(
                 "Got message {} at {}, {}",
                 note.get_message(),
-                location.get_latitude(),
-                location.get_longitude()
+                note.get_location().get_latitude(),
+                note.get_location().get_longitude()
+            );
+            #[cfg(feature = "protobufv3-codec")]
+            info!(
+                "Got message {} at {}, {}",
+                note.message, note.location.latitude, note.location.longitude
             );
         }
         Ok(()) as Result<_>

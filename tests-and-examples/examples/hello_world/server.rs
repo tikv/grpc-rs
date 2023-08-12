@@ -26,9 +26,9 @@ struct GreeterService;
 
 impl Greeter for GreeterService {
     fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
-        let msg = format!("Hello {}", req.get_name());
+        let msg = format!("Hello {}", req.name);
         let mut resp = HelloReply::default();
-        resp.set_message(msg);
+        resp.message = msg;
         let f = sink
             .success(resp)
             .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e))

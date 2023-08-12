@@ -1,3 +1,4 @@
+use protobuf_codegen;
 use std::process::{self, Command};
 use std::{
     env,
@@ -116,18 +117,31 @@ const PROTOS: &[(&str, &[&str], &str, &str)] = &[
     ("proto/proto", &["google/rpc"], "proto/src/proto", "google/rpc"),
 ];
 
-const NAMING_PATCH: &[(&str, &[(&str, &str)])] = &[(
-    "health/src/proto/protobuf/health.rs",
-    &[
-        ("HealthCheckResponse_ServingStatus", "ServingStatus"),
-        // Order is important.
-        ("NOT_SERVING", "NotServing"),
-        ("SERVICE_UNKNOWN", "ServiceUnknown"),
-        ("UNKNOWN", "Unknown"),
-        ("SERVING", "Serving"),
-        ("rustfmt_skip", "rustfmt::skip"),
-    ],
-)];
+const NAMING_PATCH: &[(&str, &[(&str, &str)])] = &[
+    (
+        "health/src/proto/protobuf/health.rs",
+        &[
+            ("HealthCheckResponse_ServingStatus", "ServingStatus"),
+            // Order is important.
+            ("NOT_SERVING", "NotServing"),
+            ("SERVICE_UNKNOWN", "ServiceUnknown"),
+            ("UNKNOWN", "Unknown"),
+            ("SERVING", "Serving"),
+            ("rustfmt_skip", "rustfmt::skip"),
+        ],
+    ),
+    (
+        "health/src/proto/protobuf_v3/health.rs",
+        &[
+            // Order is important.
+            ("NOT_SERVING", "NotServing"),
+            ("SERVICE_UNKNOWN", "ServiceUnknown"),
+            ("UNKNOWN", "Unknown"),
+            ("SERVING", "Serving"),
+            ("rustfmt_skip", "rustfmt::skip"),
+        ],
+    ),
+];
 
 fn modify(path: impl AsRef<Path>, f: impl FnOnce(&mut String)) {
     let path = path.as_ref();
@@ -140,11 +154,72 @@ fn modify(path: impl AsRef<Path>, f: impl FnOnce(&mut String)) {
     File::create(path).unwrap().write_all(content.as_bytes()).unwrap();
 }
 
-fn generate_protobuf(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
+/// If out_dir already exists, deletes and recreates it.
+fn delete_and_mkdir(out_dir: &str) {
     if Path::new(out_dir).exists() {
         fs::remove_dir_all(out_dir).unwrap();
     }
     fs::create_dir_all(out_dir).unwrap();
+}
+
+/// Builds grpcio-compiler and uses it to generate _grpc.rs files. Used in both protobufv2 and v3.
+fn run_gen_grpc(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
+    exec(cargo().args(&["build", "-p", "grpcio-compiler"]));
+    let mut c = cmd(protoc);
+    c.arg(format!("-I{}", include))
+        .arg(format!("--grpc_out={}", out_dir))
+        .arg("--plugin=protoc-gen-grpc=./target/debug/grpc_rust_plugin");
+    for i in inputs {
+        c.arg(i);
+    }
+    exec(&mut c);
+}
+
+// Does string replacements on predefined files. Used with protobuf v2 and v3.
+fn apply_naming_patch() {
+    for (path, name_fixes) in NAMING_PATCH {
+        modify(path, |content| {
+            for (old, new) in *name_fixes {
+                *content = content.replace(old, new);
+            }
+        });
+    }
+}
+
+/// Loops over all _grpc.rs files in out_dir, and if a corresponding .rs file exists, links it by adding a "use" statement.
+fn link_pb_with_grpc_rs(out_dir: &str) {
+    for f in fs::read_dir(out_dir).unwrap() {
+        let path = f.unwrap().path();
+        let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
+        if !file_name.ends_with("_grpc.rs") {
+            continue;
+        }
+        // remove _grpc
+        let pb_file_name = format!("{}.rs", &file_name[..file_name.len() - 8]);
+        let pb_path = path.with_file_name(pb_file_name);
+        // remove .rs
+        let module_name = &file_name[..file_name.len() - 3];
+        modify(pb_path, |content| {
+            content.push_str(&format!("\npub use super::{}::*;\n", module_name));
+        });
+    }
+}
+
+/// Removes the protobuf version constraint in all .rs files in out_dir.
+/// note: now that we have distinct protobuf v2 and v3 generated files, not sure this step is necessary or good practice anymore
+fn remove_protobuf_version_constraint(out_dir: &str) {
+    for f in fs::read_dir(out_dir).unwrap() {
+        let path = f.unwrap().path();
+        if path.extension().unwrap() == "rs" {
+            modify(path, |content| {
+                *content = remove_match(&content, |l| l.contains("::protobuf::VERSION"));
+            });
+        }
+    }
+}
+
+fn generate_protobuf(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
+    delete_and_mkdir(out_dir);
 
     // TODO: update rust-protobuf to allow specifying protoc explicitly.
     protoc_rust::run(protoc_rust::Args {
@@ -155,47 +230,49 @@ fn generate_protobuf(protoc: &Path, include: &str, inputs: &[&str], out_dir: &st
     })
     .unwrap();
 
-    exec(cargo().args(&["build", "-p", "grpcio-compiler"]));
-    let mut c = cmd(protoc);
-    c.arg(format!("-I{}", include))
-        .arg(format!("--grpc_out={}", out_dir))
-        .arg("--plugin=protoc-gen-grpc=./target/debug/grpc_rust_plugin");
-    for i in inputs {
-        c.arg(i);
-    }
-    exec(&mut c);
+    run_gen_grpc(protoc, include, inputs, out_dir);
+    apply_naming_patch();
+    link_pb_with_grpc_rs(out_dir);
+    // note: now that we have distinct protobuf v2 and v3 generated files, not sure this step is necessary or good practice anymore
+    remove_protobuf_version_constraint(out_dir);
+}
 
-    for (path, name_fixes) in NAMING_PATCH {
-        modify(path, |content| {
-            for (old, new) in *name_fixes {
-                *content = content.replace(old, new);
-            }
-        });
-    }
+fn generate_protobufv3(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
+    delete_and_mkdir(out_dir);
+
+    let _ = protobuf_codegen::Codegen::new()
+        .protoc()
+        .includes([include])
+        .inputs(inputs)
+        .out_dir(out_dir)
+        .run();
+
+    run_gen_grpc(protoc, include, inputs, out_dir);
+    apply_naming_patch();
 
     for f in fs::read_dir(out_dir).unwrap() {
-        let p = f.unwrap();
-        if p.path().extension().unwrap() == "rs" {
-            let file_name = p.path().file_name().unwrap().to_str().unwrap().to_string();
-            if file_name.ends_with("_grpc.rs") {
-                let pb_path = p.path().with_file_name(format!("{}.rs", &file_name[..file_name.len() - 8]));
-                modify(pb_path, |content| {
-                    content.push_str(&format!("\npub use super::{}::*;\n", &file_name[..file_name.len() - 3]));
-                });
-            }
-            modify(p.path(), |content| {
-                *content = remove_match(&content, |l| l.contains("::protobuf::VERSION"));
+        let path = f.unwrap().path();
+        if path.extension().unwrap() == "rs" {
+            modify(&path, |content| {
+                *content = content.replace("::protobuf::", "::protobufv3::");
+            });
+
+            // remove ".proto file is parsed by protoc X.Y.Z" line
+            modify(&path, |content| {
+              *content = remove_match(&content, |l| l.contains(".proto file is parsed by protoc"));
             });
         }
     }
+
+    link_pb_with_grpc_rs(out_dir);
+    // note: now that we have distinct protobuf v2 and v3 generated files, not sure this step is necessary or good practice anymore
+    remove_protobuf_version_constraint(out_dir);
 }
 
 fn generate_prost(protoc: &Path, include: &str, inputs: &[&str], out_dir: &str) {
     env::set_var("PROTOC", protoc);
-    if Path::new(out_dir).exists() {
-        fs::remove_dir_all(out_dir).unwrap();
-    }
-    fs::create_dir_all(out_dir).unwrap();
+    delete_and_mkdir(out_dir);
+
     exec(
         cargo()
             .args(&[
@@ -242,7 +319,18 @@ fn codegen() {
             &inputs_ref,
             &format!("{}/protobuf/{}", out_dir, package),
         );
-        generate_prost(&protoc, include, &inputs_ref, &format!("{}/prost/{}", out_dir, package));
+        generate_protobufv3(
+            &protoc,
+            include,
+            &inputs_ref,
+            &format!("{}/protobuf_v3/{}", out_dir, package),
+        );
+        generate_prost(
+            &protoc,
+            include,
+            &inputs_ref,
+            &format!("{}/prost/{}", out_dir, package),
+        );
     }
     exec(cargo().args(&["fmt", "--all"]))
 }
