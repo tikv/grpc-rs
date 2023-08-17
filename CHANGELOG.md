@@ -1,3 +1,11 @@
+# 0.13.0 - 2023-08-17
+
+- Publicize prost service generator (#612)
+- Update grpc to 1.56.2 (#621) (#624) (#629)
+- Fix unknown log file and module in slog (#623)
+- gate auth context under _secure feature (#622)
+- rust-protobuf 3 support (#615)
+
 # 0.12.1 - 2023-02-14
 
 - Provide more debug info for RpcStatus (#603)
