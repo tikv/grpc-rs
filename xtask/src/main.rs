@@ -99,15 +99,21 @@ fn submodule() {
 }
 
 fn clang_lint() {
-    exec(cmd("clang-tidy").args(&[
-        "grpc-sys/grpc_wrap.cc",
-        "--",
-        "-Igrpc-sys/grpc/include",
-        "-x",
-        "c++",
-        "-std=c++11",
-    ]));
-    exec(cmd("clang-format").args(&["-i", "grpc-sys/grpc_wrap.cc"]));
+    fn lint(file: &str) {
+        exec(cmd("clang-tidy").args(&[
+            file,
+            "--",
+            "-Igrpc-sys/grpc/include",
+            "-Igrpc-sys/grpc",
+            "-Igrpc-sys/grpc/third_party/abseil-cpp",
+            "-x",
+            "c++",
+            "-std=c++14",
+        ]));
+        exec(cmd("clang-format").args(&["-i", file]));
+    }
+    lint("grpc-sys/grpc_wrap.cc");
+    lint("grpc-sys/grpc_wrap_internals.cc");
 }
 
 const PROTOS: &[(&str, &[&str], &str, &str)] = &[

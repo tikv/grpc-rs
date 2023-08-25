@@ -64,6 +64,11 @@ impl GrpcSlice {
         GrpcSlice::from_static_slice(s.as_bytes())
     }
 
+    /// Creates a slice from grpc_slice.
+    pub fn from_raw(slice: grpc_slice) -> GrpcSlice {
+        GrpcSlice(slice)
+    }
+
     /// Checks whether the slice stores bytes inline.
     pub fn is_inline(&self) -> bool {
         self.0.refcount.is_null()

@@ -5,7 +5,9 @@
 #![allow(non_upper_case_globals)]
 #[allow(clippy::all)]
 mod bindings {
-    include!(env!("BINDING_PATH"));
+    include!(env!("BINDING_WRAP_PATH"));
+    #[cfg(feature = "internals")]
+    include!(env!("BINDING_WRAP_INTERNAL_PATH"));
 }
 mod grpc_wrap;
 
