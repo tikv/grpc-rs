@@ -1,3 +1,7 @@
+# Unreleased (0.14.0)
+
+- Update prost to 0.12 (#631)
+
 # 0.13.0 - 2023-08-17
 
 - Publicize prost service generator (#612)
