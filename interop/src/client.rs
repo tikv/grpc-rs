@@ -80,7 +80,7 @@ impl Client {
 
     pub async fn server_streaming(&self) -> grpcio::Result<()> {
         print!("testing server streaming ... ");
-        let sizes = vec![31415, 9, 2653, 58979];
+        let sizes = [31415, 9, 2653, 58979];
         let req = StreamingOutputCallRequest {
             response_parameters: sizes
                 .iter()
