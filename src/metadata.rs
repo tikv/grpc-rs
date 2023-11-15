@@ -126,6 +126,17 @@ impl MetadataBuilder {
     }
 }
 
+impl Clone for MetadataBuilder {
+    fn clone(&self) -> MetadataBuilder {
+        let mut builder = MetadataBuilder::with_capacity(self.arr.0.capacity);
+        for (k, v) in self.arr.iter() {
+            // use `add_metadata` to skip validation.
+            builder.add_metadata(k, v);
+        }
+        builder
+    }
+}
+
 /// A collection of metadata entries that can be exchanged during a call.
 ///
 /// gRPC supports these types of metadata:
