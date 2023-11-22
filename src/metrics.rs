@@ -6,6 +6,15 @@ use lazy_static::lazy_static;
 use prometheus::*;
 
 lazy_static! {
+    /// Grpc wait duration of one task.
+    pub static ref GRPC_TASK_WAIT_DURATION: HistogramVec = register_histogram_vec!(
+        "grpc_task_wait_duration",
+        "Bucketed histogram of grpc wait time only for Spawn task",
+        &["name"],
+        exponential_buckets(1e-7, 2.0, 20).unwrap() // 100ns ~ 100ms
+    )
+    .unwrap();
+
     // Grpc pool io handle duration .
     pub static ref GRPC_POOL_IO_HANDLE_DURATION: HistogramVec = register_histogram_vec!(
         "grpc_pool_io_handle_duration",

@@ -12,6 +12,7 @@ use std::task::{Context, Poll, Waker};
 
 use parking_lot::Mutex;
 use prometheus::core::{AtomicU64, GenericCounter};
+use prometheus::Histogram;
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
@@ -183,14 +184,17 @@ impl CallTag {
         }
     }
 
-    pub fn report(&self, counter: &[GenericCounter<AtomicU64>; 5]) {
-        match *self {
+    pub fn report(&self, counter: &[GenericCounter<AtomicU64>; 5], wait_his: &Histogram) {
+        match self {
             CallTag::Batch(_) => counter[0].inc(),
             CallTag::Request(_) => counter[1].inc(),
             CallTag::UnaryRequest(_) => counter[2].inc(),
             CallTag::Abort(_) => counter[3].inc(),
             CallTag::Action(_) => counter[4].inc(),
-            CallTag::Spawn(_) => counter[5].inc(),
+            CallTag::Spawn(task) => {
+                counter[5].inc();
+                wait_his.observe(task.reset_push_time().elapsed().as_secs_f64());
+            }
         }
     }
 }

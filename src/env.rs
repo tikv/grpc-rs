@@ -8,7 +8,9 @@ use std::thread::{Builder as ThreadBuilder, JoinHandle};
 use crate::{grpc_sys, metrics};
 
 use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkQueue};
-use crate::metrics::{GRPC_POOL_EXECUTE_DURATION, GRPC_POOL_IO_HANDLE_DURATION};
+use crate::metrics::{
+    GRPC_POOL_EXECUTE_DURATION, GRPC_POOL_IO_HANDLE_DURATION, GRPC_TASK_WAIT_DURATION,
+};
 use crate::task::CallTag;
 use std::time::Instant;
 
@@ -26,6 +28,8 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
     let grpc_pool_execute_duration = GRPC_POOL_EXECUTE_DURATION.with_label_values(&[&name]);
     let grpc_event_counter = ["batch", "request", "unary", "stream", "finish"]
         .map(|event| metrics::GRPC_POOL_EVENT_COUNT_VEC.with_label_values(&[&name, event]));
+    let grpc_task_wait_duration = GRPC_TASK_WAIT_DURATION.with_label_values(&[&name]);
+
     loop {
         let now = Instant::now();
         let e = cq.next();
@@ -39,7 +43,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
         }
 
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
-        tag.report(&grpc_event_counter);
+        tag.report(&grpc_event_counter, &grpc_task_wait_duration);
         tag.resolve(&cq, e.success != 0);
         while let Some(work) = unsafe { cq.worker.pop_work() } {
             work.finish();
