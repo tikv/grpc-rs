@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
 use parking_lot::Mutex;
+use prometheus::core::{AtomicU64, GenericCounter};
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
@@ -179,6 +180,17 @@ impl CallTag {
             CallTag::Abort(_) => {}
             CallTag::Action(prom) => prom.resolve(success),
             CallTag::Spawn(notify) => self::executor::resolve(notify, success),
+        }
+    }
+
+    pub fn report(&self, counter: &[GenericCounter<AtomicU64>; 5]) {
+        match *self {
+            CallTag::Batch(_) => counter[0].inc(),
+            CallTag::Request(_) => counter[1].inc(),
+            CallTag::UnaryRequest(_) => counter[2].inc(),
+            CallTag::Abort(_) => counter[3].inc(),
+            CallTag::Action(_) => counter[4].inc(),
+            CallTag::Spawn(_) => counter[5].inc(),
         }
     }
 }
