@@ -184,7 +184,7 @@ impl CallTag {
         }
     }
 
-    pub fn report(&self, counter: &[GenericCounter<AtomicU64>; 5], wait_his: &Histogram) {
+    pub fn report(&self, counter: &[GenericCounter<AtomicU64>; 6], wait_his: &Histogram) {
         match self {
             CallTag::Batch(_) => counter[0].inc(),
             CallTag::Request(_) => counter[1].inc(),

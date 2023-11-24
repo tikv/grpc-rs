@@ -26,7 +26,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
         .to_owned();
     let grpc_pool_io_handle_duration = GRPC_POOL_IO_HANDLE_DURATION.with_label_values(&[&name]);
     let grpc_pool_execute_duration = GRPC_POOL_EXECUTE_DURATION.with_label_values(&[&name]);
-    let grpc_event_counter = ["batch", "request", "unary", "stream", "finish"]
+    let grpc_event_counter = ["batch", "request", "unary", "abort", "action", "spawn"]
         .map(|event| metrics::GRPC_POOL_EVENT_COUNT_VEC.with_label_values(&[&name, event]));
     let grpc_task_wait_duration = GRPC_TASK_WAIT_DURATION.with_label_values(&[&name]);
 
