@@ -495,7 +495,7 @@ impl ChannelBuilder {
         self.build_args()
     }
 
-    /// Build an [`Channel`] that connects to a specific address.
+    /// Build a [`Channel`] that connects to a specific address.
     pub fn connect(mut self, addr: &str) -> Channel {
         let args = self.prepare_connect_args();
         let addr = CString::new(addr).unwrap();
@@ -509,7 +509,7 @@ impl ChannelBuilder {
         unsafe { Channel::new(self.env.pick_cq(), self.env, channel) }
     }
 
-    /// Build an [`Channel`] taking over an established connection from
+    /// Build a [`Channel`] taking over an established connection from
     /// a file descriptor. The target string given is purely informative to
     /// describe the endpoint of the connection. Takes ownership of the given
     /// file descriptor and will close it when the connection is closed.
@@ -534,6 +534,22 @@ impl ChannelBuilder {
             grpcio_sys::grpc_channel_create_from_fd(target_ptr, fd, creds.as_mut_ptr(), args.args);
 
         Channel::new(self.env.pick_cq(), self.env, channel)
+    }
+
+    /// Build a [`Channel`] taking over an established connection from a file
+    /// descriptor. The target string given is purely informative to describe
+    /// the endpoint of the connection. Takes ownership of the given file
+    /// descriptor and will close it when the connection is closed. The file
+    /// descriptor must correspond to a connected stream socket.
+    ///
+    /// This function is available on posix systems only.
+    #[cfg(unix)]
+    pub fn connect_from_ownedfd(self, target: &str, fd: ::std::os::fd::OwnedFd) -> Channel {
+        use std::os::fd::IntoRawFd;
+
+        // SAFETY: `OwnedFd` confers ownership of the file descriptor, so it
+        // won't be accessed by other code.
+        unsafe { self.connect_from_fd(target, fd.into_raw_fd()) }
     }
 }
 
