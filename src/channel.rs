@@ -592,6 +592,11 @@ struct ChannelInner {
     channel: *mut grpc_channel,
 }
 
+// SAFETY: `grpc_channel` is safe to send between threads, and `Environment` is already `Send`.
+unsafe impl Send for ChannelInner {}
+// SAFETY: `grpc_channel` can be used from multiple threads, and `Environment` is already `Sync`.
+unsafe impl Sync for ChannelInner {}
+
 impl ChannelInner {
     // If try_to_connect is true, the channel will try to establish a connection, potentially
     // changing the state.
@@ -621,10 +626,6 @@ pub struct Channel {
     inner: Arc<ChannelInner>,
     cq: CompletionQueue,
 }
-
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for Channel {}
-unsafe impl Sync for Channel {}
 
 impl Channel {
     /// Create a new channel. Avoid using this directly and use
