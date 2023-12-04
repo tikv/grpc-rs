@@ -7,6 +7,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::ptr;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -298,7 +299,7 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 #[derive(Clone)]
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
-    registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
+    registry: Rc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
     checkers: Vec<Box<dyn ServerChecker>>,
 }
 
@@ -420,7 +421,7 @@ impl Server {
                     .collect();
                 let rc = RequestCallContext {
                     server: self.core.clone(),
-                    registry: Arc::new(UnsafeCell::new(registry)),
+                    registry: Rc::new(UnsafeCell::new(registry)),
                     checkers: self.checkers.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {
