@@ -5,50 +5,126 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread::{Builder as ThreadBuilder, JoinHandle};
 
-use crate::{grpc_sys, metrics};
-
 use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkQueue};
-use crate::metrics::{
-    GRPC_POOL_EXECUTE_DURATION, GRPC_POOL_IO_HANDLE_DURATION, GRPC_TASK_WAIT_DURATION,
-};
+use crate::grpc_sys;
 use crate::task::CallTag;
-use std::time::Instant;
 
-// event loop
+#[cfg(feature = "prometheus")]
+use {
+    crate::metrics::{
+        GRPC_POOL_CQ_NEXT_DURATION, GRPC_POOL_EVENT_COUNT_VEC, GRPC_POOL_EXECUTE_DURATION,
+        GRPC_TASK_WAIT_DURATION,
+    },
+    crate::task::resolve,
+    prometheus::{
+        core::{AtomicU64, GenericCounter},
+        Histogram,
+    },
+    std::time::Instant,
+};
+
+#[cfg(feature = "prometheus")]
+pub struct GRPCRunner {
+    cq_next_duration_his: Histogram,
+    execute_duration_his: Histogram,
+    wait_duration_his: Histogram,
+    event_counter: [GenericCounter<AtomicU64>; 6],
+}
+
+#[cfg(feature = "prometheus")]
+impl GRPCRunner {
+    pub fn new(name: &String) -> GRPCRunner {
+        let cq_next_duration_his = GRPC_POOL_CQ_NEXT_DURATION.with_label_values(&[name]);
+        let execute_duration_his = GRPC_POOL_EXECUTE_DURATION.with_label_values(&[name]);
+        let wait_duration_his = GRPC_TASK_WAIT_DURATION.with_label_values(&[name]);
+        let event_counter = ["batch", "request", "unary", "abort", "action", "spawn"]
+            .map(|event| GRPC_POOL_EVENT_COUNT_VEC.with_label_values(&[name, event]));
+        GRPCRunner {
+            cq_next_duration_his,
+            execute_duration_his,
+            wait_duration_his,
+            event_counter,
+        }
+    }
+
+    // event loop
+    pub fn run(&self, tx: mpsc::Sender<CompletionQueue>) {
+        let cq = Arc::new(CompletionQueueHandle::new());
+        let worker_info = Arc::new(WorkQueue::new());
+        let cq = CompletionQueue::new(cq, worker_info);
+        tx.send(cq.clone()).expect("send back completion queue");
+        loop {
+            let now = Instant::now();
+            let e = cq.next();
+            self.cq_next_duration_his
+                .observe(now.elapsed().as_secs_f64());
+            let now = Instant::now();
+            match e.type_ {
+                EventType::GRPC_QUEUE_SHUTDOWN => break,
+                // timeout should not happen in theory.
+                EventType::GRPC_QUEUE_TIMEOUT => continue,
+                EventType::GRPC_OP_COMPLETE => {}
+            }
+
+            let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
+            self.resolve(tag, &cq, e.success != 0);
+            while let Some(work) = unsafe { cq.worker.pop_work() } {
+                work.finish();
+            }
+            self.execute_duration_his
+                .observe(now.elapsed().as_secs_f64());
+        }
+    }
+
+    fn resolve(&self, tag: Box<CallTag>, cq: &CompletionQueue, success: bool) {
+        match *tag {
+            CallTag::Batch(prom) => {
+                self.event_counter[0].inc();
+                prom.resolve(success)
+            }
+            CallTag::Request(cb) => {
+                self.event_counter[1].inc();
+                cb.resolve(cq, success)
+            }
+            CallTag::UnaryRequest(cb) => {
+                self.event_counter[2].inc();
+                cb.resolve(cq, success)
+            }
+            CallTag::Abort(_) => self.event_counter[3].inc(),
+            CallTag::Action(prom) => {
+                self.event_counter[4].inc();
+                prom.resolve(success)
+            }
+            CallTag::Spawn(task) => {
+                self.event_counter[5].inc();
+                self.wait_duration_his
+                    .observe(task.reset_push_time().elapsed().as_secs_f64());
+                resolve(task, success)
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "prometheus"))]
 fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
     let cq = Arc::new(CompletionQueueHandle::new());
     let worker_info = Arc::new(WorkQueue::new());
     let cq = CompletionQueue::new(cq, worker_info);
     tx.send(cq.clone()).expect("send back completion queue");
-    let name = std::thread::current()
-        .name()
-        .unwrap_or("unknown")
-        .to_owned();
-    let grpc_pool_io_handle_duration = GRPC_POOL_IO_HANDLE_DURATION.with_label_values(&[&name]);
-    let grpc_pool_execute_duration = GRPC_POOL_EXECUTE_DURATION.with_label_values(&[&name]);
-    let grpc_event_counter = ["batch", "request", "unary", "abort", "action", "spawn"]
-        .map(|event| metrics::GRPC_POOL_EVENT_COUNT_VEC.with_label_values(&[&name, event]));
-    let grpc_task_wait_duration = GRPC_TASK_WAIT_DURATION.with_label_values(&[&name]);
 
     loop {
-        let now = Instant::now();
         let e = cq.next();
-        grpc_pool_io_handle_duration.observe(now.elapsed().as_secs_f64());
-        let now = Instant::now();
         match e.type_ {
             EventType::GRPC_QUEUE_SHUTDOWN => break,
             // timeout should not happen in theory.
             EventType::GRPC_QUEUE_TIMEOUT => continue,
             EventType::GRPC_OP_COMPLETE => {}
         }
-
         let tag: Box<CallTag> = unsafe { Box::from_raw(e.tag as _) };
-        tag.report(&grpc_event_counter, &grpc_task_wait_duration);
         tag.resolve(&cq, e.success != 0);
         while let Some(work) = unsafe { cq.worker.pop_work() } {
             work.finish();
         }
-        grpc_pool_execute_duration.observe(now.elapsed().as_secs_f64());
     }
 }
 
@@ -112,9 +188,13 @@ impl EnvBuilder {
         for i in 0..self.cq_count {
             let tx_i = tx.clone();
             let mut builder = ThreadBuilder::new();
-            if let Some(ref prefix) = self.name_prefix {
-                builder = builder.name(format!("{prefix}-{i}"));
-            }
+            let name = self
+                .name_prefix
+                .as_ref()
+                .map_or(format!("grpc-pool-{i}"), |prefix| format!("{prefix}-{i}"));
+            #[cfg(feature = "prometheus")]
+            let runner = GRPCRunner::new(&name);
+            builder = builder.name(name);
             let after_start = self.after_start.clone();
             let before_stop = self.before_stop.clone();
             let handle = builder
@@ -122,6 +202,9 @@ impl EnvBuilder {
                     if let Some(f) = after_start {
                         f();
                     }
+                    #[cfg(feature = "prometheus")]
+                    runner.run(tx_i);
+                    #[cfg(not(feature = "prometheus"))]
                     poll_queue(tx_i);
                     if let Some(f) = before_stop {
                         f();

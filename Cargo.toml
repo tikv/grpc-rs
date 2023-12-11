@@ -44,8 +44,9 @@ members = [
 exclude = ["xtask"]
 
 [features]
-default = ["protobuf-codec", "boringssl"]
+default = ["protobuf-codec", "boringssl","prometheus"]
 _secure = []
+prometheus = []
 protobuf-codec = ["protobuf"]
 protobufv3-codec = ["protobufv3"]
 prost-codec = ["prost", "bytes"]

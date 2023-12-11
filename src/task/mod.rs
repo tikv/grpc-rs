@@ -10,20 +10,22 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
+#[cfg(not(feature = "prometheus"))]
+use crate::cq::CompletionQueue;
 use parking_lot::Mutex;
-use prometheus::core::{AtomicU64, GenericCounter};
-use prometheus::Histogram;
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
 use self::executor::SpawnTask;
 use self::promise::{Action as ActionPromise, Batch as BatchPromise};
 use crate::call::server::RequestContext;
 use crate::call::{BatchContext, Call};
-use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
+
+#[cfg(feature = "prometheus")]
+pub(crate) use self::executor::resolve;
 pub(crate) use self::promise::BatchResult;
 pub use self::promise::BatchType;
 
@@ -172,7 +174,7 @@ impl CallTag {
         }
     }
 
-    /// Resolve the CallTag with given status.
+    #[cfg(not(feature = "prometheus"))]
     pub fn resolve(self, cq: &CompletionQueue, success: bool) {
         match self {
             CallTag::Batch(prom) => prom.resolve(success),
@@ -181,20 +183,6 @@ impl CallTag {
             CallTag::Abort(_) => {}
             CallTag::Action(prom) => prom.resolve(success),
             CallTag::Spawn(notify) => self::executor::resolve(notify, success),
-        }
-    }
-
-    pub fn report(&self, counter: &[GenericCounter<AtomicU64>; 6], wait_his: &Histogram) {
-        match self {
-            CallTag::Batch(_) => counter[0].inc(),
-            CallTag::Request(_) => counter[1].inc(),
-            CallTag::UnaryRequest(_) => counter[2].inc(),
-            CallTag::Abort(_) => counter[3].inc(),
-            CallTag::Action(_) => counter[4].inc(),
-            CallTag::Spawn(task) => {
-                counter[5].inc();
-                wait_his.observe(task.reset_push_time().elapsed().as_secs_f64());
-            }
         }
     }
 }

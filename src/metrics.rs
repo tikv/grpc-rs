@@ -16,8 +16,8 @@ lazy_static! {
     .unwrap();
 
     // Grpc pool io handle duration .
-    pub static ref GRPC_POOL_IO_HANDLE_DURATION: HistogramVec = register_histogram_vec!(
-        "grpc_pool_io_handle_duration",
+    pub static ref GRPC_POOL_CQ_NEXT_DURATION: HistogramVec = register_histogram_vec!(
+        "grpc_pool_cp_next_duration",
         "Bucketed histogram of grpc pool wait duration from the completion queue",
         &["name"],
         exponential_buckets(1e-7, 2.0, 20).unwrap() // 100ns ~ 100ms
