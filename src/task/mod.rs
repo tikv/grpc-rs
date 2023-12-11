@@ -10,7 +10,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
-#[cfg(not(feature = "prometheus"))]
 use crate::cq::CompletionQueue;
 use parking_lot::Mutex;
 
@@ -174,7 +173,7 @@ impl CallTag {
         }
     }
 
-    #[cfg(not(feature = "prometheus"))]
+    #[allow(dead_code)]
     pub fn resolve(self, cq: &CompletionQueue, success: bool) {
         match self {
             CallTag::Batch(prom) => prom.resolve(success),
