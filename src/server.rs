@@ -1,6 +1,5 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt::{self, Debug, Formatter};
@@ -298,28 +297,20 @@ pub type BoxHandler = Box<dyn CloneableHandler>;
 #[derive(Clone)]
 pub struct RequestCallContext {
     server: Arc<ServerCore>,
-    registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
+    registry: Arc<HashMap<&'static [u8], Mutex<BoxHandler>>>,
     checkers: Vec<Box<dyn ServerChecker>>,
 }
 
 impl RequestCallContext {
-    /// Users should guarantee the method is always called from the same thread.
-    /// TODO: Is there a better way?
     #[inline]
-    pub unsafe fn get_handler(&mut self, path: &[u8]) -> Option<&mut BoxHandler> {
-        let registry = &mut *self.registry.get();
-        registry.get_mut(path)
+    pub fn get_handler(&self, path: &[u8]) -> Option<&Mutex<BoxHandler>> {
+        self.registry.get(path)
     }
 
     pub(crate) fn get_checker(&self) -> Vec<Box<dyn ServerChecker>> {
         self.checkers.clone()
     }
 }
-
-// Apparently, its life time is guaranteed by the ref count, hence is safe to be sent
-// to other thread. However it's not `Sync`, as `BoxHandler` is unnecessarily `Sync`.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.
 pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
@@ -416,11 +407,11 @@ impl Server {
                 let registry = self
                     .handlers
                     .iter()
-                    .map(|(k, v)| (k.to_owned(), v.box_clone()))
+                    .map(|(k, v)| (k.to_owned(), Mutex::new(v.box_clone())))
                     .collect();
                 let rc = RequestCallContext {
                     server: self.core.clone(),
-                    registry: Arc::new(UnsafeCell::new(registry)),
+                    registry: Arc::new(registry),
                     checkers: self.checkers.clone(),
                 };
                 for _ in 0..self.core.slots_per_cq {

@@ -93,15 +93,18 @@ impl RequestContext {
         rc: &mut RequestCallContext,
     ) -> result::Result<(), Self> {
         let checker = rc.get_checker();
-        let handler = unsafe { rc.get_handler(self.method()) };
+        let handler = rc.get_handler(self.method());
         match handler {
-            Some(handler) => match handler.method_type() {
-                MethodType::Unary | MethodType::ServerStreaming => Err(self),
-                _ => {
-                    execute(self, cq, None, handler, checker);
-                    Ok(())
+            Some(handler) => {
+                let handler = &mut *handler.lock().unwrap();
+                match handler.method_type() {
+                    MethodType::Unary | MethodType::ServerStreaming => Err(self),
+                    _ => {
+                        execute(self, cq, None, handler, checker);
+                        Ok(())
+                    }
                 }
-            },
+            }
             None => {
                 execute_unimplemented(self, cq.clone());
                 Ok(())
@@ -246,7 +249,11 @@ impl UnaryRequestContext {
         reader: Option<MessageReader>,
     ) {
         let checker = rc.get_checker();
-        let handler = unsafe { rc.get_handler(self.request.method()).unwrap() };
+        let handler = &mut *rc
+            .get_handler(self.request.method())
+            .unwrap()
+            .lock()
+            .unwrap();
         if reader.is_some() {
             return execute(self.request, cq, reader, handler, checker);
         }
