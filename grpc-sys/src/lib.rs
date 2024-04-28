@@ -10,4 +10,5 @@ mod bindings {
 mod grpc_wrap;
 
 pub use bindings::*;
+#[allow(unused_imports)]
 pub use grpc_wrap::*;

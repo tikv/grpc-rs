@@ -10,6 +10,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
+use crate::cq::CompletionQueue;
 use parking_lot::Mutex;
 
 use self::callback::{Abort, Request as RequestCallback, UnaryRequest as UnaryRequestCallback};
@@ -17,11 +18,13 @@ use self::executor::SpawnTask;
 use self::promise::{Action as ActionPromise, Batch as BatchPromise};
 use crate::call::server::RequestContext;
 use crate::call::{BatchContext, Call};
-use crate::cq::CompletionQueue;
 use crate::error::{Error, Result};
 use crate::server::RequestCallContext;
 
 pub(crate) use self::executor::{Executor, Kicker, UnfinishedWork};
+
+#[cfg(feature = "prometheus")]
+pub(crate) use self::executor::resolve;
 pub(crate) use self::promise::BatchResult;
 pub use self::promise::BatchType;
 
@@ -170,7 +173,7 @@ impl CallTag {
         }
     }
 
-    /// Resolve the CallTag with given status.
+    #[allow(dead_code)]
     pub fn resolve(self, cq: &CompletionQueue, success: bool) {
         match self {
             CallTag::Batch(prom) => prom.resolve(success),
