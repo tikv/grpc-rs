@@ -300,7 +300,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
 
 fn figure_systemd_path(build_dir: &str) {
     let path = format!("{build_dir}/CMakeCache.txt");
-    let f = BufReader::new(std::fs::File::open(&path).unwrap());
+    let f = BufReader::new(std::fs::File::open(path).unwrap());
     let mut libdir: Option<String> = None;
     let mut libname: Option<String> = None;
     for l in f.lines() {

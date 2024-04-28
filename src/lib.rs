@@ -40,6 +40,7 @@ mod env;
 mod error;
 mod log_util;
 mod metadata;
+#[cfg(feature = "prometheus")]
 mod metrics;
 mod quota;
 mod security;
