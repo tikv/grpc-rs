@@ -17,7 +17,7 @@ use {
     },
     crate::task::resolve,
     prometheus::{
-        core::{AtomicU64, GenericCounter},
+        core::{AtomicU64, Counter},
         Histogram,
     },
     std::time::Instant,
@@ -28,7 +28,7 @@ pub struct GRPCRunner {
     cq_next_duration_his: Histogram,
     execute_duration_his: Histogram,
     wait_duration_his: Histogram,
-    event_counter: [GenericCounter<AtomicU64>; 6],
+    event_counter: [Counter<AtomicU64>; 6],
 }
 
 #[cfg(feature = "prometheus")]
