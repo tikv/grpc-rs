@@ -10,4 +10,3 @@ mod bindings {
 mod grpc_wrap;
 
 pub use bindings::*;
-pub use grpc_wrap::*;
