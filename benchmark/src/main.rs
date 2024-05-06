@@ -24,12 +24,12 @@ const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
 struct WorkerCli {
     /// The port the worker should listen on. For example, 8080
     #[arg(long)]
-    deriver_port: Option<u16>,
+    driver_port: Option<u16>,
 }
 
 fn main() {
     let cli = WorkerCli::parse();
-    let port = cli.deriver_port.unwrap_or(8080);
+    let port = cli.driver_port.unwrap_or(8080);
 
     let _log_guard = init_log(
         env::var(LOG_FILE)
