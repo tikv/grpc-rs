@@ -167,7 +167,7 @@ impl TestService for InteropTestService {
                 }
 
                 let mut resp = StreamingOutputCallResponse::default();
-                if let Some(param) = req.response_parameters.get(0) {
+                if let Some(param) = req.response_parameters.first() {
                     resp.payload = Some(util::new_payload(param.size as usize)).into();
                 }
                 // A workaround for timeout_on_sleeping_server test.

@@ -262,7 +262,7 @@ impl<'a> From<&'a GrpcSlice> for GrpcByteBuffer {
     /// Create a buffer from the given single slice.
     ///
     /// A buffer, which length is 1, is allocated for the slice.
-    #[allow(clippy::cast_ref_to_mut)]
+    #[allow(invalid_reference_casting)]
     fn from(s: &'a GrpcSlice) -> GrpcByteBuffer {
         unsafe {
             // hack: buffer_create accepts an mutable pointer to indicate it mutate

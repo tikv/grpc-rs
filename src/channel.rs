@@ -651,6 +651,7 @@ impl Channel {
     /// The given grpc_channel must correspond to an instantiated grpc core
     /// channel. Takes exclusive ownership of the channel and will close it after
     /// use.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub unsafe fn new(
         cq: CompletionQueue,
         env: Arc<Environment>,

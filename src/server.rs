@@ -407,6 +407,7 @@ impl Server {
     }
 
     /// Start the server.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn start(&mut self) {
         unsafe {
             grpc_sys::grpc_server_start(self.core.server);
