@@ -9,7 +9,7 @@ use std::env;
 use std::sync::Arc;
 
 use benchmark::{init_log, Worker};
-use clap::{App, Arg};
+use clap::Parser;
 use futures_channel::oneshot;
 use grpc::{Environment, ServerBuilder, ServerCredentials};
 use grpc_proto::testing::services_grpc::create_worker_service;
@@ -17,17 +17,19 @@ use rand::Rng;
 
 const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
 
+/// Benchmark QpsWorker
+///
+/// ref http://www.grpc.io/docs/guides/benchmarking.html.
+#[derive(Parser)]
+struct WorkerCli {
+    /// The port the worker should listen on. For example, 8080
+    #[arg(long)]
+    driver_port: Option<u16>,
+}
+
 fn main() {
-    let matches = App::new("Benchmark QpsWorker")
-        .about("ref http://www.grpc.io/docs/guides/benchmarking.html")
-        .arg(
-            Arg::with_name("port")
-                .long("driver_port")
-                .help("The port the worker should listen on. For example, \"8080\"")
-                .takes_value(true),
-        )
-        .get_matches();
-    let port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
+    let cli = WorkerCli::parse();
+    let port = cli.driver_port.unwrap_or(8080);
 
     let _log_guard = init_log(
         env::var(LOG_FILE)
