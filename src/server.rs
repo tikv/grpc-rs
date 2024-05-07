@@ -475,6 +475,19 @@ impl Server {
         let mut creds = ServerCredentials::insecure();
         grpcio_sys::grpc_server_add_channel_from_fd(self.core.server, fd, creds.as_mut_ptr())
     }
+
+    /// Add an RPC channel for an established connection represented as a file
+    /// descriptor. The file descriptor must correspond to a connected stream
+    /// socket. Takes ownership of the file descriptor, closing it when channel
+    /// is closed.
+    #[cfg(unix)]
+    pub fn add_channel_from_ownedfd(&mut self, fd: ::std::os::fd::OwnedFd) {
+        use std::os::fd::IntoRawFd;
+
+        // SAFETY: `OwnedFd` confers ownership of the file descriptor, so it
+        // won't be accessed by other code.
+        unsafe { self.add_channel_from_fd(fd.into_raw_fd()) }
+    }
 }
 
 impl Drop for Server {
