@@ -94,7 +94,7 @@ async fn record_route(client: &RouteGuideClient) -> Result<()> {
         let point = f.location.0.clone().unwrap().as_ref().clone();
         info!("Visiting {}", util::format_point(&point));
         sink.send((point, WriteFlags::default())).await?;
-        thread::sleep(Duration::from_millis(rng.gen_range(500, 1500)));
+        thread::sleep(Duration::from_millis(rng.gen_range(500..1500)));
     }
     // flush
     sink.close().await?;

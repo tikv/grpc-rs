@@ -22,7 +22,8 @@ mod protobuf_v3 {
 #[cfg(feature = "protobuf-codec")]
 mod reexports {
     pub use super::protobuf::health::*;
-    pub use super::protobuf::health_grpc::*;
+    // Following is included in health import above.
+    // pub use super::protobuf::health_grpc::*;
 }
 #[cfg(feature = "protobufv3-codec")]
 mod reexports {

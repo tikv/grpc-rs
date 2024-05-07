@@ -7,42 +7,34 @@ extern crate log;
 
 use std::sync::Arc;
 
-use clap::{App, Arg};
+use clap::Parser;
 use futures_executor::block_on;
 use grpc::{Environment, ServerBuilder, ServerCredentials};
 use grpc_proto::testing::test_grpc::create_test_service;
 use grpc_proto::util;
 use interop::InteropTestService;
 
+/// Interoperability Test Server
+///
+/// ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md.
+#[derive(Parser)]
+struct ServerCli {
+    /// The server host to listen to. For example, "localhost" or "127.0.0.1"
+    #[arg(long)]
+    host: Option<String>,
+    /// The port to listen on. For example, 8080
+    #[arg(long)]
+    port: Option<u16>,
+    /// Whether to use a plaintext or encrypted connection
+    #[arg(long)]
+    use_tls: Option<bool>,
+}
+
 fn main() {
-    let matches = App::new("Interoperability Test Server")
-        .about("ref https://github.com/grpc/grpc/blob/v1.3.x/doc/interop-test-descriptions.md")
-        .arg(
-            Arg::with_name("host")
-                .long("host")
-                .help("The server host to listen to. For example, \"localhost\" or \"127.0.0.1\"")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("port")
-                .long("port")
-                .help("The port to listen on. For example, \"8080\"")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("use_tls")
-                .long("use_tls")
-                .help("Whether to use a plaintext or encrypted connection")
-                .takes_value(true),
-        )
-        .get_matches();
-    let host = matches.value_of("host").unwrap_or("127.0.0.1");
-    let mut port: u16 = matches.value_of("port").unwrap_or("8080").parse().unwrap();
-    let use_tls: bool = matches
-        .value_of("use_tls")
-        .unwrap_or("false")
-        .parse()
-        .unwrap();
+    let cli = ServerCli::parse();
+    let host = cli.host.as_deref().unwrap_or("127.0.0.1");
+    let mut port: u16 = cli.port.unwrap_or(8080);
+    let use_tls: bool = cli.use_tls.unwrap_or(false);
 
     let env = Arc::new(Environment::new(2));
     let service = create_test_service(InteropTestService);
