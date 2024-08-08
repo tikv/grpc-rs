@@ -185,6 +185,7 @@ impl Metadata {
     /// Returns the metadata entry at the `index`.
     ///
     /// `None` is returned if out of bound.
+    #[allow(clippy::unnecessary_cast)]
     pub fn get(&self, index: usize) -> Option<(&str, &[u8])> {
         if self.0.count <= index {
             return None;

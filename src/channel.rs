@@ -7,7 +7,7 @@ use std::ffi::{CStr, CString};
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use std::{cmp, i32, ptr};
+use std::{cmp, ptr};
 
 use crate::{
     grpc_sys::{self, gpr_timespec, grpc_arg_pointer_vtable, grpc_channel, grpc_channel_args},
