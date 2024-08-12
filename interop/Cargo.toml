@@ -8,8 +8,7 @@ publish = false
 default = ["protobuf-codec"]
 protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec"]
 protobufv3-codec = ["protobufv3", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec"]
-_secure = []
-openssl = ["_secure", "grpcio-sys/openssl"]
+openssl = []
 
 [dependencies]
 grpcio = { path = "..", default-features = false, features = ["boringssl"]}

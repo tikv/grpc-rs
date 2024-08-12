@@ -14,7 +14,7 @@ categories = ["asynchronous", "network-programming"]
 autoexamples = false
 
 [package.metadata.docs.rs]
-all-features = true 
+all-features = true
 
 [dependencies]
 grpcio-sys = { path = "grpc-sys", version = "0.13.0", default-features = false }

@@ -12,7 +12,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   # Some of the bindgen tests generate "deref-nullptr" warnings, see https://github.com/rust-lang/rust-bindgen/issues/1651
-  RUSTFLAGS: "--deny=warnings --allow deref-nullptr --allow renamed_and_removed_lints"
+  RUSTFLAGS: "--deny=warnings --allow deref-nullptr"
   TEST_BIND: 1
   GRPC_VERBOSITY: "info"
 

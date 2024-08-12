@@ -185,7 +185,6 @@ impl Metadata {
     /// Returns the metadata entry at the `index`.
     ///
     /// `None` is returned if out of bound.
-    #[allow(clippy::unnecessary_cast)]
     pub fn get(&self, index: usize) -> Option<(&str, &[u8])> {
         if self.0.count <= index {
             return None;
@@ -195,7 +194,7 @@ impl Metadata {
             let key = grpc_sys::grpcwrap_metadata_array_get_key(&self.0, index, &mut key_len);
             let val = grpc_sys::grpcwrap_metadata_array_get_value(&self.0, index, &mut val_len);
             let key_str = str::from_utf8_unchecked(slice::from_raw_parts(key as _, key_len));
-            let val_bytes = slice::from_raw_parts(val as *const u8, val_len);
+            let val_bytes = slice::from_raw_parts(val.cast(), val_len);
             Some((key_str, val_bytes))
         }
     }
