@@ -704,16 +704,6 @@ pub struct grpc_server {
 pub struct grpc_call {
     _unused: [u8; 0],
 }
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_socket_mutator {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct grpc_socket_factory {
-    _unused: [u8; 0],
-}
 #[repr(u32)]
 #[doc = " Type specifier for grpc_arg"]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]

@@ -574,7 +574,7 @@ impl<'a> ServiceGen<'a> {
 
     fn write_client(&self, w: &mut CodeWriter) {
         w.write_line("#[derive(Clone)]");
-        w.pub_struct(&self.client_name(), |w| {
+        w.pub_struct(self.client_name(), |w| {
             // This can also be exposed by a method. But it may introduce a name conflict
             // between service definition and method name. Marking it public may put extra
             // restrict on compatability, but it should not be an issue.
@@ -583,7 +583,7 @@ impl<'a> ServiceGen<'a> {
 
         w.write_line("");
 
-        w.impl_self_block(&self.client_name(), |w| {
+        w.impl_self_block(self.client_name(), |w| {
             w.pub_fn("new(channel: ::grpcio::Channel) -> Self", |w| {
                 w.expr_block(&self.client_name(), |w| {
                     w.field_entry("client", "::grpcio::Client::new(channel)");

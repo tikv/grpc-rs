@@ -4,7 +4,7 @@
 /// Latitudes should be in the range +/- 90 degrees and longitude should be in
 /// the range +/- 180 degrees (inclusive).
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Point {
     #[prost(int32, tag = "1")]
     pub latitude: i32,
@@ -14,7 +14,7 @@ pub struct Point {
 /// A latitude-longitude rectangle, represented as two diagonally opposite
 /// points "lo" and "hi".
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Rectangle {
     /// One corner of the rectangle.
     #[prost(message, optional, tag = "1")]
@@ -53,7 +53,7 @@ pub struct RouteNote {
 /// detected features, and the total distance covered as the cumulative sum of
 /// the distance between each point.
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct RouteSummary {
     /// The number of points received.
     #[prost(int32, tag = "1")]

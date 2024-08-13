@@ -194,7 +194,7 @@ impl Metadata {
             let key = grpc_sys::grpcwrap_metadata_array_get_key(&self.0, index, &mut key_len);
             let val = grpc_sys::grpcwrap_metadata_array_get_value(&self.0, index, &mut val_len);
             let key_str = str::from_utf8_unchecked(slice::from_raw_parts(key as _, key_len));
-            let val_bytes = slice::from_raw_parts(val as *const u8, val_len);
+            let val_bytes = slice::from_raw_parts(val.cast(), val_len);
             Some((key_str, val_bytes))
         }
     }

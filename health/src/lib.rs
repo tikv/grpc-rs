@@ -31,6 +31,7 @@
 //! assert_eq!(statuss_resp.status, ServingStatus::Serving);
 //! ```
 
+#[allow(renamed_and_removed_lints)]
 pub mod proto;
 mod service;
 

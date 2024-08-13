@@ -464,6 +464,7 @@ fn bindgen_grpc(file_path: &Path) {
         .blocklist_type(r"gpr_mu")
         .blocklist_type(r"gpr_cv")
         .blocklist_type(r"gpr_once")
+        .blocklist_type(r"grpc_socket_.*")
         .constified_enum_module(r"grpc_status_code")
         .layout_tests(gen_tests)
         .default_enum_style(bindgen::EnumVariation::Rust {
