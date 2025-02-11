@@ -252,7 +252,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         if !cfg!(feature = "_list-package") {
             config.build_target(library);
         }
-        config.uses_cxx11().build()
+        config.build()
     };
 
     let lib_suffix = if target.contains("msvc") {
