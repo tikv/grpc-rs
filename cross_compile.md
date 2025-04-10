@@ -32,9 +32,7 @@ yum install mingw64-openssl-static mingw64-zlib-static mingw64-winpthreads-stati
             .define("CMAKE_SYSTEM_PROCESSOR", get_env("CARGO_CFG_TARGET_ARCH").unwrap())
             .define("CMAKE_CROSSCOMPILING", "true")
             .build_target(library)
-            .uses_cxx11()
             .build()
-        // config.build_target(library).uses_cxx11().build()
     };
 ```
 
