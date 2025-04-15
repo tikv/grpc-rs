@@ -117,13 +117,13 @@ pub struct CompletionQueueRef<'a> {
     queue: &'a CompletionQueue,
 }
 
-impl<'a> CompletionQueueRef<'a> {
+impl CompletionQueueRef<'_> {
     pub fn as_ptr(&self) -> *mut grpc_completion_queue {
         self.queue.handle.cq
     }
 }
 
-impl<'a> Drop for CompletionQueueRef<'a> {
+impl Drop for CompletionQueueRef<'_> {
     fn drop(&mut self) {
         self.queue.handle.unref();
     }
