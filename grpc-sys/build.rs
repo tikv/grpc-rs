@@ -77,10 +77,10 @@ fn clean_up_stale_cache(cxx_compiler: String) {
     };
     let cache_stale = f.lines().any(|l| {
         let l = l.unwrap();
-        trim_start(&l, "CMAKE_CXX_COMPILER:").map_or(false, |s| {
+        trim_start(&l, "CMAKE_CXX_COMPILER:").is_some_and(|s| {
             let mut splits = s.splitn(2, '=');
             splits.next();
-            splits.next().map_or(false, |p| p != cxx_compiler)
+            splits.next().is_some_and(|p| p != cxx_compiler)
         })
     });
     // CMake can't handle compiler change well, it will invalidate cache without respecting command
@@ -158,14 +158,14 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     let dst = {
         let mut config = CmakeConfig::new("grpc");
 
-        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos") {
+        if get_env("CARGO_CFG_TARGET_OS").is_some_and(|s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
             println!("cargo:rustc-link-lib=resolv");
         }
 
         // Ensure CoreFoundation be found in macos or ios
-        if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "macos")
-            || get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "ios")
+        if get_env("CARGO_CFG_TARGET_OS").is_some_and(|s| s == "macos")
+            || get_env("CARGO_CFG_TARGET_OS").is_some_and(|s| s == "ios")
         {
             println!("cargo:rustc-link-lib=framework=CoreFoundation");
         }
@@ -252,7 +252,7 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         if !cfg!(feature = "_list-package") {
             config.build_target(library);
         }
-        config.uses_cxx11().build()
+        config.build()
     };
 
     let lib_suffix = if target.contains("msvc") {
@@ -541,12 +541,12 @@ fn main() {
         "grpc_unsecure"
     };
 
-    if get_env("CARGO_CFG_TARGET_OS").map_or(false, |s| s == "windows") {
+    if get_env("CARGO_CFG_TARGET_OS").is_some_and(|s| s == "windows") {
         // At lease vista
         cc.define("_WIN32_WINNT", Some("0x600"));
     }
 
-    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").map_or(false, |s| s == "1") {
+    if get_env("GRPCIO_SYS_USE_PKG_CONFIG").is_some_and(|s| s == "1") {
         // Print cargo metadata.
         let lib_core = probe_library(library, true);
         for inc_path in lib_core.include_paths {
