@@ -482,7 +482,7 @@ macro_rules! impl_stream_sink {
             /// The rules are listed as below:
             /// - All messages except the last one will be sent with `buffer_hint` set to true.
             /// - The last message will also be sent with `buffer_hint` set to true unless any message is
-            ///   offered with buffer hint set to false.
+            ///  offered with buffer hint set to false.
             ///
             /// No matter `enhance_batch` is true or false, it's recommended to follow the contract of
             /// Sink and call `poll_flush` to ensure messages are handled by gRPC C Core.
@@ -617,24 +617,24 @@ macro_rules! impl_stream_sink {
 }
 
 impl_stream_sink!(
-    /// A sink for server streaming call.
-    ///
-    /// To close the sink properly, you should call [`close`] or [`fail`] before dropping.
-    ///
-    /// [`close`]: #method.close
-    /// [`fail`]: #method.fail
+/// A sink for server streaming call.
+///
+/// To close the sink properly, you should call [`close`] or [`fail`] before dropping.
+///
+/// [`close`]: #method.close
+/// [`fail`]: #method.fail
     #[must_use = "if unused the sink may immediately cancel the RPC"]
     ServerStreamingSink,
     ServerStreamingSinkFailure,
     ShareCall
 );
 impl_stream_sink!(
-    /// A sink for duplex streaming call.
-    ///
-    /// To close the sink properly, you should call [`close`] or [`fail`] before dropping.
-    ///
-    /// [`close`]: #method.close
-    /// [`fail`]: #method.fail
+/// A sink for duplex streaming call.
+///
+/// To close the sink properly, you should call [`close`] or [`fail`] before dropping.
+///
+/// [`close`]: #method.close
+/// [`fail`]: #method.fail
     #[must_use = "if unused the sink may immediately cancel the RPC"]
     DuplexSink,
     DuplexSinkFailure,
