@@ -165,7 +165,7 @@ pub struct RpcStatus {
 
     /// Additional details for rich error model.
     ///
-    /// See also https://grpc.io/docs/guides/error/#richer-error-model.
+    /// See also <https://grpc.io/docs/guides/error/#richer-error-model>.
     details: Vec<u8>,
 
     /// Debug error string
@@ -189,7 +189,7 @@ impl RpcStatus {
         RpcStatus::with_details(code, message, vec![])
     }
 
-    /// Create a new [`RpcStats`] with code, message and details.
+    /// Create a new [`RpcStatus`] with code, message and details.
     ///
     /// If using rich error model, `details` should be binary message that sets `code` and
     /// `message` to the same value. Or you can use `into` method to do automatic
@@ -202,7 +202,7 @@ impl RpcStatus {
         RpcStatus::with_details_and_error_string(code, message, details, String::new())
     }
 
-    /// Create a new [`RpcStats`] with code, message, details and debug error string.
+    /// Create a new [`RpcStatus`] with code, message, details and debug error string.
     ///
     /// If using rich error model, `details` should be binary message that sets `code` and
     /// `message` to the same value. Or you can use `into` method to do automatic

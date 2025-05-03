@@ -4,6 +4,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 #[allow(clippy::all)]
+#[allow(rustdoc::all)]
 mod bindings {
     include!(env!("BINDING_PATH"));
 }

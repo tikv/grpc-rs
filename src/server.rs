@@ -431,8 +431,8 @@ impl Server {
         }
     }
 
-    /// Try binding the server to the given `addr` endpoint (eg, localhost:1234,
-    /// 192.168.1.1:31416, [::1]:27182, etc.).
+    /// Try binding the server to the given `addr` endpoint (eg, `localhost:1234`,
+    /// `192.168.1.1:31416`, `[::1]:27182`, etc.).
     ///
     /// It can be invoked multiple times. Should be used before starting the server.
     ///
