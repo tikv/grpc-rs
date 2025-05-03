@@ -51,7 +51,6 @@
 ///
 /// - Logging. If some API errors are stored in logs, the message `Status` could
 ///      be used directly after any stripping needed for security/privacy reasons.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
     /// The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
