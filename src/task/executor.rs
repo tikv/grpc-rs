@@ -233,7 +233,7 @@ pub(crate) struct Executor<'a> {
     cq: &'a CompletionQueue,
 }
 
-impl<'a> Executor<'a> {
+impl Executor<'_> {
     pub fn new(cq: &CompletionQueue) -> Executor<'_> {
         Executor { cq }
     }

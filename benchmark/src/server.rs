@@ -86,7 +86,7 @@ impl Server {
             ServerCredentials::insecure()
         };
         let port = s
-            .add_listening_port(&format!("[::]:{}", cfg.port), creds)
+            .add_listening_port(format!("[::]:{}", cfg.port), creds)
             .unwrap();
         s.start();
         Ok(Server {

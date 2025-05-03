@@ -9,7 +9,7 @@ struct NameSpliter<'a> {
     pos: usize,
 }
 
-impl<'a> NameSpliter<'a> {
+impl NameSpliter<'_> {
     fn new(s: &str) -> NameSpliter {
         NameSpliter {
             name: s.as_bytes(),

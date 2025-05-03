@@ -648,7 +648,7 @@ pub struct RpcContext<'a> {
     deadline: Deadline,
 }
 
-impl<'a> RpcContext<'a> {
+impl RpcContext<'_> {
     fn new(ctx: RequestContext, cq: &CompletionQueue) -> RpcContext<'_> {
         RpcContext {
             deadline: ctx.deadline(),

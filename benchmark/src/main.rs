@@ -45,7 +45,7 @@ fn main() {
         .build()
         .unwrap();
     let port = server
-        .add_listening_port(&format!("[::]:{port}"), ServerCredentials::insecure())
+        .add_listening_port(format!("[::]:{port}"), ServerCredentials::insecure())
         .unwrap();
 
     info!("listening on [::]:{}", port);
