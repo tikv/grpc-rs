@@ -8,7 +8,7 @@ use grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
 use grpc_proto::testing::services_grpc::WorkerService;
-use grpcio::{DuplexSink, Error, RequestStream, RpcContext, UnarySink, WriteFlags};
+use grpcio::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 
 use crate::client::Client;
 use crate::server::Server;
@@ -36,7 +36,7 @@ impl WorkerService for Worker {
     ) {
         let f = async move {
             let arg = match stream.try_next().await? {
-                None => return sink.close().await.map_err(Error::from),
+                None => return sink.close().await,
                 Some(arg) => arg,
             };
             #[cfg(feature = "protobuf-codec")]

@@ -3,7 +3,7 @@
 //! Channelz provides channel level debug information. In short, There are four types of
 //! top level entities: channel, subchannel, socket and server. All entities are
 //! identified by an positive unique integer, which is allocated in order. For more
-//! explanation, see https://github.com/grpc/proposal/blob/master/A14-channelz.md.
+//! explanation, see <https://github.com/grpc/proposal/blob/master/A14-channelz.md>.
 //!
 //! A full support requires a service that allow remote querying. But for now it's
 //! too complicated to add full support. Because gRPC C core exposes the information

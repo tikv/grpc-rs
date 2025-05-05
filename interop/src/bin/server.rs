@@ -48,7 +48,7 @@ fn main() {
         ServerCredentials::insecure()
     };
     port = server
-        .add_listening_port(&format!("{host}:{port}"), creds)
+        .add_listening_port(format!("{host}:{port}"), creds)
         .unwrap();
     info!("listening on {}:{}", host, port);
     server.start();

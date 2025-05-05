@@ -3,7 +3,6 @@
 /// (degrees multiplied by 10**7 and rounded to the nearest integer).
 /// Latitudes should be in the range +/- 90 degrees and longitude should be in
 /// the range +/- 180 degrees (inclusive).
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Point {
     #[prost(int32, tag = "1")]
@@ -13,7 +12,6 @@ pub struct Point {
 }
 /// A latitude-longitude rectangle, represented as two diagonally opposite
 /// points "lo" and "hi".
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Rectangle {
     /// One corner of the rectangle.
@@ -26,7 +24,6 @@ pub struct Rectangle {
 /// A feature names something at a given point.
 ///
 /// If a feature could not be named, the name is empty.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Feature {
     /// The name of the feature.
@@ -37,7 +34,6 @@ pub struct Feature {
     pub location: ::core::option::Option<Point>,
 }
 /// A RouteNote is a message sent while at a given point.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RouteNote {
     /// The location from which the message is sent.
@@ -52,7 +48,6 @@ pub struct RouteNote {
 /// It contains the number of individual points received, the number of
 /// detected features, and the total distance covered as the cumulative sum of
 /// the distance between each point.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct RouteSummary {
     /// The number of points received.

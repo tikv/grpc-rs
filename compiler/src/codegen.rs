@@ -136,18 +136,18 @@ impl<'a> CodeWriter<'a> {
     }
 
     pub fn field_entry(&mut self, name: &str, value: &str) {
-        self.write_line(&format!("{name}: {value},"));
+        self.write_line(format!("{name}: {value},"));
     }
 
     pub fn field_decl(&mut self, name: &str, field_type: &str) {
-        self.write_line(&format!("{name}: {field_type},"));
+        self.write_line(format!("{name}: {field_type},"));
     }
 
     pub fn comment(&mut self, comment: &str) {
         if comment.is_empty() {
             self.write_line("//");
         } else {
-            self.write_line(&format!("// {comment}"));
+            self.write_line(format!("// {comment}"));
         }
     }
 
@@ -397,7 +397,7 @@ impl<'a> MethodGen<'a> {
             // Unary
             MethodType::Unary => {
                 w.pub_fn(&self.unary_opt(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.client.unary_call(&{}, req, opt)",
                         self.const_method_name()
                     ));
@@ -405,7 +405,7 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.unary(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.{}_opt(req, {})",
                         method_name,
                         fq_grpc("CallOption::default()")
@@ -414,7 +414,7 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async_opt(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.client.unary_call_async(&{}, req, opt)",
                         self.const_method_name()
                     ));
@@ -422,7 +422,7 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.{}_async_opt(req, {})",
                         method_name,
                         fq_grpc("CallOption::default()")
@@ -433,7 +433,7 @@ impl<'a> MethodGen<'a> {
             // Client streaming
             MethodType::ClientStreaming => {
                 w.pub_fn(&self.client_streaming_opt(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.client.client_streaming(&{}, opt)",
                         self.const_method_name()
                     ));
@@ -441,7 +441,7 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.client_streaming(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.{}_opt({})",
                         method_name,
                         fq_grpc("CallOption::default()")
@@ -452,7 +452,7 @@ impl<'a> MethodGen<'a> {
             // Server streaming
             MethodType::ServerStreaming => {
                 w.pub_fn(&self.server_streaming_opt(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.client.server_streaming(&{}, req, opt)",
                         self.const_method_name()
                     ));
@@ -460,7 +460,7 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.server_streaming(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.{}_opt(req, {})",
                         method_name,
                         fq_grpc("CallOption::default()")
@@ -471,7 +471,7 @@ impl<'a> MethodGen<'a> {
             // Duplex streaming
             MethodType::Duplex => {
                 w.pub_fn(&self.duplex_streaming_opt(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.client.duplex_streaming(&{}, opt)",
                         self.const_method_name()
                     ));
@@ -479,7 +479,7 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.duplex_streaming(&method_name), |w| {
-                    w.write_line(&format!(
+                    w.write_line(format!(
                         "self.{}_opt({})",
                         method_name,
                         fq_grpc("CallOption::default()")
@@ -526,7 +526,7 @@ impl<'a> MethodGen<'a> {
             ),
             "});",
             |w| {
-                w.write_line(&format!("instance.{}(ctx, req, resp)", self.name()));
+                w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
             },
         );
     }

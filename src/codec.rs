@@ -7,7 +7,7 @@ use crate::error::Result;
 pub type DeserializeFn<T> = fn(MessageReader) -> Result<T>;
 pub type SerializeFn<T> = fn(&T, &mut GrpcSlice) -> Result<()>;
 
-/// According to https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md, grpc uses
+/// According to <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md>, grpc uses
 /// a four bytes to describe the length of a message, so it should not exceed u32::MAX.
 pub const MAX_MESSAGE_SIZE: usize = u32::MAX as usize;
 

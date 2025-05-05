@@ -420,7 +420,7 @@ impl ChannelBuilder {
     /// Enables retry functionality.  Defaults to true.  When enabled, transparent
     /// retries will be performed as appropriate, and configurable retries are
     /// enabled when they are configured via the service config. For details, see:
-    ///   https://github.com/grpc/proposal/blob/master/A6-client-retries.md
+    ///   <https://github.com/grpc/proposal/blob/master/A6-client-retries.md>
     /// NOTE: Hedging functionality is not yet implemented.
     pub fn enable_retry(mut self, enable: bool) -> ChannelBuilder {
         self.options.insert(

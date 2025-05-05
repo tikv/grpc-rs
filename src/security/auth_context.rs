@@ -1,5 +1,5 @@
 //! API for authenticating peer
-//! Based on https://grpc.github.io/grpc/core/md_doc_server_side_auth.html
+//! Based on <https://grpc.github.io/grpc/core/md_doc_server_side_auth.html>.
 
 use std::ffi::CStr;
 use std::marker::PhantomData;
