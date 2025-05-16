@@ -143,18 +143,18 @@ impl Clone for MetadataBuilder {
 ///
 /// - Request headers
 ///
-///     They are sent by the client at the beginning of a remote call before
-///   any request messages are sent.
+///  They are sent by the client at the beginning of a remote call before
+///  any request messages are sent.
 ///
 /// - Response headers
 ///
-///     They are sent by the server at the beginning of a remote call handler
-///   before any response messages are sent.
+///  They are sent by the server at the beginning of a remote call handler
+///  before any response messages are sent.
 ///
 /// - Response trailers
 ///
-///     They are sent by the server at the end of a remote call along with
-///   resulting call status.
+///  They are sent by the server at the end of a remote call along with
+///  resulting call status.
 ///
 /// Metadata value can be ascii string or bytes. They are distinguish by the
 /// key suffix, key of bytes value should have suffix '-bin'.
