@@ -105,7 +105,7 @@ fn clang_lint() {
         "-Igrpc-sys/grpc/include",
         "-x",
         "c++",
-        "-std=c++11",
+        "-std=c++17",
     ]));
     exec(cmd("clang-format").args(&["-i", "grpc-sys/grpc_wrap.cc"]));
 }

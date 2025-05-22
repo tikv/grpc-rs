@@ -443,7 +443,7 @@ fn bindgen_grpc(file_path: &Path) {
         .header("grpc_wrap.cc")
         .clang_arg("-xc++")
         .clang_arg("-I./grpc/include")
-        .clang_arg("-std=c++11")
+        .clang_arg("-std=c++17")
         .impl_debug(true)
         .size_t_is_usize(true)
         .disable_header_comment()
@@ -558,7 +558,7 @@ fn main() {
 
     cc.cpp(true);
     if !cfg!(target_env = "msvc") {
-        cc.flag("-std=c++11");
+        cc.flag("-std=c++17");
     }
     cc.file("grpc_wrap.cc");
     cc.warnings_into_errors(true);
