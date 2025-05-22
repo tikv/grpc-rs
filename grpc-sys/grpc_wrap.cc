@@ -67,8 +67,9 @@
 #endif
 
 #ifndef GPR_ASSERT
-#include <assert.h>
-#define GPR_ASSERT assert
+#include <string_view>
+#include <absl/log/absl_check.h>
+#define GPR_ASSERT ABSL_CHECK
 #endif
 
 grpc_byte_buffer* string_to_byte_buffer(const char* buffer, size_t len) {
