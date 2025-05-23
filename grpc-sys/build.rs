@@ -481,24 +481,24 @@ fn bindgen_grpc(file_path: &Path) {
 // need to be updated by default unless the _gen-bindings feature is specified.
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path() {
-    let target = env::var("TARGET").unwrap();
-    let file_path: PathBuf = match target.as_str() {
-        "x86_64-unknown-linux-gnu"
-        | "x86_64-unknown-linux-musl"
-        | "aarch64-unknown-linux-musl"
-        | "aarch64-unknown-linux-gnu"
-        | "x86_64-apple-darwin"
-        | "aarch64-apple-darwin" => {
-            // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
-            // directive when we expect the target-specific pre-generated binding file to be
-            // present.
-            println!("cargo:rerun-if-changed=bindings/bindings.rs");
+    let file_path: PathBuf;
 
-            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("bindings")
-                .join("bindings.rs")
-        }
-        _ => PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs"),
+    #[cfg(not(any(
+        feature = "_gen-bindings",
+        not(all(
+            any(target_os = "linux", target_os = "macos"),
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        ))
+    )))]
+    {
+        // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
+        // directive when we expect the target-specific pre-generated binding file to be
+        // present.
+        println!("cargo:rerun-if-changed=bindings/bindings.rs");
+
+        file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("bindings")
+            .join("bindings.rs")
     };
 
     #[cfg(any(
@@ -509,6 +509,7 @@ fn config_binding_path() {
         ))
     ))]
     {
+        file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
         // On some system (like Windows), stack size of main thread may
         // be too small.
         let f = file_path.clone();
