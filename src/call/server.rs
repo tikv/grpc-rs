@@ -481,8 +481,7 @@ macro_rules! impl_stream_sink {
             /// `enhance_batch` is enabled, messages will be batched together as many as possible.
             /// The rules are listed as below:
             /// - All messages except the last one will be sent with `buffer_hint` set to true.
-            /// - The last message will also be sent with `buffer_hint` set to true unless any message is
-            ///   offered with buffer hint set to false.
+            /// - The last message will also be sent with `buffer_hint` set to true unless any message is offered with buffer hint set to false.
             ///
             /// No matter `enhance_batch` is true or false, it's recommended to follow the contract of
             /// Sink and call `poll_flush` to ensure messages are handled by gRPC C Core.
