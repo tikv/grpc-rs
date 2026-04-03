@@ -21,6 +21,7 @@ use grpcio::*;
 
 use crate::util::*;
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::offload::{decode, encode, Request, Response};
 
 #[derive(Clone)]
 struct RouteGuideService {
@@ -38,14 +39,20 @@ fn get_point<'a>(f: &'a Feature) -> &'a grpcio_proto::example::route_guide::Poin
 }
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&mut self, ctx: RpcContext<'_>, point: Point, sink: UnarySink<Feature>) {
+    fn get_feature(
+        &mut self,
+        ctx: RpcContext<'_>,
+        point: Request<Point>,
+        sink: UnarySink<Response<Feature>>,
+    ) {
+        let point = decode(point).expect("route_guide get_feature request should decode");
         let data = self.data.clone();
         let resp = data
             .iter()
             .find(|f| same_point(get_point(f), &point))
             .map_or_else(Feature::default, ToOwned::to_owned);
         let f = sink
-            .success(resp)
+            .success(encode(resp).expect("route_guide get_feature response should encode"))
             .map_err(|e: grpcio::Error| error!("failed to handle getfeature request: {:?}", e))
             .map(|_| ());
         ctx.spawn(f)
@@ -54,23 +61,18 @@ impl RouteGuide for RouteGuideService {
     fn list_features(
         &mut self,
         ctx: RpcContext<'_>,
-        rect: Rectangle,
-        mut resp: ServerStreamingSink<Feature>,
+        rect: Request<Rectangle>,
+        mut resp: ServerStreamingSink<Response<Feature>>,
     ) {
+        let rect = decode(rect).expect("route_guide list_features request should decode");
         let data = self.data.clone();
-        let features: Vec<_> = data
-            .iter()
-            .filter_map(move |f| {
-                if fit_in(get_point(f), &rect) {
-                    Some((f.to_owned(), WriteFlags::default()))
-                } else {
-                    None
-                }
-            })
-            .collect();
         let f = async move {
-            for feature in features {
-                resp.send(feature).await?;
+            for feature in data
+                .iter()
+                .filter(|feature| fit_in(get_point(feature), &rect))
+            {
+                resp.send((encode(feature.to_owned())?, WriteFlags::default()))
+                    .await?;
             }
             resp.close().await?;
             Ok(())
@@ -83,8 +85,8 @@ impl RouteGuide for RouteGuideService {
     fn record_route(
         &mut self,
         ctx: RpcContext<'_>,
-        mut points: RequestStream<Point>,
-        resp: ClientStreamingSink<RouteSummary>,
+        mut points: RequestStream<Request<Point>>,
+        resp: ClientStreamingSink<Response<RouteSummary>>,
     ) {
         let data = self.data.clone();
         let timer = Instant::now();
@@ -93,6 +95,7 @@ impl RouteGuide for RouteGuideService {
             let mut last = None;
             let mut dis = 0f64;
             while let Some(point) = points.try_next().await? {
+                let point = decode(point)?;
                 summary.point_count += 1;
                 let valid_point = data
                     .iter()
@@ -108,7 +111,7 @@ impl RouteGuide for RouteGuideService {
             summary.distance = dis as i32;
             let dur = timer.elapsed();
             summary.elapsed_time = dur.as_secs() as i32;
-            resp.success(summary).await?;
+            resp.success(encode(summary)?).await?;
             Ok(())
         }
         .map_err(|e: grpcio::Error| error!("failed to record route: {:?}", e))
@@ -119,24 +122,27 @@ impl RouteGuide for RouteGuideService {
     fn route_chat(
         &mut self,
         ctx: RpcContext<'_>,
-        mut notes: RequestStream<RouteNote>,
-        mut resp: DuplexSink<RouteNote>,
+        mut notes: RequestStream<Request<RouteNote>>,
+        mut resp: DuplexSink<Response<RouteNote>>,
     ) {
         let received_notes = self.received_notes.clone();
         let f = async move {
             while let Some(n) = notes.try_next().await? {
+                let n = decode(n)?;
                 let buffer = received_notes.lock().unwrap().clone();
                 for note in buffer.iter() {
                     #[cfg(feature = "protobuf-codec")]
                     if same_point(n.get_location(), note.get_location()) {
-                        resp.send((note.clone(), WriteFlags::default())).await?;
+                        resp.send((encode(note.clone())?, WriteFlags::default()))
+                            .await?;
                     }
                     #[cfg(feature = "protobufv3-codec")]
                     if same_point(
                         n.location.0.as_ref().unwrap(),
                         note.location.0.as_ref().unwrap(),
                     ) {
-                        resp.send((note.clone(), WriteFlags::default())).await?;
+                        resp.send((encode(note.clone())?, WriteFlags::default()))
+                            .await?;
                     }
                 }
                 received_notes.lock().unwrap().push(n);

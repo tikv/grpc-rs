@@ -18,6 +18,9 @@ pub mod offload {
     #[cfg(feature = "protobufv3-codec")]
     use protobufv3::Message;
 
+    // These aliases let downstream service implementations compile against one
+    // signature while the generated bindings switch between raw and offloaded
+    // protobuf payloads at feature time.
     #[cfg(feature = "offload-codec")]
     pub type Request<T> = grpcio::pb_codec::Req<T>;
     #[cfg(not(feature = "offload-codec"))]

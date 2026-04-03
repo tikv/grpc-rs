@@ -9,6 +9,7 @@ use grpcio::{
     RpcStatus, ServerStreamingSink, UnarySink, WriteFlags,
 };
 
+use grpc_proto::offload::{decode, encode, Request, Response};
 use grpc_proto::testing::empty::Empty;
 use grpc_proto::testing::messages::{
     SimpleRequest, SimpleResponse, StreamingInputCallRequest, StreamingInputCallResponse,
@@ -37,8 +38,8 @@ fn may_echo_metadata(ctx: &RpcContext) -> Metadata {
 pub struct InteropTestService;
 
 impl TestService for InteropTestService {
-    fn empty_call(&mut self, ctx: RpcContext, _: Empty, resp: UnarySink<Empty>) {
-        let res = Empty::default();
+    fn empty_call(&mut self, ctx: RpcContext, _: Request<Empty>, resp: UnarySink<Response<Empty>>) {
+        let res = encode(Empty::default()).expect("empty_call response should encode");
         let f = resp
             .success(res)
             .map_err(|e| panic!("failed to send response: {:?}", e))
@@ -49,9 +50,10 @@ impl TestService for InteropTestService {
     fn unary_call(
         &mut self,
         ctx: RpcContext,
-        mut req: SimpleRequest,
-        mut sink: UnarySink<SimpleResponse>,
+        req: Request<SimpleRequest>,
+        mut sink: UnarySink<Response<SimpleResponse>>,
     ) {
+        let mut req = decode(req).expect("interop unary request should decode");
         let metadata = may_echo_metadata(&ctx);
         if !metadata.is_empty() {
             sink.set_headers(metadata);
@@ -88,7 +90,7 @@ impl TestService for InteropTestService {
             ..SimpleResponse::default()
         };
         let f = sink
-            .success(resp)
+            .success(encode(resp).expect("interop unary response should encode"))
             .map_err(|e| panic!("failed to send response: {:?}", e))
             .map(|_| ());
         ctx.spawn(f)
@@ -97,16 +99,17 @@ impl TestService for InteropTestService {
     fn streaming_output_call(
         &mut self,
         ctx: RpcContext,
-        req: StreamingOutputCallRequest,
-        mut sink: ServerStreamingSink<StreamingOutputCallResponse>,
+        req: Request<StreamingOutputCallRequest>,
+        mut sink: ServerStreamingSink<Response<StreamingOutputCallResponse>>,
     ) {
+        let req = decode(req).expect("streaming_output request should decode");
         let f = async move {
             for param in req.response_parameters.into_iter() {
                 let resp = StreamingOutputCallResponse {
                     payload: Some(util::new_payload(param.size as usize)).into(),
                     ..StreamingOutputCallResponse::default()
                 };
-                sink.send((resp, WriteFlags::default())).await?;
+                sink.send((encode(resp)?, WriteFlags::default())).await?;
             }
             sink.close().await?;
             Ok(())
@@ -118,17 +121,19 @@ impl TestService for InteropTestService {
     fn streaming_input_call(
         &mut self,
         ctx: RpcContext,
-        mut stream: RequestStream<StreamingInputCallRequest>,
-        sink: ClientStreamingSink<StreamingInputCallResponse>,
+        mut stream: RequestStream<Request<StreamingInputCallRequest>>,
+        sink: ClientStreamingSink<Response<StreamingInputCallResponse>>,
     ) {
         let f = async move {
             let mut s = 0;
             #[cfg(feature = "protobuf-codec")]
             while let Some(req) = stream.try_next().await? {
+                let req = decode(req)?;
                 s += req.get_payload().get_body().len();
             }
             #[cfg(feature = "protobufv3-codec")]
             while let Some(req) = stream.try_next().await? {
+                let req = decode(req)?;
                 s += req.payload.body.len();
             }
 
@@ -136,7 +141,7 @@ impl TestService for InteropTestService {
                 aggregated_payload_size: s as i32,
                 ..StreamingInputCallResponse::default()
             };
-            sink.success(resp).await
+            sink.success(encode(resp)?).await
         }
         .map_err(|e| match e {
             grpc::Error::RemoteStopped => {}
@@ -149,8 +154,8 @@ impl TestService for InteropTestService {
     fn full_duplex_call(
         &mut self,
         ctx: RpcContext,
-        mut stream: RequestStream<StreamingOutputCallRequest>,
-        mut sink: DuplexSink<StreamingOutputCallResponse>,
+        mut stream: RequestStream<Request<StreamingOutputCallRequest>>,
+        mut sink: DuplexSink<Response<StreamingOutputCallResponse>>,
     ) {
         let metadata = may_echo_metadata(&ctx);
         if !metadata.is_empty() {
@@ -158,6 +163,7 @@ impl TestService for InteropTestService {
         }
         let f = async move {
             while let Some(req) = stream.try_next().await? {
+                let req = decode(req)?;
                 if let Some(response_status) = &req.response_status.clone().into_option() {
                     let code = response_status.code;
                     let msg = String::from(&response_status.message);
@@ -187,7 +193,7 @@ impl TestService for InteropTestService {
                         Delay::new(Duration::from_secs(1)).await;
                     }
                 }
-                sink.send((resp, WriteFlags::default())).await?;
+                sink.send((encode(resp)?, WriteFlags::default())).await?;
             }
             sink.close().await?;
             Ok(())

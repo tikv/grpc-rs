@@ -1,4 +1,4 @@
-// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
+// Copyright 2026 TiKV Project Authors. Licensed under Apache-2.0.
 
 #[macro_use]
 extern crate log;
@@ -14,13 +14,12 @@ use futures_channel::oneshot;
 use futures_executor::block_on;
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::{
+    pb_codec::{Req, Resp},
     ChannelBuilder, Environment, ResourceQuota, RpcContext, ServerBuilder, ServerCredentials,
     UnarySink,
 };
-
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
 use grpcio_proto::example::helloworld_grpc::{create_greeter, Greeter};
-use grpcio_proto::offload::{decode, encode, Request, Response};
 
 #[derive(Clone)]
 struct GreeterService;
@@ -29,15 +28,14 @@ impl Greeter for GreeterService {
     fn say_hello(
         &mut self,
         ctx: RpcContext<'_>,
-        req: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
+        req: Req<HelloRequest>,
+        sink: UnarySink<Resp<HelloReply>>,
     ) {
-        let req = decode(req).expect("hello_world request should decode");
-        let msg = format!("Hello {}", req.name);
+        let req = req.get().expect("example request should decode");
         let mut resp = HelloReply::default();
-        resp.message = msg;
+        resp.message = format!("Hello {}", req.name);
         let f = sink
-            .success(encode(resp).expect("hello_world response should encode"))
+            .success(Resp::new(resp).expect("example response should encode"))
             .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e))
             .map(|_| ());
         ctx.spawn(f)

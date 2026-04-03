@@ -23,6 +23,14 @@ const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<super::helloworld::HelloRequest
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_GREETER_SAY_HELLO_OFFLOAD: ::grpcio::Method<::grpcio::pb_codec::Req<super::helloworld::HelloRequest>, ::grpcio::pb_codec::Resp<super::helloworld::HelloReply>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/helloworld.Greeter/SayHello",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
 #[derive(Clone)]
 pub struct GreeterClient {
     pub client: ::grpcio::Client,
@@ -56,7 +64,12 @@ impl GreeterClient {
 }
 
 pub trait Greeter {
+    #[cfg(not(feature = "offload-codec"))]
     fn say_hello(&mut self, ctx: ::grpcio::RpcContext, _req: super::helloworld::HelloRequest, sink: ::grpcio::UnarySink<super::helloworld::HelloReply>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    #[cfg(feature = "offload-codec")]
+    fn say_hello(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::helloworld::HelloRequest>, sink: ::grpcio::UnarySink<::grpcio::pb_codec::Resp<super::helloworld::HelloReply>>) {
         grpcio::unimplemented_call!(ctx, sink)
     }
 }
@@ -64,7 +77,12 @@ pub trait Greeter {
 pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
+    #[cfg(not(feature = "offload-codec"))]
     builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO, move |ctx, req, resp| {
+        instance.say_hello(ctx, req, resp)
+    });
+    #[cfg(feature = "offload-codec")]
+    builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO_OFFLOAD, move |ctx, req, resp| {
         instance.say_hello(ctx, req, resp)
     });
     builder.build()

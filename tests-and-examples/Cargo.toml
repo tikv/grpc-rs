@@ -68,3 +68,8 @@ path = "examples/load_balancing/client.rs"
 name = "lb_greeter_server"
 path = "examples/load_balancing/server.rs"
 #required-features = "protobuf-codec" or "protobufv3-codec"
+
+[[example]]
+name = "offload_greeter_server"
+path = "examples/hello_world/offload_server.rs"
+required-features = ["offload-codec"]

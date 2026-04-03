@@ -20,6 +20,7 @@ use grpcio::{
 
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
 use grpcio_proto::example::helloworld_grpc::{create_greeter, Greeter};
+use grpcio_proto::offload::{decode, encode, Request, Response};
 
 #[derive(Clone)]
 struct GreeterService {
@@ -27,12 +28,18 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
+    fn say_hello(
+        &mut self,
+        ctx: RpcContext<'_>,
+        req: Request<HelloRequest>,
+        sink: UnarySink<Response<HelloReply>>,
+    ) {
+        let req = decode(req).expect("load_balancing request should decode");
         let msg = format!("Hello {}, I'm {}", req.name, self.name);
         let mut resp = HelloReply::default();
         resp.message = msg;
         let f = sink
-            .success(resp)
+            .success(encode(resp).expect("load_balancing response should encode"))
             .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e))
             .map(|_| ());
         ctx.spawn(f)

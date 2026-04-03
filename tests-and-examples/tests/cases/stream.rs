@@ -14,6 +14,7 @@ use grpcio::{
     ServerBuilder, ServerCredentials, ServerStreamingSink, UnarySink, WriteFlags,
 };
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::offload::{decode, encode, Request, Response};
 
 const MESSAGE_NUM: i32 = 2000;
 
@@ -21,22 +22,33 @@ const MESSAGE_NUM: i32 = 2000;
 struct RouteGuideService {}
 
 impl RouteGuide for RouteGuideService {
-    fn get_feature(&mut self, _: RpcContext<'_>, _: Point, _: UnarySink<Feature>) {
+    fn get_feature(
+        &mut self,
+        _: RpcContext<'_>,
+        _: Request<Point>,
+        _: UnarySink<Response<Feature>>,
+    ) {
         unimplemented!()
     }
-    fn list_features(&mut self, _: RpcContext<'_>, _: Rectangle, _: ServerStreamingSink<Feature>) {
+    fn list_features(
+        &mut self,
+        _: RpcContext<'_>,
+        _: Request<Rectangle>,
+        _: ServerStreamingSink<Response<Feature>>,
+    ) {
         unimplemented!()
     }
     fn record_route(
         &mut self,
         ctx: RpcContext<'_>,
-        mut points: RequestStream<Point>,
-        resp: ClientStreamingSink<RouteSummary>,
+        mut points: RequestStream<Request<Point>>,
+        resp: ClientStreamingSink<Response<RouteSummary>>,
     ) {
         let f = async move {
             let mut summary = RouteSummary::default();
             let mut current_num = 0;
             while let Some(point) = points.try_next().await? {
+                let point = decode(point)?;
                 assert_eq!(point.longitude, current_num, "messages sequence is wrong");
                 current_num += 1;
                 summary.point_count += 1;
@@ -46,7 +58,7 @@ impl RouteGuide for RouteGuideService {
                     break;
                 }
             }
-            resp.success(summary).await?;
+            resp.success(encode(summary)?).await?;
             Ok(())
         }
         .map_err(|e: grpcio::Error| panic!("server got error: {:?}", e))
@@ -57,8 +69,8 @@ impl RouteGuide for RouteGuideService {
     fn route_chat(
         &mut self,
         _: RpcContext<'_>,
-        _: RequestStream<RouteNote>,
-        _: DuplexSink<RouteNote>,
+        _: RequestStream<Request<RouteNote>>,
+        _: DuplexSink<Response<RouteNote>>,
     ) {
         unimplemented!()
     }

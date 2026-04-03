@@ -5,6 +5,7 @@ use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use futures_util::{SinkExt, TryStreamExt};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
+use grpcio_proto::offload::{decode, encode, Request, Response};
 
 use grpcio_proto::example::route_guide::{Feature, Rectangle};
 use grpcio_proto::example::route_guide_grpc::{create_route_guide, RouteGuide, RouteGuideClient};
@@ -19,9 +20,10 @@ impl Greeter for GreeterService {
     fn say_hello(
         &mut self,
         ctx: RpcContext<'_>,
-        req: HelloRequest,
-        mut sink: UnarySink<HelloReply>,
+        req: Request<HelloRequest>,
+        mut sink: UnarySink<Response<HelloReply>>,
     ) {
+        let req = decode(req).expect("metadata request should decode");
         let headers = ctx.request_headers().clone();
         sink.set_headers(headers);
 
@@ -48,7 +50,7 @@ impl Greeter for GreeterService {
         let mut resp = HelloReply::default();
         resp.message = format!("hello {}", req.name);
         ctx.spawn(
-            sink.success(resp)
+            sink.success(encode(resp).expect("metadata response should encode"))
                 .map_err(|e| panic!("failed to reply {:?}", e))
                 .map(|_| ()),
         );
@@ -59,8 +61,8 @@ impl RouteGuide for GreeterService {
     fn list_features(
         &mut self,
         ctx: RpcContext,
-        _req: Rectangle,
-        mut sink: ServerStreamingSink<Feature>,
+        _req: Request<Rectangle>,
+        mut sink: ServerStreamingSink<Response<Feature>>,
     ) {
         let headers = ctx.request_headers().clone();
         sink.set_headers(headers);
@@ -69,7 +71,12 @@ impl RouteGuide for GreeterService {
                 name: "hello world".to_owned(),
                 ..Default::default()
             };
-            sink.send((f, WriteFlags::default())).await.unwrap();
+            sink.send((
+                encode(f).expect("metadata feature should encode"),
+                WriteFlags::default(),
+            ))
+            .await
+            .unwrap();
             sink.close().await.unwrap();
         });
     }

@@ -14,13 +14,17 @@ use futures_util::{future, stream, Stream};
 use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _, TryStreamExt as _};
 use grpcio::*;
 use grpcio_proto::example::route_guide::*;
+use grpcio_proto::offload::{encode, Request, Response};
 
 type Handler<T> = Arc<Mutex<Option<Box<T>>>>;
 type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
-type RecordRouteHandler =
-    Handler<dyn Fn(RequestStream<Point>, ClientStreamingSink<RouteSummary>) -> BoxFuture + Send>;
-type RouteChatHandler =
-    Handler<dyn Fn(RequestStream<RouteNote>, DuplexSink<RouteNote>) -> BoxFuture + Send>;
+type RecordRouteHandler = Handler<
+    dyn Fn(RequestStream<Request<Point>>, ClientStreamingSink<Response<RouteSummary>>) -> BoxFuture
+        + Send,
+>;
+type RouteChatHandler = Handler<
+    dyn Fn(RequestStream<Request<RouteNote>>, DuplexSink<Response<RouteNote>>) -> BoxFuture + Send,
+>;
 
 #[derive(Clone)]
 struct CancelService {
@@ -40,7 +44,12 @@ impl CancelService {
 }
 
 impl RouteGuide for CancelService {
-    fn get_feature(&mut self, _: RpcContext<'_>, _: Point, sink: UnarySink<Feature>) {
+    fn get_feature(
+        &mut self,
+        _: RpcContext<'_>,
+        _: Request<Point>,
+        sink: UnarySink<Response<Feature>>,
+    ) {
         // Drop the sink, client should receive Cancelled.
         drop(sink);
     }
@@ -48,8 +57,8 @@ impl RouteGuide for CancelService {
     fn list_features(
         &mut self,
         ctx: RpcContext<'_>,
-        _: Rectangle,
-        mut sink: ServerStreamingSink<Feature>,
+        _: Request<Rectangle>,
+        mut sink: ServerStreamingSink<Response<Feature>>,
     ) {
         // Drop the sink, client should receive Cancelled.
         let listener = match self.list_feature_listener.lock().unwrap().take() {
@@ -70,8 +79,10 @@ impl RouteGuide for CancelService {
         });
 
         let f = async move {
-            sink.send_all(&mut rx.map(|_| Ok((Feature::default(), WriteFlags::default()))))
-                .await?;
+            sink.send_all(&mut rx.map(|_| {
+                encode(Feature::default()).map(|feature| (feature, WriteFlags::default()))
+            }))
+            .await?;
             sink.close().await?;
             Ok(())
         }
@@ -85,8 +96,8 @@ impl RouteGuide for CancelService {
     fn record_route(
         &mut self,
         ctx: RpcContext<'_>,
-        stream: RequestStream<Point>,
-        sink: ClientStreamingSink<RouteSummary>,
+        stream: RequestStream<Request<Point>>,
+        sink: ClientStreamingSink<Response<RouteSummary>>,
     ) {
         let handler = self.record_route_handler.lock().unwrap();
         if handler.is_some() {
@@ -98,8 +109,8 @@ impl RouteGuide for CancelService {
     fn route_chat(
         &mut self,
         ctx: RpcContext<'_>,
-        stream: RequestStream<RouteNote>,
-        sink: DuplexSink<RouteNote>,
+        stream: RequestStream<Request<RouteNote>>,
+        sink: DuplexSink<Response<RouteNote>>,
     ) {
         let handler = self.route_chat_handler.lock().unwrap();
         if handler.is_some() {

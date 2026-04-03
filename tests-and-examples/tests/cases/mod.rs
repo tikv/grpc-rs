@@ -6,4 +6,6 @@ mod credential;
 mod kick;
 mod metadata;
 mod misc;
+#[cfg(feature = "offload-codec")]
+mod offload;
 mod stream;

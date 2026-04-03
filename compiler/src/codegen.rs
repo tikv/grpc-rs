@@ -286,6 +286,8 @@ impl<'a> MethodGen<'a> {
     }
 
     fn write_offload_definition(&self, w: &mut CodeWriter) {
+        // Keep the raw method constant for generated clients and bind servers
+        // to an offload-specific constant only when the feature is enabled.
         w.write_line("#[cfg(feature = \"offload-codec\")]");
         let head = format!(
             "const {}: {}<{}, {}> = {} {{",
@@ -567,14 +569,13 @@ impl<'a> MethodGen<'a> {
 
         w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
         self.write_service_variant(w, req_type, self.output(), req, sink);
-
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
         let offload_req_type = match self.method_type().0 {
             MethodType::Unary | MethodType::ServerStreaming => self.offload_input(),
             MethodType::ClientStreaming | MethodType::Duplex => {
                 format!("{}<{}>", fq_grpc("RequestStream"), self.offload_input())
             }
         };
-        w.write_line("#[cfg(feature = \"offload-codec\")]");
         self.write_service_variant(w, offload_req_type, self.offload_output(), req, sink);
     }
 
