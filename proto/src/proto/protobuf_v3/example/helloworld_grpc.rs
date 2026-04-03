@@ -78,12 +78,16 @@ pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Se
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO, move |ctx, req, resp| {
-        instance.say_hello(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO, move |ctx, req, resp| {
+            instance.say_hello(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO_OFFLOAD, move |ctx, req, resp| {
-        instance.say_hello(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO_OFFLOAD, move |ctx, req, resp| {
+            instance.say_hello(ctx, req, resp)
+        });
+    }
     builder.build()
 }

@@ -12,10 +12,10 @@ pub use proto::prost::*;
 
 #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 pub mod offload {
-    #[cfg(feature = "protobuf-codec")]
+    #[cfg(all(feature = "protobuf-codec", feature = "offload-codec"))]
     use protobuf::Message;
 
-    #[cfg(feature = "protobufv3-codec")]
+    #[cfg(all(feature = "protobufv3-codec", feature = "offload-codec"))]
     use protobufv3::Message;
 
     // These aliases let downstream service implementations compile against one

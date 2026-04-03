@@ -28,6 +28,7 @@ mod reexports {
 #[cfg(feature = "protobufv3-codec")]
 mod reexports {
     pub use super::protobuf_v3::health::*;
+    #[allow(unused_imports)]
     pub use super::protobuf_v3::health_grpc::*;
 }
 

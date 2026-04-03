@@ -190,22 +190,31 @@ pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Serv
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_unary_handler(&METHOD_HEALTH_CHECK, move |ctx, req, resp| {
-        instance.check(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_HEALTH_CHECK, move |ctx, req, resp| {
+            instance.check(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_unary_handler(&METHOD_HEALTH_CHECK_OFFLOAD, move |ctx, req, resp| {
-        instance.check(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_HEALTH_CHECK_OFFLOAD, move |ctx, req, resp| {
+            instance.check(ctx, req, resp)
+        });
+    }
     let mut instance = s;
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_server_streaming_handler(&METHOD_HEALTH_WATCH, move |ctx, req, resp| {
-        instance.watch(ctx, req, resp)
-    });
+    {
+        builder = builder
+            .add_server_streaming_handler(&METHOD_HEALTH_WATCH, move |ctx, req, resp| {
+                instance.watch(ctx, req, resp)
+            });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder
-        .add_server_streaming_handler(&METHOD_HEALTH_WATCH_OFFLOAD, move |ctx, req, resp| {
-            instance.watch(ctx, req, resp)
-        });
+    {
+        builder = builder
+            .add_server_streaming_handler(&METHOD_HEALTH_WATCH_OFFLOAD, move |ctx, req, resp| {
+                instance.watch(ctx, req, resp)
+            });
+    }
     builder.build()
 }

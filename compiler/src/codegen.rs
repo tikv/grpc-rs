@@ -587,29 +587,33 @@ impl<'a> MethodGen<'a> {
             MethodType::Duplex => "add_duplex_streaming_handler",
         };
         w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
-        w.block(
-            &format!(
-                "builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                add,
-                self.const_method_name()
-            ),
-            "});",
-            |w| {
-                w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
-            },
-        );
+        w.block("{", "}", |w| {
+            w.block(
+                &format!(
+                    "builder = builder.{}(&{}, move |ctx, req, resp| {{",
+                    add,
+                    self.const_method_name()
+                ),
+                "});",
+                |w| {
+                    w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
+                },
+            );
+        });
         w.write_line("#[cfg(feature = \"offload-codec\")]");
-        w.block(
-            &format!(
-                "builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                add,
-                self.offload_const_method_name()
-            ),
-            "});",
-            |w| {
-                w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
-            },
-        );
+        w.block("{", "}", |w| {
+            w.block(
+                &format!(
+                    "builder = builder.{}(&{}, move |ctx, req, resp| {{",
+                    add,
+                    self.offload_const_method_name()
+                ),
+                "});",
+                |w| {
+                    w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
+                },
+            );
+        });
     }
 }
 

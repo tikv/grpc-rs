@@ -202,49 +202,69 @@ pub fn create_benchmark_service<S: BenchmarkService + Send + Clone + 'static>(s:
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_unary_handler(&METHOD_BENCHMARK_SERVICE_UNARY_CALL, move |ctx, req, resp| {
-        instance.unary_call(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_BENCHMARK_SERVICE_UNARY_CALL, move |ctx, req, resp| {
+            instance.unary_call(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_unary_handler(&METHOD_BENCHMARK_SERVICE_UNARY_CALL_OFFLOAD, move |ctx, req, resp| {
-        instance.unary_call(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_BENCHMARK_SERVICE_UNARY_CALL_OFFLOAD, move |ctx, req, resp| {
+            instance.unary_call(ctx, req, resp)
+        });
+    }
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_CALL, move |ctx, req, resp| {
-        instance.streaming_call(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_CALL, move |ctx, req, resp| {
+            instance.streaming_call(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_CALL_OFFLOAD, move |ctx, req, resp| {
-        instance.streaming_call(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_CALL_OFFLOAD, move |ctx, req, resp| {
+            instance.streaming_call(ctx, req, resp)
+        });
+    }
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_client_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT, move |ctx, req, resp| {
-        instance.streaming_from_client(ctx, req, resp)
-    });
+    {
+        builder = builder.add_client_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT, move |ctx, req, resp| {
+            instance.streaming_from_client(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_client_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT_OFFLOAD, move |ctx, req, resp| {
-        instance.streaming_from_client(ctx, req, resp)
-    });
+    {
+        builder = builder.add_client_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT_OFFLOAD, move |ctx, req, resp| {
+            instance.streaming_from_client(ctx, req, resp)
+        });
+    }
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_server_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER, move |ctx, req, resp| {
-        instance.streaming_from_server(ctx, req, resp)
-    });
+    {
+        builder = builder.add_server_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER, move |ctx, req, resp| {
+            instance.streaming_from_server(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_server_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER_OFFLOAD, move |ctx, req, resp| {
-        instance.streaming_from_server(ctx, req, resp)
-    });
+    {
+        builder = builder.add_server_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER_OFFLOAD, move |ctx, req, resp| {
+            instance.streaming_from_server(ctx, req, resp)
+        });
+    }
     let mut instance = s;
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS, move |ctx, req, resp| {
-        instance.streaming_both_ways(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS, move |ctx, req, resp| {
+            instance.streaming_both_ways(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS_OFFLOAD, move |ctx, req, resp| {
-        instance.streaming_both_ways(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS_OFFLOAD, move |ctx, req, resp| {
+            instance.streaming_both_ways(ctx, req, resp)
+        });
+    }
     builder.build()
 }
 
@@ -411,40 +431,56 @@ pub fn create_worker_service<S: WorkerService + Send + Clone + 'static>(s: S) ->
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_SERVER, move |ctx, req, resp| {
-        instance.run_server(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_SERVER, move |ctx, req, resp| {
+            instance.run_server(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_SERVER_OFFLOAD, move |ctx, req, resp| {
-        instance.run_server(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_SERVER_OFFLOAD, move |ctx, req, resp| {
+            instance.run_server(ctx, req, resp)
+        });
+    }
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_CLIENT, move |ctx, req, resp| {
-        instance.run_client(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_CLIENT, move |ctx, req, resp| {
+            instance.run_client(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_CLIENT_OFFLOAD, move |ctx, req, resp| {
-        instance.run_client(ctx, req, resp)
-    });
+    {
+        builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_CLIENT_OFFLOAD, move |ctx, req, resp| {
+            instance.run_client(ctx, req, resp)
+        });
+    }
     let mut instance = s.clone();
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_CORE_COUNT, move |ctx, req, resp| {
-        instance.core_count(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_CORE_COUNT, move |ctx, req, resp| {
+            instance.core_count(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_CORE_COUNT_OFFLOAD, move |ctx, req, resp| {
-        instance.core_count(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_CORE_COUNT_OFFLOAD, move |ctx, req, resp| {
+            instance.core_count(ctx, req, resp)
+        });
+    }
     let mut instance = s;
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_QUIT_WORKER, move |ctx, req, resp| {
-        instance.quit_worker(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_QUIT_WORKER, move |ctx, req, resp| {
+            instance.quit_worker(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_QUIT_WORKER_OFFLOAD, move |ctx, req, resp| {
-        instance.quit_worker(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_QUIT_WORKER_OFFLOAD, move |ctx, req, resp| {
+            instance.quit_worker(ctx, req, resp)
+        });
+    }
     builder.build()
 }
 
@@ -510,12 +546,16 @@ pub fn create_report_qps_scenario_service<S: ReportQpsScenarioService + Send + C
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
     #[cfg(not(feature = "offload-codec"))]
-    builder = builder.add_unary_handler(&METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO, move |ctx, req, resp| {
-        instance.report_scenario(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO, move |ctx, req, resp| {
+            instance.report_scenario(ctx, req, resp)
+        });
+    }
     #[cfg(feature = "offload-codec")]
-    builder = builder.add_unary_handler(&METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO_OFFLOAD, move |ctx, req, resp| {
-        instance.report_scenario(ctx, req, resp)
-    });
+    {
+        builder = builder.add_unary_handler(&METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO_OFFLOAD, move |ctx, req, resp| {
+            instance.report_scenario(ctx, req, resp)
+        });
+    }
     builder.build()
 }

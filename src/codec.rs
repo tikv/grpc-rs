@@ -153,6 +153,16 @@ pub mod pb_codec {
         }
     }
 
+    #[cfg(feature = "offload-codec")]
+    impl<T> PbMessageSerialize for Req<T> {
+        #[inline]
+        fn serialize(&self, _: &mut GrpcSlice) -> Result<()> {
+            Err(Error::Codec(
+                "offload request wrappers cannot be serialized".into(),
+            ))
+        }
+    }
+
     /// Stores a protobuf response that has already been serialized into a `GrpcSlice`.
     ///
     /// This lets application code encode on a worker pool and hand the final bytes back to gRPC
@@ -218,6 +228,16 @@ pub mod pb_codec {
         }
     }
 
+    #[cfg(feature = "offload-codec")]
+    impl<T> PbMessageDeserialize for Resp<T> {
+        #[inline]
+        fn deserialize(_: MessageReader) -> Result<Self> {
+            Err(Error::Codec(
+                "offload response wrappers cannot be deserialized".into(),
+            ))
+        }
+    }
+
     #[inline]
     pub fn ser<T: PbMessageSerialize>(t: &T, buf: &mut GrpcSlice) -> Result<()> {
         t.serialize(buf)
@@ -275,7 +295,7 @@ pub mod pr_codec {
 
 #[cfg(all(test, feature = "protobuf-codec", feature = "offload-codec"))]
 mod tests {
-    use protobuf::well_known_types::wrappers::StringValue;
+    use protobuf::well_known_types::StringValue;
 
     use super::pb_codec::{de, ser, Req, Resp};
     use crate::buf::GrpcByteBuffer;

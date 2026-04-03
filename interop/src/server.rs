@@ -53,7 +53,9 @@ impl TestService for InteropTestService {
         req: Request<SimpleRequest>,
         mut sink: UnarySink<Response<SimpleResponse>>,
     ) {
-        let mut req = decode(req).expect("interop unary request should decode");
+        let req = decode(req).expect("interop unary request should decode");
+        #[cfg(feature = "protobuf-codec")]
+        let mut req = req;
         let metadata = may_echo_metadata(&ctx);
         if !metadata.is_empty() {
             sink.set_headers(metadata);
