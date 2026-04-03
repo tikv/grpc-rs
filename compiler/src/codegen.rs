@@ -250,6 +250,18 @@ impl<'a> MethodGen<'a> {
         )
     }
 
+    fn offload_const_method_name(&self) -> String {
+        format!("{}_OFFLOAD", self.const_method_name())
+    }
+
+    fn offload_input(&self) -> String {
+        format!("{}<{}>", fq_grpc("pb_codec::Req"), self.input())
+    }
+
+    fn offload_output(&self) -> String {
+        format!("{}<{}>", fq_grpc("pb_codec::Resp"), self.output())
+    }
+
     fn write_definition(&self, w: &mut CodeWriter) {
         let head = format!(
             "const {}: {}<{}, {}> = {} {{",
@@ -257,6 +269,30 @@ impl<'a> MethodGen<'a> {
             fq_grpc("Method"),
             self.input(),
             self.output(),
+            fq_grpc("Method")
+        );
+        let pb_mar = format!(
+            "{} {{ ser: {}, de: {} }}",
+            fq_grpc("Marshaller"),
+            fq_grpc("pb_ser"),
+            fq_grpc("pb_de")
+        );
+        w.block(&head, "};", |w| {
+            w.field_entry("ty", &self.method_type().1);
+            w.field_entry("name", &self.fq_name());
+            w.field_entry("req_mar", &pb_mar);
+            w.field_entry("resp_mar", &pb_mar);
+        });
+    }
+
+    fn write_offload_definition(&self, w: &mut CodeWriter) {
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        let head = format!(
+            "const {}: {}<{}, {}> = {} {{",
+            self.offload_const_method_name(),
+            fq_grpc("Method"),
+            self.offload_input(),
+            self.offload_output(),
             fq_grpc("Method")
         );
         let pb_mar = format!(
@@ -489,26 +525,57 @@ impl<'a> MethodGen<'a> {
         };
     }
 
-    fn write_service(&self, w: &mut CodeWriter) {
-        let req_stream_type = format!("{}<{}>", fq_grpc("RequestStream"), self.input());
-        let (req, req_type, resp_type) = match self.method_type().0 {
-            MethodType::Unary => ("req", self.input(), "UnarySink"),
-            MethodType::ClientStreaming => ("stream", req_stream_type, "ClientStreamingSink"),
-            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamingSink"),
-            MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
-        };
+    fn write_service_variant(
+        &self,
+        w: &mut CodeWriter,
+        req_type: String,
+        resp_type: String,
+        req: &str,
+        sink: &str,
+    ) {
         let sig = format!(
             "{}(&mut self, ctx: {}, _{}: {}, sink: {}<{}>)",
             self.name(),
             fq_grpc("RpcContext"),
             req,
             req_type,
-            fq_grpc(resp_type),
-            self.output()
+            fq_grpc(sink),
+            resp_type
         );
         w.fn_block(false, &sig, |w| {
             w.write_line("grpcio::unimplemented_call!(ctx, sink)");
         });
+    }
+
+    fn write_service(&self, w: &mut CodeWriter) {
+        let req = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => "req",
+            MethodType::ClientStreaming | MethodType::Duplex => "stream",
+        };
+        let sink = match self.method_type().0 {
+            MethodType::Unary => "UnarySink",
+            MethodType::ClientStreaming => "ClientStreamingSink",
+            MethodType::ServerStreaming => "ServerStreamingSink",
+            MethodType::Duplex => "DuplexSink",
+        };
+        let req_type = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => self.input(),
+            MethodType::ClientStreaming | MethodType::Duplex => {
+                format!("{}<{}>", fq_grpc("RequestStream"), self.input())
+            }
+        };
+
+        w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
+        self.write_service_variant(w, req_type, self.output(), req, sink);
+
+        let offload_req_type = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => self.offload_input(),
+            MethodType::ClientStreaming | MethodType::Duplex => {
+                format!("{}<{}>", fq_grpc("RequestStream"), self.offload_input())
+            }
+        };
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        self.write_service_variant(w, offload_req_type, self.offload_output(), req, sink);
     }
 
     fn write_bind(&self, w: &mut CodeWriter) {
@@ -518,11 +585,24 @@ impl<'a> MethodGen<'a> {
             MethodType::ServerStreaming => "add_server_streaming_handler",
             MethodType::Duplex => "add_duplex_streaming_handler",
         };
+        w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
         w.block(
             &format!(
                 "builder = builder.{}(&{}, move |ctx, req, resp| {{",
                 add,
                 self.const_method_name()
+            ),
+            "});",
+            |w| {
+                w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
+            },
+        );
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        w.block(
+            &format!(
+                "builder = builder.{}(&{}, move |ctx, req, resp| {{",
+                add,
+                self.offload_const_method_name()
             ),
             "});",
             |w| {
@@ -639,6 +719,8 @@ impl<'a> ServiceGen<'a> {
             }
 
             method.write_definition(w);
+            w.write_line("");
+            method.write_offload_definition(w);
         }
     }
 

@@ -17,6 +17,7 @@ default = ["protobuf-codec"]
 protobuf-codec = ["grpcio/protobuf-codec", "protobuf"]
 protobufv3-codec = ["grpcio/protobufv3-codec", "protobufv3"]
 prost-codec = ["grpcio/prost-codec", "prost"]
+offload-codec = ["grpcio/offload-codec"]
 
 [dependencies]
 futures-executor = "0.3"
