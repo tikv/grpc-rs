@@ -1,4 +1,4 @@
-// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
+// Copyright 2026 TiKV Project Authors. Licensed under Apache-2.0.
 
 #![allow(renamed_and_removed_lints)]
 
@@ -13,8 +13,9 @@ use grpc::{
     self, ClientStreamingSink, DuplexSink, MessageReader, Method, MethodType, RequestStream,
     RpcContext, ServiceBuilder, UnarySink, WriteFlags,
 };
+use grpc_proto::offload::{decode, encode, Request, Response};
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use grpc_proto::testing::services_grpc::BenchmarkService;
+use grpc_proto::testing::services_grpc::BenchmarkServiceOffload;
 use grpc_proto::util;
 use grpcio::GrpcSlice;
 
@@ -27,13 +28,20 @@ fn gen_resp(req: &SimpleRequest) -> SimpleResponse {
 }
 
 #[derive(Clone)]
-pub struct Benchmark {
+pub struct OffloadBenchmark {
     pub keep_running: Arc<AtomicBool>,
 }
 
-impl BenchmarkService for Benchmark {
-    fn unary_call(&mut self, ctx: RpcContext, req: SimpleRequest, sink: UnarySink<SimpleResponse>) {
-        let f = sink.success(gen_resp(&req));
+impl BenchmarkServiceOffload for OffloadBenchmark {
+    fn unary_call(
+        &mut self,
+        ctx: RpcContext,
+        req: Request<SimpleRequest>,
+        sink: UnarySink<Response<SimpleResponse>>,
+    ) {
+        let req = decode(req).expect("benchmark unary request should decode");
+        let f =
+            sink.success(encode(gen_resp(&req)).expect("benchmark unary response should encode"));
         let keep_running = self.keep_running.clone();
         spawn!(ctx, keep_running, "unary", f)
     }
@@ -41,13 +49,15 @@ impl BenchmarkService for Benchmark {
     fn streaming_call(
         &mut self,
         ctx: RpcContext,
-        stream: RequestStream<SimpleRequest>,
-        mut sink: DuplexSink<SimpleResponse>,
+        stream: RequestStream<Request<SimpleRequest>>,
+        mut sink: DuplexSink<Response<SimpleResponse>>,
     ) {
         let f = async move {
-            sink.send_all(
-                &mut stream.map(|req| req.map(|req| (gen_resp(&req), WriteFlags::default()))),
-            )
+            sink.send_all(&mut stream.map(|req| {
+                req.and_then(decode)
+                    .and_then(|req| encode(gen_resp(&req)))
+                    .map(|resp| (resp, WriteFlags::default()))
+            }))
             .await?;
             sink.close().await?;
             Ok(())
@@ -59,15 +69,15 @@ impl BenchmarkService for Benchmark {
     fn streaming_from_client(
         &mut self,
         ctx: RpcContext,
-        mut stream: RequestStream<SimpleRequest>,
-        sink: ClientStreamingSink<SimpleResponse>,
+        mut stream: RequestStream<Request<SimpleRequest>>,
+        sink: ClientStreamingSink<Response<SimpleResponse>>,
     ) {
         let f = async move {
             let mut req = SimpleRequest::default();
             while let Some(r) = stream.try_next().await? {
-                req = r;
+                req = decode(r)?;
             }
-            sink.success(gen_resp(&req));
+            sink.success(encode(gen_resp(&req))?);
             Ok(())
         };
         let keep_running = self.keep_running.clone();

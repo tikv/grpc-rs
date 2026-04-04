@@ -566,10 +566,20 @@ impl<'a> MethodGen<'a> {
                 format!("{}<{}>", fq_grpc("RequestStream"), self.input())
             }
         };
-
-        w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
         self.write_service_variant(w, req_type, self.output(), req, sink);
-        w.write_line("#[cfg(feature = \"offload-codec\")]");
+    }
+
+    fn write_offload_service(&self, w: &mut CodeWriter) {
+        let req = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => "req",
+            MethodType::ClientStreaming | MethodType::Duplex => "stream",
+        };
+        let sink = match self.method_type().0 {
+            MethodType::Unary => "UnarySink",
+            MethodType::ClientStreaming => "ClientStreamingSink",
+            MethodType::ServerStreaming => "ServerStreamingSink",
+            MethodType::Duplex => "DuplexSink",
+        };
         let offload_req_type = match self.method_type().0 {
             MethodType::Unary | MethodType::ServerStreaming => self.offload_input(),
             MethodType::ClientStreaming | MethodType::Duplex => {
@@ -586,34 +596,37 @@ impl<'a> MethodGen<'a> {
             MethodType::ServerStreaming => "add_server_streaming_handler",
             MethodType::Duplex => "add_duplex_streaming_handler",
         };
-        w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
-        w.block("{", "}", |w| {
-            w.block(
-                &format!(
-                    "builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                    add,
-                    self.const_method_name()
-                ),
-                "});",
-                |w| {
-                    w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
-                },
-            );
-        });
-        w.write_line("#[cfg(feature = \"offload-codec\")]");
-        w.block("{", "}", |w| {
-            w.block(
-                &format!(
-                    "builder = builder.{}(&{}, move |ctx, req, resp| {{",
-                    add,
-                    self.offload_const_method_name()
-                ),
-                "});",
-                |w| {
-                    w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
-                },
-            );
-        });
+        w.block(
+            &format!(
+                "builder = builder.{}(&{}, move |ctx, req, resp| {{",
+                add,
+                self.const_method_name()
+            ),
+            "});",
+            |w| {
+                w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
+            },
+        );
+    }
+
+    fn write_offload_bind(&self, w: &mut CodeWriter) {
+        let add = match self.method_type().0 {
+            MethodType::Unary => "add_unary_handler",
+            MethodType::ClientStreaming => "add_client_streaming_handler",
+            MethodType::ServerStreaming => "add_server_streaming_handler",
+            MethodType::Duplex => "add_duplex_streaming_handler",
+        };
+        w.block(
+            &format!(
+                "builder = builder.{}(&{}, move |ctx, req, resp| {{",
+                add,
+                self.offload_const_method_name()
+            ),
+            "});",
+            |w| {
+                w.write_line(format!("instance.{}(ctx, req, resp)", self.name()));
+            },
+        );
     }
 }
 
@@ -657,6 +670,14 @@ impl<'a> ServiceGen<'a> {
         format!("{}Client", self.service_name())
     }
 
+    fn offload_service_name(&self) -> String {
+        format!("{}Offload", self.service_name())
+    }
+
+    fn offload_create_name(&self) -> String {
+        format!("create_{}_offload", to_snake_case(&self.service_name()))
+    }
+
     fn write_client(&self, w: &mut CodeWriter) {
         w.write_line("#[derive(Clone)]");
         w.pub_struct(self.client_name(), |w| {
@@ -697,6 +718,15 @@ impl<'a> ServiceGen<'a> {
 
         w.write_line("");
 
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        w.pub_trait(&self.offload_service_name(), |w| {
+            for method in &self.methods {
+                method.write_offload_service(w);
+            }
+        });
+
+        w.write_line("");
+
         let s = format!(
             "create_{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
             to_snake_case(&self.service_name()),
@@ -712,6 +742,27 @@ impl<'a> ServiceGen<'a> {
 
             w.write_line("let mut instance = s;");
             self.methods[self.methods.len() - 1].write_bind(w);
+
+            w.write_line("builder.build()");
+        });
+
+        w.write_line("");
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        let s = format!(
+            "{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
+            self.offload_create_name(),
+            self.offload_service_name(),
+            fq_grpc("Service")
+        );
+        w.pub_fn(&s, |w| {
+            w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
+            for method in &self.methods[0..self.methods.len() - 1] {
+                w.write_line("let mut instance = s.clone();");
+                method.write_offload_bind(w);
+            }
+
+            w.write_line("let mut instance = s;");
+            self.methods[self.methods.len() - 1].write_offload_bind(w);
 
             w.write_line("builder.build()");
         });

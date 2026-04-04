@@ -6,9 +6,10 @@ publish = false
 
 [features]
 default = ["protobuf-codec"]
-protobuf-codec = ["grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "dep:protobuf"]
-protobufv3-codec = ["grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "dep:protobufv3"]
-prost-codec = ["grpcio/prost-codec", "grpcio-proto/prost-codec"]
+raw-codec = []
+protobuf-codec = ["raw-codec", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "dep:protobuf"]
+protobufv3-codec = ["raw-codec", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "dep:protobufv3"]
+prost-codec = ["raw-codec", "grpcio/prost-codec", "grpcio-proto/prost-codec"]
 offload-codec = ["grpcio/offload-codec", "grpcio-proto/offload-codec"]
 
 [dependencies]
@@ -36,3 +37,9 @@ protobufv3 = { package = "protobuf", version = "3.2", optional = true }
 [[bin]]
 name = "qps_worker"
 path = "src/main.rs"
+required-features = ["raw-codec"]
+
+[[bin]]
+name = "offload_qps_worker"
+path = "src/offload_main.rs"
+required-features = ["raw-codec", "offload-codec"]

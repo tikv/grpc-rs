@@ -36,6 +36,8 @@
 pub mod proto;
 mod service;
 
+#[cfg(feature = "offload-codec")]
+pub use self::proto::create_health_offload;
 pub use self::proto::{create_health, HealthClient};
 pub use self::service::HealthService;
 

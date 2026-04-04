@@ -1,5 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
+#![cfg(feature = "raw-codec")]
 #![allow(unknown_lints)]
 
 extern crate grpcio as grpc;
@@ -26,9 +27,17 @@ macro_rules! spawn {
 
 mod bench;
 mod client;
-mod server;
 mod util;
+#[cfg(feature = "offload-codec")]
+mod offload_bench;
+#[cfg(feature = "offload-codec")]
+mod offload_server;
+#[cfg(feature = "offload-codec")]
+mod offload_worker;
+mod server;
 mod worker;
 
 pub use crate::util::log_util::init_log;
+#[cfg(feature = "offload-codec")]
+pub use crate::offload_worker::OffloadWorker;
 pub use crate::worker::Worker;

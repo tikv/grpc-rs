@@ -10,46 +10,77 @@ pub use proto::protobuf::*;
 #[cfg(feature = "prost-codec")]
 pub use proto::prost::*;
 
-#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
+#[cfg(any(
+    feature = "protobuf-codec",
+    feature = "protobufv3-codec",
+    feature = "prost-codec"
+))]
 pub mod offload {
-    #[cfg(all(feature = "protobuf-codec", feature = "offload-codec"))]
-    use protobuf::Message;
-
-    #[cfg(all(feature = "protobufv3-codec", feature = "offload-codec"))]
-    use protobufv3::Message;
-
-    // These aliases let downstream service implementations compile against one
-    // signature while the generated bindings switch between raw and offloaded
-    // protobuf payloads at feature time.
-    #[cfg(feature = "offload-codec")]
-    pub type Request<T> = grpcio::pb_codec::Req<T>;
-    #[cfg(not(feature = "offload-codec"))]
-    pub type Request<T> = T;
-
-    #[cfg(feature = "offload-codec")]
-    pub type Response<T> = grpcio::pb_codec::Resp<T>;
-    #[cfg(not(feature = "offload-codec"))]
-    pub type Response<T> = T;
-
-    #[cfg(feature = "offload-codec")]
-    pub fn decode<T: Message>(request: Request<T>) -> grpcio::Result<T> {
-        request.get()
-    }
+    #[cfg(all(
+        feature = "offload-codec",
+        feature = "prost-codec",
+        any(feature = "protobuf-codec", feature = "protobufv3-codec")
+    ))]
+    compile_error!("offload helpers require exactly one codec backend feature");
 
     #[cfg(not(feature = "offload-codec"))]
-    pub fn decode<T>(request: Request<T>) -> grpcio::Result<T> {
-        Ok(request)
+    mod imp {
+        pub type Request<T> = T;
+        pub type Response<T> = T;
+
+        pub fn decode<T>(request: Request<T>) -> grpcio::Result<T> {
+            Ok(request)
+        }
+
+        pub fn encode<T>(response: T) -> grpcio::Result<Response<T>> {
+            Ok(response)
+        }
     }
 
-    #[cfg(feature = "offload-codec")]
-    pub fn encode<T: Message>(response: T) -> grpcio::Result<Response<T>> {
-        grpcio::pb_codec::Resp::new(response)
+    #[cfg(all(
+        feature = "offload-codec",
+        any(feature = "protobuf-codec", feature = "protobufv3-codec"),
+        not(feature = "prost-codec")
+    ))]
+    mod imp {
+        #[cfg(feature = "protobuf-codec")]
+        use protobuf::Message;
+        #[cfg(feature = "protobufv3-codec")]
+        use protobufv3::Message;
+
+        pub type Request<T> = grpcio::pb_codec::Req<T>;
+        pub type Response<T> = grpcio::pb_codec::Resp<T>;
+
+        pub fn decode<T: Message>(request: Request<T>) -> grpcio::Result<T> {
+            request.get()
+        }
+
+        pub fn encode<T: Message>(response: T) -> grpcio::Result<Response<T>> {
+            grpcio::pb_codec::Resp::new(response)
+        }
     }
 
-    #[cfg(not(feature = "offload-codec"))]
-    pub fn encode<T>(response: T) -> grpcio::Result<Response<T>> {
-        Ok(response)
+    #[cfg(all(
+        feature = "offload-codec",
+        feature = "prost-codec",
+        not(any(feature = "protobuf-codec", feature = "protobufv3-codec"))
+    ))]
+    mod imp {
+        use prost::Message;
+
+        pub type Request<T> = grpcio::pr_codec::Req<T>;
+        pub type Response<T> = grpcio::pr_codec::Resp<T>;
+
+        pub fn decode<T: Message + Default>(request: Request<T>) -> grpcio::Result<T> {
+            request.get()
+        }
+
+        pub fn encode<T: Message>(response: T) -> grpcio::Result<Response<T>> {
+            grpcio::pr_codec::Resp::new(response)
+        }
     }
+
+    pub use imp::{decode, encode, Request, Response};
 }
 
 pub mod util;

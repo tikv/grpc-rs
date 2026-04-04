@@ -20,22 +20,36 @@ use crate::proto::ServingStatus;
 #[cfg(feature = "protobufv3-codec")]
 use crate::proto::health_check_response::ServingStatus;
 
+#[cfg(feature = "offload-codec")]
+use crate::proto::HealthOffload;
+
 const VERSION_STEP: usize = 8;
 const STATUS_MASK: usize = 7;
 
-#[cfg(feature = "offload-codec")]
-type HealthRequestParam = grpcio::pb_codec::Req<HealthCheckRequest>;
-#[cfg(not(feature = "offload-codec"))]
-type HealthRequestParam = HealthCheckRequest;
+#[cfg(all(
+    feature = "offload-codec",
+    any(feature = "protobuf-codec", feature = "protobufv3-codec")
+))]
+type HealthRequestOffload = grpcio::pb_codec::Req<HealthCheckRequest>;
+#[cfg(all(feature = "offload-codec", feature = "prost-codec"))]
+type HealthRequestOffload = grpcio::pr_codec::Req<HealthCheckRequest>;
 
-#[cfg(feature = "offload-codec")]
-type HealthResponseParam = grpcio::pb_codec::Resp<HealthCheckResponse>;
-#[cfg(not(feature = "offload-codec"))]
-type HealthResponseParam = HealthCheckResponse;
+#[cfg(all(
+    feature = "offload-codec",
+    any(feature = "protobuf-codec", feature = "protobufv3-codec")
+))]
+type HealthResponseOffload = grpcio::pb_codec::Resp<HealthCheckResponse>;
+#[cfg(all(feature = "offload-codec", feature = "prost-codec"))]
+type HealthResponseOffload = grpcio::pr_codec::Resp<HealthCheckResponse>;
 
-#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
+#[cfg(feature = "protobuf-codec")]
 fn state_to_status(state: usize) -> ServingStatus {
     ServingStatus::from_i32((state & STATUS_MASK) as i32).unwrap()
+}
+
+#[cfg(feature = "prost-codec")]
+fn state_to_status(state: usize) -> ServingStatus {
+    ServingStatus::try_from((state & STATUS_MASK) as i32).unwrap()
 }
 
 #[cfg(feature = "protobufv3-codec")]
@@ -194,31 +208,95 @@ fn build_response(status: ServingStatus) -> HealthCheckResponse {
 }
 
 #[cfg(feature = "offload-codec")]
-fn decode_request(request: HealthRequestParam) -> grpcio::Result<HealthCheckRequest> {
+fn decode_request(request: HealthRequestOffload) -> grpcio::Result<HealthCheckRequest> {
     request.get()
 }
 
-#[cfg(not(feature = "offload-codec"))]
-fn decode_request(request: HealthRequestParam) -> grpcio::Result<HealthCheckRequest> {
-    Ok(request)
-}
-
-#[cfg(feature = "offload-codec")]
-fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponseParam> {
+#[cfg(all(
+    feature = "offload-codec",
+    any(feature = "protobuf-codec", feature = "protobufv3-codec")
+))]
+fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponseOffload> {
     grpcio::pb_codec::Resp::new(response)
 }
 
-#[cfg(not(feature = "offload-codec"))]
-fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponseParam> {
-    Ok(response)
+#[cfg(all(feature = "offload-codec", feature = "prost-codec"))]
+fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponseOffload> {
+    grpcio::pr_codec::Resp::new(response)
 }
 
 impl Health for HealthService {
     fn check(
         &mut self,
         ctx: RpcContext,
-        req: HealthRequestParam,
-        sink: UnarySink<HealthResponseParam>,
+        req: HealthCheckRequest,
+        sink: UnarySink<HealthCheckResponse>,
+    ) {
+        let status = {
+            let inner = self.inner.lock().unwrap();
+            inner.status.get(&req.service).cloned()
+        };
+        if let Some(status) = status {
+            let resp = build_response(status);
+            ctx.spawn(sink.success(resp).map(|_| ()));
+            return;
+        }
+        ctx.spawn(
+            sink.fail(RpcStatus::with_message(
+                RpcStatusCode::NOT_FOUND,
+                "unknown service".to_owned(),
+            ))
+            .map(|_| ()),
+        )
+    }
+
+    fn watch(
+        &mut self,
+        ctx: RpcContext,
+        req: HealthCheckRequest,
+        mut sink: ServerStreamingSink<HealthCheckResponse>,
+    ) {
+        let name = req.service;
+        let (id, v) = {
+            let mut inner = self.inner.lock().unwrap();
+            inner.id += 1;
+            if let Some(c) = inner.casts.get(&name) {
+                (inner.id, c.clone())
+            } else {
+                let status = match inner.status.get(&name) {
+                    Some(s) => *s,
+                    None => ServingStatus::ServiceUnknown,
+                };
+                let c = Arc::new(StatusCast::new(status));
+                inner.casts.insert(name.clone(), c.clone());
+                (inner.id, c)
+            }
+        };
+        let sub = StatusSubscriber::new(id, v);
+        let inner = self.inner.clone();
+        ctx.spawn(async move {
+            let _ = sink
+                .send_all(&mut sub.map(|s| Ok((build_response(s), WriteFlags::default()))))
+                .await;
+            let mut inner = inner.lock().unwrap();
+            if let Some(c) = inner.casts.get(&name) {
+                // If there is any subscriber, then cast reference count should not be 1 as
+                // it's referenced by all subscriber.
+                if Arc::strong_count(c) == 1 {
+                    inner.casts.remove(&name);
+                }
+            }
+        })
+    }
+}
+
+#[cfg(feature = "offload-codec")]
+impl HealthOffload for HealthService {
+    fn check(
+        &mut self,
+        ctx: RpcContext,
+        req: HealthRequestOffload,
+        sink: UnarySink<HealthResponseOffload>,
     ) {
         let req = match decode_request(req) {
             Ok(req) => req,
@@ -266,8 +344,8 @@ impl Health for HealthService {
     fn watch(
         &mut self,
         ctx: RpcContext,
-        req: HealthRequestParam,
-        mut sink: ServerStreamingSink<HealthResponseParam>,
+        req: HealthRequestOffload,
+        mut sink: ServerStreamingSink<HealthResponseOffload>,
     ) {
         let req = match decode_request(req) {
             Ok(req) => req,
@@ -302,9 +380,12 @@ impl Health for HealthService {
         let inner = self.inner.clone();
         ctx.spawn(async move {
             let _ = sink
-                .send_all(&mut sub.map(|s| {
-                    encode_response(build_response(s)).map(|resp| (resp, WriteFlags::default()))
-                }))
+                .send_all(
+                    &mut sub.map(|s| {
+                        encode_response(build_response(s))
+                            .map(|resp| (resp, WriteFlags::default()))
+                    }),
+                )
                 .await;
             let mut inner = inner.lock().unwrap();
             if let Some(c) = inner.casts.get(&name) {

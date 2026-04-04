@@ -31,7 +31,9 @@ pub struct Marshaller<T> {
 
 #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 pub mod pb_codec {
+    #[cfg(feature = "offload-codec")]
     use std::fmt;
+    #[cfg(feature = "offload-codec")]
     use std::marker::PhantomData;
 
     #[cfg(feature = "protobuf-codec")]
@@ -261,6 +263,11 @@ fn from_buf_read(reader: &mut MessageReader) -> protobufv3::CodedInputStream {
 
 #[cfg(feature = "prost-codec")]
 pub mod pr_codec {
+    #[cfg(feature = "offload-codec")]
+    use std::fmt;
+    #[cfg(feature = "offload-codec")]
+    use std::marker::PhantomData;
+
     use prost::Message;
 
     use super::{MessageReader, MAX_MESSAGE_SIZE};
@@ -268,7 +275,7 @@ pub mod pr_codec {
     use crate::error::{Error, Result};
 
     #[inline]
-    pub fn ser<M: Message>(msg: &M, buf: &mut GrpcSlice) -> Result<()> {
+    fn encode_message<M: Message>(msg: &M, buf: &mut GrpcSlice) -> Result<()> {
         let size = msg.encoded_len();
         if size <= MAX_MESSAGE_SIZE {
             unsafe {
@@ -286,16 +293,201 @@ pub mod pr_codec {
     }
 
     #[inline]
-    pub fn de<M: Message + Default>(mut reader: MessageReader) -> Result<M> {
+    fn decode_message<M: Message + Default>(mut reader: MessageReader) -> Result<M> {
         use bytes::buf::Buf;
         reader.advance(0);
         M::decode(reader).map_err(Into::into)
     }
+
+    /// Trait used by the public prost marshaller to support raw messages as well as
+    /// pre-encoded offload responses.
+    #[doc(hidden)]
+    pub trait PrMessageSerialize {
+        fn serialize(&self, buf: &mut GrpcSlice) -> Result<()>;
+    }
+
+    impl<M: Message> PrMessageSerialize for M {
+        #[inline]
+        fn serialize(&self, buf: &mut GrpcSlice) -> Result<()> {
+            encode_message(self, buf)
+        }
+    }
+
+    /// Trait used by the public prost marshaller to support raw messages as well as
+    /// deferred-decoding offload requests.
+    #[doc(hidden)]
+    pub trait PrMessageDeserialize: Sized {
+        fn deserialize(reader: MessageReader) -> Result<Self>;
+    }
+
+    impl<M: Message + Default> PrMessageDeserialize for M {
+        #[inline]
+        fn deserialize(reader: MessageReader) -> Result<Self> {
+            decode_message(reader)
+        }
+    }
+
+    /// Defers prost decoding until the request is explicitly consumed by application code.
+    ///
+    /// This lets generated offload handlers move decode work off the gRPC poll threads and onto
+    /// their own executor.
+    #[cfg(feature = "offload-codec")]
+    pub struct Req<T> {
+        input: MessageReader,
+        _req: PhantomData<T>,
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> Req<T> {
+        /// Returns the size of the encoded payload in bytes.
+        #[inline]
+        pub fn encoded_len(&self) -> usize {
+            self.input.len()
+        }
+
+        /// Returns the underlying reader for custom decode flows.
+        #[inline]
+        pub fn into_reader(self) -> MessageReader {
+            self.input
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T: Message + Default> Req<T> {
+        /// Decodes the wrapped request.
+        #[inline]
+        pub fn get(self) -> Result<T> {
+            decode_message(self.input)
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> fmt::Debug for Req<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Req")
+                .field("encoded_len", &self.encoded_len())
+                .field("message_type", &std::any::type_name::<T>())
+                .finish()
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T: Message + Default> PrMessageDeserialize for Req<T> {
+        #[inline]
+        fn deserialize(reader: MessageReader) -> Result<Self> {
+            Ok(Self {
+                input: reader,
+                _req: PhantomData,
+            })
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> PrMessageSerialize for Req<T> {
+        #[inline]
+        fn serialize(&self, _: &mut GrpcSlice) -> Result<()> {
+            Err(Error::Codec(
+                "offload request wrappers cannot be serialized".into(),
+            ))
+        }
+    }
+
+    /// Stores a prost response that has already been encoded into a `GrpcSlice`.
+    ///
+    /// This lets application code pre-encode on a worker executor and hand the final bytes back
+    /// to gRPC without a second serialization pass on the poll thread.
+    #[cfg(feature = "offload-codec")]
+    #[derive(Clone)]
+    pub struct Resp<T> {
+        output: GrpcSlice,
+        _resp: PhantomData<T>,
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> Resp<T> {
+        /// Returns the size of the encoded payload in bytes.
+        #[inline]
+        pub fn encoded_len(&self) -> usize {
+            self.output.len()
+        }
+
+        /// Returns the serialized payload.
+        #[inline]
+        pub fn as_slice(&self) -> &[u8] {
+            self.output.as_slice()
+        }
+
+        /// Extracts the serialized payload.
+        #[inline]
+        pub fn into_slice(self) -> GrpcSlice {
+            self.output
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T: Message> Resp<T> {
+        /// Serializes a response into a `GrpcSlice`.
+        #[inline]
+        pub fn new(message: T) -> Result<Self> {
+            let mut output = GrpcSlice::default();
+            encode_message(&message, &mut output)?;
+            Ok(Self {
+                output,
+                _resp: PhantomData,
+            })
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> fmt::Debug for Resp<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Resp")
+                .field("encoded_len", &self.encoded_len())
+                .field("message_type", &std::any::type_name::<T>())
+                .finish()
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> PrMessageSerialize for Resp<T> {
+        #[inline]
+        fn serialize(&self, buf: &mut GrpcSlice) -> Result<()> {
+            *buf = self.output.clone();
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "offload-codec")]
+    impl<T> PrMessageDeserialize for Resp<T> {
+        #[inline]
+        fn deserialize(_: MessageReader) -> Result<Self> {
+            Err(Error::Codec(
+                "offload response wrappers cannot be deserialized".into(),
+            ))
+        }
+    }
+
+    #[inline]
+    pub fn ser<M: PrMessageSerialize>(msg: &M, buf: &mut GrpcSlice) -> Result<()> {
+        msg.serialize(buf)
+    }
+
+    #[inline]
+    pub fn de<M: PrMessageDeserialize>(reader: MessageReader) -> Result<M> {
+        M::deserialize(reader)
+    }
 }
 
-#[cfg(all(test, feature = "protobuf-codec", feature = "offload-codec"))]
-mod tests {
+#[cfg(all(
+    test,
+    any(feature = "protobuf-codec", feature = "protobufv3-codec"),
+    feature = "offload-codec"
+))]
+mod pb_tests {
+    #[cfg(feature = "protobuf-codec")]
     use protobuf::well_known_types::StringValue;
+    #[cfg(feature = "protobufv3-codec")]
+    use protobufv3::well_known_types::wrappers::StringValue;
 
     use super::pb_codec::{de, ser, Req, Resp};
     use crate::buf::GrpcByteBuffer;
@@ -328,6 +520,59 @@ mod tests {
 
     #[test]
     fn test_pb_resp_reuses_encoded_payload() {
+        let message = string_value("offload");
+
+        let mut expected = GrpcSlice::default();
+        ser(&message, &mut expected).unwrap();
+
+        let resp = Resp::new(message).unwrap();
+        assert_eq!(resp.as_slice(), expected.as_slice());
+
+        let mut actual = GrpcSlice::default();
+        ser(&resp, &mut actual).unwrap();
+        assert_eq!(actual, expected);
+    }
+}
+
+#[cfg(all(test, feature = "prost-codec", feature = "offload-codec"))]
+mod pr_tests {
+    use super::pr_codec::{de, ser, Req, Resp};
+    use crate::buf::GrpcByteBuffer;
+    use crate::call::MessageReader;
+    use crate::GrpcSlice;
+
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    struct StringValue {
+        #[prost(string, tag = "1")]
+        value: String,
+    }
+
+    fn string_value(value: &str) -> StringValue {
+        StringValue {
+            value: value.to_owned(),
+        }
+    }
+
+    fn to_reader(slice: GrpcSlice) -> MessageReader {
+        let buf = GrpcByteBuffer::from(&slice);
+        MessageReader::new(buf)
+    }
+
+    #[test]
+    fn test_pr_req_defers_decode() {
+        let expected = string_value("offload");
+        let mut payload = GrpcSlice::default();
+        ser(&expected, &mut payload).unwrap();
+
+        let req = de::<Req<StringValue>>(to_reader(payload)).unwrap();
+        assert!(req.encoded_len() > 0);
+
+        let decoded = req.get().unwrap();
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_pr_resp_reuses_encoded_payload() {
         let message = string_value("offload");
 
         let mut expected = GrpcSlice::default();
