@@ -5,7 +5,6 @@ use futures_executor::block_on;
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::offload::{decode, encode, Request, Response};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::*;
@@ -19,13 +18,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
-    ) {
-        let req = decode(req).expect("kick request should decode");
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let (tx, rx) = oneshot::channel();
         let tx_lock = self.tx.clone();
         let name = req.name;
@@ -34,7 +27,7 @@ impl Greeter for GreeterService {
             let greet = rx.await?;
             let mut resp = HelloReply::default();
             resp.message = format!("{greet} {name}");
-            sink.success(encode(resp)?).await?;
+            sink.success(resp).await?;
             Ok(())
         }
         .map_err(|e: Box<dyn std::error::Error>| panic!("failed to handle request: {:?}", e))
@@ -108,13 +101,7 @@ pub struct DeadLockService {
 }
 
 impl Greeter for DeadLockService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
-    ) {
-        let req = decode(req).expect("deadlock request should decode");
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let chan = Arc::new(Mutex::new(NaiveChannel {
             data: None,
             waker: None,
@@ -128,7 +115,7 @@ impl Greeter for DeadLockService {
         ctx.spawn(rx.then(|greet| async move {
             let mut resp = HelloReply::default();
             resp.message = format!("{greet} {name}");
-            if let Err(e) = sink.success(encode(resp)?).await {
+            if let Err(e) = sink.success(resp).await {
                 panic!("failed to reply {:?}", e);
             }
             let _ = reporter.send(());

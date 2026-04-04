@@ -14,28 +14,28 @@ use futures_channel::oneshot;
 use futures_executor::block_on;
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::{
-    pb_codec::{Req, Resp},
     ChannelBuilder, Environment, ResourceQuota, RpcContext, ServerBuilder, ServerCredentials,
     UnarySink,
 };
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
-use grpcio_proto::example::helloworld_grpc::{create_greeter, Greeter};
+use grpcio_proto::example::helloworld_grpc::{create_greeter_offload, GreeterOffload};
+use grpcio_proto::offload::{decode, encode, Request, Response};
 
 #[derive(Clone)]
 struct GreeterService;
 
-impl Greeter for GreeterService {
+impl GreeterOffload for GreeterService {
     fn say_hello(
         &mut self,
         ctx: RpcContext<'_>,
-        req: Req<HelloRequest>,
-        sink: UnarySink<Resp<HelloReply>>,
+        req: Request<HelloRequest>,
+        sink: UnarySink<Response<HelloReply>>,
     ) {
-        let req = req.get().expect("example request should decode");
+        let req = decode(req).expect("example request should decode");
         let mut resp = HelloReply::default();
         resp.message = format!("Hello {}", req.name);
         let f = sink
-            .success(Resp::new(resp).expect("example response should encode"))
+            .success(encode(resp).expect("example response should encode"))
             .map_err(move |e| error!("failed to reply {:?}: {:?}", req, e))
             .map(|_| ());
         ctx.spawn(f)
@@ -45,7 +45,7 @@ impl Greeter for GreeterService {
 fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
-    let service = create_greeter(GreeterService);
+    let service = create_greeter_offload(GreeterService);
     let addr = "127.0.0.1:50051";
 
     let quota = ResourceQuota::new(Some("HelloServerQuota")).resize_memory(1024 * 1024);

@@ -3,7 +3,6 @@
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::offload::{decode, encode, Request, Response};
 
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Sender};
@@ -18,13 +17,7 @@ struct GreeterService {
 }
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
-    ) {
-        let req = decode(req).expect("auth_context request should decode");
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         if let Some(auth_context) = ctx.auth_context() {
             let mut ctx_map = HashMap::new();
             for (key, value) in auth_context
@@ -39,7 +32,7 @@ impl Greeter for GreeterService {
         let mut resp = HelloReply::default();
         resp.message = format!("hello {}", req.name);
         ctx.spawn(
-            sink.success(encode(resp).expect("auth_context response should encode"))
+            sink.success(resp)
                 .map_err(|e| panic!("failed to reply {:?}", e))
                 .map(|_| ()),
         );

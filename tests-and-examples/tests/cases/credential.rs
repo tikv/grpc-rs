@@ -8,7 +8,6 @@ use grpcio::{
     UnarySink,
 };
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::offload::{decode, encode, Request, Response};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -18,18 +17,12 @@ use tests_and_examples::util::{read_cert_pair, read_single_crt};
 struct GreeterService;
 
 impl Greeter for GreeterService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        req: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
-    ) {
-        let req = decode(req).expect("credential request should decode");
+    fn say_hello(&mut self, ctx: RpcContext<'_>, req: HelloRequest, sink: UnarySink<HelloReply>) {
         let msg = format!("Hello {}", req.name);
         let mut resp = HelloReply::default();
         resp.message = msg;
         let f = sink
-            .success(encode(resp).expect("credential response should encode"))
+            .success(resp)
             .map_err(move |e| panic!("failed to reply {:?}", e))
             .map(|_| ());
         ctx.spawn(f)

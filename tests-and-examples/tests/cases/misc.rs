@@ -5,7 +5,6 @@ use futures_timer::Delay;
 use futures_util::future::{self, FutureExt as _, TryFutureExt as _};
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
-use grpcio_proto::offload::{encode, Request, Response};
 
 use std::sync::atomic::*;
 use std::sync::*;
@@ -16,17 +15,12 @@ use std::time::*;
 struct PeerService;
 
 impl Greeter for PeerService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        _: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
         let peer = ctx.peer();
         let mut resp = HelloReply::default();
         resp.message = peer;
         ctx.spawn(
-            sink.success(encode(resp).expect("peer response should encode"))
+            sink.success(resp)
                 .map_err(|e| panic!("failed to reply {:?}", e))
                 .map(|_| ()),
         );
@@ -37,19 +31,14 @@ impl Greeter for PeerService {
 struct SleepService(bool);
 
 impl Greeter for SleepService {
-    fn say_hello(
-        &mut self,
-        ctx: RpcContext<'_>,
-        _: Request<HelloRequest>,
-        sink: UnarySink<Response<HelloReply>>,
-    ) {
+    fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
         let need_delay = self.0;
         ctx.spawn(async move {
             if need_delay {
                 Delay::new(Duration::from_secs(3)).await;
             }
             let resp = HelloReply::default();
-            sink.success(encode(resp)?)
+            sink.success(resp)
                 .map_err(|e| panic!("failed to reply {:?}", e))
                 .await
                 .unwrap();
@@ -119,16 +108,11 @@ fn test_soundness() {
     }
 
     impl Greeter for CounterService {
-        fn say_hello(
-            &mut self,
-            ctx: RpcContext<'_>,
-            _: Request<HelloRequest>,
-            sink: UnarySink<Response<HelloReply>>,
-        ) {
+        fn say_hello(&mut self, ctx: RpcContext<'_>, _: HelloRequest, sink: UnarySink<HelloReply>) {
             self.c.incr();
             let resp = HelloReply::default();
             ctx.spawn(
-                sink.success(encode(resp).expect("counter response should encode"))
+                sink.success(resp)
                     .map_err(|e| panic!("failed to reply {:?}", e))
                     .map(|_| ()),
             );
