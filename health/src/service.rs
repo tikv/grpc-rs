@@ -6,6 +6,8 @@ use grpcio::{RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, UnarySin
 use log::info;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+#[cfg(feature = "prost-codec")]
+use std::convert::TryFrom;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -20,9 +22,6 @@ use crate::proto::ServingStatus;
 #[cfg(feature = "protobufv3-codec")]
 use crate::proto::health_check_response::ServingStatus;
 
-#[cfg(feature = "offload-codec")]
-use crate::proto::HealthOffload;
-
 const VERSION_STEP: usize = 8;
 const STATUS_MASK: usize = 7;
 
@@ -30,17 +29,17 @@ const STATUS_MASK: usize = 7;
     feature = "offload-codec",
     any(feature = "protobuf-codec", feature = "protobufv3-codec")
 ))]
-type HealthRequestOffload = grpcio::pb_codec::Req<HealthCheckRequest>;
+type HealthRequestPayload = grpcio::pb_codec::Req<HealthCheckRequest>;
 #[cfg(all(feature = "offload-codec", feature = "prost-codec"))]
-type HealthRequestOffload = grpcio::pr_codec::Req<HealthCheckRequest>;
+type HealthRequestPayload = grpcio::pr_codec::Req<HealthCheckRequest>;
 
 #[cfg(all(
     feature = "offload-codec",
     any(feature = "protobuf-codec", feature = "protobufv3-codec")
 ))]
-type HealthResponseOffload = grpcio::pb_codec::Resp<HealthCheckResponse>;
+type HealthResponsePayload = grpcio::pb_codec::Resp<HealthCheckResponse>;
 #[cfg(all(feature = "offload-codec", feature = "prost-codec"))]
-type HealthResponseOffload = grpcio::pr_codec::Resp<HealthCheckResponse>;
+type HealthResponsePayload = grpcio::pr_codec::Resp<HealthCheckResponse>;
 
 #[cfg(feature = "protobuf-codec")]
 fn state_to_status(state: usize) -> ServingStatus {
@@ -208,7 +207,7 @@ fn build_response(status: ServingStatus) -> HealthCheckResponse {
 }
 
 #[cfg(feature = "offload-codec")]
-fn decode_request(request: HealthRequestOffload) -> grpcio::Result<HealthCheckRequest> {
+fn decode_request(request: HealthRequestPayload) -> grpcio::Result<HealthCheckRequest> {
     request.get()
 }
 
@@ -216,15 +215,16 @@ fn decode_request(request: HealthRequestOffload) -> grpcio::Result<HealthCheckRe
     feature = "offload-codec",
     any(feature = "protobuf-codec", feature = "protobufv3-codec")
 ))]
-fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponseOffload> {
+fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponsePayload> {
     grpcio::pb_codec::Resp::new(response)
 }
 
 #[cfg(all(feature = "offload-codec", feature = "prost-codec"))]
-fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponseOffload> {
+fn encode_response(response: HealthCheckResponse) -> grpcio::Result<HealthResponsePayload> {
     grpcio::pr_codec::Resp::new(response)
 }
 
+#[cfg(not(feature = "offload-codec"))]
 impl Health for HealthService {
     fn check(
         &mut self,
@@ -291,12 +291,12 @@ impl Health for HealthService {
 }
 
 #[cfg(feature = "offload-codec")]
-impl HealthOffload for HealthService {
+impl Health for HealthService {
     fn check(
         &mut self,
         ctx: RpcContext,
-        req: HealthRequestOffload,
-        sink: UnarySink<HealthResponseOffload>,
+        req: HealthRequestPayload,
+        sink: UnarySink<HealthResponsePayload>,
     ) {
         let req = match decode_request(req) {
             Ok(req) => req,
@@ -344,8 +344,8 @@ impl HealthOffload for HealthService {
     fn watch(
         &mut self,
         ctx: RpcContext,
-        req: HealthRequestOffload,
-        mut sink: ServerStreamingSink<HealthResponseOffload>,
+        req: HealthRequestPayload,
+        mut sink: ServerStreamingSink<HealthResponsePayload>,
     ) {
         let req = match decode_request(req) {
             Ok(req) => req,
@@ -380,12 +380,9 @@ impl HealthOffload for HealthService {
         let inner = self.inner.clone();
         ctx.spawn(async move {
             let _ = sink
-                .send_all(
-                    &mut sub.map(|s| {
-                        encode_response(build_response(s))
-                            .map(|resp| (resp, WriteFlags::default()))
-                    }),
-                )
+                .send_all(&mut sub.map(|s| {
+                    encode_response(build_response(s)).map(|resp| (resp, WriteFlags::default()))
+                }))
                 .await;
             let mut inner = inner.lock().unwrap();
             if let Some(c) = inner.casts.get(&name) {

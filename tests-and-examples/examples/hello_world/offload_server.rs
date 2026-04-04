@@ -17,14 +17,17 @@ use grpcio::{
     ChannelBuilder, Environment, ResourceQuota, RpcContext, ServerBuilder, ServerCredentials,
     UnarySink,
 };
+#[cfg(feature = "prost-codec")]
+use grpcio_proto::example::helloworld::{create_greeter, Greeter};
 use grpcio_proto::example::helloworld::{HelloReply, HelloRequest};
-use grpcio_proto::example::helloworld_grpc::{create_greeter_offload, GreeterOffload};
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
+use grpcio_proto::example::helloworld_grpc::{create_greeter, Greeter};
 use grpcio_proto::offload::{decode, encode, Request, Response};
 
 #[derive(Clone)]
 struct GreeterService;
 
-impl GreeterOffload for GreeterService {
+impl Greeter for GreeterService {
     fn say_hello(
         &mut self,
         ctx: RpcContext<'_>,
@@ -45,7 +48,7 @@ impl GreeterOffload for GreeterService {
 fn main() {
     let _guard = log_util::init_log(None);
     let env = Arc::new(Environment::new(1));
-    let service = create_greeter_offload(GreeterService);
+    let service = create_greeter(GreeterService);
     let addr = "127.0.0.1:50051";
 
     let quota = ResourceQuota::new(Some("HelloServerQuota")).resize_memory(1024 * 1024);

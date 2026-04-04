@@ -15,6 +15,7 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<
     super::helloworld::HelloRequest,
     super::helloworld::HelloReply,
@@ -32,7 +33,7 @@ const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_GREETER_SAY_HELLO_OFFLOAD: ::grpcio::Method<
+const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::helloworld::HelloRequest>,
     ::grpcio::pb_codec::Resp<super::helloworld::HelloReply>,
 > = ::grpcio::Method {
@@ -98,6 +99,7 @@ impl GreeterClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait Greeter {
     fn say_hello(
         &mut self,
@@ -110,7 +112,7 @@ pub trait Greeter {
 }
 
 #[cfg(feature = "offload-codec")]
-pub trait GreeterOffload {
+pub trait Greeter {
     fn say_hello(
         &mut self,
         ctx: ::grpcio::RpcContext,
@@ -121,6 +123,7 @@ pub trait GreeterOffload {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
@@ -131,14 +134,11 @@ pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Se
 }
 
 #[cfg(feature = "offload-codec")]
-pub fn create_greeter_offload<S: GreeterOffload + Send + Clone + 'static>(
-    s: S,
-) -> ::grpcio::Service {
+pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
-    builder = builder
-        .add_unary_handler(&METHOD_GREETER_SAY_HELLO_OFFLOAD, move |ctx, req, resp| {
-            instance.say_hello(ctx, req, resp)
-        });
+    builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO, move |ctx, req, resp| {
+        instance.say_hello(ctx, req, resp)
+    });
     builder.build()
 }

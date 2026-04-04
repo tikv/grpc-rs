@@ -15,6 +15,7 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_HEALTH_CHECK: ::grpcio::Method<
     super::health::HealthCheckRequest,
     super::health::HealthCheckResponse,
@@ -32,7 +33,7 @@ const METHOD_HEALTH_CHECK: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_HEALTH_CHECK_OFFLOAD: ::grpcio::Method<
+const METHOD_HEALTH_CHECK: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::health::HealthCheckRequest>,
     ::grpcio::pb_codec::Resp<super::health::HealthCheckResponse>,
 > = ::grpcio::Method {
@@ -48,6 +49,7 @@ const METHOD_HEALTH_CHECK_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_HEALTH_WATCH: ::grpcio::Method<
     super::health::HealthCheckRequest,
     super::health::HealthCheckResponse,
@@ -65,7 +67,7 @@ const METHOD_HEALTH_WATCH: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_HEALTH_WATCH_OFFLOAD: ::grpcio::Method<
+const METHOD_HEALTH_WATCH: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::health::HealthCheckRequest>,
     ::grpcio::pb_codec::Resp<super::health::HealthCheckResponse>,
 > = ::grpcio::Method {
@@ -145,6 +147,7 @@ impl HealthClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait Health {
     fn check(
         &mut self,
@@ -165,7 +168,7 @@ pub trait Health {
 }
 
 #[cfg(feature = "offload-codec")]
-pub trait HealthOffload {
+pub trait Health {
     fn check(
         &mut self,
         ctx: ::grpcio::RpcContext,
@@ -186,6 +189,7 @@ pub trait HealthOffload {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
@@ -200,16 +204,15 @@ pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Serv
 }
 
 #[cfg(feature = "offload-codec")]
-pub fn create_health_offload<S: HealthOffload + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
-    builder = builder.add_unary_handler(&METHOD_HEALTH_CHECK_OFFLOAD, move |ctx, req, resp| {
+    builder = builder.add_unary_handler(&METHOD_HEALTH_CHECK, move |ctx, req, resp| {
         instance.check(ctx, req, resp)
     });
     let mut instance = s;
-    builder = builder
-        .add_server_streaming_handler(&METHOD_HEALTH_WATCH_OFFLOAD, move |ctx, req, resp| {
-            instance.watch(ctx, req, resp)
-        });
+    builder = builder.add_server_streaming_handler(&METHOD_HEALTH_WATCH, move |ctx, req, resp| {
+        instance.watch(ctx, req, resp)
+    });
     builder.build()
 }

@@ -8,7 +8,7 @@ use grpc_proto::offload::{decode, encode, Request, Response};
 use grpc_proto::testing::control::{
     ClientArgs, ClientStatus, CoreRequest, CoreResponse, ServerArgs, ServerStatus, Void,
 };
-use grpc_proto::testing::services_grpc::WorkerServiceOffload;
+use grpc_proto::testing::services_grpc::WorkerService;
 use grpcio::{DuplexSink, RequestStream, RpcContext, UnarySink, WriteFlags};
 
 use crate::client::Client;
@@ -28,7 +28,7 @@ impl OffloadWorker {
     }
 }
 
-impl WorkerServiceOffload for OffloadWorker {
+impl WorkerService for OffloadWorker {
     fn run_server(
         &mut self,
         ctx: RpcContext,

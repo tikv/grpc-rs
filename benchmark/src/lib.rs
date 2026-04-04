@@ -25,19 +25,23 @@ macro_rules! spawn {
     };
 }
 
+#[cfg(not(feature = "offload-codec"))]
 mod bench;
 mod client;
-mod util;
 #[cfg(feature = "offload-codec")]
 mod offload_bench;
 #[cfg(feature = "offload-codec")]
 mod offload_server;
 #[cfg(feature = "offload-codec")]
 mod offload_worker;
+#[cfg(not(feature = "offload-codec"))]
 mod server;
+mod util;
+#[cfg(not(feature = "offload-codec"))]
 mod worker;
 
-pub use crate::util::log_util::init_log;
 #[cfg(feature = "offload-codec")]
 pub use crate::offload_worker::OffloadWorker;
+pub use crate::util::log_util::init_log;
+#[cfg(not(feature = "offload-codec"))]
 pub use crate::worker::Worker;

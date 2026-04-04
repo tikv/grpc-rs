@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use grpc::ServerCredentials;
 use grpc_proto::testing::control::{ServerConfig, ServerStatus, ServerType};
-use grpc_proto::testing::services_grpc::create_benchmark_service_offload;
+use grpc_proto::testing::services_grpc::create_benchmark_service;
 use grpc_proto::testing::stats::ServerStats;
 use grpc_proto::util as proto_util;
 use grpcio::{
@@ -45,7 +45,7 @@ impl OffloadServer {
         let service = match server_type {
             ServerType::ASYNC_SERVER => {
                 let b = OffloadBenchmark { keep_running };
-                create_benchmark_service_offload(b)
+                create_benchmark_service(b)
             }
             ServerType::ASYNC_GENERIC_SERVER => {
                 let g = Generic { keep_running };

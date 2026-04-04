@@ -15,6 +15,7 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_EMPTY_CALL: ::grpcio::Method<super::empty::Empty, super::empty::Empty> =
     ::grpcio::Method {
         ty: ::grpcio::MethodType::Unary,
@@ -30,7 +31,7 @@ const METHOD_TEST_SERVICE_EMPTY_CALL: ::grpcio::Method<super::empty::Empty, supe
     };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_EMPTY_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_EMPTY_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::empty::Empty>,
     ::grpcio::pb_codec::Resp<super::empty::Empty>,
 > = ::grpcio::Method {
@@ -46,6 +47,7 @@ const METHOD_TEST_SERVICE_EMPTY_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_UNARY_CALL: ::grpcio::Method<
     super::messages::SimpleRequest,
     super::messages::SimpleResponse,
@@ -63,7 +65,7 @@ const METHOD_TEST_SERVICE_UNARY_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_UNARY_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_UNARY_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::SimpleRequest>,
     ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>,
 > = ::grpcio::Method {
@@ -79,6 +81,7 @@ const METHOD_TEST_SERVICE_UNARY_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL: ::grpcio::Method<
     super::messages::SimpleRequest,
     super::messages::SimpleResponse,
@@ -96,7 +99,7 @@ const METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::SimpleRequest>,
     ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>,
 > = ::grpcio::Method {
@@ -112,6 +115,7 @@ const METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL: ::grpcio::Method<
     super::messages::StreamingOutputCallRequest,
     super::messages::StreamingOutputCallResponse,
@@ -129,7 +133,7 @@ const METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::StreamingOutputCallRequest>,
     ::grpcio::pb_codec::Resp<super::messages::StreamingOutputCallResponse>,
 > = ::grpcio::Method {
@@ -145,6 +149,7 @@ const METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_STREAMING_INPUT_CALL: ::grpcio::Method<
     super::messages::StreamingInputCallRequest,
     super::messages::StreamingInputCallResponse,
@@ -162,7 +167,7 @@ const METHOD_TEST_SERVICE_STREAMING_INPUT_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_STREAMING_INPUT_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_STREAMING_INPUT_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::StreamingInputCallRequest>,
     ::grpcio::pb_codec::Resp<super::messages::StreamingInputCallResponse>,
 > = ::grpcio::Method {
@@ -178,6 +183,7 @@ const METHOD_TEST_SERVICE_STREAMING_INPUT_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_FULL_DUPLEX_CALL: ::grpcio::Method<
     super::messages::StreamingOutputCallRequest,
     super::messages::StreamingOutputCallResponse,
@@ -195,7 +201,7 @@ const METHOD_TEST_SERVICE_FULL_DUPLEX_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_FULL_DUPLEX_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_FULL_DUPLEX_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::StreamingOutputCallRequest>,
     ::grpcio::pb_codec::Resp<super::messages::StreamingOutputCallResponse>,
 > = ::grpcio::Method {
@@ -211,6 +217,7 @@ const METHOD_TEST_SERVICE_FULL_DUPLEX_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_HALF_DUPLEX_CALL: ::grpcio::Method<
     super::messages::StreamingOutputCallRequest,
     super::messages::StreamingOutputCallResponse,
@@ -228,7 +235,7 @@ const METHOD_TEST_SERVICE_HALF_DUPLEX_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_HALF_DUPLEX_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_HALF_DUPLEX_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::StreamingOutputCallRequest>,
     ::grpcio::pb_codec::Resp<super::messages::StreamingOutputCallResponse>,
 > = ::grpcio::Method {
@@ -244,6 +251,7 @@ const METHOD_TEST_SERVICE_HALF_DUPLEX_CALL_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
     super::empty::Empty,
     super::empty::Empty,
@@ -261,7 +269,7 @@ const METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::empty::Empty>,
     ::grpcio::pb_codec::Resp<super::empty::Empty>,
 > = ::grpcio::Method {
@@ -501,6 +509,7 @@ impl TestServiceClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait TestService {
     fn empty_call(
         &mut self,
@@ -569,7 +578,7 @@ pub trait TestService {
 }
 
 #[cfg(feature = "offload-codec")]
-pub trait TestServiceOffload {
+pub trait TestService {
     fn empty_call(
         &mut self,
         ctx: ::grpcio::RpcContext,
@@ -650,6 +659,7 @@ pub trait TestServiceOffload {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_test_service<S: TestService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
@@ -694,53 +704,50 @@ pub fn create_test_service<S: TestService + Send + Clone + 'static>(s: S) -> ::g
 }
 
 #[cfg(feature = "offload-codec")]
-pub fn create_test_service_offload<S: TestServiceOffload + Send + Clone + 'static>(
-    s: S,
-) -> ::grpcio::Service {
+pub fn create_test_service<S: TestService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
-    builder = builder.add_unary_handler(
-        &METHOD_TEST_SERVICE_EMPTY_CALL_OFFLOAD,
-        move |ctx, req, resp| instance.empty_call(ctx, req, resp),
-    );
+    builder = builder.add_unary_handler(&METHOD_TEST_SERVICE_EMPTY_CALL, move |ctx, req, resp| {
+        instance.empty_call(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_unary_handler(&METHOD_TEST_SERVICE_UNARY_CALL, move |ctx, req, resp| {
+        instance.unary_call(ctx, req, resp)
+    });
     let mut instance = s.clone();
     builder = builder.add_unary_handler(
-        &METHOD_TEST_SERVICE_UNARY_CALL_OFFLOAD,
-        move |ctx, req, resp| instance.unary_call(ctx, req, resp),
-    );
-    let mut instance = s.clone();
-    builder = builder.add_unary_handler(
-        &METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL_OFFLOAD,
+        &METHOD_TEST_SERVICE_CACHEABLE_UNARY_CALL,
         move |ctx, req, resp| instance.cacheable_unary_call(ctx, req, resp),
     );
     let mut instance = s.clone();
     builder = builder.add_server_streaming_handler(
-        &METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL_OFFLOAD,
+        &METHOD_TEST_SERVICE_STREAMING_OUTPUT_CALL,
         move |ctx, req, resp| instance.streaming_output_call(ctx, req, resp),
     );
     let mut instance = s.clone();
     builder = builder.add_client_streaming_handler(
-        &METHOD_TEST_SERVICE_STREAMING_INPUT_CALL_OFFLOAD,
+        &METHOD_TEST_SERVICE_STREAMING_INPUT_CALL,
         move |ctx, req, resp| instance.streaming_input_call(ctx, req, resp),
     );
     let mut instance = s.clone();
     builder = builder.add_duplex_streaming_handler(
-        &METHOD_TEST_SERVICE_FULL_DUPLEX_CALL_OFFLOAD,
+        &METHOD_TEST_SERVICE_FULL_DUPLEX_CALL,
         move |ctx, req, resp| instance.full_duplex_call(ctx, req, resp),
     );
     let mut instance = s.clone();
     builder = builder.add_duplex_streaming_handler(
-        &METHOD_TEST_SERVICE_HALF_DUPLEX_CALL_OFFLOAD,
+        &METHOD_TEST_SERVICE_HALF_DUPLEX_CALL,
         move |ctx, req, resp| instance.half_duplex_call(ctx, req, resp),
     );
     let mut instance = s;
     builder = builder.add_unary_handler(
-        &METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL_OFFLOAD,
+        &METHOD_TEST_SERVICE_UNIMPLEMENTED_CALL,
         move |ctx, req, resp| instance.unimplemented_call(ctx, req, resp),
     );
     builder.build()
 }
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
     super::empty::Empty,
     super::empty::Empty,
@@ -758,7 +765,7 @@ const METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL_OFFLOAD: ::grpcio::Method<
+const METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::empty::Empty>,
     ::grpcio::pb_codec::Resp<super::empty::Empty>,
 > = ::grpcio::Method {
@@ -825,6 +832,7 @@ impl UnimplementedServiceClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait UnimplementedService {
     fn unimplemented_call(
         &mut self,
@@ -837,7 +845,7 @@ pub trait UnimplementedService {
 }
 
 #[cfg(feature = "offload-codec")]
-pub trait UnimplementedServiceOffload {
+pub trait UnimplementedService {
     fn unimplemented_call(
         &mut self,
         ctx: ::grpcio::RpcContext,
@@ -848,6 +856,7 @@ pub trait UnimplementedServiceOffload {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_unimplemented_service<S: UnimplementedService + Send + Clone + 'static>(
     s: S,
 ) -> ::grpcio::Service {
@@ -861,20 +870,19 @@ pub fn create_unimplemented_service<S: UnimplementedService + Send + Clone + 'st
 }
 
 #[cfg(feature = "offload-codec")]
-pub fn create_unimplemented_service_offload<
-    S: UnimplementedServiceOffload + Send + Clone + 'static,
->(
+pub fn create_unimplemented_service<S: UnimplementedService + Send + Clone + 'static>(
     s: S,
 ) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
     builder = builder.add_unary_handler(
-        &METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL_OFFLOAD,
+        &METHOD_UNIMPLEMENTED_SERVICE_UNIMPLEMENTED_CALL,
         move |ctx, req, resp| instance.unimplemented_call(ctx, req, resp),
     );
     builder.build()
 }
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_RECONNECT_SERVICE_START: ::grpcio::Method<
     super::messages::ReconnectParams,
     super::empty::Empty,
@@ -892,7 +900,7 @@ const METHOD_RECONNECT_SERVICE_START: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_RECONNECT_SERVICE_START_OFFLOAD: ::grpcio::Method<
+const METHOD_RECONNECT_SERVICE_START: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::messages::ReconnectParams>,
     ::grpcio::pb_codec::Resp<super::empty::Empty>,
 > = ::grpcio::Method {
@@ -908,6 +916,7 @@ const METHOD_RECONNECT_SERVICE_START_OFFLOAD: ::grpcio::Method<
     },
 };
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_RECONNECT_SERVICE_STOP: ::grpcio::Method<
     super::empty::Empty,
     super::messages::ReconnectInfo,
@@ -925,7 +934,7 @@ const METHOD_RECONNECT_SERVICE_STOP: ::grpcio::Method<
 };
 
 #[cfg(feature = "offload-codec")]
-const METHOD_RECONNECT_SERVICE_STOP_OFFLOAD: ::grpcio::Method<
+const METHOD_RECONNECT_SERVICE_STOP: ::grpcio::Method<
     ::grpcio::pb_codec::Req<super::empty::Empty>,
     ::grpcio::pb_codec::Resp<super::messages::ReconnectInfo>,
 > = ::grpcio::Method {
@@ -1024,6 +1033,7 @@ impl ReconnectServiceClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait ReconnectService {
     fn start(
         &mut self,
@@ -1044,7 +1054,7 @@ pub trait ReconnectService {
 }
 
 #[cfg(feature = "offload-codec")]
-pub trait ReconnectServiceOffload {
+pub trait ReconnectService {
     fn start(
         &mut self,
         ctx: ::grpcio::RpcContext,
@@ -1063,6 +1073,7 @@ pub trait ReconnectServiceOffload {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_reconnect_service<S: ReconnectService + Send + Clone + 'static>(
     s: S,
 ) -> ::grpcio::Service {
@@ -1079,19 +1090,17 @@ pub fn create_reconnect_service<S: ReconnectService + Send + Clone + 'static>(
 }
 
 #[cfg(feature = "offload-codec")]
-pub fn create_reconnect_service_offload<S: ReconnectServiceOffload + Send + Clone + 'static>(
+pub fn create_reconnect_service<S: ReconnectService + Send + Clone + 'static>(
     s: S,
 ) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
-    builder = builder.add_unary_handler(
-        &METHOD_RECONNECT_SERVICE_START_OFFLOAD,
-        move |ctx, req, resp| instance.start(ctx, req, resp),
-    );
+    builder = builder.add_unary_handler(&METHOD_RECONNECT_SERVICE_START, move |ctx, req, resp| {
+        instance.start(ctx, req, resp)
+    });
     let mut instance = s;
-    builder = builder.add_unary_handler(
-        &METHOD_RECONNECT_SERVICE_STOP_OFFLOAD,
-        move |ctx, req, resp| instance.stop(ctx, req, resp),
-    );
+    builder = builder.add_unary_handler(&METHOD_RECONNECT_SERVICE_STOP, move |ctx, req, resp| {
+        instance.stop(ctx, req, resp)
+    });
     builder.build()
 }

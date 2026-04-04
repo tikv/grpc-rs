@@ -71,7 +71,7 @@ impl RouteGuide for CancelService {
 
         let f = async move {
             sink.send_all(&mut rx.map(|_| Ok((Feature::default(), WriteFlags::default()))))
-            .await?;
+                .await?;
             sink.close().await?;
             Ok(())
         }

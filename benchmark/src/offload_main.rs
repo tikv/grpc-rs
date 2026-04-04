@@ -12,7 +12,7 @@ use benchmark::{init_log, OffloadWorker};
 use clap::Parser;
 use futures_channel::oneshot;
 use grpc::{Environment, ServerBuilder, ServerCredentials};
-use grpc_proto::testing::services_grpc::create_worker_service_offload;
+use grpc_proto::testing::services_grpc::create_worker_service;
 use rand::Rng;
 
 const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
@@ -35,7 +35,7 @@ fn main() {
     let env = Arc::new(Environment::new(2));
     let (tx, rx) = oneshot::channel();
     let worker = OffloadWorker::new(tx);
-    let service = create_worker_service_offload(worker);
+    let service = create_worker_service(worker);
     let mut server = ServerBuilder::new(env)
         .register_service(service)
         .build()

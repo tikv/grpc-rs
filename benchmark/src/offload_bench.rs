@@ -15,7 +15,7 @@ use grpc::{
 };
 use grpc_proto::offload::{decode, encode, Request, Response};
 use grpc_proto::testing::messages::{SimpleRequest, SimpleResponse};
-use grpc_proto::testing::services_grpc::BenchmarkServiceOffload;
+use grpc_proto::testing::services_grpc::BenchmarkService;
 use grpc_proto::util;
 use grpcio::GrpcSlice;
 
@@ -32,7 +32,7 @@ pub struct OffloadBenchmark {
     pub keep_running: Arc<AtomicBool>,
 }
 
-impl BenchmarkServiceOffload for OffloadBenchmark {
+impl BenchmarkService for OffloadBenchmark {
     fn unary_call(
         &mut self,
         ctx: RpcContext,

@@ -11,6 +11,7 @@ pub struct HelloReply {
     #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
 }
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<HelloRequest, HelloReply> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/helloworld.Greeter/SayHello",
@@ -24,7 +25,7 @@ const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<HelloRequest, HelloReply> = ::g
     },
 };
 #[cfg(feature = "offload-codec")]
-const METHOD_GREETER_SAY_HELLO_OFFLOAD: ::grpcio::Method<
+const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<
     ::grpcio::pr_codec::Req<HelloRequest>,
     ::grpcio::pr_codec::Resp<HelloReply>,
 > = ::grpcio::Method {
@@ -80,6 +81,7 @@ impl GreeterClient {
         self.client.spawn(f)
     }
 }
+#[cfg(not(feature = "offload-codec"))]
 pub trait Greeter {
     fn say_hello(
         &mut self,
@@ -90,6 +92,7 @@ pub trait Greeter {
         grpcio::unimplemented_call!(ctx, sink)
     }
 }
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
@@ -99,7 +102,7 @@ pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Se
     builder.build()
 }
 #[cfg(feature = "offload-codec")]
-pub trait GreeterOffload {
+pub trait Greeter {
     fn say_hello(
         &mut self,
         ctx: ::grpcio::RpcContext,
@@ -110,14 +113,11 @@ pub trait GreeterOffload {
     }
 }
 #[cfg(feature = "offload-codec")]
-pub fn create_greeter_offload<S: GreeterOffload + Send + Clone + 'static>(
-    s: S,
-) -> ::grpcio::Service {
+pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;
-    builder = builder
-        .add_unary_handler(&METHOD_GREETER_SAY_HELLO_OFFLOAD, move |ctx, req, resp| {
-            instance.say_hello(ctx, req, resp)
-        });
+    builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO, move |ctx, req, resp| {
+        instance.say_hello(ctx, req, resp)
+    });
     builder.build()
 }
