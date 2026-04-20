@@ -104,14 +104,18 @@ impl ServiceGenerator for Generator {
 }
 
 fn generate_methods(service: &Service, buf: &mut String) {
-    let service_path = if service.package.is_empty() {
-        format!("/{}", service.proto_name)
-    } else {
-        format!("/{}.{}", service.package, service.proto_name)
-    };
+    let service_path = service_path(service);
 
     for method in &service.methods {
         generate_method(&service.name, &service_path, method, buf);
+    }
+}
+
+fn service_path(service: &Service) -> String {
+    if service.package.is_empty() {
+        format!("/{}", service.proto_name)
+    } else {
+        format!("/{}.{}", service.package, service.proto_name)
     }
 }
 
@@ -123,19 +127,54 @@ fn const_method_name(service_name: &str, method: &Method) -> String {
     )
 }
 
+fn offload_input_type(method: &Method) -> String {
+    format!("{}<{}>", fq_grpc("pr_codec::Req"), method.input_type)
+}
+
+fn offload_output_type(method: &Method) -> String {
+    format!("{}<{}>", fq_grpc("pr_codec::Resp"), method.output_type)
+}
+
 fn generate_method(service_name: &str, service_path: &str, method: &Method, buf: &mut String) {
-    let name = const_method_name(service_name, method);
-    let ty = format!(
+    generate_method_variant(
+        service_name,
+        service_path,
+        method,
+        "#[cfg(not(feature = \"offload-codec\"))]\n",
+        &method.input_type,
+        &method.output_type,
+        buf,
+    );
+    generate_method_variant(
+        service_name,
+        service_path,
+        method,
+        "#[cfg(feature = \"offload-codec\")]\n",
+        &offload_input_type(method),
+        &offload_output_type(method),
+        buf,
+    );
+}
+
+fn generate_method_variant(
+    service_name: &str,
+    service_path: &str,
+    method: &Method,
+    cfg: &str,
+    input_type: &str,
+    output_type: &str,
+    buf: &mut String,
+) {
+    buf.push_str(cfg);
+    buf.push_str("const ");
+    buf.push_str(&const_method_name(service_name, method));
+    buf.push_str(": ");
+    buf.push_str(&format!(
         "{}<{}, {}>",
         fq_grpc("Method"),
-        method.input_type,
-        method.output_type
-    );
-
-    buf.push_str("const ");
-    buf.push_str(&name);
-    buf.push_str(": ");
-    buf.push_str(&ty);
+        input_type,
+        output_type
+    ));
     buf.push_str(" = ");
     generate_method_body(service_path, method, buf);
 }
@@ -211,11 +250,7 @@ fn generate_client_methods(service: &Service, buf: &mut String) {
 }
 
 fn generate_client_method(service_name: &str, method: &Method, buf: &mut String) {
-    let name = &format!(
-        "METHOD_{}_{}",
-        to_snake_case(service_name).to_uppercase(),
-        method.name.to_uppercase()
-    );
+    let name = const_method_name(service_name, method);
     match MethodType::from_method(method) {
         MethodType::Unary => {
             ClientMethod::new(
@@ -225,7 +260,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                 false,
                 vec![&method.output_type],
                 "unary_call",
-                name,
+                &name,
             )
             .generate(buf);
             ClientMethod::new(
@@ -235,7 +270,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                 false,
                 vec![&method.output_type],
                 "unary_call",
-                name,
+                &name,
             )
             .generate(buf);
             ClientMethod::new(
@@ -249,7 +284,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     method.output_type
                 )],
                 "unary_call",
-                name,
+                &name,
             )
             .generate(buf);
             ClientMethod::new(
@@ -263,7 +298,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     method.output_type
                 )],
                 "unary_call",
-                name,
+                &name,
             )
             .generate(buf);
         }
@@ -282,7 +317,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     ),
                 ],
                 "client_streaming",
-                name,
+                &name,
             )
             .generate(buf);
             ClientMethod::new(
@@ -299,7 +334,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     ),
                 ],
                 "client_streaming",
-                name,
+                &name,
             )
             .generate(buf);
         }
@@ -315,7 +350,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     method.output_type
                 )],
                 "server_streaming",
-                name,
+                &name,
             )
             .generate(buf);
             ClientMethod::new(
@@ -329,7 +364,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     method.output_type
                 )],
                 "server_streaming",
-                name,
+                &name,
             )
             .generate(buf);
         }
@@ -348,7 +383,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     ),
                 ],
                 "duplex_streaming",
-                name,
+                &name,
             )
             .generate(buf);
             ClientMethod::new(
@@ -365,7 +400,7 @@ fn generate_client_method(service_name: &str, method: &Method, buf: &mut String)
                     ),
                 ],
                 "duplex_streaming",
-                name,
+                &name,
             )
             .generate(buf);
         }
@@ -444,13 +479,17 @@ impl<'a> ClientMethod<'a> {
 
     // Method delegates to the inner client.
     fn generate_inner_body(&self, buf: &mut String) {
+        self.generate_inner_call(buf, self.data_name);
+    }
+
+    fn generate_inner_call(&self, buf: &mut String, data_name: &str) {
         buf.push_str("self.client.");
         buf.push_str(self.inner_method_name);
         if self.r#async {
             buf.push_str("_async");
         }
         buf.push_str("(&");
-        buf.push_str(self.data_name);
+        buf.push_str(data_name);
         if self.request.is_some() {
             buf.push_str(", req");
         }
@@ -468,49 +507,67 @@ fn generate_spawn(buf: &mut String) {
 }
 
 fn generate_server(service: &Service, buf: &mut String) {
-    buf.push_str("pub trait ");
-    buf.push_str(&service.name);
-    buf.push_str(" {\n");
-    generate_server_methods(service, buf);
-    buf.push_str("}\n");
+    buf.push_str("#[cfg(not(feature = \"offload-codec\"))]\n");
+    generate_server_trait(&service.name, &service.methods, false, buf);
+    buf.push_str("#[cfg(not(feature = \"offload-codec\"))]\n");
+    generate_create_server(&service.name, &service.methods, buf);
 
-    buf.push_str("pub fn create_");
-    buf.push_str(&to_snake_case(&service.name));
+    buf.push_str("#[cfg(feature = \"offload-codec\")]\n");
+    generate_server_trait(&service.name, &service.methods, true, buf);
+    buf.push_str("#[cfg(feature = \"offload-codec\")]\n");
+    generate_create_server(&service.name, &service.methods, buf);
+}
+
+fn generate_server_trait(service_name: &str, methods: &[Method], offload: bool, buf: &mut String) {
+    buf.push_str("pub trait ");
+    buf.push_str(service_name);
+    buf.push_str(" {\n");
+    generate_server_methods(methods, offload, buf);
+    buf.push_str("}\n");
+}
+
+fn generate_create_server(service_name: &str, methods: &[Method], buf: &mut String) {
+    buf.push_str("pub fn ");
+    buf.push_str(&format!("create_{}", to_snake_case(service_name)));
     buf.push_str("<S: ");
-    buf.push_str(&service.name);
+    buf.push_str(service_name);
     buf.push_str(" + Send + Clone + 'static>(s: S) -> ");
     buf.push_str(&fq_grpc("Service"));
     buf.push_str(" {\n");
     buf.push_str("let mut builder = ::grpcio::ServiceBuilder::new();\n");
 
-    for method in &service.methods[0..service.methods.len() - 1] {
+    for method in &methods[0..methods.len() - 1] {
         buf.push_str("let mut instance = s.clone();\n");
-        generate_method_bind(&service.name, method, buf);
+        generate_method_bind(service_name, method, buf);
     }
 
     buf.push_str("let mut instance = s;\n");
-    generate_method_bind(
-        &service.name,
-        &service.methods[service.methods.len() - 1],
-        buf,
-    );
+    generate_method_bind(service_name, &methods[methods.len() - 1], buf);
 
     buf.push_str("builder.build()\n");
     buf.push_str("}\n");
 }
 
-fn generate_server_methods(service: &Service, buf: &mut String) {
-    for method in &service.methods {
+fn generate_server_methods(methods: &[Method], offload: bool, buf: &mut String) {
+    for method in methods {
         let method_type = MethodType::from_method(method);
         let request_arg = match method_type {
-            MethodType::Unary | MethodType::ServerStreaming => {
-                format!("req: {}", method.input_type)
-            }
-            MethodType::ClientStreaming | MethodType::Duplex => format!(
-                "stream: {}<{}>",
-                fq_grpc("RequestStream"),
-                method.input_type
+            MethodType::Unary | MethodType::ServerStreaming => format!(
+                "req: {}",
+                if offload {
+                    offload_input_type(method)
+                } else {
+                    method.input_type.to_string()
+                }
             ),
+            MethodType::ClientStreaming | MethodType::Duplex => {
+                let input = if offload {
+                    offload_input_type(method)
+                } else {
+                    method.input_type.to_string()
+                };
+                format!("stream: {}<{}>", fq_grpc("RequestStream"), input)
+            }
         };
         let response_type = match method_type {
             MethodType::Unary => "UnarySink",
@@ -518,13 +575,19 @@ fn generate_server_methods(service: &Service, buf: &mut String) {
             MethodType::ServerStreaming => "ServerStreamingSink",
             MethodType::Duplex => "DuplexSink",
         };
-        generate_server_method(method, &request_arg, response_type, buf);
+        let output_type = if offload {
+            offload_output_type(method)
+        } else {
+            method.output_type.to_string()
+        };
+        generate_server_method(method, &request_arg, &output_type, response_type, buf);
     }
 }
 
 fn generate_server_method(
     method: &Method,
     request_arg: &str,
+    output_type: &str,
     response_type: &str,
     buf: &mut String,
 ) {
@@ -537,7 +600,7 @@ fn generate_server_method(
     buf.push_str(", sink: ");
     buf.push_str(&fq_grpc(response_type));
     buf.push('<');
-    buf.push_str(&method.output_type);
+    buf.push_str(output_type);
     buf.push('>');
     buf.push_str(") { grpcio::unimplemented_call!(ctx, sink) }\n");
 }

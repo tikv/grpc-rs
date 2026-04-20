@@ -16,6 +16,7 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_ROUTE_GUIDE_GET_FEATURE: ::grpcio::Method<super::route_guide::Point, super::route_guide::Feature> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/routeguide.RouteGuide/GetFeature",
@@ -23,6 +24,15 @@ const METHOD_ROUTE_GUIDE_GET_FEATURE: ::grpcio::Method<super::route_guide::Point
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_ROUTE_GUIDE_GET_FEATURE: ::grpcio::Method<::grpcio::pb_codec::Req<super::route_guide::Point>, ::grpcio::pb_codec::Resp<super::route_guide::Feature>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/routeguide.RouteGuide/GetFeature",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_ROUTE_GUIDE_LIST_FEATURES: ::grpcio::Method<super::route_guide::Rectangle, super::route_guide::Feature> = ::grpcio::Method {
     ty: ::grpcio::MethodType::ServerStreaming,
     name: "/routeguide.RouteGuide/ListFeatures",
@@ -30,6 +40,15 @@ const METHOD_ROUTE_GUIDE_LIST_FEATURES: ::grpcio::Method<super::route_guide::Rec
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_ROUTE_GUIDE_LIST_FEATURES: ::grpcio::Method<::grpcio::pb_codec::Req<super::route_guide::Rectangle>, ::grpcio::pb_codec::Resp<super::route_guide::Feature>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::ServerStreaming,
+    name: "/routeguide.RouteGuide/ListFeatures",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_ROUTE_GUIDE_RECORD_ROUTE: ::grpcio::Method<super::route_guide::Point, super::route_guide::RouteSummary> = ::grpcio::Method {
     ty: ::grpcio::MethodType::ClientStreaming,
     name: "/routeguide.RouteGuide/RecordRoute",
@@ -37,7 +56,24 @@ const METHOD_ROUTE_GUIDE_RECORD_ROUTE: ::grpcio::Method<super::route_guide::Poin
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_ROUTE_GUIDE_RECORD_ROUTE: ::grpcio::Method<::grpcio::pb_codec::Req<super::route_guide::Point>, ::grpcio::pb_codec::Resp<super::route_guide::RouteSummary>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::ClientStreaming,
+    name: "/routeguide.RouteGuide/RecordRoute",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_ROUTE_GUIDE_ROUTE_CHAT: ::grpcio::Method<super::route_guide::RouteNote, super::route_guide::RouteNote> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Duplex,
+    name: "/routeguide.RouteGuide/RouteChat",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(feature = "offload-codec")]
+const METHOD_ROUTE_GUIDE_ROUTE_CHAT: ::grpcio::Method<::grpcio::pb_codec::Req<super::route_guide::RouteNote>, ::grpcio::pb_codec::Resp<super::route_guide::RouteNote>> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Duplex,
     name: "/routeguide.RouteGuide/RouteChat",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
@@ -100,6 +136,7 @@ impl RouteGuideClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait RouteGuide {
     fn get_feature(&mut self, ctx: ::grpcio::RpcContext, _req: super::route_guide::Point, sink: ::grpcio::UnarySink<super::route_guide::Feature>) {
         grpcio::unimplemented_call!(ctx, sink)
@@ -115,6 +152,45 @@ pub trait RouteGuide {
     }
 }
 
+#[cfg(feature = "offload-codec")]
+pub trait RouteGuide {
+    fn get_feature(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::route_guide::Point>, sink: ::grpcio::UnarySink<::grpcio::pb_codec::Resp<super::route_guide::Feature>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn list_features(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::route_guide::Rectangle>, sink: ::grpcio::ServerStreamingSink<::grpcio::pb_codec::Resp<super::route_guide::Feature>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn record_route(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::route_guide::Point>>, sink: ::grpcio::ClientStreamingSink<::grpcio::pb_codec::Resp<super::route_guide::RouteSummary>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn route_chat(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::route_guide::RouteNote>>, sink: ::grpcio::DuplexSink<::grpcio::pb_codec::Resp<super::route_guide::RouteNote>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+}
+
+#[cfg(not(feature = "offload-codec"))]
+pub fn create_route_guide<S: RouteGuide + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+    let mut builder = ::grpcio::ServiceBuilder::new();
+    let mut instance = s.clone();
+    builder = builder.add_unary_handler(&METHOD_ROUTE_GUIDE_GET_FEATURE, move |ctx, req, resp| {
+        instance.get_feature(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_server_streaming_handler(&METHOD_ROUTE_GUIDE_LIST_FEATURES, move |ctx, req, resp| {
+        instance.list_features(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_client_streaming_handler(&METHOD_ROUTE_GUIDE_RECORD_ROUTE, move |ctx, req, resp| {
+        instance.record_route(ctx, req, resp)
+    });
+    let mut instance = s;
+    builder = builder.add_duplex_streaming_handler(&METHOD_ROUTE_GUIDE_ROUTE_CHAT, move |ctx, req, resp| {
+        instance.route_chat(ctx, req, resp)
+    });
+    builder.build()
+}
+
+#[cfg(feature = "offload-codec")]
 pub fn create_route_guide<S: RouteGuide + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();

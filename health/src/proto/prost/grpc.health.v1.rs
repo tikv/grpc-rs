@@ -55,6 +55,7 @@ pub mod health_check_response {
         }
     }
 }
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_HEALTH_CHECK: ::grpcio::Method<HealthCheckRequest, HealthCheckResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/grpc.health.v1.Health/Check",
@@ -67,7 +68,40 @@ const METHOD_HEALTH_CHECK: ::grpcio::Method<HealthCheckRequest, HealthCheckRespo
         de: ::grpcio::pr_de,
     },
 };
+#[cfg(feature = "offload-codec")]
+const METHOD_HEALTH_CHECK: ::grpcio::Method<
+    ::grpcio::pr_codec::Req<HealthCheckRequest>,
+    ::grpcio::pr_codec::Resp<HealthCheckResponse>,
+> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/grpc.health.v1.Health/Check",
+    req_mar: ::grpcio::Marshaller {
+        ser: ::grpcio::pr_ser,
+        de: ::grpcio::pr_de,
+    },
+    resp_mar: ::grpcio::Marshaller {
+        ser: ::grpcio::pr_ser,
+        de: ::grpcio::pr_de,
+    },
+};
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_HEALTH_WATCH: ::grpcio::Method<HealthCheckRequest, HealthCheckResponse> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::ServerStreaming,
+    name: "/grpc.health.v1.Health/Watch",
+    req_mar: ::grpcio::Marshaller {
+        ser: ::grpcio::pr_ser,
+        de: ::grpcio::pr_de,
+    },
+    resp_mar: ::grpcio::Marshaller {
+        ser: ::grpcio::pr_ser,
+        de: ::grpcio::pr_de,
+    },
+};
+#[cfg(feature = "offload-codec")]
+const METHOD_HEALTH_WATCH: ::grpcio::Method<
+    ::grpcio::pr_codec::Req<HealthCheckRequest>,
+    ::grpcio::pr_codec::Resp<HealthCheckResponse>,
+> = ::grpcio::Method {
     ty: ::grpcio::MethodType::ServerStreaming,
     name: "/grpc.health.v1.Health/Watch",
     req_mar: ::grpcio::Marshaller {
@@ -135,6 +169,7 @@ impl HealthClient {
         self.client.spawn(f)
     }
 }
+#[cfg(not(feature = "offload-codec"))]
 pub trait Health {
     fn check(
         &mut self,
@@ -153,6 +188,45 @@ pub trait Health {
         grpcio::unimplemented_call!(ctx, sink)
     }
 }
+#[cfg(not(feature = "offload-codec"))]
+pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+    let mut builder = ::grpcio::ServiceBuilder::new();
+    let mut instance = s.clone();
+    builder = builder
+        .add_unary_handler(
+            &METHOD_HEALTH_CHECK,
+            move |ctx, req, resp| instance.check(ctx, req, resp),
+        );
+    let mut instance = s;
+    builder = builder
+        .add_server_streaming_handler(
+            &METHOD_HEALTH_WATCH,
+            move |ctx, req, resp| instance.watch(ctx, req, resp),
+        );
+    builder.build()
+}
+#[cfg(feature = "offload-codec")]
+pub trait Health {
+    fn check(
+        &mut self,
+        ctx: ::grpcio::RpcContext,
+        _req: ::grpcio::pr_codec::Req<HealthCheckRequest>,
+        sink: ::grpcio::UnarySink<::grpcio::pr_codec::Resp<HealthCheckResponse>>,
+    ) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn watch(
+        &mut self,
+        ctx: ::grpcio::RpcContext,
+        _req: ::grpcio::pr_codec::Req<HealthCheckRequest>,
+        sink: ::grpcio::ServerStreamingSink<
+            ::grpcio::pr_codec::Resp<HealthCheckResponse>,
+        >,
+    ) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+}
+#[cfg(feature = "offload-codec")]
 pub fn create_health<S: Health + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();

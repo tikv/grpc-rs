@@ -1,4 +1,4 @@
-// Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
+// Copyright 2026 TiKV Project Authors. Licensed under Apache-2.0.
 
 extern crate grpcio as grpc;
 extern crate grpcio_proto as grpc_proto;
@@ -8,33 +8,21 @@ extern crate log;
 use std::env;
 use std::sync::Arc;
 
-#[cfg(not(feature = "offload-codec"))]
-use benchmark::{init_log, Worker};
+use benchmark::{init_log, OffloadWorker};
 use clap::Parser;
 use futures_channel::oneshot;
 use grpc::{Environment, ServerBuilder, ServerCredentials};
-#[cfg(not(feature = "offload-codec"))]
 use grpc_proto::testing::services_grpc::create_worker_service;
 use rand::Rng;
 
 const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
 
-/// Benchmark QpsWorker
-///
-/// ref http://www.grpc.io/docs/guides/benchmarking.html.
 #[derive(Parser)]
 struct WorkerCli {
-    /// The port the worker should listen on. For example, 8080
     #[arg(long)]
     driver_port: Option<u16>,
 }
 
-#[cfg(feature = "offload-codec")]
-fn main() {
-    panic!("use offload_qps_worker when offload-codec is enabled");
-}
-
-#[cfg(not(feature = "offload-codec"))]
 fn main() {
     let cli = WorkerCli::parse();
     let port = cli.driver_port.unwrap_or(8080);
@@ -46,7 +34,7 @@ fn main() {
     );
     let env = Arc::new(Environment::new(2));
     let (tx, rx) = oneshot::channel();
-    let worker = Worker::new(tx);
+    let worker = OffloadWorker::new(tx);
     let service = create_worker_service(worker);
     let mut server = ServerBuilder::new(env)
         .register_service(service)

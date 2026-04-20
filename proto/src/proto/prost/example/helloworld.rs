@@ -11,7 +11,24 @@ pub struct HelloReply {
     #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
 }
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<HelloRequest, HelloReply> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/helloworld.Greeter/SayHello",
+    req_mar: ::grpcio::Marshaller {
+        ser: ::grpcio::pr_ser,
+        de: ::grpcio::pr_de,
+    },
+    resp_mar: ::grpcio::Marshaller {
+        ser: ::grpcio::pr_ser,
+        de: ::grpcio::pr_de,
+    },
+};
+#[cfg(feature = "offload-codec")]
+const METHOD_GREETER_SAY_HELLO: ::grpcio::Method<
+    ::grpcio::pr_codec::Req<HelloRequest>,
+    ::grpcio::pr_codec::Resp<HelloReply>,
+> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/helloworld.Greeter/SayHello",
     req_mar: ::grpcio::Marshaller {
@@ -64,6 +81,7 @@ impl GreeterClient {
         self.client.spawn(f)
     }
 }
+#[cfg(not(feature = "offload-codec"))]
 pub trait Greeter {
     fn say_hello(
         &mut self,
@@ -74,6 +92,27 @@ pub trait Greeter {
         grpcio::unimplemented_call!(ctx, sink)
     }
 }
+#[cfg(not(feature = "offload-codec"))]
+pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+    let mut builder = ::grpcio::ServiceBuilder::new();
+    let mut instance = s;
+    builder = builder.add_unary_handler(&METHOD_GREETER_SAY_HELLO, move |ctx, req, resp| {
+        instance.say_hello(ctx, req, resp)
+    });
+    builder.build()
+}
+#[cfg(feature = "offload-codec")]
+pub trait Greeter {
+    fn say_hello(
+        &mut self,
+        ctx: ::grpcio::RpcContext,
+        _req: ::grpcio::pr_codec::Req<HelloRequest>,
+        sink: ::grpcio::UnarySink<::grpcio::pr_codec::Resp<HelloReply>>,
+    ) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+}
+#[cfg(feature = "offload-codec")]
 pub fn create_greeter<S: Greeter + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;

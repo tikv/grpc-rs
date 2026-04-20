@@ -16,6 +16,8 @@ framework that puts mobile and HTTP/2 first. grpcio is built on [gRPC Core] and 
   mechanisms.
 - **`openssl`** - Same as `boringssl`, but base on the system openssl.
 - **`openssl-vendored`** - Same as `openssl`, but build openssl from source.
+- **`offload-codec`** - Adds codec-specific request/response wrappers that let servers defer
+  decode and pre-encode responses outside gRPC poll threads.
 
 */
 
@@ -63,7 +65,11 @@ pub use crate::channel::{
 pub use crate::client::Client;
 
 #[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
+pub use crate::codec::pb_codec;
+#[cfg(any(feature = "protobuf-codec", feature = "protobufv3-codec"))]
 pub use crate::codec::pb_codec::{de as pb_de, ser as pb_ser};
+#[cfg(feature = "prost-codec")]
+pub use crate::codec::pr_codec;
 #[cfg(feature = "prost-codec")]
 pub use crate::codec::pr_codec::{de as pr_de, ser as pr_ser};
 
