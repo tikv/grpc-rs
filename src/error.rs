@@ -85,17 +85,74 @@ impl From<prost::EncodeError> for Error {
 /// Type alias to use this library's [`Error`] type in a `Result`.
 pub type Result<T> = result::Result<T, Error>;
 
-#[cfg(all(test, feature = "protobuf-codec"))]
+#[cfg(test)]
 mod tests {
     use std::error::Error as StdError;
+    use std::ffi::CString;
 
-    use protobuf::error::WireError;
-    use protobuf::ProtobufError;
+    use crate::call::{RpcStatus, RpcStatusCode};
+    use crate::grpc_sys::grpc_call_error;
 
     use super::Error;
 
     #[test]
+    fn test_rpc_failure_display_without_message() {
+        let status = RpcStatus::new(RpcStatusCode::UNKNOWN);
+        let err = Error::RpcFailure(status);
+        assert_eq!(err.to_string(), "RpcFailure: 2-UNKNOWN");
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn test_rpc_failure_display_with_message() {
+        let status = RpcStatus::with_message(RpcStatusCode::INTERNAL, "something went wrong".to_owned());
+        let err = Error::RpcFailure(status);
+        assert_eq!(err.to_string(), "RpcFailure: 13-INTERNAL something went wrong");
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn test_shutdown_failed_display() {
+        let err = Error::ShutdownFailed;
+        assert_eq!(err.to_string(), "ShutdownFailed");
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn test_rpc_finished_display() {
+        let err_none = Error::RpcFinished(None);
+        assert_eq!(err_none.to_string(), "RpcFinished(None)");
+
+        let status = RpcStatus::new(RpcStatusCode::CANCELLED);
+        let err_some = Error::RpcFinished(Some(status));
+        assert_eq!(
+            err_some.to_string(),
+            "RpcFinished(Some(RpcStatus { code: 1-CANCELLED, message: \"\", details: [], debug_error_string: \"\" }))"
+        );
+    }
+
+    #[test]
+    fn test_other_error_variants_display_and_source() {
+        let variants: Vec<Error> = vec![
+            Error::RemoteStopped,
+            Error::QueueShutdown,
+            Error::GoogleAuthenticationFailed,
+            Error::InvalidMetadata("bad header".to_owned()),
+            Error::BindFail(CString::new("addr").unwrap()),
+            Error::CallFailure(grpc_call_error::GRPC_CALL_ERROR),
+        ];
+        for err in variants {
+            let _ = err.to_string();
+            assert!(err.source().is_none());
+        }
+    }
+
+    #[cfg(feature = "protobuf-codec")]
+    #[test]
     fn test_convert() {
+        use protobuf::error::WireError;
+        use protobuf::ProtobufError;
+
         let error = ProtobufError::WireError(WireError::UnexpectedEof);
         let e: Error = error.into();
         assert_eq!(e.to_string(), "Codec(WireError(UnexpectedEof))");
