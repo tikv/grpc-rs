@@ -15,7 +15,7 @@ use parking_lot::Mutex;
 
 use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::buf::GrpcSlice;
-use crate::call::{check_run, Call, MessageReader, Method};
+use crate::call::{check_run, Call, MessageReader, Method, RpcStatus, RpcStatusCode};
 use crate::channel::Channel;
 use crate::codec::{DeserializeFn, SerializeFn};
 use crate::error::{Error, Result};
@@ -241,7 +241,10 @@ impl<T> ClientUnaryReceiver<T> {
         let data = Pin::new(&mut self.resp_f).await?;
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
-        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        let reader = data.message_reader.ok_or_else(|| {
+            Error::RpcFailure(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED))
+        })?;
+        self.message = Some(self.resp_de(reader)?);
         self.finished = true;
         Ok(())
     }
@@ -290,7 +293,15 @@ impl<T: Unpin> Future for ClientUnaryReceiver<T> {
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready(self.resp_de(data.message_reader.unwrap()))
+        let reader = match data.message_reader {
+            Some(r) => r,
+            None => {
+                return Poll::Ready(Err(Error::RpcFailure(RpcStatus::new(
+                    RpcStatusCode::UNIMPLEMENTED,
+                ))))
+            }
+        };
+        Poll::Ready(self.resp_de(reader))
     }
 }
 
@@ -345,7 +356,9 @@ impl<T> ClientCStreamReceiver<T> {
         })
         .await?;
 
-        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.message = Some(self.resp_de(data.message_reader.ok_or_else(|| {
+            Error::RpcFailure(RpcStatus::new(RpcStatusCode::UNIMPLEMENTED))
+        })?)?);
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
@@ -400,7 +413,15 @@ impl<T: Unpin> Future for ClientCStreamReceiver<T> {
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready((self.resp_de)(data.message_reader.unwrap()))
+        let reader = match data.message_reader {
+            Some(r) => r,
+            None => {
+                return Poll::Ready(Err(Error::RpcFailure(RpcStatus::new(
+                    RpcStatusCode::UNIMPLEMENTED,
+                ))))
+            }
+        };
+        Poll::Ready((self.resp_de)(reader))
     }
 }
 

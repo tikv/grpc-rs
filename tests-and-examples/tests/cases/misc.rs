@@ -3,6 +3,7 @@
 use futures_executor::block_on;
 use futures_timer::Delay;
 use futures_util::future::{self, FutureExt as _, TryFutureExt as _};
+use futures_util::SinkExt as _;
 use grpcio::*;
 use grpcio_proto::example::helloworld::*;
 
@@ -420,4 +421,69 @@ fn test_channelz() {
         "{:?}",
         res
     );
+}
+
+/// Tests that a unary call returns an UNIMPLEMENTED error (not a panic) when the
+/// server replies with OK status but sends no message body.  This is a response
+/// cardinality violation per the gRPC specification.
+#[test]
+#[cfg(feature = "protobuf-codec")]
+fn test_unary_no_message_body() {
+    // A method descriptor that the server will handle as server-streaming so it
+    // can close the response stream without ever writing a message.
+    const METHOD: Method<HelloRequest, HelloReply> = Method {
+        ty: MethodType::ServerStreaming,
+        name: "/helloworld.Greeter/TestUnaryNoBody",
+        req_mar: Marshaller {
+            ser: pb_ser,
+            de: pb_de,
+        },
+        resp_mar: Marshaller {
+            ser: pb_ser,
+            de: pb_de,
+        },
+    };
+
+    let env = Arc::new(EnvBuilder::new().build());
+
+    // Handler: close the sink immediately without sending any message.
+    let service = ServiceBuilder::new()
+        .add_server_streaming_handler(
+            &METHOD,
+            |ctx, _req: HelloRequest, mut sink: ServerStreamingSink<HelloReply>| {
+                ctx.spawn(async move {
+                    // Close with OK status and zero messages – triggers the bug.
+                    let _ = sink.close().await;
+                });
+            },
+        )
+        .build();
+
+    let mut server = ServerBuilder::new(env.clone())
+        .register_service(service)
+        .build()
+        .unwrap();
+    let port = server
+        .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+        .unwrap();
+    server.start();
+
+    let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
+    let client = Client::new(ch);
+
+    // Before the fix this call would panic with `called Option::unwrap() on a None value`.
+    // After the fix it must return an UNIMPLEMENTED error.
+    let result = client.unary_call(&METHOD, &HelloRequest::default(), CallOption::default());
+    match result {
+        Err(Error::RpcFailure(s)) => assert_eq!(
+            s.code(),
+            RpcStatusCode::UNIMPLEMENTED,
+            "expected UNIMPLEMENTED for empty unary response, got {:?}",
+            s
+        ),
+        other => panic!(
+            "expected Err(RpcFailure(UNIMPLEMENTED)), got {:?}",
+            other
+        ),
+    }
 }
