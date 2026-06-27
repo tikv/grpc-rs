@@ -251,7 +251,10 @@ impl UnaryRequestContext {
             return execute(self.request, cq, reader, handler, checker);
         }
 
-        let status = RpcStatus::with_message(RpcStatusCode::INTERNAL, "No payload".to_owned());
+        let status = RpcStatus::with_message(
+            RpcStatusCode::UNIMPLEMENTED,
+            "Request cardinality violation: expected exactly one request, got none".to_owned(),
+        );
         self.request.call(cq.clone()).abort(&status)
     }
 }
