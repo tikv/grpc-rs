@@ -57,6 +57,51 @@ fn is_directory_empty<P: AsRef<Path>>(p: P) -> Result<bool, io::Error> {
     Ok(entries.next().is_none())
 }
 
+fn configure_abseil_apple_single_arch_copts(config: &mut CmakeConfig) {
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let module_dir = out_dir.join("absl-cmake-overrides");
+    fs::create_dir_all(&module_dir).unwrap();
+
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let original = manifest_dir
+        .join("grpc")
+        .join("third_party")
+        .join("abseil-cpp")
+        .join("absl")
+        .join("copts")
+        .join("AbseilConfigureCopts.cmake");
+    let original = original.to_string_lossy().replace('\\', "/");
+
+    fs::write(
+        module_dir.join("AbseilConfigureCopts.cmake"),
+        format!(
+            r#"include("{original}")
+
+if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES [[Clang]]
+   AND CMAKE_OSX_ARCHITECTURES
+   AND NOT CMAKE_OSX_ARCHITECTURES MATCHES [[;]])
+  if(CMAKE_OSX_ARCHITECTURES MATCHES [[(^|;)x86_64(;|$)]])
+    set(ABSL_RANDOM_RANDEN_COPTS "${{ABSL_RANDOM_HWAES_X64_FLAGS}}")
+  elseif(CMAKE_OSX_ARCHITECTURES MATCHES [[(^|;)arm64(;|$)]])
+    set(ABSL_RANDOM_RANDEN_COPTS "${{ABSL_RANDOM_HWAES_ARM64_FLAGS}}")
+  endif()
+endif()
+"#
+        ),
+    )
+    .unwrap();
+
+    let module_dir = module_dir.to_string_lossy().replace('\\', "/");
+    let project_include = out_dir.join("absl-project-include.cmake");
+    fs::write(
+        &project_include,
+        format!("list(PREPEND CMAKE_MODULE_PATH \"{module_dir}\")\n"),
+    )
+    .unwrap();
+
+    config.define("CMAKE_PROJECT_absl_INCLUDE", project_include);
+}
+
 fn trim_start<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
     if s.starts_with(prefix) {
         Some(s.trim_start_matches(prefix))
@@ -155,12 +200,18 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
     prepare_grpc();
 
     let target = env::var("TARGET").unwrap();
+    let host = env::var("HOST").unwrap();
     let dst = {
         let mut config = CmakeConfig::new("grpc");
 
         if get_env("CARGO_CFG_TARGET_OS").is_some_and(|s| s == "macos") {
             config.cxxflag("-stdlib=libc++");
+            config.cxxflag("-Wno-missing-template-arg-list-after-template-kw");
             println!("cargo:rustc-link-lib=resolv");
+        }
+        if host == target && target.ends_with("apple-darwin") {
+            config.no_default_flags(true);
+            configure_abseil_apple_single_arch_copts(&mut config);
         }
 
         // Ensure CoreFoundation be found in macos or ios
@@ -227,6 +278,8 @@ fn build_grpc(cc: &mut cc::Build, library: &str) {
         config.define("gRPC_BENCHMARK_PROVIDER", "none");
         // Check https://github.com/protocolbuffers/protobuf/issues/12185
         config.define("ABSL_ENABLE_INSTALL", "ON");
+        // CMake 4 removed compatibility with projects that declare very old minimum versions.
+        config.define("CMAKE_POLICY_VERSION_MINIMUM", "3.5");
 
         // `package` should only be set for secure feature, otherwise cmake will always search for
         // ssl library.
