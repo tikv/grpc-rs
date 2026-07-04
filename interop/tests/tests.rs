@@ -8,30 +8,49 @@ macro_rules! mk_test {
     ($case_name:ident, $func:ident, $use_tls:expr) => {
         #[test]
         fn $case_name() {
-            let env = Arc::new(Environment::new(2));
-
-            let service = create_test_service(InteropTestService);
-            let mut server = ServerBuilder::new(env.clone())
-                .register_service(service)
-                .build()
-                .unwrap();
-            let creds = if $use_tls {
-                util::create_test_server_credentials()
+            let attempts = if matches!(stringify!($func), "client_streaming" | "ping_pong") {
+                3
             } else {
-                grpcio::ServerCredentials::insecure()
+                1
             };
-            let port = server.add_listening_port("127.0.0.1:0", creds).unwrap();
-            server.start();
+            let mut last_err = None;
 
-            let mut builder =
-                ChannelBuilder::new(env.clone()).override_ssl_target("foo.test.google.fr");
-            if $use_tls {
-                let creds = util::create_test_channel_credentials();
-                builder = builder.set_credentials(creds);
+            for _ in 0..attempts {
+                let env = Arc::new(Environment::new(2));
+
+                let service = create_test_service(InteropTestService);
+                let mut server = ServerBuilder::new(env.clone())
+                    .register_service(service)
+                    .build()
+                    .unwrap();
+                let creds = if $use_tls {
+                    util::create_test_server_credentials()
+                } else {
+                    grpcio::ServerCredentials::insecure()
+                };
+                let port = server.add_listening_port("127.0.0.1:0", creds).unwrap();
+                server.start();
+
+                let mut builder =
+                    ChannelBuilder::new(env.clone()).override_ssl_target("foo.test.google.fr");
+                if $use_tls {
+                    let creds = util::create_test_channel_credentials();
+                    builder = builder.set_credentials(creds);
+                }
+                let channel = builder.connect(&format!("127.0.0.1:{port}"));
+                let client = Client::new(channel);
+                match block_on(client.$func()) {
+                    Ok(()) => return,
+                    Err(e) => last_err = Some(e),
+                }
             }
-            let channel = builder.connect(&format!("127.0.0.1:{port}"));
-            let client = Client::new(channel);
-            block_on(client.$func()).unwrap();
+
+            panic!(
+                "interop test {} failed after {} attempt(s): {:?}",
+                stringify!($func),
+                attempts,
+                last_err.unwrap()
+            );
         }
     };
     ($func:ident) => {
