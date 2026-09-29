@@ -8,7 +8,10 @@ use std::sync::Arc;
 use std::thread::{self, ThreadId};
 
 use crate::error::{Error, Result};
-use crate::grpc_sys::{self, gpr_clock_type, grpc_completion_queue};
+use crate::grpc_sys::{
+    self, gpr_clock_type, grpc_completion_queue, grpc_completion_queue_attributes,
+    grpc_cq_completion_type, grpc_cq_polling_type,
+};
 use crate::task::UnfinishedWork;
 
 pub use crate::grpc_sys::grpc_completion_type as EventType;
@@ -28,9 +31,28 @@ unsafe impl Sync for CompletionQueueHandle {}
 unsafe impl Send for CompletionQueueHandle {}
 
 impl CompletionQueueHandle {
-    pub fn new() -> CompletionQueueHandle {
+    /// Creates a completion queue.
+    ///
+    /// A server never uses a non-listening completion queue to accept new
+    /// connections.
+    pub fn new(non_listening: bool) -> CompletionQueueHandle {
+        let polling_type = if non_listening {
+            grpc_cq_polling_type::GRPC_CQ_NON_LISTENING
+        } else {
+            grpc_cq_polling_type::GRPC_CQ_DEFAULT_POLLING
+        };
+        let attributes = grpc_completion_queue_attributes {
+            version: grpc_sys::GRPC_CQ_CURRENT_VERSION as _,
+            cq_completion_type: grpc_cq_completion_type::GRPC_CQ_NEXT,
+            cq_polling_type: polling_type,
+            cq_shutdown_cb: ptr::null_mut(),
+        };
+        let cq = unsafe {
+            let factory = grpc_sys::grpc_completion_queue_factory_lookup(&attributes);
+            grpc_sys::grpc_completion_queue_create(factory, &attributes, ptr::null_mut())
+        };
         CompletionQueueHandle {
-            cq: unsafe { grpc_sys::grpc_completion_queue_create_for_next(ptr::null_mut()) },
+            cq,
             ref_cnt: AtomicIsize::new(1),
         }
     }

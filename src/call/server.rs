@@ -73,6 +73,9 @@ impl From<Duration> for Deadline {
 pub struct RequestContext {
     ctx: *mut grpcwrap_request_call_context,
     request_call: Option<RequestCallContext>,
+    /// The path of the registered method being requested, which gRPC Core
+    /// does not fill in `ctx`.
+    registered_method: Option<&'static [u8]>,
 }
 
 impl RequestContext {
@@ -81,6 +84,7 @@ impl RequestContext {
 
         RequestContext {
             ctx,
+            registered_method: rc.registered_method_path(),
             request_call: Some(rc),
         }
     }
@@ -151,6 +155,9 @@ impl RequestContext {
     }
 
     pub fn method(&self) -> &[u8] {
+        if let Some(method) = self.registered_method {
+            return method;
+        }
         let mut len = 0;
         let method = unsafe { grpc_sys::grpcwrap_request_call_context_method(self.ctx, &mut len) };
 
