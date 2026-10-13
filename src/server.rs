@@ -374,7 +374,10 @@ impl ServerBuilder {
     /// these calls by path before binding them to a completion queue, so
     /// their handlers never run on the threads of the builder's environment,
     /// and handlers of other methods never run on the threads of `env`.
-    /// Checkers apply to these calls as usual.
+    /// Checkers also run on `env`. Routed calls do not expose the client's
+    /// authority: [`RpcContext::host`] returns an empty slice because gRPC
+    /// Core's registered-call API does not return that field. Do not route
+    /// methods whose handlers or checkers require the authority.
     ///
     /// Build `env` with [`EnvBuilder::non_listening`](crate::EnvBuilder::non_listening)
     /// so that it does not accept connections. Calls of these methods are not

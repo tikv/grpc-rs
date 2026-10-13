@@ -677,6 +677,11 @@ impl<'a> RpcContext<'a> {
         self.ctx.method()
     }
 
+    /// Return the client-supplied `:authority` for a generic call.
+    ///
+    /// For methods selected by [`ServerBuilder::route_methods`](crate::ServerBuilder::route_methods),
+    /// this returns an empty slice; gRPC Core's registered-call API does not
+    /// return the authority.
     pub fn host(&self) -> &[u8] {
         self.ctx.host()
     }
