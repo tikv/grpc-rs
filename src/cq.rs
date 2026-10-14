@@ -49,8 +49,14 @@ impl CompletionQueueHandle {
         };
         let cq = unsafe {
             let factory = grpc_sys::grpc_completion_queue_factory_lookup(&attributes);
+            assert!(
+                !factory.is_null(),
+                "no completion queue factory for {:?}",
+                polling_type
+            );
             grpc_sys::grpc_completion_queue_create(factory, &attributes, ptr::null_mut())
         };
+        assert!(!cq.is_null(), "failed to create completion queue");
         CompletionQueueHandle {
             cq,
             ref_cnt: AtomicIsize::new(1),
