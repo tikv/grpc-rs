@@ -1,8 +1,8 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
-use std::ffi::CString;
+use std::collections::{HashMap, HashSet};
+use std::ffi::{c_void, CString};
 use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
@@ -11,7 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
-use crate::grpc_sys::{self, grpc_call_error, grpc_server};
+use crate::grpc_sys::{
+    self, grpc_call_error, grpc_server, grpc_server_register_method_payload_handling,
+};
 use futures_util::ready;
 
 use crate::call::server::*;
@@ -196,6 +198,12 @@ pub struct Service {
     handlers: HashMap<&'static [u8], BoxHandler>,
 }
 
+/// Methods whose calls are served on the completion queues of `env`.
+struct MethodRoute {
+    env: Arc<Environment>,
+    methods: Vec<&'static str>,
+}
+
 /// [`Server`] factory in order to configure the properties.
 pub struct ServerBuilder {
     env: Arc<Environment>,
@@ -203,6 +211,7 @@ pub struct ServerBuilder {
     slots_per_cq: usize,
     handlers: HashMap<&'static [u8], BoxHandler>,
     checkers: Vec<Box<dyn ServerChecker>>,
+    routes: Vec<MethodRoute>,
 }
 
 impl ServerBuilder {
@@ -214,6 +223,7 @@ impl ServerBuilder {
             slots_per_cq: DEFAULT_REQUEST_SLOTS_PER_CQ,
             handlers: HashMap::new(),
             checkers: Vec::new(),
+            routes: Vec::new(),
         }
     }
 
@@ -223,7 +233,10 @@ impl ServerBuilder {
         self
     }
 
-    /// Set how many requests a completion queue can handle.
+    /// Set the number of pending requests posted to each completion queue.
+    ///
+    /// The builder's environment posts this many generic requests per queue.
+    /// Routed environments post this many requests per method per queue.
     pub fn requests_slot_per_cq(mut self, slots: usize) -> ServerBuilder {
         self.slots_per_cq = slots;
         self
@@ -245,22 +258,67 @@ impl ServerBuilder {
         self
     }
 
+    /// Serve calls of `methods` on the completion queues of `env`.
+    ///
+    /// A method is identified by its full path, such as `/pkg.Service/Method`,
+    /// and must have a handler registered by a service. The server matches
+    /// these calls by path before binding them to a completion queue. Their
+    /// handlers and checkers run on `env`; calls of other methods use the
+    /// builder's environment. Routed calls do not expose the client's
+    /// authority: [`RpcContext::host`] returns an empty slice because gRPC
+    /// Core's registered-call API does not return that field. Do not route
+    /// methods whose handlers or checkers require the authority.
+    ///
+    /// Build `env` with [`EnvBuilder::non_listening`](crate::EnvBuilder::non_listening)
+    /// so that it does not accept connections. Calls of these methods are not
+    /// balanced across the completion queues of `env`: gRPC Core binds each of
+    /// them to the first completion queue of `env` that has a pending request.
+    ///
+    /// # Panics
+    ///
+    /// [`build`](ServerBuilder::build) panics if a method has no handler or is
+    /// routed more than once.
+    pub fn route_methods(
+        mut self,
+        env: Arc<Environment>,
+        methods: &[&'static str],
+    ) -> ServerBuilder {
+        self.routes.push(MethodRoute {
+            env,
+            methods: methods.to_vec(),
+        });
+        self
+    }
+
     /// Finalize the [`ServerBuilder`] and build the [`Server`].
     pub fn build(self) -> Result<Server> {
+        self.check_routes();
         let args = self
             .args
             .as_ref()
             .map_or_else(ptr::null, ChannelArgs::as_ptr);
         unsafe {
             let server = grpc_sys::grpc_server_create(args, ptr::null_mut());
-            for cq in self.env.completion_queues() {
-                let cq_ref = cq.borrow()?;
-                grpc_sys::grpc_server_register_completion_queue(
-                    server,
-                    cq_ref.as_ptr(),
-                    ptr::null_mut(),
-                );
+            let route_envs = self.routes.iter().map(|route| &route.env);
+            let mut registered_cqs = HashSet::new();
+            for env in std::iter::once(&self.env).chain(route_envs) {
+                for cq in env.completion_queues() {
+                    let cq_ref = cq.borrow()?;
+                    if !registered_cqs.insert(cq_ref.as_ptr()) {
+                        continue;
+                    }
+                    grpc_sys::grpc_server_register_completion_queue(
+                        server,
+                        cq_ref.as_ptr(),
+                        ptr::null_mut(),
+                    );
+                }
             }
+            let routes = self
+                .routes
+                .into_iter()
+                .map(|route| register_route(server, route))
+                .collect();
 
             Ok(Server {
                 env: self.env,
@@ -272,10 +330,74 @@ impl ServerBuilder {
                 }),
                 handlers: self.handlers,
                 checkers: self.checkers,
+                routes,
             })
         }
     }
+
+    fn check_routes(&self) {
+        let mut routed = HashSet::new();
+        for &method in self.routes.iter().flat_map(|route| &route.methods) {
+            assert!(
+                self.handlers.contains_key(method.as_bytes()),
+                "routed method {} has no handler",
+                method
+            );
+            assert!(
+                routed.insert(method),
+                "method {} is routed more than once",
+                method
+            );
+        }
+    }
 }
+
+/// Registers the methods of `route` to `server`.
+///
+/// It must be called before the server starts.
+unsafe fn register_route(server: *mut grpc_server, route: MethodRoute) -> RegisteredRoute {
+    let methods = route
+        .methods
+        .into_iter()
+        .map(|path| {
+            let c_path = CString::new(path).unwrap();
+            let handle = grpc_sys::grpc_server_register_method(
+                server,
+                c_path.as_ptr(),
+                ptr::null(),
+                grpc_server_register_method_payload_handling::GRPC_SRM_PAYLOAD_NONE,
+                0,
+            );
+            assert!(!handle.is_null(), "failed to register method {}", path);
+            RegisteredMethod {
+                path: path.as_bytes(),
+                handle,
+            }
+        })
+        .collect();
+    RegisteredRoute {
+        env: route.env,
+        methods,
+    }
+}
+
+/// Methods registered to a server, and the environment serving their calls.
+struct RegisteredRoute {
+    env: Arc<Environment>,
+    methods: Vec<RegisteredMethod>,
+}
+
+/// A method registered to a server by `grpc_server_register_method`.
+#[derive(Clone, Copy)]
+struct RegisteredMethod {
+    path: &'static [u8],
+    /// The registration handle, owned by the server.
+    handle: *mut c_void,
+}
+
+// The handle is only passed back to gRPC Core, which is thread safe.
+unsafe impl Send for RegisteredMethod {}
+unsafe impl Sync for RegisteredMethod {}
 
 struct ServerCore {
     server: *mut grpc_server,
@@ -300,6 +422,9 @@ pub struct RequestCallContext {
     server: Arc<ServerCore>,
     registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
     checkers: Vec<Box<dyn ServerChecker>>,
+    /// The registered method whose calls are requested, or `None` to request
+    /// calls of methods that are not registered.
+    method: Option<RegisteredMethod>,
 }
 
 impl RequestCallContext {
@@ -313,6 +438,13 @@ impl RequestCallContext {
 
     pub(crate) fn get_checker(&self) -> Vec<Box<dyn ServerChecker>> {
         self.checkers.clone()
+    }
+
+    /// Returns the path of the registered method whose calls are requested.
+    ///
+    /// gRPC Core does not fill in call details for calls of registered methods.
+    pub(crate) fn registered_method_path(&self) -> Option<&'static [u8]> {
+        self.method.map(|method| method.path)
     }
 }
 
@@ -332,17 +464,31 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
         Ok(c) => c,
     };
     let server_ptr = ctx.server.server;
+    let method = ctx.method;
     let prom = CallTag::request(ctx);
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);
     let code = unsafe {
-        grpc_sys::grpcwrap_server_request_call(
-            server_ptr,
-            cq_ref.as_ptr(),
-            request_ptr,
-            tag as *mut _,
-        )
+        match method {
+            None => grpc_sys::grpcwrap_server_request_call(
+                server_ptr,
+                cq_ref.as_ptr(),
+                request_ptr,
+                tag as *mut _,
+            ),
+            Some(method) => grpc_sys::grpc_server_request_registered_call(
+                server_ptr,
+                method.handle,
+                &mut (*request_ptr).call,
+                &mut (*request_ptr).call_details.deadline,
+                &mut (*request_ptr).request_metadata,
+                ptr::null_mut(),
+                cq_ref.as_ptr(),
+                cq_ref.as_ptr(),
+                tag as *mut _,
+            ),
+        }
     };
     if code != grpc_call_error::GRPC_CALL_OK {
         drop(Box::from(tag));
@@ -378,6 +524,7 @@ pub struct Server {
     core: Arc<ServerCore>,
     handlers: HashMap<&'static [u8], BoxHandler>,
     checkers: Vec<Box<dyn ServerChecker>>,
+    routes: Vec<RegisteredRoute>,
 }
 
 impl Server {
@@ -412,22 +559,49 @@ impl Server {
         unsafe {
             grpc_sys::grpc_server_start(self.core.server);
             for cq in self.env.completion_queues() {
-                // Handlers are Send and Clone, but not Sync. So we need to
-                // provide a replica for each completion queue.
-                let registry = self
-                    .handlers
-                    .iter()
-                    .map(|(k, v)| (k.to_owned(), v.box_clone()))
-                    .collect();
-                let rc = RequestCallContext {
-                    server: self.core.clone(),
-                    registry: Arc::new(UnsafeCell::new(registry)),
-                    checkers: self.checkers.clone(),
-                };
+                let rc = self.request_call_context(self.handler_registry(), None);
                 for _ in 0..self.core.slots_per_cq {
                     request_call(rc.clone(), cq);
                 }
             }
+            for route in &self.routes {
+                for cq in route.env.completion_queues() {
+                    let registry = self.handler_registry();
+                    for &method in &route.methods {
+                        let rc = self.request_call_context(registry.clone(), Some(method));
+                        for _ in 0..self.core.slots_per_cq {
+                            request_call(rc.clone(), cq);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Creates a replica of the handlers for one completion queue.
+    ///
+    /// Handlers are Send and Clone, but not Sync. So we need to provide a
+    /// replica for each completion queue.
+    #[allow(clippy::arc_with_non_send_sync)]
+    fn handler_registry(&self) -> Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>> {
+        let registry = self
+            .handlers
+            .iter()
+            .map(|(k, v)| (k.to_owned(), v.box_clone()))
+            .collect();
+        Arc::new(UnsafeCell::new(registry))
+    }
+
+    fn request_call_context(
+        &self,
+        registry: Arc<UnsafeCell<HashMap<&'static [u8], BoxHandler>>>,
+        method: Option<RegisteredMethod>,
+    ) -> RequestCallContext {
+        RequestCallContext {
+            server: self.core.clone(),
+            registry,
+            checkers: self.checkers.clone(),
+            method,
         }
     }
 

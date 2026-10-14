@@ -11,8 +11,8 @@ use crate::cq::{CompletionQueue, CompletionQueueHandle, EventType, WorkQueue};
 use crate::task::CallTag;
 
 // event loop
-fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
-    let cq = Arc::new(CompletionQueueHandle::new());
+fn poll_queue(tx: mpsc::Sender<CompletionQueue>, non_listening: bool) {
+    let cq = Arc::new(CompletionQueueHandle::new(non_listening));
     let worker_info = Arc::new(WorkQueue::new());
     let cq = CompletionQueue::new(cq, worker_info);
     tx.send(cq.clone()).expect("send back completion queue");
@@ -37,6 +37,7 @@ fn poll_queue(tx: mpsc::Sender<CompletionQueue>) {
 /// [`Environment`] factory in order to configure the properties.
 pub struct EnvBuilder {
     cq_count: usize,
+    non_listening: bool,
     name_prefix: Option<String>,
     after_start: Option<Arc<dyn Fn() + Send + Sync>>,
     before_stop: Option<Arc<dyn Fn() + Send + Sync>>,
@@ -47,6 +48,7 @@ impl EnvBuilder {
     pub fn new() -> EnvBuilder {
         EnvBuilder {
             cq_count: unsafe { grpc_sys::gpr_cpu_num_cores() as usize },
+            non_listening: false,
             name_prefix: None,
             after_start: None,
             before_stop: None,
@@ -62,6 +64,18 @@ impl EnvBuilder {
     pub fn cq_count(mut self, count: usize) -> EnvBuilder {
         assert!(count > 0);
         self.cq_count = count;
+        self
+    }
+
+    /// Set whether the completion queues are non-listening.
+    ///
+    /// A server never uses non-listening completion queues to accept new
+    /// connections. They can serve calls routed to them by
+    /// [`ServerBuilder::route_methods`](crate::ServerBuilder::route_methods)
+    /// and can be used by client channels.
+    /// Default is `false`.
+    pub fn non_listening(mut self, non_listening: bool) -> EnvBuilder {
+        self.non_listening = non_listening;
         self
     }
 
@@ -99,12 +113,13 @@ impl EnvBuilder {
             }
             let after_start = self.after_start.clone();
             let before_stop = self.before_stop.clone();
+            let non_listening = self.non_listening;
             let handle = builder
                 .spawn(move || {
                     if let Some(f) = after_start {
                         f();
                     }
-                    poll_queue(tx_i);
+                    poll_queue(tx_i, non_listening);
                     if let Some(f) = before_stop {
                         f();
                     }
