@@ -185,7 +185,7 @@ impl RpcStatus {
         RpcStatus::with_details(code, message, vec![])
     }
 
-    /// Create a new [`RpcStats`] with code, message and details.
+    /// Create a new [`RpcStatus`] with code, message and details.
     ///
     /// If using rich error model, `details` should be binary message that sets `code` and
     /// `message` to the same value. Or you can use `into` method to do automatical
