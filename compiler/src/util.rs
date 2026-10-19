@@ -10,7 +10,7 @@ struct NameSpliter<'a> {
 }
 
 impl NameSpliter<'_> {
-    fn new(s: &str) -> NameSpliter {
+    fn new(s: &str) -> NameSpliter<'_> {
         NameSpliter {
             name: s.as_bytes(),
             pos: 0,

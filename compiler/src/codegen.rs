@@ -696,7 +696,7 @@ pub fn gen(
             continue;
         }
 
-        results.extend(gen_file(file, &root_scope).into_iter());
+        results.extend(gen_file(file, &root_scope));
     }
 
     results

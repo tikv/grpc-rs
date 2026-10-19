@@ -1,5 +1,9 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
+#![allow(unknown_lints)]
+#![allow(mismatched_lifetime_syntaxes)]
+#![allow(unused_parens)]
+
 //! grpcio-health provides health check protos as well as some helper structs to make
 //! health check easily. For the detail design of health checking service, see
 //! https://github.com/grpc/grpc/blob/master/doc/health-checking.md.
