@@ -28,7 +28,7 @@ mod reexports {
 #[cfg(feature = "protobufv3-codec")]
 mod reexports {
     pub use super::protobuf_v3::health::*;
-    pub use super::protobuf_v3::health_grpc::*;
+    // Service bindings are already reexported by health.
 }
 
 pub use self::reexports::*;
