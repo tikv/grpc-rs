@@ -92,7 +92,7 @@ fn test_route_methods_to_another_env() {
     let routed_env = Arc::new(
         EnvBuilder::new()
             .cq_count(2)
-            .non_listening(true)
+            .set_non_listening(true)
             .name_prefix("routed")
             .build(),
     );
@@ -220,7 +220,7 @@ fn test_routed_duplex_progresses_while_main_cq_is_blocked() {
     let routed_env = Arc::new(
         EnvBuilder::new()
             .cq_count(1)
-            .non_listening(true)
+            .set_non_listening(true)
             .name_prefix("routed")
             .build(),
     );
@@ -245,6 +245,8 @@ fn test_routed_duplex_progresses_while_main_cq_is_blocked() {
     );
 
     // Establish the connection before blocking its ordinary server CQ.
+    // This covers routed streams on that connection, not independent
+    // acceptance of new connections.
     client
         .get_feature_opt(
             &Point::default(),
@@ -297,7 +299,12 @@ impl RouteGuide for EmptyService {}
 #[should_panic(expected = "has no handler")]
 fn test_route_method_without_handler() {
     let env = Arc::new(EnvBuilder::new().cq_count(1).build());
-    let routed_env = Arc::new(EnvBuilder::new().cq_count(1).non_listening(true).build());
+    let routed_env = Arc::new(
+        EnvBuilder::new()
+            .cq_count(1)
+            .set_non_listening(true)
+            .build(),
+    );
     let _ = ServerBuilder::new(env)
         .register_service(create_route_guide(EmptyService))
         .route_methods(routed_env, &["/routeguide.RouteGuide/Unknown"])
@@ -308,7 +315,12 @@ fn test_route_method_without_handler() {
 #[should_panic(expected = "is routed more than once")]
 fn test_route_method_more_than_once() {
     let env = Arc::new(EnvBuilder::new().cq_count(1).build());
-    let routed_env = Arc::new(EnvBuilder::new().cq_count(1).non_listening(true).build());
+    let routed_env = Arc::new(
+        EnvBuilder::new()
+            .cq_count(1)
+            .set_non_listening(true)
+            .build(),
+    );
     let _ = ServerBuilder::new(env)
         .register_service(create_route_guide(EmptyService))
         .route_methods(routed_env, &[GET_FEATURE, GET_FEATURE])

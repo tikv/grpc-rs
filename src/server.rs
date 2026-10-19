@@ -269,10 +269,17 @@ impl ServerBuilder {
     /// Core's registered-call API does not return that field. Do not route
     /// methods whose handlers or checkers require the authority.
     ///
-    /// Build `env` with [`EnvBuilder::non_listening`](crate::EnvBuilder::non_listening)
-    /// so that it does not accept connections. Calls of these methods are not
-    /// balanced across the completion queues of `env`: gRPC Core binds each of
-    /// them to the first completion queue of `env` that has a pending request.
+    /// Build `env` with [`EnvBuilder::set_non_listening`](crate::EnvBuilder::set_non_listening)
+    /// to exclude its queues from the server's listener pollsets. Routing
+    /// separates handler execution and completion-event consumption, but does
+    /// not guarantee independent progress for connection acceptance or RPC
+    /// setup before CQ binding. Those stages can still depend on the builder's
+    /// environment and the polling backend; lower-level transport I/O can also
+    /// remain shared after binding.
+    ///
+    /// Calls of these methods are not balanced across the completion queues of
+    /// `env`: gRPC Core binds each of them to the first completion queue of
+    /// `env` that has a pending request.
     ///
     /// # Panics
     ///

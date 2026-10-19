@@ -69,12 +69,12 @@ impl EnvBuilder {
 
     /// Set whether the completion queues are non-listening.
     ///
-    /// A server never uses non-listening completion queues to accept new
-    /// connections. They can serve calls routed to them by
+    /// With `true`, a server excludes these queues from its listener pollsets.
+    /// The queues still poll for I/O and can serve calls routed to them by
     /// [`ServerBuilder::route_methods`](crate::ServerBuilder::route_methods)
     /// and can be used by client channels.
     /// Default is `false`.
-    pub fn non_listening(mut self, non_listening: bool) -> EnvBuilder {
+    pub fn set_non_listening(mut self, non_listening: bool) -> EnvBuilder {
         self.non_listening = non_listening;
         self
     }
