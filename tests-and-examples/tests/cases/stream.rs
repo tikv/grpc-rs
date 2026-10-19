@@ -143,10 +143,10 @@ fn test_client_send_all() {
         let (mut tx, mut rx) = mpsc::channel(1);
         let close_sink_task = async move {
             Delay::new(std::time::Duration::from_secs(1)).await;
-            rx.try_next().unwrap_err();
+            rx.try_recv().unwrap_err();
             sink.close().await.unwrap();
             Delay::new(std::time::Duration::from_secs(1)).await;
-            rx.try_next().unwrap();
+            rx.try_recv().unwrap();
         };
         let recv_msg_task = async move {
             let summary = receiver.await.unwrap();

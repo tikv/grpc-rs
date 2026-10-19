@@ -56,7 +56,7 @@ impl AuthContext {
     /// `AuthContext[peer_identity_property_name()]`
     ///
     /// There may be several of them (for instance if `x509_subject_alternative_name` is selected)
-    pub fn peer_identity(&self) -> AuthPropertyIter {
+    pub fn peer_identity(&self) -> AuthPropertyIter<'_> {
         unsafe {
             // grpc_auth_context_peer_identity returns empty_iterator when self.ctx is NULL
             let iter = grpc_sys::grpc_auth_context_peer_identity(self.ctx.as_ref());

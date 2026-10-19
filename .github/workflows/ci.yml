@@ -111,10 +111,10 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - run: brew update && brew upgrade openssl@1.1
+    - run: brew install openssl@3
     - run: which cargo && cargo version && clang --version && openssl version
     - run: cargo xtask submodule
-    - run: OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1/" cargo test --features "openssl" --all
+    - run: OPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" cargo test --features "openssl" --all
     - run: cargo test --features "openssl-vendored" --all
 
   Win:
@@ -139,8 +139,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: cargo xtask submodule
+    - run: cd grpc-sys && CARGO_TARGET_DIR=target cargo package --no-verify
     - run: cd grpc-sys && cargo publish --dry-run
     - name: Check generated package size
       run: |
-        ls -alh target/package/grpcio-sys-*.crate
-        test `cat target/package/grpcio-sys-*.crate | wc -c` -le 10485760
+        ls -alh grpc-sys/target/package/grpcio-sys-*.crate
+        test `cat grpc-sys/target/package/grpcio-sys-*.crate | wc -c` -le 10485760
