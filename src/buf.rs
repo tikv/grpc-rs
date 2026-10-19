@@ -489,13 +489,13 @@ mod tests {
         let buffer = GrpcByteBuffer::from(&slice);
         let mut reader = GrpcByteBufferReader::new(buffer);
         assert_eq!(reader.len(), data.len());
-        // first 3 elements of `data`
+        // Read the first half of data.
         let mut buf = vec![0; half_size];
-        reader.read(buf.as_mut_slice()).unwrap();
+        assert_eq!(reader.read(buf.as_mut_slice()).unwrap(), half_size);
         assert_eq!(data[..half_size], *buf.as_slice());
         assert_eq!(reader.len(), data.len() - half_size);
         assert!(!reader.is_empty());
-        reader.read(&mut buf).unwrap();
+        assert_eq!(reader.read(&mut buf).unwrap(), half_size);
         assert_eq!(data[half_size..], *buf.as_slice());
         assert_eq!(reader.len(), 0);
         assert!(reader.is_empty());

@@ -1,6 +1,5 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::f64;
 use std::time::{Duration, Instant};
 
 use grpc_proto::testing::stats::HistogramData;
@@ -215,8 +214,6 @@ impl Histogram {
         self.sum_of_squares = 0f64;
         self.min = f64::MAX;
         self.max = f64::MIN;
-        for b in &mut self.buckets {
-            *b = 0;
-        }
+        self.buckets.fill(0);
     }
 }

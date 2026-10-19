@@ -239,7 +239,7 @@ impl<'a> MethodGen<'a> {
     }
 
     fn fq_name(&self) -> String {
-        format!("\"{}/{}\"", self.service_path, &self.proto.get_name())
+        format!("\"{}/{}\"", self.service_path, self.proto.get_name())
     }
 
     fn const_method_name(&self) -> String {
