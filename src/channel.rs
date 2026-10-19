@@ -462,7 +462,7 @@ impl ChannelBuilder {
                     // On most modern compiler and architect, c_int is the same as i32,
                     // panic directly to simplify signature.
                     assert!(
-                        val <= i32::from(libc::INT_MAX) && val >= i32::from(libc::INT_MIN),
+                        val <= i32::from(c_int::MAX) && val >= i32::from(c_int::MIN),
                         "{} is out of range for {:?}",
                         val,
                         CStr::from_bytes_with_nul(k).unwrap()
