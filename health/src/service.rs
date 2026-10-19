@@ -6,6 +6,8 @@ use grpcio::{RpcContext, RpcStatus, RpcStatusCode, ServerStreamingSink, UnarySin
 use log::info;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+#[cfg(feature = "prost-codec")]
+use std::convert::TryFrom;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -23,9 +25,14 @@ use crate::proto::health_check_response::ServingStatus;
 const VERSION_STEP: usize = 8;
 const STATUS_MASK: usize = 7;
 
-#[cfg(any(feature = "prost-codec", feature = "protobuf-codec"))]
+#[cfg(feature = "protobuf-codec")]
 fn state_to_status(state: usize) -> ServingStatus {
     ServingStatus::from_i32((state & STATUS_MASK) as i32).unwrap()
+}
+
+#[cfg(feature = "prost-codec")]
+fn state_to_status(state: usize) -> ServingStatus {
+    ServingStatus::try_from((state & STATUS_MASK) as i32).unwrap()
 }
 
 #[cfg(feature = "protobufv3-codec")]
