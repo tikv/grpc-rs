@@ -832,7 +832,9 @@ impl SinkBase {
         match &mut self.batch_f {
             None => return Poll::Ready(Ok(())),
             Some(f) => {
-                ready!(Pin::new(f).poll(cx)?);
+                ready!(Pin::new(f).poll(cx)).inspect_err(|_| {
+                    self.batch_f.take();
+                })?;
             }
         }
         self.batch_f.take();
