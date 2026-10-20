@@ -13,7 +13,7 @@ use futures_util::future::poll_fn;
 use futures_util::{ready, Sink, Stream};
 use parking_lot::Mutex;
 
-use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
+use super::{RpcStatus, RpcStatusCode, ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::buf::GrpcSlice;
 use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
@@ -195,6 +195,15 @@ impl Call {
     }
 }
 
+fn take_single_response(message_reader: Option<MessageReader>) -> Result<MessageReader> {
+    message_reader.ok_or_else(|| {
+        Error::RpcFailure(RpcStatus::with_message(
+            RpcStatusCode::UNIMPLEMENTED,
+            "Response cardinality violation: expected exactly one response, got none".to_owned(),
+        ))
+    })
+}
+
 /// A receiver for unary request.
 ///
 /// The future is resolved once response is received.
@@ -241,7 +250,7 @@ impl<T> ClientUnaryReceiver<T> {
         let data = Pin::new(&mut self.resp_f).await?;
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
-        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.message = Some(self.resp_de(take_single_response(data.message_reader)?)?);
         self.finished = true;
         Ok(())
     }
@@ -290,7 +299,11 @@ impl<T: Unpin> Future for ClientUnaryReceiver<T> {
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready(self.resp_de(data.message_reader.unwrap()))
+        let message_reader = match take_single_response(data.message_reader) {
+            Ok(message_reader) => message_reader,
+            Err(e) => return Poll::Ready(Err(e)),
+        };
+        Poll::Ready(self.resp_de(message_reader))
     }
 }
 
@@ -345,7 +358,7 @@ impl<T> ClientCStreamReceiver<T> {
         })
         .await?;
 
-        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.message = Some(self.resp_de(take_single_response(data.message_reader)?)?);
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
@@ -400,7 +413,11 @@ impl<T: Unpin> Future for ClientCStreamReceiver<T> {
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready((self.resp_de)(data.message_reader.unwrap()))
+        let message_reader = match take_single_response(data.message_reader) {
+            Ok(message_reader) => message_reader,
+            Err(e) => return Poll::Ready(Err(e)),
+        };
+        Poll::Ready((self.resp_de)(message_reader))
     }
 }
 
