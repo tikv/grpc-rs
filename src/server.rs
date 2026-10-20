@@ -323,7 +323,7 @@ unsafe impl Send for RequestCallContext {}
 
 /// Request notification of a new call.
 pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
-    if ctx.server.shutdown.load(Ordering::Relaxed) {
+    if ctx.server.shutdown.load(Ordering::SeqCst) {
         return;
     }
     let cq_ref = match cq.borrow() {
@@ -383,6 +383,10 @@ pub struct Server {
 impl Server {
     /// Shutdown the server asynchronously.
     pub fn shutdown(&mut self) -> ShutdownFuture {
+        // Stop request callbacks from registering new calls before C-core starts
+        // canceling pending requested calls.
+        self.core.shutdown.store(true, Ordering::SeqCst);
+
         let (cq_f, prom) = CallTag::action_pair();
         let prom_box = Box::new(prom);
         let tag = Box::into_raw(prom_box);
@@ -395,7 +399,6 @@ impl Server {
                 tag as *mut _,
             )
         }
-        self.core.shutdown.store(true, Ordering::SeqCst);
         ShutdownFuture { cq_f }
     }
 
