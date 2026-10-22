@@ -128,8 +128,8 @@ impl CallTag {
 
     /// Generate a CallTag for request job. We don't have an eventloop
     /// to pull the future, so just the tag is enough.
-    pub fn request(ctx: RequestCallContext) -> CallTag {
-        CallTag::Request(RequestCallback::new(ctx))
+    pub fn request(ctx: RequestCallContext, cq: CompletionQueue) -> CallTag {
+        CallTag::Request(RequestCallback::new(ctx, cq))
     }
 
     /// Generate a Future/CallTag pair for action call that only cares if the result is

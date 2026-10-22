@@ -6,4 +6,5 @@ mod credential;
 mod kick;
 mod metadata;
 mod misc;
+mod route;
 mod stream;
