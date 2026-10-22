@@ -7,9 +7,11 @@ publish = false
 
 [features]
 default = ["protobuf-codec"]
-protobuf-codec = ["protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "grpcio-health/protobuf-codec"]
-protobufv3-codec = ["protobufv3", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "grpcio-health/protobufv3-codec"]
-prost-codec = ["prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
+raw-codec = []
+protobuf-codec = ["raw-codec", "protobuf", "grpcio/protobuf-codec", "grpcio-proto/protobuf-codec", "grpcio-health/protobuf-codec"]
+protobufv3-codec = ["raw-codec", "protobufv3", "grpcio/protobufv3-codec", "grpcio-proto/protobufv3-codec", "grpcio-health/protobufv3-codec"]
+prost-codec = ["raw-codec", "prost", "bytes", "grpcio/prost-codec", "grpcio-proto/prost-codec", "grpcio-health/prost-codec"]
+offload-codec = ["grpcio/offload-codec", "grpcio-proto/offload-codec", "grpcio-health/offload-codec"]
 
 [dependencies]
 grpcio-sys = { path = "../grpc-sys" }
@@ -41,29 +43,34 @@ slog-term = "2.2"
 [[example]]
 name = "route_guide_client"
 path = "examples/route_guide/client.rs"
-#required-features = "protobuf-codec" or "protobufv3-codec"
+required-features = ["raw-codec"]
 
 [[example]]
 name = "route_guide_server"
 path = "examples/route_guide/server.rs"
-#required-features = "protobuf-codec" or "protobufv3-codec"
+required-features = ["raw-codec"]
 
 [[example]]
 name = "greeter_client"
 path = "examples/hello_world/client.rs"
-#required-features = "protobuf-codec" or "protobufv3-codec"
+required-features = ["raw-codec"]
 
 [[example]]
 name = "greeter_server"
 path = "examples/hello_world/server.rs"
-#required-features = "protobuf-codec" or "protobufv3-codec"
+required-features = ["raw-codec"]
 
 [[example]]
 name = "lb_greeter_client"
 path = "examples/load_balancing/client.rs"
-#required-features = "protobuf-codec" or "protobufv3-codec"
+required-features = ["raw-codec"]
 
 [[example]]
 name = "lb_greeter_server"
 path = "examples/load_balancing/server.rs"
-#required-features = "protobuf-codec" or "protobufv3-codec"
+required-features = ["raw-codec"]
+
+[[example]]
+name = "offload_greeter_server"
+path = "examples/hello_world/offload_server.rs"
+required-features = ["raw-codec", "offload-codec"]

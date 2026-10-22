@@ -49,7 +49,7 @@ impl TestService for InteropTestService {
     fn unary_call(
         &mut self,
         ctx: RpcContext,
-        mut req: SimpleRequest,
+        req: SimpleRequest,
         mut sink: UnarySink<SimpleResponse>,
     ) {
         let metadata = may_echo_metadata(&ctx);
@@ -58,40 +58,56 @@ impl TestService for InteropTestService {
         }
 
         #[cfg(feature = "protobuf-codec")]
-        if req.has_response_status() {
-            let code = req.get_response_status().get_code();
-            let msg = req.take_response_status().take_message();
-            let status = RpcStatus::with_message(code, msg);
+        {
+            let mut req = req;
+            if req.has_response_status() {
+                let code = req.get_response_status().get_code();
+                let msg = req.take_response_status().take_message();
+                let status = RpcStatus::with_message(code, msg);
+                let f = sink
+                    .fail(status)
+                    .map_err(|e| panic!("failed to send response: {:?}", e))
+                    .map(|_| ());
+                ctx.spawn(f);
+                return;
+            }
+
+            let resp_size = req.response_size;
+            let resp = SimpleResponse {
+                payload: Some(util::new_payload(resp_size as usize)).into(),
+                ..SimpleResponse::default()
+            };
             let f = sink
-                .fail(status)
+                .success(resp)
                 .map_err(|e| panic!("failed to send response: {:?}", e))
                 .map(|_| ());
             ctx.spawn(f);
-            return;
         }
 
         #[cfg(feature = "protobufv3-codec")]
-        if let Some(response_status) = &req.response_status.0 {
-            let code = response_status.code;
-            let msg = &response_status.message;
-            let status = RpcStatus::with_message(code, msg.to_string());
+        {
+            if let Some(response_status) = &req.response_status.0 {
+                let code = response_status.code;
+                let msg = &response_status.message;
+                let status = RpcStatus::with_message(code, msg.to_string());
+                let f = sink
+                    .fail(status)
+                    .map_err(|e| panic!("failed to send response: {:?}", e))
+                    .map(|_| ());
+                ctx.spawn(f);
+                return;
+            }
+            let resp_size = req.response_size;
+            let resp = SimpleResponse {
+                payload: Some(util::new_payload(resp_size as usize)).into(),
+                ..SimpleResponse::default()
+            };
             let f = sink
-                .fail(status)
+                .success(resp)
                 .map_err(|e| panic!("failed to send response: {:?}", e))
                 .map(|_| ());
-            ctx.spawn(f);
-            return;
+            ctx.spawn(f)
         }
-        let resp_size = req.response_size;
-        let resp = SimpleResponse {
-            payload: Some(util::new_payload(resp_size as usize)).into(),
-            ..SimpleResponse::default()
-        };
-        let f = sink
-            .success(resp)
-            .map_err(|e| panic!("failed to send response: {:?}", e))
-            .map(|_| ());
-        ctx.spawn(f)
     }
 
     fn streaming_output_call(

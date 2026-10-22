@@ -16,6 +16,7 @@ default = ["protobuf-codec"]
 protobuf-codec = ["grpcio/protobuf-codec", "protobuf"]
 protobufv3-codec = ["grpcio/protobufv3-codec", "protobufv3"]
 prost-codec = ["prost-build", "prost-derive", "prost-types", "bytes", "lazy_static", "grpcio/prost-codec", "prost"]
+offload-codec = ["grpcio/offload-codec"]
 
 [dependencies]
 grpcio = { path = "..", features = ["boringssl"], version = "0.13.0", default-features = false }

@@ -8,10 +8,12 @@ extern crate log;
 use std::env;
 use std::sync::Arc;
 
+#[cfg(not(feature = "offload-codec"))]
 use benchmark::{init_log, Worker};
 use clap::Parser;
 use futures_channel::oneshot;
 use grpc::{Environment, ServerBuilder, ServerCredentials};
+#[cfg(not(feature = "offload-codec"))]
 use grpc_proto::testing::services_grpc::create_worker_service;
 use rand::Rng;
 
@@ -27,6 +29,12 @@ struct WorkerCli {
     driver_port: Option<u16>,
 }
 
+#[cfg(feature = "offload-codec")]
+fn main() {
+    panic!("use offload_qps_worker when offload-codec is enabled");
+}
+
+#[cfg(not(feature = "offload-codec"))]
 fn main() {
     let cli = WorkerCli::parse();
     let port = cli.driver_port.unwrap_or(8080);

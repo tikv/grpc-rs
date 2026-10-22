@@ -26,7 +26,10 @@ use rand::{self, SeedableRng};
 use rand_distr::{Distribution, Exp};
 use rand_xorshift::XorShiftRng;
 
+#[cfg(not(feature = "offload-codec"))]
 use crate::bench;
+#[cfg(feature = "offload-codec")]
+use crate::offload_bench as bench;
 use crate::util::{self, CpuRecorder, Histogram};
 
 #[cfg(feature = "protobuf-codec")]

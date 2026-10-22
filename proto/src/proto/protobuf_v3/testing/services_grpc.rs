@@ -16,6 +16,7 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_BENCHMARK_SERVICE_UNARY_CALL: ::grpcio::Method<super::messages::SimpleRequest, super::messages::SimpleResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/grpc.testing.BenchmarkService/UnaryCall",
@@ -23,6 +24,15 @@ const METHOD_BENCHMARK_SERVICE_UNARY_CALL: ::grpcio::Method<super::messages::Sim
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_BENCHMARK_SERVICE_UNARY_CALL: ::grpcio::Method<::grpcio::pb_codec::Req<super::messages::SimpleRequest>, ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/grpc.testing.BenchmarkService/UnaryCall",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_BENCHMARK_SERVICE_STREAMING_CALL: ::grpcio::Method<super::messages::SimpleRequest, super::messages::SimpleResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Duplex,
     name: "/grpc.testing.BenchmarkService/StreamingCall",
@@ -30,6 +40,15 @@ const METHOD_BENCHMARK_SERVICE_STREAMING_CALL: ::grpcio::Method<super::messages:
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_BENCHMARK_SERVICE_STREAMING_CALL: ::grpcio::Method<::grpcio::pb_codec::Req<super::messages::SimpleRequest>, ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Duplex,
+    name: "/grpc.testing.BenchmarkService/StreamingCall",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT: ::grpcio::Method<super::messages::SimpleRequest, super::messages::SimpleResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::ClientStreaming,
     name: "/grpc.testing.BenchmarkService/StreamingFromClient",
@@ -37,6 +56,15 @@ const METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT: ::grpcio::Method<super::me
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT: ::grpcio::Method<::grpcio::pb_codec::Req<super::messages::SimpleRequest>, ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::ClientStreaming,
+    name: "/grpc.testing.BenchmarkService/StreamingFromClient",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER: ::grpcio::Method<super::messages::SimpleRequest, super::messages::SimpleResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::ServerStreaming,
     name: "/grpc.testing.BenchmarkService/StreamingFromServer",
@@ -44,7 +72,24 @@ const METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER: ::grpcio::Method<super::me
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER: ::grpcio::Method<::grpcio::pb_codec::Req<super::messages::SimpleRequest>, ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::ServerStreaming,
+    name: "/grpc.testing.BenchmarkService/StreamingFromServer",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS: ::grpcio::Method<super::messages::SimpleRequest, super::messages::SimpleResponse> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Duplex,
+    name: "/grpc.testing.BenchmarkService/StreamingBothWays",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(feature = "offload-codec")]
+const METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS: ::grpcio::Method<::grpcio::pb_codec::Req<super::messages::SimpleRequest>, ::grpcio::pb_codec::Resp<super::messages::SimpleResponse>> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Duplex,
     name: "/grpc.testing.BenchmarkService/StreamingBothWays",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
@@ -115,6 +160,7 @@ impl BenchmarkServiceClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait BenchmarkService {
     fn unary_call(&mut self, ctx: ::grpcio::RpcContext, _req: super::messages::SimpleRequest, sink: ::grpcio::UnarySink<super::messages::SimpleResponse>) {
         grpcio::unimplemented_call!(ctx, sink)
@@ -133,6 +179,26 @@ pub trait BenchmarkService {
     }
 }
 
+#[cfg(feature = "offload-codec")]
+pub trait BenchmarkService {
+    fn unary_call(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::messages::SimpleRequest>, sink: ::grpcio::UnarySink<::grpcio::pb_codec::Resp<super::messages::SimpleResponse>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn streaming_call(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::messages::SimpleRequest>>, sink: ::grpcio::DuplexSink<::grpcio::pb_codec::Resp<super::messages::SimpleResponse>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn streaming_from_client(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::messages::SimpleRequest>>, sink: ::grpcio::ClientStreamingSink<::grpcio::pb_codec::Resp<super::messages::SimpleResponse>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn streaming_from_server(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::messages::SimpleRequest>, sink: ::grpcio::ServerStreamingSink<::grpcio::pb_codec::Resp<super::messages::SimpleResponse>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn streaming_both_ways(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::messages::SimpleRequest>>, sink: ::grpcio::DuplexSink<::grpcio::pb_codec::Resp<super::messages::SimpleResponse>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+}
+
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_benchmark_service<S: BenchmarkService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
@@ -158,6 +224,33 @@ pub fn create_benchmark_service<S: BenchmarkService + Send + Clone + 'static>(s:
     builder.build()
 }
 
+#[cfg(feature = "offload-codec")]
+pub fn create_benchmark_service<S: BenchmarkService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+    let mut builder = ::grpcio::ServiceBuilder::new();
+    let mut instance = s.clone();
+    builder = builder.add_unary_handler(&METHOD_BENCHMARK_SERVICE_UNARY_CALL, move |ctx, req, resp| {
+        instance.unary_call(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_CALL, move |ctx, req, resp| {
+        instance.streaming_call(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_client_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_CLIENT, move |ctx, req, resp| {
+        instance.streaming_from_client(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_server_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_FROM_SERVER, move |ctx, req, resp| {
+        instance.streaming_from_server(ctx, req, resp)
+    });
+    let mut instance = s;
+    builder = builder.add_duplex_streaming_handler(&METHOD_BENCHMARK_SERVICE_STREAMING_BOTH_WAYS, move |ctx, req, resp| {
+        instance.streaming_both_ways(ctx, req, resp)
+    });
+    builder.build()
+}
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_WORKER_SERVICE_RUN_SERVER: ::grpcio::Method<super::control::ServerArgs, super::control::ServerStatus> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Duplex,
     name: "/grpc.testing.WorkerService/RunServer",
@@ -165,6 +258,15 @@ const METHOD_WORKER_SERVICE_RUN_SERVER: ::grpcio::Method<super::control::ServerA
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_WORKER_SERVICE_RUN_SERVER: ::grpcio::Method<::grpcio::pb_codec::Req<super::control::ServerArgs>, ::grpcio::pb_codec::Resp<super::control::ServerStatus>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Duplex,
+    name: "/grpc.testing.WorkerService/RunServer",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_WORKER_SERVICE_RUN_CLIENT: ::grpcio::Method<super::control::ClientArgs, super::control::ClientStatus> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Duplex,
     name: "/grpc.testing.WorkerService/RunClient",
@@ -172,6 +274,15 @@ const METHOD_WORKER_SERVICE_RUN_CLIENT: ::grpcio::Method<super::control::ClientA
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_WORKER_SERVICE_RUN_CLIENT: ::grpcio::Method<::grpcio::pb_codec::Req<super::control::ClientArgs>, ::grpcio::pb_codec::Resp<super::control::ClientStatus>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Duplex,
+    name: "/grpc.testing.WorkerService/RunClient",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_WORKER_SERVICE_CORE_COUNT: ::grpcio::Method<super::control::CoreRequest, super::control::CoreResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/grpc.testing.WorkerService/CoreCount",
@@ -179,7 +290,24 @@ const METHOD_WORKER_SERVICE_CORE_COUNT: ::grpcio::Method<super::control::CoreReq
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+#[cfg(feature = "offload-codec")]
+const METHOD_WORKER_SERVICE_CORE_COUNT: ::grpcio::Method<::grpcio::pb_codec::Req<super::control::CoreRequest>, ::grpcio::pb_codec::Resp<super::control::CoreResponse>> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/grpc.testing.WorkerService/CoreCount",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_WORKER_SERVICE_QUIT_WORKER: ::grpcio::Method<super::control::Void, super::control::Void> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/grpc.testing.WorkerService/QuitWorker",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(feature = "offload-codec")]
+const METHOD_WORKER_SERVICE_QUIT_WORKER: ::grpcio::Method<::grpcio::pb_codec::Req<super::control::Void>, ::grpcio::pb_codec::Resp<super::control::Void>> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/grpc.testing.WorkerService/QuitWorker",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
@@ -250,6 +378,7 @@ impl WorkerServiceClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait WorkerService {
     fn run_server(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<super::control::ServerArgs>, sink: ::grpcio::DuplexSink<super::control::ServerStatus>) {
         grpcio::unimplemented_call!(ctx, sink)
@@ -265,6 +394,23 @@ pub trait WorkerService {
     }
 }
 
+#[cfg(feature = "offload-codec")]
+pub trait WorkerService {
+    fn run_server(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::control::ServerArgs>>, sink: ::grpcio::DuplexSink<::grpcio::pb_codec::Resp<super::control::ServerStatus>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn run_client(&mut self, ctx: ::grpcio::RpcContext, _stream: ::grpcio::RequestStream<::grpcio::pb_codec::Req<super::control::ClientArgs>>, sink: ::grpcio::DuplexSink<::grpcio::pb_codec::Resp<super::control::ClientStatus>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn core_count(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::control::CoreRequest>, sink: ::grpcio::UnarySink<::grpcio::pb_codec::Resp<super::control::CoreResponse>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn quit_worker(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::control::Void>, sink: ::grpcio::UnarySink<::grpcio::pb_codec::Resp<super::control::Void>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+}
+
+#[cfg(not(feature = "offload-codec"))]
 pub fn create_worker_service<S: WorkerService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s.clone();
@@ -286,7 +432,38 @@ pub fn create_worker_service<S: WorkerService + Send + Clone + 'static>(s: S) ->
     builder.build()
 }
 
+#[cfg(feature = "offload-codec")]
+pub fn create_worker_service<S: WorkerService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+    let mut builder = ::grpcio::ServiceBuilder::new();
+    let mut instance = s.clone();
+    builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_SERVER, move |ctx, req, resp| {
+        instance.run_server(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_duplex_streaming_handler(&METHOD_WORKER_SERVICE_RUN_CLIENT, move |ctx, req, resp| {
+        instance.run_client(ctx, req, resp)
+    });
+    let mut instance = s.clone();
+    builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_CORE_COUNT, move |ctx, req, resp| {
+        instance.core_count(ctx, req, resp)
+    });
+    let mut instance = s;
+    builder = builder.add_unary_handler(&METHOD_WORKER_SERVICE_QUIT_WORKER, move |ctx, req, resp| {
+        instance.quit_worker(ctx, req, resp)
+    });
+    builder.build()
+}
+
+#[cfg(not(feature = "offload-codec"))]
 const METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO: ::grpcio::Method<super::control::ScenarioResult, super::control::Void> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/grpc.testing.ReportQpsScenarioService/ReportScenario",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+#[cfg(feature = "offload-codec")]
+const METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO: ::grpcio::Method<::grpcio::pb_codec::Req<super::control::ScenarioResult>, ::grpcio::pb_codec::Resp<super::control::Void>> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/grpc.testing.ReportQpsScenarioService/ReportScenario",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
@@ -325,12 +502,31 @@ impl ReportQpsScenarioServiceClient {
     }
 }
 
+#[cfg(not(feature = "offload-codec"))]
 pub trait ReportQpsScenarioService {
     fn report_scenario(&mut self, ctx: ::grpcio::RpcContext, _req: super::control::ScenarioResult, sink: ::grpcio::UnarySink<super::control::Void>) {
         grpcio::unimplemented_call!(ctx, sink)
     }
 }
 
+#[cfg(feature = "offload-codec")]
+pub trait ReportQpsScenarioService {
+    fn report_scenario(&mut self, ctx: ::grpcio::RpcContext, _req: ::grpcio::pb_codec::Req<super::control::ScenarioResult>, sink: ::grpcio::UnarySink<::grpcio::pb_codec::Resp<super::control::Void>>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+}
+
+#[cfg(not(feature = "offload-codec"))]
+pub fn create_report_qps_scenario_service<S: ReportQpsScenarioService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
+    let mut builder = ::grpcio::ServiceBuilder::new();
+    let mut instance = s;
+    builder = builder.add_unary_handler(&METHOD_REPORT_QPS_SCENARIO_SERVICE_REPORT_SCENARIO, move |ctx, req, resp| {
+        instance.report_scenario(ctx, req, resp)
+    });
+    builder.build()
+}
+
+#[cfg(feature = "offload-codec")]
 pub fn create_report_qps_scenario_service<S: ReportQpsScenarioService + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
     let mut builder = ::grpcio::ServiceBuilder::new();
     let mut instance = s;

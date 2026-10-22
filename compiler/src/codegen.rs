@@ -250,13 +250,28 @@ impl<'a> MethodGen<'a> {
         )
     }
 
-    fn write_definition(&self, w: &mut CodeWriter) {
+    fn offload_input(&self) -> String {
+        format!("{}<{}>", fq_grpc("pb_codec::Req"), self.input())
+    }
+
+    fn offload_output(&self) -> String {
+        format!("{}<{}>", fq_grpc("pb_codec::Resp"), self.output())
+    }
+
+    fn write_definition_variant(
+        &self,
+        w: &mut CodeWriter,
+        cfg: &str,
+        input: String,
+        output: String,
+    ) {
+        w.write_line(cfg);
         let head = format!(
             "const {}: {}<{}, {}> = {} {{",
             self.const_method_name(),
             fq_grpc("Method"),
-            self.input(),
-            self.output(),
+            input,
+            output,
             fq_grpc("Method")
         );
         let pb_mar = format!(
@@ -271,6 +286,26 @@ impl<'a> MethodGen<'a> {
             w.field_entry("req_mar", &pb_mar);
             w.field_entry("resp_mar", &pb_mar);
         });
+    }
+
+    fn write_definition(&self, w: &mut CodeWriter) {
+        self.write_definition_variant(
+            w,
+            "#[cfg(not(feature = \"offload-codec\"))]",
+            self.input(),
+            self.output(),
+        );
+        w.write_line("");
+        self.write_definition_variant(
+            w,
+            "#[cfg(feature = \"offload-codec\")]",
+            self.offload_input(),
+            self.offload_output(),
+        );
+    }
+
+    fn write_client_call(&self, w: &mut CodeWriter, call: &str) {
+        w.write_line(format!("{call}"));
     }
 
     // Method signatures
@@ -397,10 +432,13 @@ impl<'a> MethodGen<'a> {
             // Unary
             MethodType::Unary => {
                 w.pub_fn(&self.unary_opt(&method_name), |w| {
-                    w.write_line(format!(
-                        "self.client.unary_call(&{}, req, opt)",
-                        self.const_method_name()
-                    ));
+                    self.write_client_call(
+                        w,
+                        &format!(
+                            "self.client.unary_call(&{}, req, opt)",
+                            self.const_method_name()
+                        ),
+                    );
                 });
                 w.write_line("");
 
@@ -414,10 +452,13 @@ impl<'a> MethodGen<'a> {
                 w.write_line("");
 
                 w.pub_fn(&self.unary_async_opt(&method_name), |w| {
-                    w.write_line(format!(
-                        "self.client.unary_call_async(&{}, req, opt)",
-                        self.const_method_name()
-                    ));
+                    self.write_client_call(
+                        w,
+                        &format!(
+                            "self.client.unary_call_async(&{}, req, opt)",
+                            self.const_method_name()
+                        ),
+                    );
                 });
                 w.write_line("");
 
@@ -433,10 +474,13 @@ impl<'a> MethodGen<'a> {
             // Client streaming
             MethodType::ClientStreaming => {
                 w.pub_fn(&self.client_streaming_opt(&method_name), |w| {
-                    w.write_line(format!(
-                        "self.client.client_streaming(&{}, opt)",
-                        self.const_method_name()
-                    ));
+                    self.write_client_call(
+                        w,
+                        &format!(
+                            "self.client.client_streaming(&{}, opt)",
+                            self.const_method_name()
+                        ),
+                    );
                 });
                 w.write_line("");
 
@@ -452,10 +496,13 @@ impl<'a> MethodGen<'a> {
             // Server streaming
             MethodType::ServerStreaming => {
                 w.pub_fn(&self.server_streaming_opt(&method_name), |w| {
-                    w.write_line(format!(
-                        "self.client.server_streaming(&{}, req, opt)",
-                        self.const_method_name()
-                    ));
+                    self.write_client_call(
+                        w,
+                        &format!(
+                            "self.client.server_streaming(&{}, req, opt)",
+                            self.const_method_name()
+                        ),
+                    );
                 });
                 w.write_line("");
 
@@ -471,10 +518,13 @@ impl<'a> MethodGen<'a> {
             // Duplex streaming
             MethodType::Duplex => {
                 w.pub_fn(&self.duplex_streaming_opt(&method_name), |w| {
-                    w.write_line(format!(
-                        "self.client.duplex_streaming(&{}, opt)",
-                        self.const_method_name()
-                    ));
+                    self.write_client_call(
+                        w,
+                        &format!(
+                            "self.client.duplex_streaming(&{}, opt)",
+                            self.const_method_name()
+                        ),
+                    );
                 });
                 w.write_line("");
 
@@ -489,26 +539,66 @@ impl<'a> MethodGen<'a> {
         };
     }
 
-    fn write_service(&self, w: &mut CodeWriter) {
-        let req_stream_type = format!("{}<{}>", fq_grpc("RequestStream"), self.input());
-        let (req, req_type, resp_type) = match self.method_type().0 {
-            MethodType::Unary => ("req", self.input(), "UnarySink"),
-            MethodType::ClientStreaming => ("stream", req_stream_type, "ClientStreamingSink"),
-            MethodType::ServerStreaming => ("req", self.input(), "ServerStreamingSink"),
-            MethodType::Duplex => ("stream", req_stream_type, "DuplexSink"),
-        };
+    fn write_service_variant(
+        &self,
+        w: &mut CodeWriter,
+        req_type: String,
+        resp_type: String,
+        req: &str,
+        sink: &str,
+    ) {
         let sig = format!(
             "{}(&mut self, ctx: {}, _{}: {}, sink: {}<{}>)",
             self.name(),
             fq_grpc("RpcContext"),
             req,
             req_type,
-            fq_grpc(resp_type),
-            self.output()
+            fq_grpc(sink),
+            resp_type
         );
         w.fn_block(false, &sig, |w| {
             w.write_line("grpcio::unimplemented_call!(ctx, sink)");
         });
+    }
+
+    fn write_service(&self, w: &mut CodeWriter) {
+        let req = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => "req",
+            MethodType::ClientStreaming | MethodType::Duplex => "stream",
+        };
+        let sink = match self.method_type().0 {
+            MethodType::Unary => "UnarySink",
+            MethodType::ClientStreaming => "ClientStreamingSink",
+            MethodType::ServerStreaming => "ServerStreamingSink",
+            MethodType::Duplex => "DuplexSink",
+        };
+        let req_type = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => self.input(),
+            MethodType::ClientStreaming | MethodType::Duplex => {
+                format!("{}<{}>", fq_grpc("RequestStream"), self.input())
+            }
+        };
+        self.write_service_variant(w, req_type, self.output(), req, sink);
+    }
+
+    fn write_offload_service(&self, w: &mut CodeWriter) {
+        let req = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => "req",
+            MethodType::ClientStreaming | MethodType::Duplex => "stream",
+        };
+        let sink = match self.method_type().0 {
+            MethodType::Unary => "UnarySink",
+            MethodType::ClientStreaming => "ClientStreamingSink",
+            MethodType::ServerStreaming => "ServerStreamingSink",
+            MethodType::Duplex => "DuplexSink",
+        };
+        let offload_req_type = match self.method_type().0 {
+            MethodType::Unary | MethodType::ServerStreaming => self.offload_input(),
+            MethodType::ClientStreaming | MethodType::Duplex => {
+                format!("{}<{}>", fq_grpc("RequestStream"), self.offload_input())
+            }
+        };
+        self.write_service_variant(w, offload_req_type, self.offload_output(), req, sink);
     }
 
     fn write_bind(&self, w: &mut CodeWriter) {
@@ -604,6 +694,7 @@ impl<'a> ServiceGen<'a> {
     }
 
     fn write_server(&self, w: &mut CodeWriter) {
+        w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
         w.pub_trait(&self.service_name(), |w| {
             for method in &self.methods {
                 method.write_service(w);
@@ -612,13 +703,38 @@ impl<'a> ServiceGen<'a> {
 
         w.write_line("");
 
-        let s = format!(
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        w.pub_trait(&self.service_name(), |w| {
+            for method in &self.methods {
+                method.write_offload_service(w);
+            }
+        });
+
+        w.write_line("");
+
+        let create_sig = format!(
             "create_{}<S: {} + Send + Clone + 'static>(s: S) -> {}",
             to_snake_case(&self.service_name()),
             self.service_name(),
             fq_grpc("Service")
         );
-        w.pub_fn(&s, |w| {
+        w.write_line("#[cfg(not(feature = \"offload-codec\"))]");
+        w.pub_fn(&create_sig, |w| {
+            w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
+            for method in &self.methods[0..self.methods.len() - 1] {
+                w.write_line("let mut instance = s.clone();");
+                method.write_bind(w);
+            }
+
+            w.write_line("let mut instance = s;");
+            self.methods[self.methods.len() - 1].write_bind(w);
+
+            w.write_line("builder.build()");
+        });
+
+        w.write_line("");
+        w.write_line("#[cfg(feature = \"offload-codec\")]");
+        w.pub_fn(&create_sig, |w| {
             w.write_line("let mut builder = ::grpcio::ServiceBuilder::new();");
             for method in &self.methods[0..self.methods.len() - 1] {
                 w.write_line("let mut instance = s.clone();");
