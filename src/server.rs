@@ -17,6 +17,7 @@ use crate::grpc_sys::{
     self, grpc_call_error, grpc_server, grpc_server_register_method_payload_handling,
 };
 use futures_util::ready;
+use parking_lot::Mutex;
 
 use crate::call::server::*;
 use crate::call::{MessageReader, Method, MethodType};
@@ -380,9 +381,13 @@ impl ServerBuilder {
     /// methods whose handlers or checkers require the authority.
     ///
     /// Build `env` with [`EnvBuilder::non_listening`](crate::EnvBuilder::non_listening)
-    /// so that it does not accept connections. Calls of these methods are not
-    /// balanced across the completion queues of `env`: gRPC Core binds each of
-    /// them to the first completion queue of `env` that has a pending request.
+    /// so that it does not accept connections. Calls of each method are bound
+    /// round-robin across the completion queues of `env`, independently of the
+    /// connection's listening queue. Each call stays on its assigned queue for
+    /// its lifetime. This distributes calls, not their CPU load.
+    /// Accept notifications use the first CQ of `env`, with a one-time handoff
+    /// before invoking checkers or handlers on another CQ. A busy first CQ can
+    /// therefore still delay the establishment of new calls.
     ///
     /// # Panics
     ///
@@ -597,6 +602,8 @@ pub struct RequestCallContext {
     /// The registered method whose calls are requested, or `None` to request
     /// calls of methods that are not registered.
     method: Option<RegisteredMethod>,
+    /// Replenishes this method's accept slots in call-CQ order.
+    routed_requests: Option<Arc<RoutedRequests>>,
 }
 
 impl RequestCallContext {
@@ -625,8 +632,44 @@ impl RequestCallContext {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for RequestCallContext {}
 
+/// Accept slots for one routed method. A single notification CQ gives Core
+/// one FIFO, with call bindings posted round-robin even when CQs replenish
+/// their consumed slots in a different order.
+struct RoutedRequests {
+    notification_cq: CompletionQueue,
+    slots: Mutex<RoutedRequestSlots>,
+}
+
+struct RoutedRequestSlots {
+    next: usize,
+    // Templates never contain `routed_requests`, avoiding an Arc cycle. Only
+    // the context posted to Core retains the shared accept state.
+    contexts: Vec<(RequestCallContext, CompletionQueue)>,
+}
+
+impl RoutedRequests {
+    fn request_call(self: &Arc<Self>) {
+        // Keep the lock through posting to Core: reserving an index and then
+        // unlocking could reorder bindings when several CQs replenish at once.
+        let mut slots = self.slots.lock();
+        let (mut ctx, cq) = slots.contexts[slots.next].clone();
+        slots.next = (slots.next + 1) % slots.contexts.len();
+        ctx.routed_requests = Some(self.clone());
+        post_request_call(ctx, &cq);
+    }
+}
+
 /// Request notification of a new call.
 pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
+    if let Some(requests) = &ctx.routed_requests {
+        requests.request_call();
+    } else {
+        post_request_call(ctx, cq);
+    }
+}
+
+/// Posts an accept slot with its handler registry and call CQ already selected.
+fn post_request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
     if ctx.server.shutdown.load(Ordering::Relaxed) {
         return;
     }
@@ -637,7 +680,15 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
     };
     let server_ptr = ctx.server.server;
     let method = ctx.method;
-    let prom = CallTag::request(ctx);
+    let notification_cq = ctx
+        .routed_requests
+        .as_ref()
+        .map(|requests| requests.notification_cq.clone());
+    let notification_cq_ref = match notification_cq.as_ref().unwrap_or(cq).borrow() {
+        Err(_) => return,
+        Ok(c) => c,
+    };
+    let prom = CallTag::request(ctx, cq.clone());
     let request_ptr = prom.request_ctx().unwrap().as_ptr();
     let prom_box = Box::new(prom);
     let tag = Box::into_raw(prom_box);
@@ -657,7 +708,7 @@ pub fn request_call(ctx: RequestCallContext, cq: &CompletionQueue) {
                 &mut (*request_ptr).request_metadata,
                 ptr::null_mut(),
                 cq_ref.as_ptr(),
-                cq_ref.as_ptr(),
+                notification_cq_ref.as_ptr(),
                 tag as *mut _,
             ),
         }
@@ -736,12 +787,29 @@ impl Server {
                 }
             }
             for route in &self.routes {
-                for cq in route.env.completion_queues() {
-                    let registry = self.handler_registry();
-                    for &method in &route.methods {
-                        let rc = self.request_call_context(registry.clone(), Some(method));
-                        for _ in 0..self.core.slots_per_cq {
-                            request_call(rc.clone(), cq);
+                let cqs = route.env.completion_queues();
+                let registries: Vec<_> = cqs.iter().map(|_| self.handler_registry()).collect();
+                for &method in &route.methods {
+                    let contexts = registries
+                        .iter()
+                        .zip(cqs)
+                        .map(|(registry, cq)| {
+                            (
+                                self.request_call_context(registry.clone(), Some(method)),
+                                cq.clone(),
+                            )
+                        })
+                        .collect();
+                    let requests = Arc::new(RoutedRequests {
+                        notification_cq: cqs[0].clone(),
+                        slots: Mutex::new(RoutedRequestSlots { next: 0, contexts }),
+                    });
+                    // Core scans notification queues from the connection's CQ.
+                    // Using one FIFO with interleaved call CQs avoids assigning
+                    // every routed stream to the first non-listening CQ.
+                    for _ in 0..self.core.slots_per_cq {
+                        for _ in cqs {
+                            requests.request_call();
                         }
                     }
                 }
@@ -772,6 +840,7 @@ impl Server {
             registry,
             checkers: self.checkers.clone(),
             method,
+            routed_requests: None,
         }
     }
 
