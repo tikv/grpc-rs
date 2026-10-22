@@ -22,7 +22,7 @@ rand = "0.8"
 rand_distr = "0.4"
 rand_xorshift = "0.3"
 futures-timer = "3.0"
-clap = "4.5"
+clap = { version = "4.5", features = ["derive"] }
 log = "0.4"
 slog = "2.0"
 slog-async = "2.1"

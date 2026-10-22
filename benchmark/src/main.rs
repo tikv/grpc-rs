@@ -21,15 +21,19 @@ const LOG_FILE: &str = "GRPCIO_BENCHMARK_LOG_FILE";
 ///
 /// ref http://www.grpc.io/docs/guides/benchmarking.html.
 #[derive(Parser)]
+#[group(required = true, multiple = false)]
 struct WorkerCli {
     /// The port the worker should listen on. For example, 8080
-    #[arg(long)]
-    driver_port: Option<u16>,
+    #[arg(id = "driver_port", long)]
+    driver_port0: Option<u16>,
+    /// The port the worker should listen on. For example, 8080
+    #[arg(id = "driver-port", long)]
+    driver_port1: Option<u16>,
 }
 
 fn main() {
     let cli = WorkerCli::parse();
-    let port = cli.driver_port.unwrap_or(8080);
+    let port = cli.driver_port0.unwrap_or(cli.driver_port1.unwrap_or(8080));
 
     let _log_guard = init_log(
         env::var(LOG_FILE)
